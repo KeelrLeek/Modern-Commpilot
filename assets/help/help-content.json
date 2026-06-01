@@ -1,0 +1,76 @@
+{
+  "_meta": {
+    "description": "Help content for Modern CommPilot Skin. Keyed by a stable identifier for each setting. 'byName' matches the link's name attribute (the redirect path); 'byText' matches left-nav folder labels that have no name attribute. Add new entries as more pages are covered.",
+    "version": 1
+  },
+
+  "byName": {
+    "/Reseller/ServiceProviders/index.jsp?enterprise=false": {
+      "title": "Service Providers",
+      "body": "A Service Provider is a top-level administrative container that groups and tenants live under. From here you add, modify, or remove service providers managed by this reseller. Service Providers are the non-enterprise model: groups under them are administered independently rather than sharing enterprise-wide settings. Use this when onboarding a new carrier customer that does not need shared enterprise dial plans or services."
+    },
+    "/Reseller/ServiceProviders/index.jsp?enterprise=true": {
+      "title": "Enterprises",
+      "body": "An Enterprise is a Service Provider configured in 'enterprise mode', enabling features shared across all of its groups — enterprise-wide dial plans, voice VPN, common phone lists, and centralized administration. Add, modify, or remove enterprises here. Choose the Enterprise model (over a plain Service Provider) when a single organization has multiple groups/sites that should share numbering and services."
+    },
+    "/Reseller/Groups/": {
+      "title": "Groups",
+      "body": "A Group is the site/location level where users, devices, and group services (Auto Attendant, Hunt Groups, Call Center, etc.) are provisioned. This screen lists all groups in the reseller across every service provider/enterprise, letting you search and jump into any group to manage its users and services."
+    },
+    "/Reseller/Users/": {
+      "title": "Users",
+      "body": "A User represents an individual subscriber — typically tied to a phone number, extension, and device. This screen displays all users in the reseller so you can locate a subscriber regardless of which group they belong to, then open their profile to manage assigned services, calling features, and credentials."
+    },
+    "/Reseller/ServiceInstances/": {
+      "title": "Service Instances",
+      "body": "A Service Instance is a virtual subscriber — a service that behaves like a user but isn't a person: Auto Attendants, Hunt Groups, Call Centers, Meet-Me Conference bridges, Voice Messaging Groups, and similar. This screen lists all service instances in the reseller so you can find and manage these resources independently of human users."
+    },
+    "/Reseller/Profile/": {
+      "title": "Profile",
+      "body": "The reseller Profile holds the reseller's own identifying information — name, contact details, address, and administrative metadata. Display or modify the reseller's profile here. This is configuration about the reseller entity itself, not about the groups or users beneath it."
+    },
+    "/Reseller/Admins/": {
+      "title": "Administrators",
+      "body": "Reseller Administrators are the login accounts that can manage this reseller in CommPilot. Add, modify, or remove administrators and set their privilege level (full or restricted/read-only access to specific functions). Use this to control who can provision and change configuration at the reseller level."
+    },
+    "/Reseller/DeviceActivationPolicy/": {
+      "title": "Activation Code Device Onboarding Policies",
+      "body": "Controls how phones/devices are securely onboarded using an Activation Code rather than manual MAC/credential entry. The policy defines whether activation codes are required, their length, and expiry. When enabled, a technician enters a short code on the phone to claim and provision it — reducing misconfiguration and improving security during deployment."
+    },
+    "/Reseller/AlternateUserIDs/": {
+      "title": "Alternate User IDs",
+      "body": "An Alternate User ID is an additional login identifier a user can sign in with, besides their primary user ID (for example an email-style ID alongside the system ID). This screen lists all alternate user IDs in the reseller. Useful where users expect to authenticate with a familiar address instead of the BroadWorks-format user ID."
+    },
+    "/Reseller/StirShaken/": {
+      "title": "STIR/SHAKEN",
+      "body": "STIR/SHAKEN is the caller-ID authentication framework that cryptographically signs outbound calls and verifies inbound ones to combat illegal spoofing and robocalls. Configure signing, attestation/tagging level (A/B/C), and verification behavior here. Correct configuration is often a regulatory requirement for delivering trusted caller ID."
+    }
+  },
+
+  "byText": {
+    "Profile": {
+      "title": "Profile",
+      "body": "The Profile menu groups the core identity and administration options for this level — service providers/enterprises, groups, users, service instances, administrators, and the reseller's own profile. It's the default landing area for day-to-day provisioning."
+    },
+    "Resources": {
+      "title": "Resources",
+      "body": "The Resources menu manages the building blocks consumed by groups and users — numbers, identity/device profiles and endpoints, domains, device management tag sets, and number ranges. This is where you provision the inventory that services are later assigned from."
+    },
+    "Services": {
+      "title": "Services",
+      "body": "The Services menu is where calling features and service packs are configured and assigned at this level — the telephony capabilities (call forwarding, voicemail, etc.) that get authorized and applied to users and groups."
+    },
+    "Call Center": {
+      "title": "Call Center",
+      "body": "The Call Center menu manages BroadWorks Call Center (ACD) resources — queues, agents, supervisors, routing policies, and reporting. Use it to configure inbound contact-center behavior such as skill/priority routing and agent availability."
+    },
+    "Meet-Me Conferencing": {
+      "title": "Meet-Me Conferencing",
+      "body": "Meet-Me Conferencing manages dial-in audio conference bridges — conference ports, host/attendee access codes, and scheduling. Use it to provision the bridges that let multiple participants dial a common number to join a call."
+    },
+    "Utilities": {
+      "title": "Utilities",
+      "body": "The Utilities menu collects administrative and diagnostic tools at this level — bulk operations, inventory reports, and lookups that assist with managing the reseller's groups, users, and resources at scale."
+    }
+  }
+}

@@ -187,15 +187,63 @@ td.headandfoot {
   font-family: var(--cp-font-sans) !important;
 }
 
-/* Sidebar column — solid panel matching .cp-menu-card treatment */
+/* Sidebar column — normal table cell with positioned footer */
 td.headandfoot[width="18%"] {
-  padding: 10px !important;
+  position: relative !important;
+  padding: 10px 10px 72px 10px !important;
   background: var(--cp-surface) !important;
   border: 1px solid var(--cp-glass-edge) !important;
-  border-radius: var(--cp-radius-card) !important;
+  border-radius: var(--cp-radius-ctl) !important;
   box-shadow: inset 1px 1px 0 var(--cp-glass-edge),
     0 4px 16px rgba(0, 0, 0, 0.25) !important;
   overflow: hidden !important;
+}
+
+/* Footer pinned to the bottom of the sidebar via absolute positioning.
+   The 10px insets match the sidebar's padding so the footer aligns to
+   the inside edges of the panel. */
+.cp-sidebar-footer {
+  position: absolute !important;
+  left: 10px !important;
+  right: 10px !important;
+  bottom: 10px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 12px 0 !important;
+  border-top: 1px solid var(--cp-glass-edge) !important;
+}
+
+/* Icon button inside the footer */
+.cp-footer-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: var(--cp-radius-ctl) !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  text-decoration: none !important;
+  transition: background 0.15s ease !important;
+}
+
+/* Icon box — sized and positioned by ::before;
+   background-image is injected by skin.js via chrome.runtime.getURL */
+.cp-footer-btn::before {
+  content: "" !important;
+  display: block !important;
+  width: 20px !important;
+  height: 20px !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: contain !important;
+  flex-shrink: 0 !important;
+}
+
+.cp-footer-btn:hover {
+  background: var(--cp-glass-edge) !important;
 }
 
 /* Main layout table (sidebar + content) — constrained to 1440px,
@@ -393,29 +441,72 @@ a.navMenuItemRL:hover {
   background: var(--cp-surface) !important;
   border: 1px solid var(--cp-glass-edge) !important;
   border-radius: var(--cp-radius-ctl) !important;
-  margin: 0 8px 8px 8px !important;
+  margin: 0 8px 0 8px !important;
   padding: 0 !important;
   box-shadow: inset 1px 1px 0 var(--cp-glass-edge),
     0 4px 16px rgba(0, 0, 0, 0.25) !important;
   max-width: 360px !important;
   width: 100% !important;
   box-sizing: border-box !important;
-  transition: background 0.15s ease, border-color 0.15s ease !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  transition: background 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease, transform 0.15s ease !important;
 }
 
 .cp-menu-card:hover {
-  background: rgba(43, 55, 75, 0.45) !important;
-  border-color: rgba(136, 192, 208, 0.18) !important;
+  background: var(--cp-surface-high) !important;
+  border-color: rgba(136, 192, 208, 0.35) !important;
+  box-shadow: inset 1px 1px 0 var(--cp-glass-edge),
+    0 6px 20px rgba(0, 0, 0, 0.30) !important;
+  transform: translateY(-2px) !important;
+}
+
+.cp-menu-card:active {
+  transform: translateY(0) !important;
+  box-shadow: inset 1px 1px 0 var(--cp-glass-edge),
+    0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Title link inherits card pointer; no underline on hover */
+.cp-card-title a.navMenuItem {
+  padding: 10px 14px 2px 14px !important;
+  margin: 0 !important;
+  display: block !important;
+  cursor: inherit !important;
+}
+
+.cp-card-title a.navMenuItem:hover {
+  text-decoration: none !important;
+}
+
+/* Brighten title when the card itself is hovered */
+.cp-menu-card:hover .cp-card-title a.navMenuItem {
+  color: var(--cp-primary) !important;
 }
 
 .cp-card-title {
   padding: 0 !important;
 }
 
-.cp-card-title a.navMenuItem {
-  padding: 10px 14px 2px 14px !important;
-  margin: 0 !important;
-  display: block !important;
+/* Neutralize legacy highlight/selection within cards */
+.cp-menu-card TD.unselected,
+.cp-menu-card TD.selected {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+.cp-menu-card a {
+  text-decoration: none !important;
+}
+
+.cp-menu-card a:hover {
+  text-decoration: none !important;
+}
+
+/* Help mode: card cursor becomes help (overrides pointer) */
+body.cp-help-active .cp-menu-card {
+  cursor: help !important;
 }
 
 .cp-card-desc {
@@ -429,6 +520,19 @@ a.navMenuItemRL:hover {
 /* Gutter between BASIC and ADVANCED columns */
 td[width="50%"] + td[width="50%"] {
   padding-left: 10px !important;
+}
+
+/* First card in each column gets 8px top spacing, matching the 8px
+   bottom every card already has, so the stack is vertically balanced.
+   Universal rule adds top margin to all cards; the second rule removes
+   it from any card whose <tr> has a preceding card-holding <tr> sibling,
+   leaving only the first card with the extra top margin. */
+td[width="50%"] .cp-menu-card {
+  margin-top: 8px !important;
+}
+td[width="50%"] > table > tbody > tr:has(> td > .cp-menu-card)
+  ~ tr:has(> td > .cp-menu-card) .cp-menu-card {
+  margin-top: 0 !important;
 }
 
 /* ============================================================
@@ -450,15 +554,17 @@ td[width="50%"] > table {
   display: block !important;
 }
 
-/* tbody: flex column that fills the table height.
-   justify-content: space-between pushes cards apart so the
-   last card aligns with the bottom of the sidebar panel. */
+/* tbody: flex column so cards stack top-down naturally with 8px gap.
+   Hidden rows (desc rows, spacers) are display:none below, so only the
+   menuCategory header and card rows participate — gap applies between
+   them without adding trailing space after the last card. */
 td[width="50%"] > table > tbody {
   display: flex !important;
   flex-direction: column !important;
   height: 100% !important;
   width: 100% !important;
-  justify-content: space-between !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
 }
 
 /* Rows become block-level flex items */
@@ -480,34 +586,6 @@ td[width="50%"] > table > tbody > tr > td {
    This replaces the old tr:has(td[height="5"]) spacer rule. */
 td[width="50%"] > table > tbody > tr:not(:has(.cp-menu-card)):not(:has(.menuCategory)) {
   display: none !important;
-}
-
-/* Single-card column: top-align the lone card instead of
-   stretching it to the bottom (avoids empty dead space).
-   The complex :has() chain checks that no card <tr> is
-   followed by another card <tr> → exactly one card row. */
-td[width="50%"] > table > tbody:has(> tr > td > .cp-menu-card):not(
-  :has(> tr:has(> td > .cp-menu-card) ~ tr:has(> td > .cp-menu-card))
-) {
-  justify-content: flex-start !important;
-}
-
-/* If the spread from space-between looks too sparse for
-   a column with few cards, toggle the comment below:
-   td[width="50%"] > table > tbody {
-     justify-content: flex-start !important;
-   } */
-
-/* Last card in each column: remove bottom margin so its visible
-   bottom edge aligns with the sidebar panel's bottom edge.
-   The 8px margin-bottom on .cp-menu-card pushes the last card's
-   border-box above the flex container bottom in space-between
-   mode — zeroing it flushes the card bottom with the sidebar
-   panel's bottom border.
-   Uses :not(:has(~ tr:has(> td > .cp-menu-card))) to match the
-   last card <tr> even when hidden spacer/desc rows follow it. */
-td[width="50%"] > table > tbody > tr:has(> td > .cp-menu-card):not(:has(~ tr:has(> td > .cp-menu-card))) .cp-menu-card {
-  margin-bottom: 0 !important;
 }
 
 /* Description text below nav menu links — scoped to content menu columns */
@@ -880,4 +958,59 @@ img[style*="filter: invert"],
 img[style*="filter:invert"] {
   filter: none !important;
   -webkit-filter: none !important;
+}
+
+/* ============================================================
+   Help Mode Tooltip + Active Toggle State
+   ============================================================ */
+
+/* Themed popover shown when help mode is on.
+   Always rendered (opacity/transform for fade+scale transition). */
+.cp-help-tip {
+  position: fixed !important;
+  z-index: 2147483000 !important;
+  pointer-events: none !important;
+  background: var(--cp-surface-high) !important;
+  color: var(--cp-text) !important;
+  border: 1px solid var(--cp-glass-edge) !important;
+  border-radius: var(--cp-radius-ctl) !important;
+  padding: 12px 14px !important;
+  max-width: 320px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+  font-family: var(--cp-font-sans) !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  opacity: 0 !important;
+  transform: scale(0.96) !important;
+  transform-origin: -8px -8px !important;
+  transition: opacity 0.15s ease, transform 0.15s ease !important;
+}
+
+.cp-help-tip.cp-tip-visible {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+}
+
+.cp-help-tip-title {
+  color: var(--cp-primary) !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  margin-bottom: 4px !important;
+}
+
+.cp-help-tip-body {
+  color: var(--cp-text-muted) !important;
+}
+
+/* Active toggle: Help button gets a visible active state */
+body.cp-help-active .cp-footer-btn[data-cp-icon="help"] {
+  background: rgba(163, 220, 236, 0.15) !important;
+  outline: 1px solid var(--cp-primary) !important;
+}
+
+/* Cursor affordance: recognised links get help cursor when mode is on */
+body.cp-help-active a.navMenuItem,
+body.cp-help-active a.leftnavfolder,
+body.cp-help-active a.leftnavfolderopen {
+  cursor: help !important;
 }
