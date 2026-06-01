@@ -1,0 +1,6 @@
+# Temporary staging area for downloaded font packs etc. — not part of the extension
+Project Files/
+
+# OS / editor cruft
+Thumbs.db
+.DS_Store

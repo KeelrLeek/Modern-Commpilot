@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BroadSoft CommPilot - Group Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Geist:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .glass-panel {
+            background: rgba(26, 32, 43, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(221, 226, 242, 0.1);
+            box-shadow: inset 1px 1px 0px rgba(255, 255, 255, 0.05);
+        }
+        .nord-gradient {
+            background: linear-gradient(135deg, #a3dcec 0%, #88c0d0 100%);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(138, 146, 149, 0.3);
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(138, 146, 149, 0.5);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary": "#f0c6e7",
+                        "on-primary-fixed-variant": "#094e5c",
+                        "on-error-container": "#ffdad6",
+                        "outline-variant": "#40484b",
+                        "surface-container-low": "#161c27",
+                        "on-secondary": "#0e334e",
+                        "primary-container": "#88c0d0",
+                        "on-surface-variant": "#c0c8cb",
+                        "primary-fixed": "#b3ecfc",
+                        "on-tertiary": "#432740",
+                        "on-primary-container": "#0c4f5d",
+                        "surface": "#0d131e",
+                        "on-tertiary-fixed": "#2c122a",
+                        "surface-container": "#1a202b",
+                        "secondary": "#a9caeb",
+                        "on-secondary-fixed-variant": "#294965",
+                        "inverse-surface": "#dde2f2",
+                        "secondary-fixed": "#cee5ff",
+                        "inverse-primary": "#2b6674",
+                        "tertiary-container": "#d3abcb",
+                        "on-surface": "#dde2f2",
+                        "surface-container-lowest": "#080e19",
+                        "surface-dim": "#0d131e",
+                        "surface-container-highest": "#2f3541",
+                        "on-background": "#dde2f2",
+                        "secondary-container": "#2b4c68",
+                        "on-tertiary-fixed-variant": "#5b3d57",
+                        "primary": "#a3dcec",
+                        "surface-tint": "#97cfe0",
+                        "tertiary-fixed": "#ffd7f6",
+                        "surface-variant": "#2f3541",
+                        "surface-container-high": "#242a36",
+                        "inverse-on-surface": "#2b313c",
+                        "on-error": "#690005",
+                        "primary-fixed-dim": "#97cfe0",
+                        "on-primary-fixed": "#001f26",
+                        "secondary-fixed-dim": "#a9caeb",
+                        "background": "#0d131e",
+                        "on-tertiary-container": "#5d3e59",
+                        "on-primary": "#003640",
+                        "tertiary-fixed-dim": "#e3badb",
+                        "error": "#ffb4ab",
+                        "error-container": "#93000a",
+                        "surface-bright": "#333945",
+                        "outline": "#8a9295",
+                        "on-secondary-container": "#9bbcdd",
+                        "on-secondary-fixed": "#001d32"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "container-max": "1440px",
+                        "margin-desktop": "32px",
+                        "unit": "4px",
+                        "margin-mobile": "16px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "label-md": ["Geist"],
+                        "headline-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                        "headline-sm": ["20px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "headline-lg-mobile": ["26px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                        "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background min-h-screen font-body-md text-body-md overflow-hidden flex">
+<!-- SideNavBar Shell -->
+<aside class="flex flex-col h-screen py-6 bg-surface-container/85 backdrop-blur-xl border-r border-on-surface/10 h-full w-72 fixed left-0 top-0 z-50">
+<div class="px-6 mb-8">
+<h1 class="font-headline-md text-headline-md font-bold text-primary">BroadSoft</h1>
+<p class="text-on-surface-variant text-sm mt-1 opacity-70">CommPilot Admin</p>
+</div>
+<nav class="flex-1 space-y-1 px-4 overflow-y-auto custom-scrollbar">
+<!-- Dashboard (Inactive) -->
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/50 transition-colors duration-200 ease-in-out px-4 py-3 rounded-xl group" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-md">Dashboard</span>
+</a>
+<!-- Users (Active) - Semantic mapping to Management/Group context -->
+<a class="flex items-center gap-3 bg-secondary-container/40 text-on-secondary-container rounded-full mx-2 px-4 py-3 transition-colors duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="person" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-body-md font-semibold">Users</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/50 transition-colors duration-200 ease-in-out px-4 py-3 rounded-xl" href="#">
+<span class="material-symbols-outlined" data-icon="call">call</span>
+<span class="font-body-md">Call Control</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/50 transition-colors duration-200 ease-in-out px-4 py-3 rounded-xl" href="#">
+<span class="material-symbols-outlined" data-icon="mail">mail</span>
+<span class="font-body-md">Messaging</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/50 transition-colors duration-200 ease-in-out px-4 py-3 rounded-xl" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md">Enterprise Settings</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/50 transition-colors duration-200 ease-in-out px-4 py-3 rounded-xl" href="#">
+<span class="material-symbols-outlined" data-icon="assessment">assessment</span>
+<span class="font-body-md">Reporting</span>
+</a>
+</nav>
+<div class="px-4 mt-auto pt-6 border-t border-on-surface/10 space-y-1">
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/50 transition-colors duration-200 ease-in-out px-4 py-3 rounded-xl" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="font-body-md">Help</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/50 transition-colors duration-200 ease-in-out px-4 py-3 rounded-xl" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span class="font-body-md">Sign Out</span>
+</a>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="ml-72 flex-1 relative overflow-hidden flex flex-col">
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-18rem)] h-16 bg-surface/85 backdrop-blur-lg border-b border-on-surface/10 shadow-sm flex items-center justify-between px-8 z-40">
+<div class="flex items-center gap-8">
+<h2 class="font-headline-sm text-headline-sm font-semibold text-primary">CommPilot Management</h2>
+<div class="flex items-center bg-surface-container-low px-4 py-2 rounded-full border border-outline-variant/30 w-80">
+<span class="material-symbols-outlined text-on-surface-variant text-lg" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm ml-2 w-full text-on-surface" placeholder="Global search..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<nav class="hidden lg:flex items-center gap-6">
+<a class="text-primary font-bold border-b-2 border-primary pb-1 font-body-lg text-body-lg" href="#">Provisioning</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-all font-body-lg text-body-lg" href="#">Maintenance</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-all font-body-lg text-body-lg" href="#">Security</a>
+</nav>
+<div class="h-6 w-[1px] bg-outline-variant/30 hidden lg:block"></div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-on-surface-variant hover:opacity-80 transition-all" data-icon="notifications">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:opacity-80 transition-all" data-icon="settings">settings</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:opacity-80 transition-all" data-icon="apps">apps</button>
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center overflow-hidden border border-primary/20">
+<img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDxbJdQ9L0N2RD3xjg3FDgjRyX9DgAF4qgwYJEeB6RW8-2I-P2WS1hF23sZ7356s-4rcrIE0-CXqI304VZdeJdB96A1GC3EeLl09OL1ZEAAqaMqcaqPxx5hr3tr_HVKEZSWktwo3o19phdzLWOBz6dfpyoAHR39rM03BxQppfjMEfMpqEbR726GAXjLuvsjkIkT0ZaOsB0bFnsZ3ZLmgg8JMxIbUbQ9RQsXGPYKhmyMuWpmzw3sEEPylxp_ZNnYRYI0URrCu0D13sh2"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Content Area -->
+<div class="mt-16 p-8 flex-1 overflow-y-auto custom-scrollbar">
+<!-- Breadcrumbs & Actions -->
+<div class="flex items-center justify-between mb-8">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Group Management</h3>
+<div class="flex items-center gap-2 text-on-surface-variant text-sm mt-1">
+<span>Organization</span>
+<span class="material-symbols-outlined text-xs" data-icon="chevron_right">chevron_right</span>
+<span class="text-primary font-medium">Enterprise_North_Admin</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-semibold">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+                        Create Group
+                    </button>
+<button class="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-on-primary hover:opacity-90 transition-opacity font-semibold shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined" data-icon="file_download">file_download</span>
+                        Export Data
+                    </button>
+</div>
+</div>
+<!-- Bento Summary Row -->
+<div class="grid grid-cols-12 gap-6 mb-8">
+<div class="col-span-8 glass-panel rounded-2xl p-6 relative overflow-hidden flex items-center justify-between group">
+<div class="relative z-10">
+<span class="text-label-md font-label-md text-primary uppercase tracking-widest">Live Network Overview</span>
+<h4 class="text-headline-md font-headline-md mt-2">Active Service Clusters</h4>
+<p class="text-on-surface-variant mt-2 max-w-md">Monitoring real-time latency across 12 distributed group environments in the North-East sector.</p>
+</div>
+<div class="w-1/3 aspect-[1.53] rounded-xl overflow-hidden shadow-2xl relative">
+<img alt="Network Dashboard" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBv0H-Dsh6m83Byg4Lx-mHZLPeBv5W-AEBgy5mbgJ0NhDITsaTEFXdyrJq9HrUIUdfUpFElrxXNKUBkfoSZJILmn_rrgCMtY1AF-vqODL3J0Ve46dw1WVA5lfaaUzqh9NQOJc8yTF0KpgZcpxU3_bIvITWXi4lXGter9GqmcyBPal6YWT9yFMNSbwIlxn9PHsnvu0kWTth3gldlquBxnDxhELf0cz99FDIcDRtN-6nwMg7xl0Y1RDoK3WbO7pQMfvbj23oVNGT6V98F"/>
+<div class="absolute inset-0 bg-gradient-to-tr from-surface/40 to-transparent"></div>
+</div>
+</div>
+<div class="col-span-4 glass-panel rounded-2xl p-6 flex flex-col justify-between border-l-4 border-l-primary">
+<div>
+<span class="text-on-surface-variant font-label-md uppercase">Total Groups</span>
+<div class="text-5xl font-bold mt-2 text-primary">1,284</div>
+</div>
+<div class="flex items-center gap-2 text-green-400 text-sm bg-green-400/10 w-fit px-3 py-1 rounded-full">
+<span class="material-symbols-outlined text-sm" data-icon="trending_up">trending_up</span>
+<span>+12.5% this month</span>
+</div>
+</div>
+</div>
+<!-- Data Table Section -->
+<section class="glass-panel rounded-2xl overflow-hidden mb-8">
+<div class="p-6 border-b border-on-surface/10 flex items-center justify-between bg-surface-container-low/50">
+<div class="flex items-center gap-4">
+<h5 class="font-headline-sm text-headline-sm">Enterprise Groups</h5>
+<div class="h-4 w-[1px] bg-outline-variant/30"></div>
+<span class="text-on-surface-variant text-sm">Showing 1-15 of 1,284</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="relative">
+<input class="bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-10 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all w-64 text-on-surface" placeholder="Filter by ID or Name..." type="text"/>
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant text-sm" data-icon="filter_list">filter_list</span>
+</div>
+<button class="p-2 hover:bg-surface-container-highest/50 rounded-lg transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="refresh">refresh</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="text-on-surface-variant text-xs uppercase tracking-wider bg-surface-container-low/30">
+<th class="px-8 py-4 font-semibold">
+<div class="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors">
+                                        Group ID
+                                        <span class="material-symbols-outlined text-xs" data-icon="unfold_more">unfold_more</span>
+</div>
+</th>
+<th class="px-8 py-4 font-semibold">
+<div class="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors">
+                                        Group Name
+                                        <span class="material-symbols-outlined text-xs" data-icon="unfold_more">unfold_more</span>
+</div>
+</th>
+<th class="px-8 py-4 font-semibold">
+<div class="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors">
+                                        Organization ID
+                                        <span class="material-symbols-outlined text-xs" data-icon="unfold_more">unfold_more</span>
+</div>
+</th>
+<th class="px-8 py-4 font-semibold">Status</th>
+<th class="px-8 py-4 font-semibold text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-on-surface/5">
+<!-- Row 1 -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="px-8 py-5 font-mono text-sm text-primary">GRP_NY_001</td>
+<td class="px-8 py-5 font-medium">New York Regional HQ</td>
+<td class="px-8 py-5 text-on-surface-variant">ENT_NORTH_ADMIN</td>
+<td class="px-8 py-5">
+<span class="px-3 py-1 rounded-full bg-green-400/10 text-green-400 text-xs font-semibold flex items-center gap-1.5 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                                        Active
+                                    </span>
+</td>
+<td class="px-8 py-5 text-right">
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-primary/20 rounded-full text-primary">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</button>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-error/20 rounded-full text-error ml-2">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="px-8 py-5 font-mono text-sm text-primary">GRP_SF_042</td>
+<td class="px-8 py-5 font-medium">San Francisco CloudOps</td>
+<td class="px-8 py-5 text-on-surface-variant">ENT_WEST_ADMIN</td>
+<td class="px-8 py-5">
+<span class="px-3 py-1 rounded-full bg-green-400/10 text-green-400 text-xs font-semibold flex items-center gap-1.5 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                                        Active
+                                    </span>
+</td>
+<td class="px-8 py-5 text-right">
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-primary/20 rounded-full text-primary">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</button>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-error/20 rounded-full text-error ml-2">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="px-8 py-5 font-mono text-sm text-primary">GRP_LDN_012</td>
+<td class="px-8 py-5 font-medium">London Tech Support</td>
+<td class="px-8 py-5 text-on-surface-variant">ENT_EMEA_ADMIN</td>
+<td class="px-8 py-5">
+<span class="px-3 py-1 rounded-full bg-secondary-container/40 text-on-secondary-container text-xs font-semibold flex items-center gap-1.5 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                                        Maintenance
+                                    </span>
+</td>
+<td class="px-8 py-5 text-right">
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-primary/20 rounded-full text-primary">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</button>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-error/20 rounded-full text-error ml-2">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="px-8 py-5 font-mono text-sm text-primary">GRP_TKY_771</td>
+<td class="px-8 py-5 font-medium">Tokyo Logistics Hub</td>
+<td class="px-8 py-5 text-on-surface-variant">ENT_APAC_ADMIN</td>
+<td class="px-8 py-5">
+<span class="px-3 py-1 rounded-full bg-green-400/10 text-green-400 text-xs font-semibold flex items-center gap-1.5 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                                        Active
+                                    </span>
+</td>
+<td class="px-8 py-5 text-right">
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-primary/20 rounded-full text-primary">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</button>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-error/20 rounded-full text-error ml-2">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="px-8 py-5 font-mono text-sm text-primary">GRP_MIA_205</td>
+<td class="px-8 py-5 font-medium">Miami Field Sales</td>
+<td class="px-8 py-5 text-on-surface-variant">ENT_NORTH_ADMIN</td>
+<td class="px-8 py-5">
+<span class="px-3 py-1 rounded-full bg-tertiary-container/30 text-tertiary text-xs font-semibold flex items-center gap-1.5 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                                        Provisioning
+                                    </span>
+</td>
+<td class="px-8 py-5 text-right">
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-primary/20 rounded-full text-primary">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</button>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-error/20 rounded-full text-error ml-2">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-6 border-t border-on-surface/10 flex items-center justify-between">
+<button class="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+                        Previous
+                    </button>
+<div class="flex items-center gap-2">
+<button class="w-8 h-8 rounded-lg bg-primary text-on-primary font-bold">1</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest transition-colors">2</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest transition-colors">3</button>
+<span class="px-2">...</span>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest transition-colors">86</button>
+</div>
+<button class="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors">
+                        Next
+                        <span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</section>
+</div>
+</main>
+<script>
+        // Micro-interaction: Subtle parallax effect on the bento image
+        document.addEventListener('mousemove', (e) => {
+            const container = document.querySelector('.group');
+            if (container) {
+                const img = container.querySelector('img');
+                const rect = container.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / rect.width - 0.5;
+                const y = (e.clientY - rect.top) / rect.height - 0.5;
+                
+                img.style.transform = `scale(1.05) translate(${x * 10}px, ${y * 10}px)`;
+            }
+        });
+    </script>
+</body></html>

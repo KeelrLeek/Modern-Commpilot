@@ -1,0 +1,491 @@
+
+<!-- saved from url=(0061)https://apps01.avpaas.io/commpilot/Common/folder_contents.jsp -->
+<html style="filter: invert(0);"><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Refresh" content="7205; URL=/commpilot/Login/">
+<script nonce="" language="JavaScript" src="./Profile_files/graphics.js.download"></script>
+  <link rel="stylesheet" type="text/css" href="./Profile_files/styles.css">
+  <link rel="stylesheet" type="text/css" href="./Profile_files/styles(1).css">
+  <title>Profile</title>
+
+  
+  <script nonce="">
+    if (self === top) {
+      var antiCrossFraming = document.getElementById("antiCrossFraming");
+      antiCrossFraming.parentNode.removeChild(antiCrossFraming);
+    } 
+    else {
+      top.location = self.location;
+    }
+  </script>
+
+ </head>
+ <body id="initBody.menuTemplate" topmargin="10" leftmargin="30" marginheight="10" marginwidth="30" bgproperties="fixed">
+   
+<input type="hidden" name="formtokenserial" value="1921529323:-591105880">
+<script nonce="">
+       document.addEventListener('DOMContentLoaded', function () {
+       document.getElementById('initBody.menuTemplate')
+         .addEventListener('load', function initFunction() { initSelection(); });
+       });
+     </script>
+       
+   <!--  Copyright � 2017 BroadSoft Inc. -->
+
+<!--  Copyright © 2017 BroadSoft Inc. -->
+<!-- General Text Messages -->
+<script nonce="" language="JavaScript">
+var commpilot = null;
+var onlineHelp = null;
+var helpFile = "/commpilot/Help/en_US/RA/RA_Profile_Menu.htm";
+var privacyPolicyFile = "/commpilot/Help/en_US/SA/SA_Privacy_Policy.htm";
+
+function launchPrivacyPolicy()
+{
+   privacy = window.open(privacyPolicyFile,"privacyPolicy");
+   privacy.focus();
+}
+
+function launchHelp()
+{
+   help = window.open(helpFile,"onLineHelp");
+   help.focus();
+}
+
+function launchClientApplication(url)
+{
+  window.open(url);
+}
+
+
+function selectedLinkChanged(selectedLink) 
+{
+  var choice = selectedLink.options[selectedLink.selectedIndex].value;
+
+  if(choice == "callcenter")
+  {
+    launchClientApplication("/commpilot/servlet/ClientApplicationLaunch/?application=callcenter");
+  }
+  else if(choice == "receptionist")
+  {
+    launchClientApplication("/commpilot/servlet/ClientApplicationLaunch/?application=receptionist");
+  }
+
+  selectedLink.selectedIndex = 0;
+}
+</script>
+
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+<tbody><tr>
+  <td colspan="3" align="center" width="100%" valign="middle">
+  <!-- client banner -->
+  </td>
+</tr>
+
+<tr>
+  <!-- header -->
+  <td colspan="3" width="100%">
+  <table border="0" cellpadding="0" cellspacing="0" width="100%">
+    <tbody><tr>
+      <td class="headerBar" colspan="2"><img src="./Profile_files/onepx.gif" width="2" height="2" alt="" border="0" style="filter: invert(0);"></td>
+    </tr>
+
+    <tr>
+    <td align="left" valign="middle" class="headerBar">
+      <!-- client logo -->
+      </td>
+    <td valign="middle" align="right" class="headerBar">
+
+       <a class="headerLink" id="link_5f63f40f-2733-49b8-8abf-8a54133b5c60">Help</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('link_5f63f40f-2733-49b8-8abf-8a54133b5c60');
+        elem.addEventListener('click', function () { launchHelp(); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+&nbsp;-&nbsp;<a class="headerLink" id="link_8f848080-7bd7-4536-aeb1-4dcfedf8a47a">Home</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('link_8f848080-7bd7-4536-aeb1-4dcfedf8a47a');
+        elem.addEventListener('click', function () { redirectPost('', { });
+; });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+</td>
+    <td class="headerBar"><img src="./Profile_files/onepx.gif" width="2" height="1" alt="" border="0" style="filter: invert(0);"></td>
+  </tr>
+  <tr>
+    <td class="headerBar" colspan="3"><img src="./Profile_files/onepx.gif" width="2" height="5" alt="" border="0" style="filter: invert(0);"></td>
+  </tr>
+  <tr>
+    <td class="headerBar"><img src="./Profile_files/onepx.gif" width="2" height="1" alt="" border="0" style="filter: invert(0);">
+
+      <a class="headerAuthLevelLink" id="link_f7a9ccef-a535-47fb-921b-eec6ff5d102a" style="cursor: pointer;">Reseller</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('link_f7a9ccef-a535-47fb-921b-eec6ff5d102a');
+        elem.addEventListener('click', function () { redirectPost('/commpilot/Common/folder_contents.jsp', { menuId: '8', P_menuId: '8', });
+; });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+</td>
+    <td class="headerBar" align="right">
+        <span class="headerBarWelcome">Welcome&nbsp;Kyle Kolozsi&nbsp;</span>
+          <!-- Display Sign Out button -->
+           <a class="headerLink" id="link_3c4ad430-af71-4830-8b6d-922bcf7a28ed">[Logout]</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('link_3c4ad430-af71-4830-8b6d-922bcf7a28ed');
+        elem.addEventListener('click', function () { redirectPost('/commpilot/servlet/Logout', { });
+; });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+</td>
+    <td class="headerBar"><img src="./Profile_files/onepx.gif" width="2" height="1" alt="" border="0" style="filter: invert(0);"></td>
+  </tr>
+  <tr>
+    <td class="headerBar" colspan="3"><img src="./Profile_files/onepx.gif" width="2" height="2" alt="" border="0" style="filter: invert(0);"></td>
+  </tr>
+  </tbody></table>
+  </td>
+ </tr>
+</tbody></table>
+
+  <script nonce="" language="JavaScript">
+// Try to close the window.  If we can't, logout.
+// Scripts aren't legally allowed to close a window that was not opened by a script,
+// but IE seems to allow it.  Firefox (Mozilla) doesn't.
+function userLogout ()
+{
+  window.close();   // IE will return here if user opts not to close window,
+  if (document.all) // and Mozilla browsers will return here because you can't close the window.
+    return;         // If we're running an IE browser.
+  redirectPost('\u002Fcommpilot\u002Fservlet\u002FLogout', { });
+}
+</script>
+
+
+
+
+<table border="0" cellpadding="0" cellspacing="0" width="100%" height="100%">
+     <tbody><tr><td colspan="4" class="headandfoot" height="12">
+          </td>
+     </tr>
+
+	<tr>
+		<td width="18%" valign="top" class="headandfoot"><!--  Copyright 2000-2015, BroadSoft, Inc. All rights reserved. Proprietary Property of BroadSoft, Inc. Gaithersburg, MD. -->
+<!--  Copyright 2000-2015, BroadSoft, Inc. All rights reserved. Proprietary Property of BroadSoft, Inc. Gaithersburg, MD. -->
+<!--  Copyright © 2017 BroadSoft Inc. -->
+<!-- General Text Messages -->
+<!--  Copyright © 2017 BroadSoft Inc. -->
+
+<!--  Copyright © 2017 BroadSoft Inc. -->
+
+<form name="leftNavForm" method="post">
+<b>
+
+<script nonce="" language="JavaScript">
+function addAltText(img, altText) {
+  img.alt = altText;
+}
+</script>
+<table border="0" cellpadding="0" cellspacing="0" width="100%"><tbody><tr><td class="navOptions">Options:</td></tr><tr>
+<td class="leftnavfolderopen" nowrap="">
+<img border="0" alt="" src="./Profile_files/ar.gif" style="filter: invert(0);">&nbsp;&nbsp;<a id="anchor_311ba655-23b0-4c87-9c2a-036160b8aaf4" class="leftnavfolderopen">Profile</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('anchor_311ba655-23b0-4c87-9c2a-036160b8aaf4');
+        elem.addEventListener('click', function () { redirectPost('/commpilot/Common/folder_contents.jsp', {folder: 'R0', menuId: '8'}); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+</td>
+</tr>
+<tr>
+<td class="leftnavfolder" nowrap="">
+<a id="anchor_d67bc94e-7d6c-4122-8145-e17072a40ffb" class="leftnavfolder">Resources</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('anchor_d67bc94e-7d6c-4122-8145-e17072a40ffb');
+        elem.addEventListener('click', function () { redirectPost('/commpilot/Common/folder_contents.jsp', {folder: 'R1', menuId: '8'}); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+</td>
+</tr>
+<tr>
+<td class="leftnavfolder" nowrap="">
+<a id="anchor_68a30713-dd0f-4228-849c-267c548bdfae" class="leftnavfolder">Services </a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('anchor_68a30713-dd0f-4228-849c-267c548bdfae');
+        elem.addEventListener('click', function () { redirectPost('/commpilot/Common/folder_contents.jsp', {folder: 'R2', menuId: '8'}); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+</td>
+</tr>
+<tr>
+<td class="leftnavfolder" nowrap="">
+<a id="anchor_c2f3007c-d1cc-4c9c-aefd-1198b60902de" class="leftnavfolder">Call Center</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('anchor_c2f3007c-d1cc-4c9c-aefd-1198b60902de');
+        elem.addEventListener('click', function () { redirectPost('/commpilot/Common/folder_contents.jsp', {folder: 'R3', menuId: '8'}); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+</td>
+</tr>
+<tr>
+<td class="leftnavfolder" nowrap="">
+<a id="anchor_0c97e55d-66cb-4b1a-89e6-15964559b0bc" class="leftnavfolder">Meet-Me Conferencing</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('anchor_0c97e55d-66cb-4b1a-89e6-15964559b0bc');
+        elem.addEventListener('click', function () { redirectPost('/commpilot/Common/folder_contents.jsp', {folder: 'R4', menuId: '8'}); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+</td>
+</tr>
+<tr>
+<td class="leftnavfolder" nowrap="">
+<a id="anchor_c62c7a93-c5f3-415c-8413-7b16b8ad6cb2" class="leftnavfolder">Utilities</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('anchor_c62c7a93-c5f3-415c-8413-7b16b8ad6cb2');
+        elem.addEventListener('click', function () { redirectPost('/commpilot/Common/folder_contents.jsp', {folder: 'R5', menuId: '8'}); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+</td>
+</tr>
+</tbody></table></b>
+</form>
+
+
+
+
+</td>
+        <td class="headandfoot"><img src="./Profile_files/onepx.gif" width="10" height="1" alt="" border="0" style="filter: invert(0);"></td>
+        <td valign="top">
+          <table cellpadding="0" cellspacing="0" border="0">
+            <tbody><tr>
+			<td class="headandfoot"><img src="./Profile_files/round-corner.gif" width="5" height="5" style="filter: invert(0);"></td>
+			</tr>
+          </tbody></table>
+        </td>
+
+        <td valign="top" width="82%">
+         <table border="0" cellpadding="0" cellspacing="0" width="100%">
+         <tbody><tr><td height="15"></td></tr>
+         <script nonce="" language="JavaScript">
+         
+             helpFile = "/commpilot/Help/en_US/RA/RA_Profile_Menu.htm";
+         </script>
+   		 <tr><td class="screenName">Profile</td></tr>
+         <tr><td height="5"></td></tr>
+         
+         <tr><td><!--  Copyright © 2017 BroadSoft Inc. -->
+
+
+<!--  Copyright © 2017 BroadSoft Inc. -->
+<!-- General Text Messages -->
+<script nonce="" language="JavaScript">
+function addAltText(img, altText) {
+  img.alt = altText;
+}
+</script>
+<table border="0" cellpadding="0" cellspacing="0" width="100%"><tbody><tr><td width="50%" align="LEFT" valign="TOP"><table width="100%"><tbody><tr><td class="menuCategory">Basic</td></tr><tr><td height="5"></td></tr><tr>
+<td align="left">
+<a class="navMenuItem" id="link_960e4549-c3f1-4abd-a455-0da110de9cff" name="/Reseller/ServiceProviders/index.jsp?enterprise=false">Service Providers</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('link_960e4549-c3f1-4abd-a455-0da110de9cff');
+        elem.addEventListener('click', function () { redirectPost('\u002Fcommpilot\u002FReseller\u002FServiceProviders\u002Findex.jsp', { enterprise: 'false', P_enterprise: 'false', }); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+
+</td>
+</tr>
+<tr>
+<td align="left">
+Add, modify, or remove service providers.</td>
+</tr>
+<tr><td height="5"></td></tr><tr>
+<td align="left">
+<a class="navMenuItem" id="link_c4b1da0c-baf9-4613-b7b5-3e473962992b" name="/Reseller/ServiceProviders/index.jsp?enterprise=true">Enterprises</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('link_c4b1da0c-baf9-4613-b7b5-3e473962992b');
+        elem.addEventListener('click', function () { redirectPost('\u002Fcommpilot\u002FReseller\u002FServiceProviders\u002Findex.jsp', { enterprise: 'true', P_enterprise: 'true', }); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+
+</td>
+</tr>
+<tr>
+<td align="left">
+Add, modify, or remove enterprises.</td>
+</tr>
+<tr><td height="5"></td></tr><tr>
+<td align="left">
+<a class="navMenuItem" id="link_36ffea06-35fc-4615-90e4-47394b122821" name="/Reseller/Groups/">Groups</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('link_36ffea06-35fc-4615-90e4-47394b122821');
+        elem.addEventListener('click', function () { redirectPost('\u002Fcommpilot\u002FReseller\u002FGroups\u002F', { }); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+
+</td>
+</tr>
+<tr>
+<td align="left">
+Display all groups in the reseller.</td>
+</tr>
+<tr><td height="5"></td></tr><tr>
+<td align="left">
+<a class="navMenuItem" id="link_d482f07d-74ec-4e5c-8e24-e1f96270920d" name="/Reseller/Users/">Users</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('link_d482f07d-74ec-4e5c-8e24-e1f96270920d');
+        elem.addEventListener('click', function () { redirectPost('\u002Fcommpilot\u002FReseller\u002FUsers\u002F', { }); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+
+</td>
+</tr>
+<tr>
+<td align="left">
+Display all users in the reseller.</td>
+</tr>
+<tr><td height="5"></td></tr><tr>
+<td align="left">
+<a class="navMenuItem" id="link_1d3b7267-bd24-47b7-9de5-5c85dbf340f9" name="/Reseller/ServiceInstances/">Service Instances</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('link_1d3b7267-bd24-47b7-9de5-5c85dbf340f9');
+        elem.addEventListener('click', function () { redirectPost('\u002Fcommpilot\u002FReseller\u002FServiceInstances\u002F', { }); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+
+</td>
+</tr>
+<tr>
+<td align="left">
+Display all service instances in the reseller.</td>
+</tr>
+<tr><td height="5"></td></tr><tr>
+<td align="left">
+<a class="navMenuItem" id="link_e7f49b4a-1c70-40cb-86eb-6deaeb28e9cf" name="/Reseller/Profile/">Profile</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('link_e7f49b4a-1c70-40cb-86eb-6deaeb28e9cf');
+        elem.addEventListener('click', function () { redirectPost('\u002Fcommpilot\u002FReseller\u002FProfile\u002F', { }); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+
+</td>
+</tr>
+<tr>
+<td align="left">
+Display or modify reseller profile information.</td>
+</tr>
+<tr><td height="5"></td></tr><tr>
+<td align="left">
+<a class="navMenuItem" id="link_c8cef3f3-ba9f-4c1c-af65-5246a4f5d801" name="/Reseller/Admins/">Administrators</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('link_c8cef3f3-ba9f-4c1c-af65-5246a4f5d801');
+        elem.addEventListener('click', function () { redirectPost('\u002Fcommpilot\u002FReseller\u002FAdmins\u002F', { }); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+
+</td>
+</tr>
+<tr>
+<td align="left">
+Add, modify, or remove reseller administrators.</td>
+</tr>
+<tr><td height="5"></td></tr></tbody></table></td><td width="50%" align="LEFT" valign="TOP"><table width="100%"><tbody><tr><td class="menuCategory">Advanced</td></tr><tr><td height="5"></td></tr><tr>
+<td align="left">
+<a class="navMenuItem" id="link_d42f11a4-18d5-4b43-b816-3da9c301ba01" name="/Reseller/DeviceActivationPolicy/" style="cursor: pointer;">Activation Code Device Onboarding Policies</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('link_d42f11a4-18d5-4b43-b816-3da9c301ba01');
+        elem.addEventListener('click', function () { redirectPost('\u002Fcommpilot\u002FReseller\u002FDeviceActivationPolicy\u002F', { }); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+
+</td>
+</tr>
+<tr>
+<td align="left">
+Configure reseller level Activation Code Device Onboarding Policies.</td>
+</tr>
+<tr><td height="5"></td></tr><tr>
+<td align="left">
+<a class="navMenuItem" id="link_493ab442-f786-480b-a930-1f6712eaddbb" name="/Reseller/AlternateUserIDs/" style="cursor: pointer;">Alternate User IDs</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('link_493ab442-f786-480b-a930-1f6712eaddbb');
+        elem.addEventListener('click', function () { redirectPost('\u002Fcommpilot\u002FReseller\u002FAlternateUserIDs\u002F', { }); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+
+</td>
+</tr>
+<tr>
+<td align="left">
+Display all alternate user IDs in the reseller.</td>
+</tr>
+<tr><td height="5"></td></tr><tr>
+<td align="left">
+<a class="navMenuItem" id="link_8864e660-2146-4e02-ade1-05fed99d8c6f" name="/Reseller/StirShaken/">STIR-SHAKEN</a>
+      <script nonce="">
+        document.addEventListener('DOMContentLoaded', function () {
+        var elem = document.getElementById('link_8864e660-2146-4e02-ade1-05fed99d8c6f');
+        elem.addEventListener('click', function () { redirectPost('\u002Fcommpilot\u002FReseller\u002FStirShaken\u002F', { }); });
+        elem.addEventListener('mouseover', function () { this.style.cursor='pointer'; });
+        });
+      </script>
+
+</td>
+</tr>
+<tr>
+<td align="left">
+Configure STIR-SHAKEN signing, tagging, and verification.</td>
+</tr>
+<tr><td height="5"></td></tr></tbody></table></td></tr></tbody></table></td></tr>
+         
+	   </tbody></table>
+        </td>
+     </tr>
+	</tbody></table>
+	<!--  Copyright © 2017 BroadSoft Inc. -->
+
+
+
+
+
+
+
+
+
+
+
+</body></html>
