@@ -1,0 +1,43 @@
+//Copyright © 2017 BroadSoft Inc.
+// Track the current wizard opened from this window.
+var wizardWin = new Object();
+
+//==============================================================================
+// Open the wizard window.
+//
+// Referenced by buttons.jsp
+//
+function wizardOpen()
+{
+  var WINDOW_OPTIONS = "directories=no,location=no,menubar=no,toolbar=no,resizable=yes,scrollbars=yes,status=yes";
+
+  // Open wizard window
+  wizardWin.win = window.open('', 'wizardWindow', WINDOW_OPTIONS);
+  wizardWin.win.focus();
+
+  //Override form submit to set target before submission
+  var originalSubmit = HTMLFormElement.prototype.submit;
+  HTMLFormElement.prototype.submit = function() {
+    this.target = 'wizardWindow';
+    return originalSubmit.call(this);
+  };
+
+  //Use redirectPost - it will now target the wizard window
+  redirectPost('Wizard/index.jsp', {});
+  
+  //Restore original submit function
+  HTMLFormElement.prototype.submit = originalSubmit;
+
+}
+
+// Close the wizard window and refresh the parent window.
+// Referenced by many places: cancel button, finish button, close link, etc.
+function wizardClose()
+{
+  if (window.opener && window.opener.wizardWin)
+  {
+    window.opener.location.reload(true);
+  }
+
+  window.close();
+}

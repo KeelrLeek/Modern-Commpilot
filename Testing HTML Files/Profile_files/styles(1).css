@@ -1,0 +1,150 @@
+/***************************************/
+/* Broadworks Tropical Theme Style sheet */
+/***************************************/
+
+/**********
+ * Global *
+ **********/
+BODY {font-family:arial,helvetica,sans-serif;font-size:12px;color:#000000}
+TD {font-family:arial,helvetica,sans-serif;font-size:12px;}
+
+/*******************
+ * Header Elements *
+ *******************/
+.headerBar {color:#0d274d;background-color: #FFFFFF}
+.headerBarWelcome {color:#330033;background-color: #FFFFFF;font-size:16px;font-weight:bold;}
+.headerAuthLevel {color:#0d274d;font-size:14px;}
+A.headerLink {color:#0d274d;text-decoration:underline;}
+A.headerAuthLevelLink {color:#0d274d;text-decoration:underline;font-size:14px;}
+.passExpires {color: red;}
+
+/**************************
+ * Left navigation styles *
+ **************************/
+ 
+ /* used for Options text in navigation*/
+ .navOptions { font-weight: bold;font-size:12px;color:#330033;background-color:#F0F8FF;border-bottom: 1px solid #0d274d; padding-top: 8px; padding-bottom: 3px} 
+ .navOptionsRL { font-weight: bold;font-size:12px;color:#330033;background-color:#F0F8FF;border-bottom: 1px solid #0d274d; padding-top: 8px; padding-bottom: 3px;text-align: right;} 
+ 
+ /* used in left navigation for unselected folders*/
+.leftnavfolder { padding-top: 2px;padding-bottom: 2px;padding-right: 10px;padding-left: 10px; background-color:#F0F8FF;border-bottom: 1px solid #0d274d;}
+.leftnavfolderRL { padding-top: 2px;padding-bottom: 2px;padding-right: 10px;padding-left: 10px; background-color:#F0F8FF;border-bottom: 1px solid #0d274d;text-align: right;}
+A.leftnavfolder {border-left: none; text-decoration:underline;font-size:12px;color:#0d274d;background-color:#F0F8FF;border-bottom: none;}
+A.leftnavfolderRL {border-left: none; text-decoration:underline;font-size:12px;color:#0d274d;background-color:#F0F8FF;border-bottom: none;text-align: right;}
+A.leftnavfolder:hover {text-decoration:underline;color:#330033;}
+A.leftnavfolderRL:hover {text-decoration:underline;color:#330033;text-align: right;}
+
+/* used in left navigtaion for selected folders*/
+.leftnavfolderopen {padding-top: 2px; padding-bottom: 2px; padding-right: 5px;padding-left: 2px;font-size:14px;background-color:#FFFFFF;}
+.leftnavfolderopenRL {padding-top: 2px; padding-bottom: 2px; padding-right: 5px;padding-left: 2px;font-size:14px;background-color:#FFFFFF;text-align: right;}
+A.leftnavfolderopen {text-decoration:underline;font-size:12px;font-weight:bold;color:#0d274d;background-color:#ffffff;font-family: Arial, Helvetica, sans-serif}
+A.leftnavfolderopenRL {text-decoration:underline;font-size:12px;font-weight:bold;color:#0d274d;background-color:#ffffff;font-family: Arial, Helvetica, sans-serif;text-align: right;}
+A.leftnavfolderopen:hover {text-decoration:underline;color:#330033;}
+A.leftnavfolderopenRL:hover {text-decoration:underline;color:#330033;text-align: right;}
+
+/* used in navigation link sub-menu */
+A.navMenuItem {text-decoration:underline;color:#0d274d; font-family: Arial, Helvetica, sans-serif; font-size: 14px; font-weight: bold ;padding-right: 5px; border: none;}
+A.navMenuItemRL {text-decoration:underline;color:#0d274d; font-family: Arial, Helvetica, sans-serif; font-size: 14px; font-weight: bold ;padding-right: 5px; border: none;text-align: right;}
+A.navMenuItem:hover {text-decoration:underline;color:#330033; font-family: Arial, Helvetica, sans-serif; font-size: 14px; font-weight: bold}
+A.navMenuItemRL:hover {text-decoration:underline;color:#330033; font-family: Arial, Helvetica, sans-serif; font-size: 14px; font-weight: bold;text-align: right;}
+
+/* used for navigation folder menu category header*/
+.menuCategory { font-weight: bold;font-size:14px;color:#330033;background-color:#F0F8FF; padding: 0;}
+.menuCategoryRL { font-weight: bold;font-size:14px;color:#330033;background-color:#F0F8FF; padding: 0;text-align: right;}
+ 
+ /* used for Off keyword in menus when service is off*/
+.serviceOff {color:#A0A0A0   ; }
+
+/*****************
+ * Body Elements * 
+ *****************/
+ 
+ /* used for column header for tables */
+.listHeader{text-decoration:none;font-weight:bold;color:#000000;background-color:#C8C8C8 ;}
+
+/*used for column headers for tables which can be sorted on that column */
+A.listSortHeader {text-decoration:underline;font-weight:bold;color:#000000;background-color:#C8C8C8 ;}
+
+/* used for user home page for the service links */
+.link{text-decoration:underline;color:black}
+
+ /* used for background for buttons on pages */
+.buttonbar{height: 28px;font-weight:bold;color:#ffffff;background-color:#0d274d;}
+.buttonbarRL{height: 28px;font-weight:bold;color:#ffffff;background-color:#0d274d;text-align: right;}
+
+ /* used for screen name on pages */
+.screenName{color:#0d274d;font-size:22px;font-weight:bold;}
+.screenNameRL{color:#0d274d;font-size:22px;font-weight:bold;text-align: right;}
+
+/* used for tip text on pages */
+.tip{}
+.tipRL{text-align: right;}
+
+ /* used for colored bars on pages */
+.headandfoot {color:#ffffff;font-weight:bold;background-color:#0d274d;}
+
+ /* used for backround body colors */
+.enduserbody {background-color:#E6E6FD; border: thin none black; padding:2px;}
+ 
+/* used for links in body pages, such as configure Device,customize columns,etc.*/ 
+A.nestedLink {color:#0d274d;text-decoration: underline; cursor:pointer;}
+
+/******************
+ * Table Elements *
+ ******************/
+TD.unselected {background-color:#E6E6FD;text-decoration:none;}
+TR.unselected {background-color:#E6E6FD;text-decoration:none;}
+TR.hilite {background-color:#E6E6FD;color:#0d274d;text-decoration:none;}
+A.tableLink {background-color:#E6E6FD;color:#000000;text-decoration:none;}
+A.tableLink:hover {background-color:#E6E6FD;color:#0d274d;text-decoration:none;}
+A.tableLinkHover {background-color:#E6E6FD;color:#0d274d;text-decoration:none;}
+
+/********
+ * Tabs *
+ ********/
+TD.tabActive {font-size:12px;color:#FFFFFF;background-color:#0d274d;font-weight:bold;}
+TD.tab {font-size:12px;color:#FFFFFF;background-color:#666666;font-weight:bold; }
+A.tab {font-size:12px;color:#FFFFFF;font-family:Tahoma, Verdana; } /* GET RID OF*/
+
+/******************
+ * User Messages  *
+ ******************/
+.error{font-size:12px;color:red;background-color: #F0F0F0 ;border: thin solid #C8C8C8;padding: 5px}
+.warning{font-size:12px;color:blue;background-color: #F0F0F0 ;border: thin solid #C8C8C8;padding: 5px}
+.informational{font-size:12px;color:blue;background-color: #F0F0F0 ;border: thin solid #C8C8C8;padding: 5px}
+
+/******************
+ * Login Screen   *
+ ******************/
+.login {background-color: #CCCCCC;}
+.loginbase {background-color: #CCCCCC;}
+.logintext {font-size: 12px; color:#ffffff;}
+
+/******************
+ * Button styles  *
+ ******************/
+ .bwbutton {font-size:12;height: 22;width: 75;}
+ .bwbuttonNoWidth {font-size:12;height: 22;}
+ 
+/******************
+ * Fieldset styles*
+ ******************/
+ .fldset {font-size:12px;color:#000000}
+ .fldsetline {border-color:#FFFFFF}
+
+/*******************
+ * Calendar styles *
+ *******************/
+ .monthbar{color:#ffffff;background-color:#0d274d;}
+ .daybar{color:#ffffff;background-color:#666699;}
+ .weekend{color:#ffffff;background-color:#E6E6FD;}
+
+ /*******************
+ * textArea*
+ *******************/
+ TEXTAREA.textareaReadonly{background-color:#E6E6FD;}
+ 
+/*******************
+ * Debug styles    *
+ *******************/
+TABLE.debug {color:#FFFFFF;}

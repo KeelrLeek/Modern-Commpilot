@@ -598,47 +598,124 @@ td[width="50%"] td[align="LEFT"]:not(:has(a)):not(.cp-card-desc) {
 }
 
 /* ============================================================
-   Table Elements
+   End-user body wrapper — neutralise the legacy lavender bg
    ============================================================ */
-TD.unselected {
-  background-color: var(--cp-surface) !important;
+.enduserbody,
+td.enduserbody,
+table.enduserbody {
+  background: var(--cp-surface) !important;
+  color: var(--cp-text) !important;
+  border: none !important;
+}
+
+/* Wrapper cell — padding for the content block */
+td.enduserbody {
+  padding: 16px 16px 0 16px !important;
+}
+
+/* Hide the redundant top OK button bar.
+   The page has two OK buttons (top + bottom) with the same
+   goBack() handler; the top one sits right before the
+   .enduserbody wrapper and duplicating it is unnecessary.
+   We hide it by selecting the .buttonbar tr that has a
+   following sibling tr containing td.enduserbody. */
+tr:has(> td.buttonbar > input[name="ok"]):has(~ tr > td.enduserbody) {
+  display: none !important;
+}
+
+/* ============================================================
+   Table Elements — results data-grid styling for list pages
+   ============================================================ */
+
+/* Base header-cell reset — dark background */
+td.listHeader,
+tr.listHeader {
+  background: var(--cp-surface-high) !important;
   color: var(--cp-text) !important;
 }
 
-TR.unselected {
-  background-color: var(--cp-surface) !important;
+/* Results table column headers (have sortable links) */
+table:has(a.listSortHeader) td.listHeader {
+  padding: 8px 12px !important;
+  border-bottom: 1px solid var(--cp-outline) !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+}
+
+/* Search-bar header row */
+tr.listHeader td {
+  padding: 8px 12px !important;
+  border-bottom: 1px solid var(--cp-outline) !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+}
+
+/* Sortable header link — no gray box */
+a.listSortHeader {
+  background-color: transparent !important;
+  color: var(--cp-text) !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+}
+
+a.listSortHeader:hover {
+  color: var(--cp-primary) !important;
+}
+
+/* Data rows — subtle alternating zebra stripes */
+tr.unselected {
+  background: transparent !important;
   color: var(--cp-text) !important;
 }
 
-TR.hilite {
-  background-color: var(--cp-surface-high) !important;
+tr.unselected:nth-of-type(even) {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Row hover — JS-applied hilite class */
+tr.hilite {
+  background: rgba(136, 192, 208, 0.12) !important;
   color: var(--cp-text) !important;
 }
 
-A.tableLink {
+/* Data cells — separator border for scannability */
+td:has(a.tableLink) {
+  padding: 6px 12px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Explicitly-styled cells (e.g. Edit column) */
+td.unselected {
+  background: inherit !important;
+  color: inherit !important;
+  padding: 6px 12px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Cell link — primary blue, no underline */
+a.tableLink {
   background-color: transparent !important;
   color: var(--cp-primary) !important;
   text-decoration: none !important;
+  cursor: pointer !important;
 }
 
-A.tableLink:hover {
+/* Cell link — JS-applied hover class (swapped by mouseOverA) */
+a.tableLinkHover {
+  background-color: transparent !important;
+  color: #c5eaf8 !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+}
+
+/* Legacy CSS hover on tableLink — keep for safety */
+a.tableLink:hover {
   background-color: rgba(163, 220, 236, 0.08) !important;
   color: #c5eaf8 !important;
 }
 
-.listHeader {
-  font-weight: bold !important;
-  color: var(--cp-text) !important;
-  background-color: var(--cp-surface-high) !important;
-}
-
-A.listSortHeader {
-  color: var(--cp-primary) !important;
-  background-color: var(--cp-surface-high) !important;
-  text-decoration: underline !important;
-  font-weight: bold !important;
-}
-
+/* Generic selection classes */
 A.selected {
   background-color: rgba(169, 202, 235, 0.15) !important;
   color: var(--cp-primary) !important;
@@ -655,14 +732,14 @@ A.unselected {
   background-color: var(--cp-surface-high) !important;
   color: var(--cp-text) !important;
   font-weight: bold !important;
-  height: 28px !important;
+  padding: 10px 16px !important;
 }
 
 .buttonbarRL {
   background-color: var(--cp-surface-high) !important;
   color: var(--cp-text) !important;
   font-weight: bold !important;
-  height: 28px !important;
+  padding: 10px 16px !important;
   text-align: right !important;
 }
 
@@ -809,6 +886,8 @@ button {
   padding: 6px 16px !important;
   font-size: 13px !important;
   cursor: pointer !important;
+  height: auto !important;
+  width: auto !important;
   transition: background 0.15s ease, border-color 0.15s ease !important;
 }
 
@@ -818,6 +897,40 @@ input[type="reset"]:hover,
 button:hover {
   background-color: var(--cp-surface-low) !important;
   border-color: var(--cp-primary-strong) !important;
+}
+
+/* Primary action button (Search) */
+input.bwbutton[name="search"] {
+  background: var(--cp-primary) !important;
+  color: var(--cp-on-primary) !important;
+  border-color: var(--cp-primary) !important;
+  font-weight: 600 !important;
+}
+
+input.bwbutton[name="search"]:hover {
+  background: #bde6f2 !important;
+  border-color: #bde6f2 !important;
+}
+
+/* Override legacy .bwbutton fixed height/width */
+input.bwbutton {
+  height: auto !important;
+  width: auto !important;
+}
+
+/* ============================================================
+   Pagination — text + links on the dark surface
+   ============================================================ */
+table.enduserbody:not(#searchTable) {
+  color: var(--cp-text-muted) !important;
+}
+
+table.enduserbody:not(#searchTable) a.headerLink {
+  color: var(--cp-primary) !important;
+}
+
+table.enduserbody:not(#searchTable) a.headerLink:hover {
+  color: #c5eaf8 !important;
 }
 
 /* ============================================================
@@ -932,11 +1045,11 @@ TD.selected {
 input, select {
   font-family: var(--cp-font-sans) !important;
   font-size: 13px !important;
-  background-color: var(--cp-surface) !important;
+  background-color: var(--cp-surface-low) !important;
   color: var(--cp-text) !important;
   border: 1px solid var(--cp-outline) !important;
   border-radius: var(--cp-radius-ctl) !important;
-  padding: 4px 8px !important;
+  padding: 6px 10px !important;
 }
 
 input:focus, select:focus {

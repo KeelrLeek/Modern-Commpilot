@@ -1,0 +1,270 @@
+// Copyright © 2017 BroadSoft Inc.
+var digits = "0123456789";
+var lowercaseLetters = "abcdefghijklmnopqrstuvwxyz";
+var uppercaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+var alphanumeric = digits + uppercaseLetters + lowercaseLetters;
+var validDomainNameChars = alphanumeric + "-_.";
+var whitespace = " \t\n\r";
+var minPasswordLength = 1;
+var minUserIDLength = 2;
+
+// Error handling support.
+//
+// All validation functions should return false to indicate an error.
+// Calling functions should use getLastError() to determine the details
+// of the error.
+
+var bwLastError = "";
+
+function getLastError()
+{
+  return bwLastError;
+}
+function setError(s)
+{
+  bwLastError = s;
+  return false;
+}
+
+// Utility functions.
+//
+// Used by other functions within this script file.
+
+function isEmpty(s)
+{
+   return ((s == null) || (s.length == 0));
+}
+
+function isWhitespace(s)
+{
+  var pattern = /^\s*$/;
+  return pattern.test(s);
+}
+
+// Formatting support.
+//
+// These functions prepare fields for validation by eliminating
+// excess whitespace, converting to standard presentation, etc.
+
+function trim(s)
+{
+  var result = "";
+  var pieces;
+  var z;
+  pieces = s.split(/[\r\n\t ]/);
+  for(z=0; z < pieces.length; z++)
+  {
+    if(pieces[z].length > 0)
+    {
+      if(result.length>0) result += " ";
+      result += pieces[z];
+    }
+  }
+  return result;
+}
+
+function formatName(n)
+{
+  var stdName = n.value;
+  var index = stdName.indexOf('"');
+
+  while (index >= 0)
+  {
+    if (index > 0) stdName = stdName.substr(0, index) + stdName.substr(index+1);
+    else stdName = stdName.substr(1);
+
+    index = stdName.indexOf('"');
+  }
+
+  n.value = trim(stdName);
+}
+
+function formatPort(n)
+{
+  var intValue = parseInt(n.value,10);
+  
+  if (intValue != NaN)
+  {
+    if (intValue < 0) intValue = -1 * intValue;
+    n.value = intValue;
+  }
+}
+
+// Validate that the number is all digits and is
+// between or equal to the values of min and max.
+// Generates an error if the value is empty (no number at all)
+// Generates an error if the value is not an integer number
+// Generates an error if the number is out of the specified range
+//
+// fieldLabel is what will be displayed in the error message in case it is invalid
+// Returns false when an error was generated. The error can be retrieved get calling getLastError()
+function isValidNumber(fieldLabel, number, min, max) {
+ 
+  if (number.length == 0) {
+    return setError(errorText(1001, fieldLabel));
+  }
+  if (!isInteger(number)) {
+    return setError(errorText(1001, fieldLabel));   
+  }
+  // the following coversion is done, in case not all parameters
+  // as sent as the same data type. 
+  // The comparison fails if not all them are of the same type
+  min = parseInt(min);
+  max = parseInt(max);
+  number = parseInt(number);
+  
+  if ((min <= number) && (number <= max)) {
+    // do nothing... the number is valid.
+  } else {
+    // case 386: return "Value must be >= <1> and <= <2>";  
+    return setError(errorText(386, fieldLabel, min, max));
+  }
+  return true;
+}
+
+// Validate that the number is all digits and is
+// greater than or equal to the value of min.
+function isValidNumberMinInclusive(field, number, min) {
+  if (number.length == 0) {
+    return setError(errorText(1001, field));
+  }
+
+  if (!isInteger(number)) {
+    return setError(errorText(1001, field));   
+  }
+  
+  if (number < min) {
+    return false; 
+  }
+
+  return true;
+}
+
+function isValidPassword(password)
+{
+  if (password == null)
+  {
+    return setError(errorText(1000, errorText(2021)));
+  }
+  if (password.length == 0)
+  {
+    return setError(errorText(1000, errorText(2021)));
+  }
+  if (password.length < minPasswordLength)
+  {
+    return setError(errorText(1000, errorText(2021)));
+  }
+  
+  return true;
+}
+
+function isDigit (c)
+{
+   return ((c >= "0") && (c <= "9"));
+}
+
+function isAlpha (c)
+{
+  var lowercase = ((c >= "a") && (c <= "z"));
+  var uppercase = ((c >= "A") && (c <= "Z"));
+  return (lowercase || uppercase);
+}
+
+function isInteger (s)
+{
+   var i, c;
+
+   if (isEmpty(s))
+   {
+     return setError(errorText(380));
+   }
+
+   for (i = 0; i < s.length; i++)
+   {
+      c = s.charAt(i);
+
+      if (!isDigit(c))
+      {
+         return setError(errorText(381, s.charAt(i)));
+      }
+   }
+
+   return true;
+}
+
+function isFloat (s)
+{
+  return /^((\d+(\.\d*)?)|((\d*\.)?\d+))$/.test(trim(s));
+}
+
+function isIntegerInRange (s, min, max)
+{
+   var num;
+
+   if (!isInteger(s)) return false;
+
+   num = parseInt(s);
+
+   if (num < min)
+   {
+      return setError(errorText(382, min));
+   }
+   else if (num > max)
+   {
+      return setError(errorText(383, max));
+   }
+
+   return true;
+}
+
+function isFloatInRange (num, min, max)
+{
+   if (!isFloat(num)) return false;
+
+   if (num < min)
+   {
+      return setError(errorText(382, min));
+   }
+   else if (num > max)
+   {
+      return setError(errorText(383, max));
+   }
+
+   return true;
+}
+
+// Valid LinePort should not contain '@'
+function isValidLinePort(s)
+{
+  if (s.indexOf("@") != -1)
+    return false;
+  else
+    return true;
+}
+
+/* Don't write anything on this function.
+ * It should act as an abstract function, if a web page needs to do anything onLoad event
+ * this function should be overridden in a local JS file and it will get called by the
+ * bwFormTemplate.jsp body onLoad event. 
+ */
+function doThisOnLoad()
+{
+  // Don't write anything here.
+}
+
+/* Script that prevents submitting before the page is loaded. It avoids sending incomplete requests. 
+ */
+function preventSubmit()
+{
+  var loaded = false;
+  window.onload = function() {
+    loaded = true;
+  }
+
+  document.querySelector("#mainForm").addEventListener("submit", function(e){
+    if(!loaded){
+      alert(errorText(2314));
+      e.preventDefault();  //Stop form submission before the page is loaded
+    }
+  }); 
+}
