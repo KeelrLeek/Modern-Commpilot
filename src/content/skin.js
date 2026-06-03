@@ -28,14 +28,14 @@ console.log("[Modern CommPilot Skin] content script loaded");
   src: url("${url("assets/fonts/InterVariable.woff2")}") format("woff2");
   font-weight: 100 900;
   font-style: normal;
-  font-display: swap;
+  font-display: optional;
 }
 @font-face {
   font-family: "Geist";
   src: url("${url("assets/fonts/GeistVariable.woff2")}") format("woff2");
   font-weight: 100 900;
   font-style: normal;
-  font-display: swap;
+  font-display: optional;
 }
 `;
 
@@ -60,6 +60,30 @@ form[name="leftNavForm"] table tr:nth-child(${row}) a::before {
 }`;
   }
 
+  /* Sort direction icons */
+  css += `
+.cp-sort-asc { background-image: url("${url("assets/icons/sort-asc.svg")}") !important; }
+.cp-sort-desc { background-image: url("${url("assets/icons/sort-desc.svg")}") !important; }`;
+
+  /* Plus / minus icons on add/delete-row buttons.
+     Targeted by [value] so dynamically-created buttons from addRow()
+     (add1/add2/del1/del2) are automatically styled. */
+  css += `
+input.bwbutton[value="+"] { background-image: url("${url("assets/icons/plus.svg")}") !important; }
+input.bwbutton[value="-"] { background-image: url("${url("assets/icons/minus.svg")}") !important; }`;
+
+  /* Pagination icon buttons */
+  const pageIcons = [
+    { dir: "first", path: "assets/icons/page-first.svg" },
+    { dir: "prev",   path: "assets/icons/page-prev.svg" },
+    { dir: "next",   path: "assets/icons/page-next.svg" },
+    { dir: "last",   path: "assets/icons/page-last.svg" },
+  ];
+  for (const { dir, path } of pageIcons) {
+    css += `
+.cp-page-btn[data-cp-page="${dir}"] { background-image: url("${url(path)}") !important; }`;
+  }
+
   const style = document.createElement("style");
   style.id = "cp-skin-assets";
   style.textContent = css;
@@ -80,10 +104,8 @@ form[name="leftNavForm"] table tr:nth-child(${row}) a::before {
  * Each item is wrapped in try/catch so a single surprise can't blank
  * the page.
  */
-(function wrapMenuCards() {
-  const anchors = document.querySelectorAll(
-    'td[width="50%"] a.navMenuItem'
-  );
+function wrapMenuCards() {
+  const anchors = document.querySelectorAll("a.navMenuItem");
 
   anchors.forEach((anchor) => {
     try {
@@ -122,7 +144,31 @@ form[name="leftNavForm"] table tr:nth-child(${row}) a::before {
       console.warn("[CommPilot Skin] wrapMenuCards: skipping item", e);
     }
   });
-})();
+}
+
+wrapMenuCards();
+
+function tagMenuColumns() {
+  document.querySelectorAll("td.menuCategory").forEach(function (mc) {
+    try {
+      var t = mc.closest("table");
+      var col = t && t.parentElement;
+      if (col && col.tagName === "TD") col.classList.add("cp-menu-col");
+    } catch (e) {}
+  });
+}
+
+tagMenuColumns();
+
+document.addEventListener("cp:reskin", function () {
+  try {
+    tagMenuColumns();
+    wrapMenuCards();
+    tagMenuColumns();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin wrapMenuCards", e);
+  }
+});
 
 /*
  * Make the whole .cp-menu-card clickable by forwarding clicks to its
@@ -264,6 +310,291 @@ form[name="leftNavForm"] table tr:nth-child(${row}) a::before {
     );
   } catch (e) {
     console.warn("[CommPilot Skin] wireHomeButton:", e);
+  }
+})();
+
+/*
+ * Append a sort-direction icon to the active column header.
+ *
+ * The sorted column is identified by the presence of a legacy arrow gif
+ * (uparrow.gif = ascending, downarrow.gif = descending) inside an
+ * a.listSortHeader element.  We append a span with the cp-sort-asc or
+ * cp-sort-desc class; the background-image is injected by injectAssetCss
+ * via chrome.runtime.getURL.  The legacy gif is hidden by CSS.
+ *
+ * The anchor node is preserved (including its toggleSort handler), and
+ * the icon span is a child so sorting still works.
+ */
+(function wireSortIcons() {
+  try {
+    if (document.documentElement.dataset.cpSortWired) return;
+    document.documentElement.dataset.cpSortWired = "1";
+
+    var sortLinks = document.querySelectorAll("a.listSortHeader");
+    sortLinks.forEach(function (link) {
+      try {
+        var arrow = link.querySelector('img[src*="uparrow.gif"]');
+        if (arrow) {
+          var span = document.createElement("span");
+          span.className = "cp-sort-ico cp-sort-asc";
+          link.appendChild(span);
+          return;
+        }
+        arrow = link.querySelector('img[src*="downarrow.gif"]');
+        if (arrow) {
+          var span = document.createElement("span");
+          span.className = "cp-sort-ico cp-sort-desc";
+          link.appendChild(span);
+          return;
+        }
+      } catch (e) {
+        console.warn("[CommPilot Skin] wireSortIcons item:", e);
+      }
+    });
+  } catch (e) {
+    console.warn("[CommPilot Skin] wireSortIcons:", e);
+  }
+})();
+
+/*
+ * Wire the "+" add-row buttons.  Styling is handled by CSS attribute
+ * selectors (input.bwbutton[value="+"]) that auto-apply to dynamically-
+ * created buttons, so this IIFE only sets a global idempotency flag.
+ */
+(function wirePlusButton() {
+  try {
+    if (document.documentElement.dataset.cpPlusWired) return;
+    document.documentElement.dataset.cpPlusWired = "1";
+  } catch (e) {
+    console.warn("[CommPilot Skin] wirePlusButton:", e);
+  }
+})();
+
+/*
+ * Replace pagination text links (First / Previous / Next / Last) with
+ * icon buttons.
+ *
+ * These are a.headerLink elements inside table.enduserbody:not(#searchTable).
+ * We preserve the <a> node (including its doPage click handler), set its
+ * text invisible, add a marker class + data-cp-page attribute, and set
+ * title/aria-label for accessibility.  The icon background-image is
+ * injected by injectAssetCss via chrome.runtime.getURL.
+ *
+ * Scoping to table.enduserbody:not(#searchTable) ensures sidebar footer
+ * headerLinks are not affected.
+ */
+(function wirePaginationIcons() {
+  try {
+    if (document.documentElement.dataset.cpPaginationWired) return;
+    document.documentElement.dataset.cpPaginationWired = "1";
+
+    var pageTables = document.querySelectorAll(
+      "table.enduserbody:not(#searchTable)"
+    );
+    pageTables.forEach(function (tbl) {
+      try {
+        var links = tbl.querySelectorAll("a.headerLink");
+        links.forEach(function (link) {
+          var text = link.textContent.trim();
+          var dir = null;
+          if (text === "First") dir = "first";
+          else if (text === "Previous") dir = "prev";
+          else if (text === "Next") dir = "next";
+          else if (text === "Last") dir = "last";
+          if (!dir) return;
+          if (link.classList.contains("cp-page-btn")) return;
+
+          link.classList.add("cp-page-btn");
+          link.dataset.cpPage = dir;
+          link.textContent = "";
+          link.title = text;
+          link.setAttribute("aria-label", text);
+        });
+      } catch (e) {
+        console.warn("[CommPilot Skin] wirePaginationIcons table:", e);
+      }
+    });
+  } catch (e) {
+    console.warn("[CommPilot Skin] wirePaginationIcons:", e);
+  }
+})();
+
+/*
+ * Wrap the results table, spacer, and pagination table into a single
+ * canonical box (.cp-results-box).
+ *
+ * On list pages, td.enduserbody contains (in order):
+ *   1. searchTable (optional, already its own canonical box)
+ *   2. results table (<table> with a.listSortHeader children)
+ *   3. spacer table (<table> with onepx.gif)
+ *   4. pagination table (<table class="enduserbody"> without id)
+ *
+ * This IIFE finds the results table, creates a <div class="cp-results-box">
+ * as a wrapper, and moves the results table, spacer, and pagination table
+ * into it.  The wrapper replaces the results table in the DOM flow.
+ *
+ * Skipped silently on menu pages (no results table).
+ * Idempotent via dataset flag.
+ */
+(function wrapResultsBox() {
+  try {
+    if (document.documentElement.dataset.cpResultsWired) return;
+    document.documentElement.dataset.cpResultsWired = "1";
+
+    var bodyTd = document.querySelector("td.enduserbody");
+    if (!bodyTd) return;
+
+    /* Find the results table */
+    var resultsTable = bodyTd.querySelector(
+      'table:has(> tbody > tr > td.listHeader > a.listSortHeader)'
+    );
+    if (!resultsTable) return; /* not a list page — skip */
+
+    /* Find the pagination table */
+    var paginationTable = bodyTd.querySelector(
+      'table.enduserbody:not(#searchTable)'
+    );
+    if (!paginationTable) return;
+
+    /* Find the spacer between results and pagination (onepx.gif table) */
+    var spacerTable = null;
+    var nextEl = resultsTable.nextElementSibling;
+    if (
+      nextEl &&
+      nextEl.tagName === "TABLE" &&
+      nextEl.querySelector('img[src*="onepx.gif"]')
+    ) {
+      spacerTable = nextEl;
+    }
+
+    /* Create wrapper div */
+    var wrapper = document.createElement("div");
+    wrapper.className = "cp-results-box";
+
+    /* Insert wrapper before the results table */
+    bodyTd.insertBefore(wrapper, resultsTable);
+
+    /* Move children into wrapper */
+    wrapper.appendChild(resultsTable);
+    if (spacerTable) wrapper.appendChild(spacerTable);
+    wrapper.appendChild(paginationTable);
+  } catch (e) {
+    console.warn("[CommPilot Skin] wrapResultsBox:", e);
+  }
+})();
+
+/*
+ * Wrap the search panel table in a rounded glass container div,
+ * matching the treatment wrapResultsBox gives the results table.
+ */
+(function wrapSearchBox() {
+  try {
+    if (document.documentElement.dataset.cpSearchWired) return;
+    document.documentElement.dataset.cpSearchWired = "1";
+
+    var searchTable = document.getElementById("searchTable");
+    if (!searchTable) return;
+
+    var wrapper = document.createElement("div");
+    wrapper.className = "cp-box cp-search-box";
+
+    searchTable.parentNode.insertBefore(wrapper, searchTable);
+    wrapper.appendChild(searchTable);
+  } catch (e) {
+    console.warn("[CommPilot Skin] wrapSearchBox:", e);
+  }
+})();
+
+/*
+ * Move the breadcrumb trail (a.headerAuthLevelLink chain) out of the
+ * header bar and place it just above the page title as a thin bar.
+ */
+(function moveBreadcrumb() {
+  try {
+    if (document.documentElement.dataset.cpBreadcrumbMoved) return;
+    document.documentElement.dataset.cpBreadcrumbMoved = "1";
+
+    var src = document.querySelector("td.headerBar a.headerAuthLevelLink");
+    if (!src) return;
+    var cell = src.closest("td");
+    if (!cell) return;
+
+    var title = document.querySelector("td.screenName");
+    if (!title) return;
+    var titleTable = title.closest("table");
+    if (!titleTable) return;
+
+    var bar = document.createElement("div");
+    bar.className = "cp-breadcrumb";
+
+    /* Move every child node EXCEPT img and script elements */
+    var nodes = Array.from(cell.childNodes);
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      if (n.nodeType === 1 && (n.tagName === "IMG" || n.tagName === "SCRIPT")) continue;
+      bar.appendChild(n);
+    }
+
+    titleTable.parentNode.insertBefore(bar, titleTable);
+    cell.style.display = "none";
+  } catch (e) {
+    console.warn("[CommPilot Skin] moveBreadcrumb:", e);
+  }
+})();
+
+/*
+ * Move interactive elements from the bottom button bar into
+ * .cp-results-box as an inner footer row.
+ *
+ * On list pages, the bottom OK/action bar (tr#buttonbarbottom)
+ * previously sat as a separate box below the results.  This IIFE
+ * moves its interactive child nodes (input, button, a) into a
+ * new <div class="cp-results-footer"> inside .cp-results-box,
+ * then hides the original empty row so the footer reads as part
+ * of the same unified box.
+ *
+ * Nodes are MOVED (not recreated) so their ids, handlers, and
+ * inline event listeners survive.  Script blocks inside the bar
+ * (redirectPost, goBack, etc.) remain in place — they've already
+ * executed and their function definitions are globally accessible.
+ *
+ * Idempotent via dataset flag.  Silently skipped on menu pages
+ * (no .cp-results-box) or pages without a bottom button bar.
+ */
+(function moveButtonBar() {
+  try {
+    if (document.documentElement.dataset.cpFooterMoved) return;
+    document.documentElement.dataset.cpFooterMoved = "1";
+
+    var box = document.querySelector(".cp-results-box") || document.querySelector(".cp-search-box");
+    if (!box) return;
+
+    var barRow = document.getElementById("buttonbarbottom");
+    if (!barRow) return;
+
+    var barTd = barRow.querySelector("td.buttonbar");
+    if (!barTd) return;
+
+    /* Create the footer div */
+    var footer = document.createElement("div");
+    footer.className = "cp-results-footer";
+
+    /* Collect all interactive child nodes in the buttonbar td
+       (input, button, a) and move them into the footer, preserving
+       their original DOM order.  querySelectorAll returns a static
+       NodeList, so iterating while moving nodes is safe. */
+    var interactives = barTd.querySelectorAll("input, button, a");
+    interactives.forEach(function (node) {
+      footer.appendChild(node);
+    });
+
+    /* Append the footer as the last child of .cp-results-box */
+    box.appendChild(footer);
+
+    /* Hide the now-empty original row */
+    barRow.style.display = "none";
+  } catch (e) {
+    console.warn("[CommPilot Skin] moveButtonBar:", e);
   }
 })();
 

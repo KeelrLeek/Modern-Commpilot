@@ -14,6 +14,7 @@
    Design Tokens
    ============================================================ */
 :root {
+  color-scheme: dark !important;
   --cp-bg:            #0d131e;
   --cp-surface:       #1a202b;
   --cp-surface-high:  #242a36;
@@ -27,6 +28,8 @@
   --cp-text-muted:    #c0c8cb;
   --cp-outline:       #40484b;
   --cp-glass-edge:    rgba(255,255,255,0.10);
+  --cp-box-edge:      rgba(255, 255, 255, 0.2);
+  --cp-box-edge-width: 2px;
   --cp-font-sans:     "Inter", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   --cp-font-label:    "Geist", var(--cp-font-sans);
   --cp-radius-card:   16px;
@@ -40,6 +43,7 @@
 html {
   background: var(--cp-bg) !important;
   color: var(--cp-text) !important;
+  color-scheme: dark !important;
 }
 
 body {
@@ -101,7 +105,7 @@ body > table:first-of-type {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   color: var(--cp-text) !important;
-  padding: 12px 24px !important;
+  padding: 6px 24px !important;
   font-size: 14px !important;
   font-family: var(--cp-font-sans) !important;
 }
@@ -190,13 +194,14 @@ td.headandfoot {
 /* Sidebar column — normal table cell with positioned footer */
 td.headandfoot[width="18%"] {
   position: relative !important;
+  height: 100% !important;
   padding: 10px 10px 72px 10px !important;
   background: var(--cp-surface) !important;
-  border: 1px solid var(--cp-glass-edge) !important;
+  border: var(--cp-box-edge-width) solid var(--cp-box-edge) !important;
   border-radius: var(--cp-radius-ctl) !important;
-  box-shadow: inset 1px 1px 0 var(--cp-glass-edge),
-    0 4px 16px rgba(0, 0, 0, 0.25) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
   overflow: hidden !important;
+  view-transition-name: cp-sidebar !important;
 }
 
 /* Footer pinned to the bottom of the sidebar via absolute positioning.
@@ -439,12 +444,11 @@ a.navMenuItemRL:hover {
 
 .cp-menu-card {
   background: var(--cp-surface) !important;
-  border: 1px solid var(--cp-glass-edge) !important;
+  border: var(--cp-box-edge-width) solid var(--cp-box-edge) !important;
   border-radius: var(--cp-radius-ctl) !important;
   margin: 0 8px 0 8px !important;
   padding: 0 !important;
-  box-shadow: inset 1px 1px 0 var(--cp-glass-edge),
-    0 4px 16px rgba(0, 0, 0, 0.25) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
   max-width: 360px !important;
   width: 100% !important;
   box-sizing: border-box !important;
@@ -457,15 +461,13 @@ a.navMenuItemRL:hover {
 .cp-menu-card:hover {
   background: var(--cp-surface-high) !important;
   border-color: rgba(136, 192, 208, 0.35) !important;
-  box-shadow: inset 1px 1px 0 var(--cp-glass-edge),
-    0 6px 20px rgba(0, 0, 0, 0.30) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.30) !important;
   transform: translateY(-2px) !important;
 }
 
 .cp-menu-card:active {
   transform: translateY(0) !important;
-  box-shadow: inset 1px 1px 0 var(--cp-glass-edge),
-    0 2px 8px rgba(0, 0, 0, 0.25) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
 }
 
 /* Title link inherits card pointer; no underline on hover */
@@ -518,7 +520,7 @@ body.cp-help-active .cp-menu-card {
 }
 
 /* Gutter between BASIC and ADVANCED columns */
-td[width="50%"] + td[width="50%"] {
+td.cp-menu-col + td.cp-menu-col {
   padding-left: 10px !important;
 }
 
@@ -527,10 +529,10 @@ td[width="50%"] + td[width="50%"] {
    Universal rule adds top margin to all cards; the second rule removes
    it from any card whose <tr> has a preceding card-holding <tr> sibling,
    leaving only the first card with the extra top margin. */
-td[width="50%"] .cp-menu-card {
+td.cp-menu-col .cp-menu-card {
   margin-top: 8px !important;
 }
-td[width="50%"] > table > tbody > tr:has(> td > .cp-menu-card)
+td.cp-menu-col > table > tbody > tr:has(> td > .cp-menu-card)
   ~ tr:has(> td > .cp-menu-card) .cp-menu-card {
   margin-top: 0 !important;
 }
@@ -542,13 +544,13 @@ td[width="50%"] > table > tbody > tr:has(> td > .cp-menu-card)
 /* Column cells fill their row height so the flex container
    has space to distribute cards (aligning the last card with
    the bottom of the sidebar panel). */
-td[width="50%"] {
+td.cp-menu-col {
   height: 100% !important;
   vertical-align: top !important;
 }
 
 /* Inner column table fills the cell height */
-td[width="50%"] > table {
+td.cp-menu-col > table {
   height: 100% !important;
   width: 100% !important;
   display: block !important;
@@ -558,7 +560,7 @@ td[width="50%"] > table {
    Hidden rows (desc rows, spacers) are display:none below, so only the
    menuCategory header and card rows participate — gap applies between
    them without adding trailing space after the last card. */
-td[width="50%"] > table > tbody {
+td.cp-menu-col > table > tbody {
   display: flex !important;
   flex-direction: column !important;
   height: 100% !important;
@@ -568,14 +570,14 @@ td[width="50%"] > table > tbody {
 }
 
 /* Rows become block-level flex items */
-td[width="50%"] > table > tbody > tr {
+td.cp-menu-col > table > tbody > tr {
   display: block !important;
   flex-shrink: 0 !important;
   width: 100% !important;
 }
 
 /* Cells inside column rows: block so they fill the row width */
-td[width="50%"] > table > tbody > tr > td {
+td.cp-menu-col > table > tbody > tr > td {
   display: block !important;
   width: 100% !important;
   box-sizing: border-box !important;
@@ -584,13 +586,13 @@ td[width="50%"] > table > tbody > tr > td {
 /* Hide non-card, non-header rows (orphaned desc rows, spacers)
    so only the menuCategory header and card rows remain as flex items.
    This replaces the old tr:has(td[height="5"]) spacer rule. */
-td[width="50%"] > table > tbody > tr:not(:has(.cp-menu-card)):not(:has(.menuCategory)) {
+td.cp-menu-col > table > tbody > tr:not(:has(.cp-menu-card)):not(:has(.menuCategory)) {
   display: none !important;
 }
 
 /* Description text below nav menu links — scoped to content menu columns */
-td[width="50%"] td[align="left"]:not(:has(a)):not(.cp-card-desc),
-td[width="50%"] td[align="LEFT"]:not(:has(a)):not(.cp-card-desc) {
+td.cp-menu-col td[align="left"]:not(:has(a)):not(.cp-card-desc),
+td.cp-menu-col td[align="LEFT"]:not(:has(a)):not(.cp-card-desc) {
   padding: 0 12px 8px 24px !important;
   font-size: 13px !important;
   line-height: 1.45 !important;
@@ -608,9 +610,108 @@ table.enduserbody {
   border: none !important;
 }
 
-/* Wrapper cell — padding for the content block */
+/* Wrapper cell — canonical box spec matching sidebar/cards.
+   Bottom border is removed so the adjacent button-bar row
+   below visually merges into the same box. */
 td.enduserbody {
   padding: 16px 16px 0 16px !important;
+  background: var(--cp-surface) !important;
+  border: var(--cp-box-edge-width) solid var(--cp-box-edge) !important;
+  border-bottom: none !important;
+  border-radius: var(--cp-radius-ctl) var(--cp-radius-ctl) 0 0 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+  overflow: hidden !important;
+}
+
+/* On list pages (td.enduserbody containing .cp-results-box), strip
+   the outer box treatment so the nested search panel and results box
+   each own their own border/shadow.  Keep padding for breathing room.
+   Menu pages without .cp-results-box keep the original box styling. */
+td.enduserbody:has(.cp-results-box), td.enduserbody:has(.cp-search-box) {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* Strip margin-bottom from .cp-results-box on list pages — the
+   sidebar's height is tied to the row and the 12px bottom margin
+   creates a dead-space gap below the results box. */
+td.enduserbody:has(.cp-results-box) > .cp-results-box {
+  margin-bottom: 0 !important;
+}
+
+/* On list pages, the 16px horizontal inset moves from td.enduserbody's
+   padding to margins on the child boxes, so .cp-results-box and the
+   buttonbar below it share the same left/right edges. */
+
+.cp-results-box {
+  margin: 0 16px 12px 16px !important;
+}
+
+/* ============================================================
+   Results Box — canonical box wrapping results + pagination
+   ============================================================ */
+
+/* Shared canonical glass-box treatment for wrapper divs */
+.cp-box {
+  background: var(--cp-surface) !important;
+  border: var(--cp-box-edge-width) solid var(--cp-box-edge) !important;
+  border-radius: var(--cp-radius-ctl) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+  overflow: hidden !important;
+}
+
+.cp-search-box {
+  margin: 0 16px 12px 16px !important;
+}
+
+.cp-results-box {
+  background: var(--cp-surface) !important;
+  border: var(--cp-box-edge-width) solid var(--cp-box-edge) !important;
+  border-radius: var(--cp-radius-ctl) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+  overflow: hidden !important;
+  margin-bottom: 12px !important;
+}
+
+/* Footer row inside .cp-results-box — holds the OK/action buttons.
+   No own border/shadow — .cp-results-box provides the box.
+   Top border acts as a divider after pagination.
+   Bottom corners are rounded by .cp-results-box's overflow:hidden. */
+.cp-results-footer {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 12px 16px !important;
+  background: transparent !important;
+}
+
+/* Hide the spacer table (onepx.gif) inside .cp-results-box — the
+   pagination table's top border serves as the divider instead. */
+.cp-results-box > table:has(td.listHeader):not(:has(a)) {
+  display: none !important;
+}
+
+/* Results table inside .cp-results-box — no border-radius/overflow
+   (the wrapper owns those).  No margin-bottom to avoid gap before
+   the pagination table. */
+.cp-results-box table:has(> tbody > tr > td.listHeader > a.listSortHeader) {
+  border-radius: 0 !important;
+  overflow: visible !important;
+  margin-bottom: 0 !important;
+}
+
+/* Pagination table inside .cp-results-box — top divider, no radius.
+   The top border replaces the removed spacer table.
+   margin-bottom:0 eliminates any residual gap above the footer. */
+.cp-results-box table.enduserbody:not(#searchTable) {
+  border-radius: 0 !important;
+  overflow: visible !important;
+  border-top: 1px solid var(--cp-outline) !important;
+  margin-bottom: 0 !important;
 }
 
 /* Hide the redundant top OK button bar.
@@ -634,16 +735,41 @@ tr.listHeader {
   color: var(--cp-text) !important;
 }
 
-/* Results table column headers (have sortable links) */
-table:has(a.listSortHeader) td.listHeader {
+/* Search panel table — box treatment moved to .cp-box wrapper.
+   Keep inner-only styling: background override and collapse model. */
+table#searchTable {
+  background: var(--cp-surface-high) !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+/* Search panel header bar ("Enter search criteria below") */
+tr#trHeader td {
   padding: 8px 12px !important;
+  background: var(--cp-surface-high) !important;
   border-bottom: 1px solid var(--cp-outline) !important;
   font-weight: 600 !important;
   font-size: 13px !important;
 }
 
-/* Search-bar header row */
-tr.listHeader td {
+/* Criteria-row cells (tr0, tr1, tr2) — padding and alignment.
+   Background is inherited from the parent table#searchTable so all
+   rows sit on the same surface regardless of how many are added. */
+table#searchTable tbody tr:not(#trHeader):not(#trLast) td {
+  padding: 6px 8px !important;
+  vertical-align: middle !important;
+}
+
+/* Results table — round its own box.
+   Scoped via direct descendant chain to avoid matching outer layout
+   tables that also contain a.listSortHeader as deeper descendants. */
+table:has(> tbody > tr > td.listHeader > a.listSortHeader) {
+  border-radius: var(--cp-radius-ctl) !important;
+  overflow: hidden !important;
+}
+
+/* Results table column headers (have sortable links) */
+table:has(> tbody > tr > td.listHeader > a.listSortHeader) td.listHeader {
   padding: 8px 12px !important;
   border-bottom: 1px solid var(--cp-outline) !important;
   font-weight: 600 !important;
@@ -663,6 +789,24 @@ a.listSortHeader:hover {
   color: var(--cp-primary) !important;
 }
 
+/* Hide legacy sort arrow gifs */
+img[src*="uparrow.gif"],
+img[src*="downarrow.gif"] {
+  display: none !important;
+}
+
+/* Sort direction icon span (bg-image injected by skin.js via getURL) */
+.cp-sort-ico {
+  display: inline-block !important;
+  width: 14px !important;
+  height: 14px !important;
+  vertical-align: middle !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  margin-left: 4px !important;
+}
+
 /* Data rows — subtle alternating zebra stripes */
 tr.unselected {
   background: transparent !important;
@@ -680,7 +824,7 @@ tr.hilite {
 }
 
 /* Data cells — separator border for scannability */
-td:has(a.tableLink) {
+td:has(> a.tableLink) {
   padding: 6px 12px !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
 }
@@ -726,13 +870,20 @@ A.unselected {
 }
 
 /* ============================================================
-   Button Bar
+   Button Bar — attached footer of the main content box.
+   Neutral bg matches td.enduserbody so it reads as one unified
+   box (the top tr#buttonbartop is hidden by the selector above).
+   Left/right/bottom borders complete the box frame; no top border
+   so the bar visually connects to the content area above.
    ============================================================ */
 .buttonbar {
-  background-color: var(--cp-surface-high) !important;
+  background: var(--cp-surface) !important;
   color: var(--cp-text) !important;
   font-weight: bold !important;
-  padding: 10px 16px !important;
+  padding: 12px 16px !important;
+  border: 1px solid var(--cp-glass-edge) !important;
+  border-top: none !important;
+  border-radius: 0 0 var(--cp-radius-ctl) var(--cp-radius-ctl) !important;
 }
 
 .buttonbarRL {
@@ -918,10 +1069,28 @@ input.bwbutton {
   width: auto !important;
 }
 
+/* Plus / minus icon buttons — text hidden, icon via injected bg-image.
+   Targeted by [value] so dynamically-created buttons (add1/add2/del1/del2
+   created by the site's addRow) are automatically styled.
+   Height matches the Search button (~32px) for a consistent row. */
+input.bwbutton[value="+"],
+input.bwbutton[value="-"] {
+  color: transparent !important;
+  font-size: 0 !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 14px !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+}
+
 /* ============================================================
    Pagination — text + links on the dark surface
    ============================================================ */
 table.enduserbody:not(#searchTable) {
+  border-radius: var(--cp-radius-ctl) !important;
+  overflow: hidden !important;
   color: var(--cp-text-muted) !important;
 }
 
@@ -931,6 +1100,27 @@ table.enduserbody:not(#searchTable) a.headerLink {
 
 table.enduserbody:not(#searchTable) a.headerLink:hover {
   color: #c5eaf8 !important;
+}
+
+/* Pagination icon buttons (bg-image injected by skin.js via getURL) */
+.cp-page-btn {
+  display: inline-block !important;
+  width: 28px !important;
+  height: 28px !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 28px !important;
+  text-decoration: none !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 14px !important;
+  vertical-align: middle !important;
+  border-radius: var(--cp-radius-ctl) !important;
+  transition: background-color 0.15s ease !important;
+}
+
+.cp-page-btn:hover {
+  background-color: rgba(163, 220, 236, 0.1) !important;
 }
 
 /* ============================================================
@@ -1127,3 +1317,43 @@ body.cp-help-active a.leftnavfolder,
 body.cp-help-active a.leftnavfolderopen {
   cursor: help !important;
 }
+
+/* ============================================================
+   Remove trailing whitespace gap below results box
+   ============================================================
+   Two sources of dead space:
+
+   1. Inside the form: whitespace text nodes between </table>
+      and </form> inherit the page's font-size/line-height (~21px).
+
+   2. Outside the form: whitespace text nodes between </form>
+      and </td> in the content cell (td[width="82%"]).
+
+   Setting font-size:0 + line-height:0 on the CONTENT CELL collapses
+   ALL whitespace text nodes inside it (both inside and outside the
+   form).  The form and inner table restore normal metrics. */
+td[width="82%"]:has(.cp-results-box) {
+  font-size: 0 !important;
+  line-height: 0 !important;
+  padding-bottom: 0 !important;
+}
+td[width="82%"]:has(.cp-results-box) > form {
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  margin: 0 !important;
+}
+td[width="82%"]:has(.cp-results-box) > form > table {
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+
+.cp-breadcrumb {
+  display: block !important;
+  font-family: var(--cp-font-sans) !important;
+  font-size: 13px !important;
+  color: var(--cp-text-muted) !important;
+  margin: 0 0 8px 0 !important;
+  padding: 0 !important;
+}
+
+::view-transition-group(cp-sidebar) { animation-duration: 0s !important; }
