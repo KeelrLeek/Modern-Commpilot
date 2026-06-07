@@ -5,6 +5,8 @@
   "version_name": "0.2.0-alpha",
   "description": "Cosmetic overlay that re-skins the CommPilot web app.",
   "icons": {},
+  "permissions": ["storage", "declarativeNetRequest"],
+  "host_permissions": ["https://apps01.avpaas.io/*"],
 
   "browser_specific_settings": {
     "gecko": {
@@ -40,9 +42,19 @@
     }
   ],
 
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_1",
+        "enabled": true,
+        "path": "src/bg/rules.json"
+      }
+    ]
+  },
+
   "web_accessible_resources": [
     {
-      "resources": ["assets/fonts/*", "assets/icons/*", "assets/help/*"],
+      "resources": ["assets/fonts/*", "assets/icons/*", "assets/help/*", "src/recover.html", "src/recover.js"],
       "matches": ["https://apps01.avpaas.io/*"]
     }
   ]

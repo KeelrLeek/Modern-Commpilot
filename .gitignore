@@ -8,5 +8,8 @@ trisign-local-tauri-migration/
 Thumbs.db
 .DS_Store
 
+# Chrome-generated when loading the extension
+_metadata/
+
 # Local Claude Code settings (machine-specific)
 .claude/

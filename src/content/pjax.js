@@ -1,5 +1,5 @@
 (function () {
-  try { history.replaceState(history.state || {}, "", location.href); } catch (e) {}
+  try { history.replaceState({ cpNav: { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } } }, "", location.href); } catch (e) {}
 
   var onLogin =
     location.pathname.indexOf("/Login/") !== -1 ||
@@ -22,6 +22,8 @@
   }
 
   var cpSeq = 0;
+  var cpLastNav = { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
+  var cpPopReplaying = false;
 
   var _orig = window.redirectPost;
 
@@ -106,7 +108,8 @@
     try {
       if (isPjaxUrl(url)) {
         var mySeq = ++cpSeq;
-        try { if (params && String(params.menuId) === "8") sessionStorage.setItem("cp-last-nav", JSON.stringify({ url: url, params: params })); } catch (e) {}
+        try { cpLastNav = { url: url, params: params || {} }; } catch (e) {}
+        try { if (url.indexOf("/Common/page.jsp") === -1 && url.indexOf("/Common/sort.jsp") === -1) sessionStorage.setItem("cp-last-nav", JSON.stringify({ url: url, params: params || {} })); } catch (e) {}
         var liveTokEl = document.getElementsByName("formtokenserial")[0];
         console.log("[pjax] fetching", url);
         cpFollow(url, params, liveTokEl ? liveTokEl.value : null, 0)
@@ -220,7 +223,11 @@
               var rp = String(params.returnPage);
               canonical = rp.indexOf("/commpilot") === 0 ? rp : ("/commpilot" + (rp.charAt(0) === "/" ? rp : "/" + rp));
             }
-            try { history.replaceState(history.state || {}, "", canonical); } catch (e) {}
+            try {
+              var cpState = { cpNav: { url: url, params: params || {} } };
+              if (cpPopReplaying) { history.replaceState(cpState, "", canonical); cpPopReplaying = false; }
+              else { history.pushState(cpState, "", canonical); }
+            } catch (e) {}
           })
           .catch(function (e) {
             console.warn("[pjax] fetch FAILED", e);
@@ -253,6 +260,28 @@
       window.redirectPost(form.action, params);
     } catch (err) { console.warn("[pjax] submit intercept", err); }
   }, true);
+
+  window.addEventListener("keydown", function (e) {
+    var isF5 = e.key === "F5" || e.keyCode === 116;
+    var isCtrlR = (e.ctrlKey || e.metaKey) && (e.key === "r" || e.key === "R" || e.keyCode === 82);
+    if (!isF5 && !isCtrlR) return;
+    if (e.shiftKey) return; // allow Ctrl+Shift+R hard reload to pass through
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    var nav = cpLastNav || { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
+    console.log("[pjax] reload intercepted → replay", nav.url);
+    try { window.redirectPost(nav.url, nav.params || {}); } catch (err) { console.warn("[pjax] reload replay failed", err); }
+  }, true);
+
+  window.addEventListener("popstate", function (e) {
+    try {
+      var nav = e.state && e.state.cpNav;
+      if (!nav || !nav.url) return;
+      cpPopReplaying = true;
+      console.log("[pjax] popstate → replay", nav.url);
+      window.redirectPost(nav.url, nav.params || {});
+    } catch (err) { cpPopReplaying = false; console.warn("[pjax] popstate replay failed", err); }
+  }, false);
 
   try {
     if (

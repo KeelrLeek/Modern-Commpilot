@@ -1,5 +1,12 @@
 console.log("[Modern CommPilot Skin] content script loaded");
 
+try {
+  if (location.pathname.indexOf("/Login/") === -1 && !document.querySelector('input[type=password]')) {
+    var _t = document.getElementsByName("formtokenserial")[0];
+    if (_t && chrome.storage) chrome.storage.local.set({ cpRecoverToken: _t.value, cpRecoverTries: 0 });
+  }
+} catch (e) {}
+
 /*
  * Inject asset-backed CSS rules at runtime.
  *
