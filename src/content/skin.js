@@ -37,6 +37,9 @@ console.log("[Modern CommPilot Skin] content script loaded");
   font-style: normal;
   font-display: optional;
 }
+@font-face { font-family: "Nunito"; font-weight: 400; font-style: normal; font-display: swap; src: url("${url("assets/fonts/nunito-400.woff2")}") format("woff2"); }
+@font-face { font-family: "Nunito"; font-weight: 600; font-style: normal; font-display: swap; src: url("${url("assets/fonts/nunito-600.woff2")}") format("woff2"); }
+@font-face { font-family: "Nunito"; font-weight: 700; font-style: normal; font-display: swap; src: url("${url("assets/fonts/nunito-700.woff2")}") format("woff2"); }
 `;
 
   for (const [row, path] of Object.entries(navIcons)) {
@@ -523,6 +526,101 @@ function wrapSearchBox() {
 }
 
 wrapSearchBox();
+
+/*
+ * Login page — build a centered glass card from the legacy form fields.
+ * Idempotent: checks for .cp-login-card before rebuilding.
+ */
+function buildLoginCard() {
+  try {
+    var form = document.querySelector('form[name="loginForm"]');
+    if (!form || !form.querySelector('input[name="Password"]')) return; // not login page
+    if (form.querySelector(".cp-login-card")) return; // idempotent
+
+    document.body.classList.add("cp-login-page");
+
+    var card = document.createElement("div");
+    card.className = "cp-login-card";
+
+    var brand = document.createElement("div");
+    brand.className = "cp-login-brand";
+    brand.textContent = "CommPilot";
+    var sub = document.createElement("div");
+    sub.className = "cp-login-sub";
+    sub.textContent = "Sign in to your portal";
+    var logo = document.createElement("img");
+    logo.className = "cp-login-logo";
+    logo.src = chrome.runtime.getURL("assets/icons/trifecta-mark.svg");
+    logo.alt = "";
+    card.appendChild(logo);
+    card.appendChild(brand);
+    card.appendChild(sub);
+
+    // Session/auth notice -> styled alert (only when present)
+    var notice = Array.prototype.slice.call(document.querySelectorAll("td,span,div,p,b,font"))
+      .find(function (e) {
+        return e.childElementCount === 0 &&
+          /not authorized|login again|session timeout/i.test(e.textContent || "");
+      });
+    if (notice) {
+      var al = document.createElement("div");
+      al.className = "cp-login-alert";
+      al.textContent = notice.textContent.trim();
+      card.appendChild(al);
+    }
+
+    // Field groups — MOVE the real inputs so names + handlers survive
+    [{ name: "EnteredUserID", label: "User ID" },
+     { name: "Password", label: "Password" }].forEach(function (f) {
+      var input = form.querySelector('input[name="' + f.name + '"]');
+      if (!input) return;
+      var field = document.createElement("div");
+      field.className = "cp-login-field";
+      var lbl = document.createElement("label");
+      lbl.className = "cp-login-label";
+      lbl.textContent = f.label;
+      input.classList.add("cp-login-input");
+      field.appendChild(lbl);
+      field.appendChild(input);
+      card.appendChild(field);
+    });
+
+    // Remember password row
+    var cb = form.querySelector('input[name="rememberPass"]');
+    if (cb) {
+      var row = document.createElement("label");
+      row.className = "cp-login-remember";
+      cb.classList.add("cp-login-check");
+      var sp = document.createElement("span");
+      sp.textContent = "Remember password";
+      row.appendChild(cb);
+      row.appendChild(sp);
+      card.appendChild(row);
+    }
+
+    // Login button — reuse the existing <a> (preserves its submit handler)
+    var btn = Array.prototype.slice.call(form.querySelectorAll("a"))
+      .find(function (a) { return a.textContent.trim() === "Login"; });
+    if (btn) {
+      btn.classList.add("cp-login-btn");
+      btn.textContent = "Sign In";
+      card.appendChild(btn);
+    }
+
+    // Hide legacy presentation inside the form (keep our card + hidden inputs)
+    Array.prototype.slice.call(form.children).forEach(function (child) {
+      if (child === card) return;
+      if (child.tagName === "INPUT" && child.type === "hidden") return;
+      child.style.display = "none";
+    });
+
+    form.appendChild(card);
+  } catch (e) {
+    console.warn("[CommPilot Skin] buildLoginCard:", e);
+  }
+}
+
+buildLoginCard();
 
 /*
  * Move the breadcrumb trail (a.headerAuthLevelLink chain) out of the

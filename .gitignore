@@ -1,6 +1,9 @@
 # Temporary staging area for downloaded font packs etc. — not part of the extension
 Project Files/
 
+# Trifecta reference app (design-system source only; not part of the extension)
+trisign-local-tauri-migration/
+
 # OS / editor cruft
 Thumbs.db
 .DS_Store

@@ -15,26 +15,26 @@
    ============================================================ */
 :root {
   color-scheme: dark !important;
-  --cp-bg:            #0d131e;
-  --cp-surface:       #1a202b;
-  --cp-surface-high:  #242a36;
-  --cp-surface-low:   #161c27;
-  --cp-primary:       #a3dcec;
-  --cp-primary-strong:#88c0d0;
-  --cp-on-primary:    #003640;
-  --cp-secondary:     #a9caeb;
-  --cp-tertiary:      #f0c6e7;
-  --cp-text:          #dde2f2;
-  --cp-text-muted:    #c0c8cb;
-  --cp-outline:       #40484b;
-  --cp-glass-edge:    rgba(255,255,255,0.10);
-  --cp-box-edge:      rgba(255, 255, 255, 0.2);
-  --cp-box-edge-width: 2px;
-  --cp-font-sans:     "Inter", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  --cp-font-label:    "Geist", var(--cp-font-sans);
-  --cp-radius-card:   16px;
-  --cp-radius-ctl:    8px;
-  --cp-blur:          blur(12px);
+  --cp-bg:            #1c1b19;
+  --cp-surface:       #2a2825;
+  --cp-surface-high:  #322f2c;
+  --cp-surface-low:   #232220;
+  --cp-primary:       #C6A8E8;
+  --cp-primary-strong:#6E4C96;
+  --cp-on-primary:    #ffffff;
+  --cp-secondary:     #E89150;
+  --cp-tertiary:      #C6A8E8;
+  --cp-text:          #e8e8e8;
+  --cp-text-muted:    #a4a29c;
+  --cp-outline:       #3c3a37;
+  --cp-glass-edge:    #3c3a37;
+  --cp-box-edge:      #3c3a37;
+  --cp-box-edge-width: 1px;
+  --cp-font-sans:     "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --cp-font-label:    var(--cp-font-sans);
+  --cp-radius-card:   8px;
+  --cp-radius-ctl:    6px;
+  --cp-blur:          none;
 }
 
 /* ============================================================
@@ -74,7 +74,7 @@ a {
 }
 
 a:hover {
-  color: #c5eaf8 !important;
+  color: #e8e8e8 !important;
   text-decoration: none !important;
 }
 
@@ -95,7 +95,7 @@ img[src*="ar.gif"] {
    The inner table gets constrained below so its text aligns to the
    same centered column as the main content area. */
 body > table:first-of-type {
-  background: rgba(26, 32, 43, 0.85) !important;
+  background: var(--cp-surface) !important;
   backdrop-filter: var(--cp-blur) !important;
   -webkit-backdrop-filter: var(--cp-blur) !important;
 }
@@ -326,11 +326,11 @@ form[name="leftNavForm"] a.leftnavfolder:hover {
 form[name="leftNavForm"] a.leftnavfolderopen {
   color: var(--cp-text) !important;
   font-weight: 600 !important;
-  background: rgba(169, 202, 235, 0.14) !important;
+  background: rgba(110, 76, 150, 0.25) !important;
 }
 
 form[name="leftNavForm"] a.leftnavfolderopen:hover {
-  background: rgba(169, 202, 235, 0.18) !important;
+  background: rgba(110, 76, 150, 0.35) !important;
   color: var(--cp-text) !important;
 }
 
@@ -419,7 +419,7 @@ a.navMenuItem {
 }
 
 a.navMenuItem:hover {
-  color: #c5eaf8 !important;
+  color: #e8e8e8 !important;
   text-decoration: underline !important;
   cursor: pointer !important;
 }
@@ -434,7 +434,7 @@ a.navMenuItemRL {
 }
 
 a.navMenuItemRL:hover {
-  color: #c5eaf8 !important;
+  color: #e8e8e8 !important;
   text-decoration: underline !important;
 }
 
@@ -460,7 +460,7 @@ a.navMenuItemRL:hover {
 
 .cp-menu-card:hover {
   background: var(--cp-surface-high) !important;
-  border-color: rgba(136, 192, 208, 0.35) !important;
+  border-color: rgba(198, 168, 232, 0.40) !important;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.30) !important;
   transform: translateY(-2px) !important;
 }
@@ -819,7 +819,7 @@ tr.unselected:nth-of-type(even) {
 
 /* Row hover — JS-applied hilite class */
 tr.hilite {
-  background: rgba(136, 192, 208, 0.12) !important;
+  background: rgba(110, 76, 150, 0.15) !important;
   color: var(--cp-text) !important;
 }
 
@@ -848,20 +848,20 @@ a.tableLink {
 /* Cell link — JS-applied hover class (swapped by mouseOverA) */
 a.tableLinkHover {
   background-color: transparent !important;
-  color: #c5eaf8 !important;
+  color: #e8e8e8 !important;
   text-decoration: none !important;
   cursor: pointer !important;
 }
 
 /* Legacy CSS hover on tableLink — keep for safety */
 a.tableLink:hover {
-  background-color: rgba(163, 220, 236, 0.08) !important;
-  color: #c5eaf8 !important;
+  background-color: rgba(110, 76, 150, 0.12) !important;
+  color: #e8e8e8 !important;
 }
 
 /* Generic selection classes */
 A.selected {
-  background-color: rgba(169, 202, 235, 0.15) !important;
+  background-color: rgba(110, 76, 150, 0.20) !important;
   color: var(--cp-primary) !important;
 }
 
@@ -929,17 +929,17 @@ A.tab {
 
 .warning {
   font-size: 12px !important;
-  color: var(--cp-primary) !important;
-  background-color: rgba(163, 220, 236, 0.1) !important;
-  border: 1px solid rgba(163, 220, 236, 0.25) !important;
+  color: var(--cp-secondary) !important;
+  background-color: rgba(232, 145, 80, 0.12) !important;
+  border: 1px solid rgba(232, 145, 80, 0.30) !important;
   padding: 8px 12px !important;
 }
 
 .informational {
   font-size: 12px !important;
-  color: var(--cp-secondary) !important;
-  background-color: rgba(169, 202, 235, 0.1) !important;
-  border: 1px solid rgba(169, 202, 235, 0.25) !important;
+  color: var(--cp-primary) !important;
+  background-color: rgba(110, 76, 150, 0.12) !important;
+  border: 1px solid rgba(110, 76, 150, 0.28) !important;
   padding: 8px 12px !important;
 }
 
@@ -1052,15 +1052,15 @@ button:hover {
 
 /* Primary action button (Search) */
 input.bwbutton[name="search"] {
-  background: var(--cp-primary) !important;
+  background: var(--cp-primary-strong) !important;
   color: var(--cp-on-primary) !important;
-  border-color: var(--cp-primary) !important;
+  border-color: var(--cp-primary-strong) !important;
   font-weight: 600 !important;
 }
 
 input.bwbutton[name="search"]:hover {
-  background: #bde6f2 !important;
-  border-color: #bde6f2 !important;
+  background: #5E3F86 !important;
+  border-color: #5E3F86 !important;
 }
 
 /* Override legacy .bwbutton fixed height/width */
@@ -1099,7 +1099,7 @@ table.enduserbody:not(#searchTable) a.headerLink {
 }
 
 table.enduserbody:not(#searchTable) a.headerLink:hover {
-  color: #c5eaf8 !important;
+  color: #e8e8e8 !important;
 }
 
 /* Pagination icon buttons (bg-image injected by skin.js via getURL) */
@@ -1120,7 +1120,7 @@ table.enduserbody:not(#searchTable) a.headerLink:hover {
 }
 
 .cp-page-btn:hover {
-  background-color: rgba(163, 220, 236, 0.1) !important;
+  background-color: rgba(110, 76, 150, 0.18) !important;
 }
 
 /* ============================================================
@@ -1226,7 +1226,7 @@ TD.unselected {
 
 TD.selected {
   color: var(--cp-text) !important;
-  background-color: rgba(169, 202, 235, 0.15) !important;
+  background-color: rgba(110, 76, 150, 0.20) !important;
 }
 
 /* ============================================================
@@ -1245,7 +1245,7 @@ input, select {
 input:focus, select:focus {
   border-color: var(--cp-primary-strong) !important;
   outline: none !important;
-  box-shadow: 0 0 0 2px rgba(136, 192, 208, 0.2) !important;
+  box-shadow: 0 0 0 2px rgba(110, 76, 150, 0.35) !important;
 }
 
 /* ============================================================
@@ -1307,7 +1307,7 @@ img[style*="filter:invert"] {
 
 /* Active toggle: Help button gets a visible active state */
 body.cp-help-active .cp-footer-btn[data-cp-icon="help"] {
-  background: rgba(163, 220, 236, 0.15) !important;
+  background: rgba(110, 76, 150, 0.22) !important;
   outline: 1px solid var(--cp-primary) !important;
 }
 
@@ -1357,3 +1357,76 @@ td[width="82%"]:has(.cp-results-box) > form > table {
 }
 
 ::view-transition-group(cp-sidebar) { animation-duration: 0s !important; }
+
+/* ============================================================
+   Login Page — Arctic Clarity glass card
+   ============================================================ */
+body.cp-login-page form[name="loginForm"] {
+  position: fixed !important; inset: 0 !important; margin: 0 !important;
+  display: flex !important; align-items: center !important; justify-content: center !important;
+  padding: 24px !important; z-index: 2147483000 !important; overflow: auto !important;
+  background:
+    radial-gradient(60% 55% at 50% 32%, rgba(110,76,150,0.16), transparent 70%),
+    var(--cp-bg) !important;
+}
+body.cp-login-page .cp-login-card {
+  width: 100% !important; max-width: 380px !important; box-sizing: border-box !important;
+  display: flex !important; flex-direction: column !important; gap: 14px !important;
+  padding: 32px 28px !important;
+  background: color-mix(in srgb, var(--cp-surface) 85%, transparent) !important;
+  border: 1px solid var(--cp-glass-edge) !important;
+  border-radius: var(--cp-radius-card) !important;
+  box-shadow: inset 0 1px 0 var(--cp-glass-edge), 0 20px 50px rgba(0,0,0,0.45) !important;
+  backdrop-filter: var(--cp-blur) !important; -webkit-backdrop-filter: var(--cp-blur) !important;
+}
+body.cp-login-page .cp-login-brand {
+  font-family: var(--cp-font-label) !important; font-size: 26px !important; font-weight: 600 !important;
+  letter-spacing: -0.02em !important; color: var(--cp-text) !important; text-align: center !important;
+}
+body.cp-login-page .cp-login-sub {
+  margin: -6px 0 6px !important; font-size: 13px !important;
+  color: var(--cp-text-muted) !important; text-align: center !important;
+}
+body.cp-login-page .cp-login-alert {
+  font-size: 12.5px !important; line-height: 1.4 !important; color: var(--cp-text) !important;
+  background: color-mix(in srgb, var(--cp-tertiary) 16%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--cp-tertiary) 40%, transparent) !important;
+  border-radius: var(--cp-radius-ctl) !important; padding: 10px 12px !important;
+}
+body.cp-login-page .cp-login-field { display: flex !important; flex-direction: column !important; gap: 6px !important; }
+body.cp-login-page .cp-login-label {
+  font-family: var(--cp-font-label) !important; font-size: 12px !important; color: var(--cp-text-muted) !important;
+}
+body.cp-login-page .cp-login-input {
+  width: 100% !important; box-sizing: border-box !important; padding: 10px 12px !important;
+  font-family: var(--cp-font-sans) !important; font-size: 14px !important; color: var(--cp-text) !important;
+  background: var(--cp-surface-low) !important; border: 1px solid var(--cp-outline) !important;
+  border-radius: var(--cp-radius-ctl) !important; outline: none !important;
+}
+body.cp-login-page .cp-login-input:focus {
+  border-color: var(--cp-primary) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cp-primary) 30%, transparent) !important;
+}
+body.cp-login-page .cp-login-remember {
+  display: flex !important; align-items: center !important; gap: 8px !important;
+  font-size: 13px !important; color: var(--cp-text-muted) !important; cursor: pointer !important;
+}
+body.cp-login-page .cp-login-check { accent-color: var(--cp-primary-strong) !important; }
+body.cp-login-page .cp-login-btn {
+  display: block !important; width: 100% !important; box-sizing: border-box !important;
+  padding: 11px 16px !important; margin-top: 4px !important;
+  font-family: var(--cp-font-sans) !important; font-size: 14px !important; font-weight: 600 !important;
+  text-align: center !important; text-decoration: none !important;
+  color: var(--cp-on-primary) !important; background: var(--cp-primary-strong) !important;
+  border: none !important; border-radius: var(--cp-radius-ctl) !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease !important;
+}
+body.cp-login-page .cp-login-btn:hover { background: #5E3F86 !important; }
+
+body.cp-login-page .cp-login-logo {
+  display: block !important;
+  width: 56px !important;
+  height: auto !important;
+  margin: 0 auto 4px !important;
+}
