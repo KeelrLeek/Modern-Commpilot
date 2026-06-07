@@ -110,6 +110,9 @@ input.bwbutton[value="-"] { background-image: url("${url("assets/icons/minus.svg
 .cp-page-btn[data-cp-page="${dir}"] { background-image: url("${url(path)}") !important; }`;
   }
 
+  css += `
+.cp-breadcrumb a + a::before { background-image: url("${url("assets/icons/chevron.svg")}") !important; }`;
+
   const style = document.createElement("style");
   style.id = "cp-skin-assets";
   style.textContent = css;
