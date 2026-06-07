@@ -109,7 +109,7 @@
       if (isPjaxUrl(url)) {
         var mySeq = ++cpSeq;
         try { cpLastNav = { url: url, params: params || {} }; } catch (e) {}
-        try { if (url.indexOf("/Common/page.jsp") === -1 && url.indexOf("/Common/sort.jsp") === -1) sessionStorage.setItem("cp-last-nav", JSON.stringify({ url: url, params: params || {} })); } catch (e) {}
+        try { if (url.indexOf("/Common/page.jsp") === -1 && url.indexOf("/Common/sort.jsp") === -1) { var _nav = { url: url, params: params || {} }; sessionStorage.setItem("cp-last-nav", JSON.stringify(_nav)); window.postMessage({ __cpRecoverNav: _nav }, location.origin); } } catch (e) {}
         var liveTokEl = document.getElementsByName("formtokenserial")[0];
         console.log("[pjax] fetching", url);
         cpFollow(url, params, liveTokEl ? liveTokEl.value : null, 0)

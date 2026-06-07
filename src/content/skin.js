@@ -15,6 +15,14 @@ cpSaveRecoverToken(true);
 document.addEventListener("cp:reskin", function () { cpSaveRecoverToken(false); });
 setInterval(function () { cpSaveRecoverToken(false); }, 15000);
 
+window.addEventListener("message", function (e) {
+  try {
+    if (e.source === window && e.data && e.data.__cpRecoverNav && chrome.storage) {
+      chrome.storage.local.set({ cpRecoverNav: e.data.__cpRecoverNav });
+    }
+  } catch (err) {}
+});
+
 /*
  * Inject asset-backed CSS rules at runtime.
  *
