@@ -21,6 +21,8 @@
     }
   }
 
+  var cpSeq = 0;
+
   var _orig = window.redirectPost;
 
   // Re-execute scripts inside a container by replacing each <script>
@@ -52,6 +54,7 @@
   window.redirectPost = function (url, params) {
     try {
       if (typeof url === "string" && url.indexOf("folder_contents.jsp") !== -1) {
+        var mySeq = ++cpSeq;
         try { if (params && String(params.menuId) === "8") sessionStorage.setItem("cp-last-nav", JSON.stringify({ url: url, params: params })); } catch (e) {}
         var body = new URLSearchParams();
         for (var key in params) {
@@ -74,6 +77,10 @@
             return r.text();
           })
           .then(function (html) {
+            if (mySeq !== cpSeq) {
+              console.log("[pjax] superseded — dropping stale swap");
+              return;
+            }
             var doc = new DOMParser().parseFromString(html, "text/html");
 
             // Auth-failure guard
@@ -147,7 +154,7 @@
             console.log("[pjax] re-executed", n, "scripts");
             document.dispatchEvent(new CustomEvent("cp:reskin"));
             console.log("[pjax] reskin dispatched");
-            try { history.replaceState(history.state || {}, "", location.href); } catch (e) {}
+            try { history.replaceState(history.state || {}, "", url); } catch (e) {}
           })
           .catch(function (e) {
             console.warn("[pjax] fetch FAILED", e);
