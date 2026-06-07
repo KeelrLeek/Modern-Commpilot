@@ -55,8 +55,51 @@
     return (
       typeof u === "string" &&
       (u.indexOf("folder_contents.jsp") !== -1 ||
-        /\/commpilot\/Reseller\/[A-Za-z]+\/(index\.jsp)?$/.test(u))
+        /\/commpilot\/Reseller\/[A-Za-z]+\/(index\.jsp)?$/.test(u) ||
+        u.indexOf("/commpilot/Common/page.jsp") !== -1 ||
+        u.indexOf("/commpilot/Common/sort.jsp") !== -1)
     );
+  }
+
+  function cpExtractStub(doc) {
+    var ss = doc.querySelectorAll("script");
+    var src = "";
+    for (var i = 0; i < ss.length; i++) src += (ss[i].textContent || "") + "\n";
+    var m = /redirectPost\s*\(\s*['"]([^'"]+)['"]\s*,\s*(\{[\s\S]*?\})\s*\)/.exec(src);
+    if (!m) return null;
+    var data = {};
+    var re = /(\w+)\s*:\s*['"]([^'"]*)['"]/g, mm;
+    while ((mm = re.exec(m[2]))) data[mm[1]] = mm[2];
+    var tEl = doc.getElementsByName("formtokenserial")[0];
+    return { target: m[1].replace(/\\u002F/g, "/"), data: data, token: tEl ? tEl.value : null };
+  }
+
+  function cpFollow(u, p, token, depth) {
+    var body = new URLSearchParams();
+    for (var k in p) if (Object.prototype.hasOwnProperty.call(p, k)) body.append(k, p[k]);
+    if (token) body.append("formtokenserial", token);
+    return fetch(u, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+      credentials: "same-origin"
+    })
+      .then(function (r) {
+        console.log("[pjax] response", r.status, r.url, "(hop " + depth + ")");
+        return r.text();
+      })
+      .then(function (html) {
+        if (html.indexOf("Please login again") !== -1 || html.indexOf("not authorized to access the system") !== -1)
+          return { auth: false };
+        var doc = new DOMParser().parseFromString(html, "text/html");
+        if (doc.querySelector('td[width="82%"]')) return { doc: doc, html: html };
+        var stub = cpExtractStub(doc);
+        if (stub && stub.target && depth < 4) {
+          console.log("[pjax] following stub ->", stub.target);
+          return cpFollow(stub.target, stub.data, stub.token, depth + 1);
+        }
+        return { doc: doc, html: html };
+      });
   }
 
   function cpHook(url, params) {
@@ -64,42 +107,20 @@
       if (isPjaxUrl(url)) {
         var mySeq = ++cpSeq;
         try { if (params && String(params.menuId) === "8") sessionStorage.setItem("cp-last-nav", JSON.stringify({ url: url, params: params })); } catch (e) {}
-        var body = new URLSearchParams();
-        for (var key in params) {
-          if (Object.prototype.hasOwnProperty.call(params, key)) {
-            body.append(key, params[key]);
-          }
-        }
-        var tok = document.getElementsByName("formtokenserial")[0];
-        if (tok) body.append("formtokenserial", tok.value);
-
-        console.log("[pjax] fetching", url, body.toString());
-        fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: body.toString(),
-          credentials: "same-origin"
-        })
-          .then(function (r) {
-            console.log("[pjax] response", r.status, r.url);
-            return r.text();
-          })
-          .then(function (html) {
+        var liveTokEl = document.getElementsByName("formtokenserial")[0];
+        console.log("[pjax] fetching", url);
+        cpFollow(url, params, liveTokEl ? liveTokEl.value : null, 0)
+          .then(function (res) {
             if (mySeq !== cpSeq) {
               console.log("[pjax] superseded — dropping stale swap");
               return;
             }
-            var doc = new DOMParser().parseFromString(html, "text/html");
-
-            // Auth-failure guard
-            if (
-              html.indexOf("Please login again") !== -1 ||
-              html.indexOf("not authorized to access the system") !== -1
-            ) {
-              console.warn("[pjax] auth/session failure — real navigation fallback");
+            if (!res || res.auth === false || !res.doc.querySelector('td[width="82%"]')) {
+              console.warn("[pjax] no content cell after follow — real navigation fallback");
               _orig.call(window, url, params);
               return;
             }
+            var doc = res.doc;
 
             // Token refresh from response
             var newTok = doc.getElementsByName("formtokenserial")[0];
@@ -177,13 +198,29 @@
               }
               return origAdd.call(this, type, fn, opts);
             };
+            var origWinAdd = window.addEventListener;
+            window.addEventListener = function (type, fn, opts) {
+              if (type === "load" && typeof fn === "function") {
+                Promise.resolve().then(function () {
+                  try { fn.call(window, new Event("load")); } catch (e) { console.warn("[pjax] load shim err", e); }
+                });
+                return;
+              }
+              return origWinAdd.call(this, type, fn, opts);
+            };
             var n = reexecScripts(liveCell);
             document.addEventListener = origAdd;
+            window.addEventListener = origWinAdd;
             if (window.redirectPost !== cpHook) { _orig = window.redirectPost; window.redirectPost = cpHook; }
             console.log("[pjax] re-executed", n, "scripts");
             document.dispatchEvent(new CustomEvent("cp:reskin"));
             console.log("[pjax] reskin dispatched");
-            try { history.replaceState(history.state || {}, "", url); } catch (e) {}
+            var canonical = url;
+            if ((url.indexOf("/Common/page.jsp") !== -1 || url.indexOf("/Common/sort.jsp") !== -1) && params && params.returnPage) {
+              var rp = String(params.returnPage);
+              canonical = rp.indexOf("/commpilot") === 0 ? rp : ("/commpilot" + (rp.charAt(0) === "/" ? rp : "/" + rp));
+            }
+            try { history.replaceState(history.state || {}, "", canonical); } catch (e) {}
           })
           .catch(function (e) {
             console.warn("[pjax] fetch FAILED", e);
@@ -203,6 +240,7 @@
       if (!form || form.tagName !== "FORM") return;
       if (!isPjaxUrl(form.action || "")) return;
       e.preventDefault();
+      e.stopImmediatePropagation();
       var params = {}, els = form.elements;
       for (var i = 0; i < els.length; i++) {
         var el = els[i];
