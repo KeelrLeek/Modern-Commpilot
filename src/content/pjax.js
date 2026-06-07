@@ -59,7 +59,7 @@
     );
   }
 
-  window.redirectPost = function (url, params) {
+  function cpHook(url, params) {
     try {
       if (isPjaxUrl(url)) {
         var mySeq = ++cpSeq;
@@ -179,6 +179,7 @@
             };
             var n = reexecScripts(liveCell);
             document.addEventListener = origAdd;
+            if (window.redirectPost !== cpHook) { _orig = window.redirectPost; window.redirectPost = cpHook; }
             console.log("[pjax] re-executed", n, "scripts");
             document.dispatchEvent(new CustomEvent("cp:reskin"));
             console.log("[pjax] reskin dispatched");
@@ -192,7 +193,28 @@
       }
     } catch (e) {}
     return _orig.apply(this, arguments);
-  };
+  }
+
+  window.redirectPost = cpHook;
+
+  document.addEventListener("submit", function (e) {
+    try {
+      var form = e.target;
+      if (!form || form.tagName !== "FORM") return;
+      if (!isPjaxUrl(form.action || "")) return;
+      e.preventDefault();
+      var params = {}, els = form.elements;
+      for (var i = 0; i < els.length; i++) {
+        var el = els[i];
+        if (!el.name || el.name === "formtokenserial") continue;
+        if (el.type === "submit" || el.type === "button") continue;
+        if ((el.type === "checkbox" || el.type === "radio") && !el.checked) continue;
+        params[el.name] = el.value;
+      }
+      if (e.submitter && e.submitter.name) params[e.submitter.name] = e.submitter.value;
+      window.redirectPost(form.action, params);
+    } catch (err) { console.warn("[pjax] submit intercept", err); }
+  }, true);
 
   try {
     if (
