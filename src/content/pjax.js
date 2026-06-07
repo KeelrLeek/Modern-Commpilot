@@ -177,23 +177,8 @@
               }
               return origAdd.call(this, type, fn, opts);
             };
-            var origWinAdd = window.addEventListener;
-            window.addEventListener = function (type, fn, opts) {
-              if ((type === "load" || type === "DOMContentLoaded") && typeof fn === "function") {
-                Promise.resolve().then(function () {
-                  try {
-                    fn.call(window, new Event(type));
-                  } catch (e) {
-                    console.warn("[pjax] win " + type + " err", e);
-                  }
-                });
-                return;
-              }
-              return origWinAdd.call(this, type, fn, opts);
-            };
             var n = reexecScripts(liveCell);
             document.addEventListener = origAdd;
-            window.addEventListener = origWinAdd;
             console.log("[pjax] re-executed", n, "scripts");
             document.dispatchEvent(new CustomEvent("cp:reskin"));
             console.log("[pjax] reskin dispatched");
@@ -208,33 +193,6 @@
     } catch (e) {}
     return _orig.apply(this, arguments);
   };
-
-  document.addEventListener(
-    "submit",
-    function (e) {
-      try {
-        var form = e.target;
-        if (!form || form.tagName !== "FORM") return;
-        var action = form.action || "";
-        if (!isPjaxUrl(action)) return;
-        e.preventDefault();
-        var params = {};
-        var els = form.elements;
-        for (var i = 0; i < els.length; i++) {
-          var el = els[i];
-          if (!el.name || el.name === "formtokenserial") continue;
-          if (el.type === "submit" || el.type === "button") continue;
-          if ((el.type === "checkbox" || el.type === "radio") && !el.checked) continue;
-          params[el.name] = el.value;
-        }
-        if (e.submitter && e.submitter.name) params[e.submitter.name] = e.submitter.value;
-        window.redirectPost(action, params);
-      } catch (err) {
-        console.warn("[pjax] submit intercept", err);
-      }
-    },
-    true
-  );
 
   try {
     if (
