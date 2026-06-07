@@ -1,11 +1,19 @@
 console.log("[Modern CommPilot Skin] content script loaded");
 
-try {
-  if (location.pathname.indexOf("/Login/") === -1 && !document.querySelector('input[type=password]')) {
-    var _t = document.getElementsByName("formtokenserial")[0];
-    if (_t && chrome.storage) chrome.storage.local.set({ cpRecoverToken: _t.value, cpRecoverTries: 0 });
-  }
-} catch (e) {}
+function cpSaveRecoverToken(resetTries) {
+  try {
+    if (location.pathname.indexOf("/Login/") !== -1 || document.querySelector('input[type=password]')) return;
+    var t = document.getElementsByName("formtokenserial")[0];
+    if (t && t.value && chrome.storage) {
+      var o = { cpRecoverToken: t.value };
+      if (resetTries) o.cpRecoverTries = 0;
+      chrome.storage.local.set(o);
+    }
+  } catch (e) {}
+}
+cpSaveRecoverToken(true);
+document.addEventListener("cp:reskin", function () { cpSaveRecoverToken(false); });
+setInterval(function () { cpSaveRecoverToken(false); }, 15000);
 
 /*
  * Inject asset-backed CSS rules at runtime.
