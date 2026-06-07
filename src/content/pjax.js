@@ -102,6 +102,31 @@
             }
             liveCell.innerHTML = fetched.innerHTML;
 
+            // Restore breadcrumb above swapped title
+            try {
+              var fCrumbLink = doc.querySelector('td.headerBar a.headerAuthLevelLink');
+              var newTitle = liveCell.querySelector("td.screenName");
+              if (fCrumbLink && newTitle) {
+                var fCell = fCrumbLink.closest("td");
+                var titleTable = newTitle.closest("table");
+                var bar = document.createElement("div");
+                bar.className = "cp-breadcrumb";
+                Array.prototype.slice.call(fCell.childNodes).forEach(function (n) {
+                  if (n.nodeType === 1 && (n.tagName === "IMG" || n.tagName === "SCRIPT")) return;
+                  bar.appendChild(document.importNode(n, true));
+                });
+                bar.querySelectorAll("a.headerAuthLevelLink").forEach(function (a) {
+                  a.style.cursor = "pointer";
+                  a.addEventListener("click", function () {
+                    window.redirectPost("/commpilot/Common/folder_contents.jsp", { folder: "R0", menuId: "8" });
+                  });
+                });
+                if (titleTable && titleTable.parentNode) titleTable.parentNode.insertBefore(bar, titleTable);
+              }
+            } catch (e) {
+              console.warn("[pjax] breadcrumb restore", e);
+            }
+
             // Re-execute swapped scripts under nonce-CSP
             var origAdd = document.addEventListener;
             document.addEventListener = function (type, fn, opts) {
