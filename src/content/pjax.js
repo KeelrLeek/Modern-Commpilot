@@ -51,9 +51,17 @@
     return olds.length;
   }
 
+  function isPjaxUrl(u) {
+    return (
+      typeof u === "string" &&
+      (u.indexOf("folder_contents.jsp") !== -1 ||
+        /\/commpilot\/Reseller\/[A-Za-z]+\/(index\.jsp)?$/.test(u))
+    );
+  }
+
   window.redirectPost = function (url, params) {
     try {
-      if (typeof url === "string" && url.indexOf("folder_contents.jsp") !== -1) {
+      if (isPjaxUrl(url)) {
         var mySeq = ++cpSeq;
         try { if (params && String(params.menuId) === "8") sessionStorage.setItem("cp-last-nav", JSON.stringify({ url: url, params: params })); } catch (e) {}
         var body = new URLSearchParams();
@@ -134,6 +142,26 @@
               console.warn("[pjax] breadcrumb restore", e);
             }
 
+            // Sync sidebar active highlight to fetched page
+            try {
+              var fOpen = doc.querySelector("a.leftnavfolderopen");
+              var openText = fOpen ? fOpen.textContent.trim() : null;
+              if (openText) {
+                document.querySelectorAll('form[name="leftNavForm"] a').forEach(function (la) {
+                  var active = la.textContent.trim() === openText;
+                  la.classList.toggle("leftnavfolderopen", active);
+                  la.classList.toggle("leftnavfolder", !active);
+                  var td = la.closest("td");
+                  if (td) {
+                    td.classList.toggle("leftnavfolderopen", active);
+                    td.classList.toggle("leftnavfolder", !active);
+                  }
+                });
+              }
+            } catch (e) {
+              console.warn("[pjax] sidebar sync", e);
+            }
+
             // Re-execute swapped scripts under nonce-CSP
             var origAdd = document.addEventListener;
             document.addEventListener = function (type, fn, opts) {
@@ -149,8 +177,23 @@
               }
               return origAdd.call(this, type, fn, opts);
             };
+            var origWinAdd = window.addEventListener;
+            window.addEventListener = function (type, fn, opts) {
+              if ((type === "load" || type === "DOMContentLoaded") && typeof fn === "function") {
+                Promise.resolve().then(function () {
+                  try {
+                    fn.call(window, new Event(type));
+                  } catch (e) {
+                    console.warn("[pjax] win " + type + " err", e);
+                  }
+                });
+                return;
+              }
+              return origWinAdd.call(this, type, fn, opts);
+            };
             var n = reexecScripts(liveCell);
             document.addEventListener = origAdd;
+            window.addEventListener = origWinAdd;
             console.log("[pjax] re-executed", n, "scripts");
             document.dispatchEvent(new CustomEvent("cp:reskin"));
             console.log("[pjax] reskin dispatched");
@@ -165,6 +208,33 @@
     } catch (e) {}
     return _orig.apply(this, arguments);
   };
+
+  document.addEventListener(
+    "submit",
+    function (e) {
+      try {
+        var form = e.target;
+        if (!form || form.tagName !== "FORM") return;
+        var action = form.action || "";
+        if (!isPjaxUrl(action)) return;
+        e.preventDefault();
+        var params = {};
+        var els = form.elements;
+        for (var i = 0; i < els.length; i++) {
+          var el = els[i];
+          if (!el.name || el.name === "formtokenserial") continue;
+          if (el.type === "submit" || el.type === "button") continue;
+          if ((el.type === "checkbox" || el.type === "radio") && !el.checked) continue;
+          params[el.name] = el.value;
+        }
+        if (e.submitter && e.submitter.name) params[e.submitter.name] = e.submitter.value;
+        window.redirectPost(action, params);
+      } catch (err) {
+        console.warn("[pjax] submit intercept", err);
+      }
+    },
+    true
+  );
 
   try {
     if (

@@ -162,11 +162,29 @@ tagMenuColumns();
 
 document.addEventListener("cp:reskin", function () {
   try {
-    tagMenuColumns();
+    wrapSearchBox();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin wrapSearchBox", e);
+  }
+  try {
+    wrapResultsBox();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin wrapResultsBox", e);
+  }
+  try {
+    moveButtonBar();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin moveButtonBar", e);
+  }
+  try {
     wrapMenuCards();
-    tagMenuColumns();
   } catch (e) {
     console.warn("[CommPilot Skin] reskin wrapMenuCards", e);
+  }
+  try {
+    tagMenuColumns();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin tagMenuColumns", e);
   }
 });
 
@@ -429,18 +447,15 @@ document.addEventListener("cp:reskin", function () {
  *   3. spacer table (<table> with onepx.gif)
  *   4. pagination table (<table class="enduserbody"> without id)
  *
- * This IIFE finds the results table, creates a <div class="cp-results-box">
+ * This function finds the results table, creates a <div class="cp-results-box">
  * as a wrapper, and moves the results table, spacer, and pagination table
  * into it.  The wrapper replaces the results table in the DOM flow.
  *
  * Skipped silently on menu pages (no results table).
- * Idempotent via dataset flag.
+ * Idempotent — safe to call multiple times.
  */
-(function wrapResultsBox() {
+function wrapResultsBox() {
   try {
-    if (document.documentElement.dataset.cpResultsWired) return;
-    document.documentElement.dataset.cpResultsWired = "1";
-
     var bodyTd = document.querySelector("td.enduserbody");
     if (!bodyTd) return;
 
@@ -449,6 +464,7 @@ document.addEventListener("cp:reskin", function () {
       'table:has(> tbody > tr > td.listHeader > a.listSortHeader)'
     );
     if (!resultsTable) return; /* not a list page — skip */
+    if (resultsTable.closest(".cp-results-box")) return; /* already wrapped */
 
     /* Find the pagination table */
     var paginationTable = bodyTd.querySelector(
@@ -481,19 +497,20 @@ document.addEventListener("cp:reskin", function () {
   } catch (e) {
     console.warn("[CommPilot Skin] wrapResultsBox:", e);
   }
-})();
+}
+
+wrapResultsBox();
 
 /*
  * Wrap the search panel table in a rounded glass container div,
  * matching the treatment wrapResultsBox gives the results table.
+ * Idempotent — safe to call multiple times.
  */
-(function wrapSearchBox() {
+function wrapSearchBox() {
   try {
-    if (document.documentElement.dataset.cpSearchWired) return;
-    document.documentElement.dataset.cpSearchWired = "1";
-
     var searchTable = document.getElementById("searchTable");
     if (!searchTable) return;
+    if (searchTable.closest(".cp-search-box")) return; /* already wrapped */
 
     var wrapper = document.createElement("div");
     wrapper.className = "cp-box cp-search-box";
@@ -503,7 +520,9 @@ document.addEventListener("cp:reskin", function () {
   } catch (e) {
     console.warn("[CommPilot Skin] wrapSearchBox:", e);
   }
-})();
+}
+
+wrapSearchBox();
 
 /*
  * Move the breadcrumb trail (a.headerAuthLevelLink chain) out of the
@@ -547,7 +566,7 @@ document.addEventListener("cp:reskin", function () {
  * .cp-results-box as an inner footer row.
  *
  * On list pages, the bottom OK/action bar (tr#buttonbarbottom)
- * previously sat as a separate box below the results.  This IIFE
+ * previously sat as a separate box below the results.  This function
  * moves its interactive child nodes (input, button, a) into a
  * new <div class="cp-results-footer"> inside .cp-results-box,
  * then hides the original empty row so the footer reads as part
@@ -558,16 +577,14 @@ document.addEventListener("cp:reskin", function () {
  * (redirectPost, goBack, etc.) remain in place — they've already
  * executed and their function definitions are globally accessible.
  *
- * Idempotent via dataset flag.  Silently skipped on menu pages
+ * Idempotent — safe to call multiple times.  Silently skipped on menu pages
  * (no .cp-results-box) or pages without a bottom button bar.
  */
-(function moveButtonBar() {
+function moveButtonBar() {
   try {
-    if (document.documentElement.dataset.cpFooterMoved) return;
-    document.documentElement.dataset.cpFooterMoved = "1";
-
     var box = document.querySelector(".cp-results-box") || document.querySelector(".cp-search-box");
     if (!box) return;
+    if (box.querySelector(".cp-results-footer")) return; /* already moved */
 
     var barRow = document.getElementById("buttonbarbottom");
     if (!barRow) return;
@@ -596,7 +613,9 @@ document.addEventListener("cp:reskin", function () {
   } catch (e) {
     console.warn("[CommPilot Skin] moveButtonBar:", e);
   }
-})();
+}
+
+moveButtonBar();
 
 /*
  * Help mode toggle + tooltip overlay.
