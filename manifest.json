@@ -17,6 +17,12 @@
   "content_scripts": [
     {
       "matches": ["https://apps01.avpaas.io/commpilot/*"],
+      "js": ["src/content/fonts.js"],
+      "all_frames": true,
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://apps01.avpaas.io/commpilot/*"],
       "css": ["src/content/skin.css"],
       "all_frames": true,
       "run_at": "document_start"

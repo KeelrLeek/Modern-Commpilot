@@ -45,25 +45,7 @@ window.addEventListener("message", function (e) {
     7: "assets/icons/utilities.svg",
   };
 
-  let css = `
-@font-face {
-  font-family: "Inter";
-  src: url("${url("assets/fonts/InterVariable.woff2")}") format("woff2");
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: optional;
-}
-@font-face {
-  font-family: "Geist";
-  src: url("${url("assets/fonts/GeistVariable.woff2")}") format("woff2");
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: optional;
-}
-@font-face { font-family: "Nunito"; font-weight: 400; font-style: normal; font-display: swap; src: url("${url("assets/fonts/nunito-400.woff2")}") format("woff2"); }
-@font-face { font-family: "Nunito"; font-weight: 600; font-style: normal; font-display: swap; src: url("${url("assets/fonts/nunito-600.woff2")}") format("woff2"); }
-@font-face { font-family: "Nunito"; font-weight: 700; font-style: normal; font-display: swap; src: url("${url("assets/fonts/nunito-700.woff2")}") format("woff2"); }
-`;
+  let css = "";
 
   for (const [row, path] of Object.entries(navIcons)) {
     css += `
@@ -89,7 +71,9 @@ form[name="leftNavForm"] table tr:nth-child(${row}) a::before {
   /* Sort direction icons */
   css += `
 .cp-sort-asc { background-image: url("${url("assets/icons/sort-asc.svg")}") !important; }
-.cp-sort-desc { background-image: url("${url("assets/icons/sort-desc.svg")}") !important; }`;
+.cp-sort-desc { background-image: url("${url("assets/icons/sort-desc.svg")}") !important; }
+a.listSortHeader:not(:has(.cp-sort-ico))::after { background-image: url("${url("assets/icons/sort-desc.svg")}") !important; }
+.cp-dd-chevron { background-image: url("${url("assets/icons/sort-desc.svg")}") !important; }`;
 
   /* Plus / minus icons on add/delete-row buttons.
      Targeted by [value] so dynamically-created buttons from addRow()
@@ -204,6 +188,41 @@ document.addEventListener("cp:reskin", function () {
     moveButtonBar();
   } catch (e) {
     console.warn("[CommPilot Skin] reskin moveButtonBar", e);
+  }
+  try {
+    wrapResultsScroll();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin wrapResultsScroll", e);
+  }
+  try {
+    trimEditColumn();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin trimEditColumn", e);
+  }
+  try {
+    makeRowsClickable();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin makeRowsClickable", e);
+  }
+  try {
+    wirePaginationIcons();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin wirePaginationIcons", e);
+  }
+  try {
+    formatPageIndicator();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin formatPageIndicator", e);
+  }
+  try {
+    wireSortIcons();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin wireSortIcons", e);
+  }
+  try {
+    enhanceSelects();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin enhanceSelects", e);
   }
   try {
     wrapMenuCards();
@@ -372,14 +391,12 @@ document.addEventListener("cp:reskin", function () {
  * The anchor node is preserved (including its toggleSort handler), and
  * the icon span is a child so sorting still works.
  */
-(function wireSortIcons() {
+function wireSortIcons() {
   try {
-    if (document.documentElement.dataset.cpSortWired) return;
-    document.documentElement.dataset.cpSortWired = "1";
-
     var sortLinks = document.querySelectorAll("a.listSortHeader");
     sortLinks.forEach(function (link) {
       try {
+        if (link.querySelector(".cp-sort-ico")) return; // already wired
         var arrow = link.querySelector('img[src*="uparrow.gif"]');
         if (arrow) {
           var span = document.createElement("span");
@@ -401,7 +418,8 @@ document.addEventListener("cp:reskin", function () {
   } catch (e) {
     console.warn("[CommPilot Skin] wireSortIcons:", e);
   }
-})();
+}
+wireSortIcons();
 
 /*
  * Wire the "+" add-row buttons.  Styling is handled by CSS attribute
@@ -430,18 +448,14 @@ document.addEventListener("cp:reskin", function () {
  * Scoping to table.enduserbody:not(#searchTable) ensures sidebar footer
  * headerLinks are not affected.
  */
-(function wirePaginationIcons() {
+function wirePaginationIcons() {
   try {
-    if (document.documentElement.dataset.cpPaginationWired) return;
-    document.documentElement.dataset.cpPaginationWired = "1";
-
-    var pageTables = document.querySelectorAll(
-      "table.enduserbody:not(#searchTable)"
-    );
+    var pageTables = document.querySelectorAll("table.enduserbody:not(#searchTable)");
     pageTables.forEach(function (tbl) {
       try {
         var links = tbl.querySelectorAll("a.headerLink");
         links.forEach(function (link) {
+          if (link.classList.contains("cp-page-btn")) return;
           var text = link.textContent.trim();
           var dir = null;
           if (text === "First") dir = "first";
@@ -449,8 +463,6 @@ document.addEventListener("cp:reskin", function () {
           else if (text === "Next") dir = "next";
           else if (text === "Last") dir = "last";
           if (!dir) return;
-          if (link.classList.contains("cp-page-btn")) return;
-
           link.classList.add("cp-page-btn");
           link.dataset.cpPage = dir;
           link.textContent = "";
@@ -464,7 +476,114 @@ document.addEventListener("cp:reskin", function () {
   } catch (e) {
     console.warn("[CommPilot Skin] wirePaginationIcons:", e);
   }
+}
+wirePaginationIcons();
+
+/*
+ * Reformat the legacy "[ Page N of M ]" pagination text into a compact
+ * "N / M" pill.  Idempotent (skips already-wrapped cells) and safe to
+ * re-run after pjax page changes.
+ */
+function formatPageIndicator() {
+  try {
+    var tables = document.querySelectorAll("table.enduserbody:not(#searchTable)");
+    tables.forEach(function (tbl) {
+      tbl.querySelectorAll("td").forEach(function (td) {
+        if (td.querySelector("td, a, .cp-page-indicator")) return; // leaf cell, no links, not already done
+        var m = td.textContent.match(/Page\s+(\d+)\s+of\s+(\d+)/i);
+        if (!m) return;
+        td.textContent = "";
+        var wrap = document.createElement("span");
+        wrap.className = "cp-page-indicator";
+        var cur = document.createElement("span"); cur.className = "cp-page-cur"; cur.textContent = m[1];
+        var sep = document.createElement("span"); sep.className = "cp-page-sep"; sep.textContent = "/";
+        var tot = document.createElement("span"); tot.className = "cp-page-tot"; tot.textContent = m[2];
+        wrap.appendChild(cur); wrap.appendChild(sep); wrap.appendChild(tot);
+        td.appendChild(wrap);
+      });
+    });
+  } catch (e) { console.warn("[CommPilot Skin] formatPageIndicator:", e); }
+}
+formatPageIndicator();
+
+/*
+ * Replace the native <select> popups in the search criteria with a branded,
+ * animated custom dropdown.  The native <select> is kept in the form (hidden
+ * via inline display:none) and synced on every choice (value set + change
+ * dispatched) so the site's getChoice handler and the search submit still
+ * work.  Idempotent (per-select flag); re-runs on reskin and on "+" rows.
+ */
+function enhanceSelects() {
+  try {
+    document.querySelectorAll("#searchTable select").forEach(function (sel) {
+      if (sel.dataset.cpDd) return;
+      sel.dataset.cpDd = "1";
+      var dd = document.createElement("div"); dd.className = "cp-dd";
+      var trg = document.createElement("button"); trg.type = "button"; trg.className = "cp-dd-trigger";
+      trg.setAttribute("aria-haspopup", "listbox"); trg.setAttribute("aria-expanded", "false");
+      var lbl = document.createElement("span"); lbl.className = "cp-dd-label";
+      var chev = document.createElement("span"); chev.className = "cp-dd-chevron";
+      trg.appendChild(lbl); trg.appendChild(chev);
+      var list = document.createElement("ul"); list.className = "cp-dd-list"; list.setAttribute("role", "listbox");
+      function close() { dd.classList.remove("open"); trg.setAttribute("aria-expanded", "false"); }
+      function open() {
+        document.querySelectorAll(".cp-dd.open").forEach(function (x) {
+          if (x !== dd) { x.classList.remove("open"); var t = x.querySelector(".cp-dd-trigger"); if (t) t.setAttribute("aria-expanded", "false"); }
+        });
+        dd.classList.add("open"); trg.setAttribute("aria-expanded", "true");
+        var r = trg.getBoundingClientRect();
+        list.style.top = (r.bottom + 4) + "px";
+        list.style.left = r.left + "px";
+        list.style.minWidth = r.width + "px";
+      }
+      function sync() {
+        list.innerHTML = "";
+        Array.prototype.forEach.call(sel.options, function (opt) {
+          var li = document.createElement("li"); li.className = "cp-dd-opt"; li.setAttribute("role", "option");
+          li.textContent = opt.text.trim(); li.dataset.value = opt.value;
+          if (opt.selected) li.setAttribute("aria-selected", "true");
+          li.addEventListener("click", function (e) {
+            e.stopPropagation();
+            sel.value = opt.value;
+            sel.dispatchEvent(new Event("change", { bubbles: true }));
+            close();
+          });
+          list.appendChild(li);
+        });
+        var o = sel.options[sel.selectedIndex];
+        lbl.textContent = o ? o.text.trim() : "";
+      }
+      trg.addEventListener("click", function (e) { e.stopPropagation(); dd.classList.contains("open") ? close() : open(); });
+      sel.addEventListener("change", function () { sync(); });
+      dd.appendChild(trg); dd.appendChild(list);
+      sel.parentNode.insertBefore(dd, sel.nextSibling);
+      sel.style.setProperty("display", "none", "important");
+      sync();
+    });
+  } catch (e) { console.warn("[CommPilot Skin] enhanceSelects:", e); }
+}
+(function cpDropdownGlobalInit() {
+  try {
+    if (document.documentElement.dataset.cpDdInit) return;
+    document.documentElement.dataset.cpDdInit = "1";
+    document.addEventListener("click", function () {
+      document.querySelectorAll(".cp-dd.open").forEach(function (dd) {
+        dd.classList.remove("open");
+        var t = dd.querySelector(".cp-dd-trigger"); if (t) t.setAttribute("aria-expanded", "false");
+      });
+    });
+    document.addEventListener("click", function (e) {
+      if (e.target && e.target.matches && e.target.matches('input.bwbutton[value="+"]')) setTimeout(enhanceSelects, 0);
+    });
+    window.addEventListener("scroll", function () {
+      document.querySelectorAll(".cp-dd.open").forEach(function (dd) {
+        dd.classList.remove("open");
+        var t = dd.querySelector(".cp-dd-trigger"); if (t) t.setAttribute("aria-expanded", "false");
+      });
+    }, true);
+  } catch (e) { console.warn("[CommPilot Skin] cpDropdownGlobalInit:", e); }
 })();
+enhanceSelects();
 
 /*
  * Wrap the results table, spacer, and pagination table into a single
@@ -739,7 +858,54 @@ function moveButtonBar() {
   }
 }
 
+function wrapResultsScroll() {
+  try {
+    var table = document.querySelector('table:has(> tbody > tr > td.listHeader > a.listSortHeader)');
+    if (!table || !table.parentNode) return;
+    if (table.parentNode.classList && table.parentNode.classList.contains("cp-results-scroll")) return; // idempotent
+    var scroll = document.createElement("div");
+    scroll.className = "cp-results-scroll";
+    table.parentNode.insertBefore(scroll, table);
+    scroll.appendChild(table);
+  } catch (e) { console.warn("[CommPilot Skin] wrapResultsScroll:", e); }
+}
+
+function trimEditColumn() {
+  try {
+    var table = document.querySelector('table:has(> tbody > tr > td.listHeader > a.listSortHeader)');
+    if (!table || table.dataset.cpEditTrimmed) return;
+    table.dataset.cpEditTrimmed = "1";
+    table.querySelectorAll("tr").forEach(function (row) {
+      var cells = Array.prototype.slice.call(row.children);
+      var lastMeaningful = -1;
+      for (var i = 0; i < cells.length; i++) {
+        if (cells[i].querySelector("a.tableLink, a.listSortHeader")) lastMeaningful = i;
+      }
+      if (lastMeaningful === -1) return; // not a data/header row — leave it alone
+      for (var j = cells.length - 1; j > lastMeaningful; j--) cells[j].remove();
+    });
+  } catch (e) { console.warn("[CommPilot Skin] trimEditColumn:", e); }
+}
+
+function makeRowsClickable() {
+  try {
+    document.querySelectorAll("tr.unselected").forEach(function (row) {
+      if (row.dataset.cpRowClick) return; // idempotent
+      row.dataset.cpRowClick = "1";
+      row.style.cursor = "pointer";
+      row.addEventListener("click", function (e) {
+        if (e.target.closest("a")) return; // real link clicked — let it handle, no double-fire
+        var link = row.querySelector("a.tableLink, a.tableLinkHover");
+        if (link) link.click();
+      });
+    });
+  } catch (e) { console.warn("[CommPilot Skin] makeRowsClickable:", e); }
+}
+
 moveButtonBar();
+wrapResultsScroll();
+trimEditColumn();
+makeRowsClickable();
 
 /*
  * Help mode toggle + tooltip overlay.

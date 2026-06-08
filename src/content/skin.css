@@ -478,7 +478,7 @@ a.navMenuItemRL:hover {
   background: var(--cp-surface) !important;
   border: var(--cp-box-edge-width) solid var(--cp-box-edge) !important;
   border-radius: var(--cp-radius-ctl) !important;
-  margin: 0 8px 0 8px !important;
+  margin: 0 8px 0 16px !important;
   padding: 0 !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
   max-width: 360px !important;
@@ -788,7 +788,7 @@ tr#trHeader td {
    Background is inherited from the parent table#searchTable so all
    rows sit on the same surface regardless of how many are added. */
 table#searchTable tbody tr:not(#trHeader):not(#trLast) td {
-  padding: 6px 8px !important;
+  padding: 10px 8px !important;
   vertical-align: middle !important;
 }
 
@@ -839,56 +839,104 @@ img[src*="downarrow.gif"] {
   margin-left: 4px !important;
 }
 
-/* Data rows — subtle alternating zebra stripes */
+/* ============================================================
+   Results list — "card rows" (menu-card feel on the data table)
+   Each data row reads as a raised surface band with the same
+   hover-lift animation as .cp-menu-card, while the table layout
+   (columns, sortable headers, pagination) stays intact.
+   ============================================================ */
+
+/* Separate cells so rows can have gaps + rounded ends. 0 horizontal
+   keeps the band continuous and columns aligned; 8px vertical
+   separates the row-cards. Structural selector = the results table. */
+table:has(> tbody > tr > td.listHeader > a.listSortHeader) {
+  border-collapse: separate !important;
+  border-spacing: 0 5px !important;
+}
+
+/* Row as a card: base shadow + the same transition/lift as menu cards */
 tr.unselected {
   background: transparent !important;
-  color: var(--cp-text) !important;
-}
-
-tr.unselected:nth-of-type(even) {
-  background: rgba(255, 255, 255, 0.02) !important;
-}
-
-/* Row hover — JS-applied hilite class */
-tr.hilite {
-  background: rgba(110, 76, 150, 0.15) !important;
-  color: var(--cp-text) !important;
-}
-
-/* Data cells — separator border for scannability */
-td:has(> a.tableLink) {
-  padding: 6px 12px !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
-}
-
-/* Explicitly-styled cells (e.g. Edit column) */
-td.unselected {
-  background: inherit !important;
-  color: inherit !important;
-  padding: 6px 12px !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
-}
-
-/* Cell link — primary blue, no underline */
-a.tableLink {
-  background-color: transparent !important;
-  color: var(--cp-primary) !important;
-  text-decoration: none !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18) !important;
   cursor: pointer !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
 }
 
-/* Cell link — JS-applied hover class (swapped by mouseOverA) */
+/* Every cell paints the band surface + top/bottom border (covers data,
+   spacer, and Edit cells so the band is continuous) */
+tr.unselected > td {
+  background: var(--cp-surface) !important;
+  color: var(--cp-text) !important;
+  border-top: 1px solid var(--cp-box-edge) !important;
+  border-bottom: 1px solid var(--cp-box-edge) !important;
+  padding: 6px 12px !important;
+  vertical-align: middle !important;
+  transition: background 0.15s ease, border-color 0.15s ease !important;
+}
+
+/* Round + close the band at the row ends */
+tr.unselected > td:first-child {
+  border-left: 1px solid var(--cp-box-edge) !important;
+  border-top-left-radius: 8px !important;
+  border-bottom-left-radius: 8px !important;
+}
+tr.unselected > td:last-child {
+  border-right: 1px solid var(--cp-box-edge) !important;
+  border-top-right-radius: 8px !important;
+  border-bottom-right-radius: 8px !important;
+}
+
+/* Hover lift — matches .cp-menu-card:hover. Cover both :hover and the
+   JS-applied .hilite class. */
+tr.unselected:hover,
+tr.unselected.hilite {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.30) !important;
+}
+tr.unselected:hover > td,
+tr.unselected.hilite > td {
+  background: var(--cp-surface-high) !important;
+  border-color: rgba(198, 168, 232, 0.40) !important;
+}
+
+/* Press feel — settle back down, like .cp-menu-card:active */
+tr.unselected:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Cell values read as normal text… */
+a.tableLink,
 a.tableLinkHover {
   background-color: transparent !important;
-  color: #e8e8e8 !important;
+  color: var(--cp-text) !important;
   text-decoration: none !important;
   cursor: pointer !important;
 }
+/* …except the first data column (Group ID) — the lavender "title" of the
+   card-row. Cell 1 is the leading spacer, so the first value is cell 2. */
+tr.unselected > td:nth-child(2) a.tableLink,
+tr.unselected > td:nth-child(2) a.tableLinkHover {
+  color: var(--cp-primary) !important;
+  font-weight: 600 !important;
+}
 
-/* Legacy CSS hover on tableLink — keep for safety */
-a.tableLink:hover {
-  background-color: rgba(110, 76, 150, 0.12) !important;
-  color: #e8e8e8 !important;
+/* ============================================================
+   Results list — internal scroll so the page fits one screen.
+   Only the rows scroll; the column header stays sticky and the
+   pagination + OK footer (siblings below) stay pinned/visible.
+   ============================================================ */
+.cp-results-scroll {
+  max-height: calc(100vh - 380px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+/* Column header stays put while rows scroll under it */
+.cp-results-scroll tr.listHeader td.listHeader {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 3 !important;
+  background: var(--cp-surface-low) !important;
 }
 
 /* Generic selection classes */
@@ -1155,6 +1203,73 @@ table.enduserbody:not(#searchTable) a.headerLink:hover {
   background-color: rgba(110, 76, 150, 0.18) !important;
 }
 
+/* Page indicator pill — "1 / 8" */
+.cp-page-indicator {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 4px 14px !important;
+  border-radius: 999px !important;
+  background: var(--cp-surface-low) !important;
+  border: 1px solid var(--cp-box-edge) !important;
+  font-family: var(--cp-font-sans) !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  vertical-align: middle !important;
+}
+.cp-page-cur { color: var(--cp-primary) !important; font-weight: 700 !important; }
+.cp-page-sep,
+.cp-page-tot { color: var(--cp-text-muted) !important; }
+
+/* User Limit column (last column) — left-align so the value sits next to the
+   data instead of floating at the far edge. This legacy table auto-stretches to
+   fill width and ignores column-width CSS, so the column stays wide; left-align
+   keeps the number grouped with the row rather than gapped away on the right.
+   Header keyed on the structural results-table selector since the results header
+   row isn't .listHeader. */
+table:has(> tbody > tr > td.listHeader > a.listSortHeader) td.listHeader:last-child,
+tr.unselected > td:last-child {
+  text-align: left !important;
+}
+
+/* Sortable-header affordance — cursor + faint caret on hover for
+   unsorted columns (the sorted column already shows its caret via
+   .cp-sort-ico). a.listSortHeader:hover lavender tint is untouched. */
+a.listSortHeader { cursor: pointer !important; }
+/* Reserve the caret slot on every sortable (unsorted) header — always present
+   but invisible, revealed faintly on hover — so it never shifts layout, and
+   sized to match the real .cp-sort-ico exactly (14px, 4px margin). */
+a.listSortHeader:not(:has(.cp-sort-ico))::after {
+  content: "" !important;
+  display: inline-block !important;
+  width: 14px !important;
+  height: 14px !important;
+  margin-left: 4px !important;
+  vertical-align: middle !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  opacity: 0 !important;
+  transition: opacity 0.12s ease !important;
+  /* background-image (sort-desc.svg) injected by skin.js via getURL */
+}
+a.listSortHeader:not(:has(.cp-sort-ico)):hover::after { opacity: 0.5 !important; }
+
+/* Search criteria row — left-align controls; let the value input grow to
+   fill the row (a proper search bar) while + and Search stay at the right. */
+#searchTable td { text-align: left !important; }
+#searchTable tr td:nth-child(3) { width: 100% !important; }
+#searchTable input[type="text"] {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 9px 12px !important;
+  font-size: 14px !important;
+}
+#searchTable select {
+  padding: 8px 10px !important;
+  font-size: 14px !important;
+}
+
 /* ============================================================
    Textarea
    ============================================================ */
@@ -1236,6 +1351,18 @@ a.nestedLink {
   color: var(--cp-text-muted) !important;
 }
 
+/* Page subtitle — the .tip directly under .screenName in the title table.
+   Scoped via :has() so inline field tips elsewhere are unaffected. */
+table:has(td.screenName) td.tip {
+  display: block !important;
+  padding: 2px 24px 16px 36px !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  max-width: 560px !important;
+  color: var(--cp-text-muted) !important;
+  font-family: var(--cp-font-sans) !important;
+}
+
 .tipRL {
   color: var(--cp-text-muted) !important;
   text-align: right !important;
@@ -1279,6 +1406,93 @@ input:focus, select:focus {
   outline: none !important;
   box-shadow: 0 0 0 2px rgba(110, 76, 150, 0.35) !important;
 }
+
+/* ============================================================
+   Custom dropdown — branded, animated listbox replacing the
+   native <select> popup.  The native <select> stays in the form
+   (hidden via inline display:none by skin.js's enhanceSelects)
+   and is kept in sync, so the search form still submits normally.
+   ============================================================ */
+.cp-dd {
+  position: relative !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  font-family: var(--cp-font-sans) !important;
+}
+.cp-dd-trigger {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: 150px !important;
+  box-sizing: border-box !important;
+  padding: 9px 12px !important;
+  background: var(--cp-surface-low) !important;
+  color: var(--cp-text) !important;
+  border: 1px solid var(--cp-outline) !important;
+  border-radius: var(--cp-radius-ctl) !important;
+  font-family: var(--cp-font-sans) !important;
+  font-size: 14px !important;
+  cursor: pointer !important;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease !important;
+}
+.cp-dd-trigger:hover {
+  border-color: rgba(198, 168, 232, 0.5) !important;
+  background: var(--cp-surface) !important;
+}
+.cp-dd.open .cp-dd-trigger {
+  border-color: var(--cp-primary-strong) !important;
+  box-shadow: 0 0 0 2px rgba(110, 76, 150, 0.35) !important;
+  outline: none !important;
+}
+.cp-dd-label {
+  flex: 1 1 auto !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+}
+.cp-dd-chevron {
+  width: 14px !important;
+  height: 14px !important;
+  flex: 0 0 auto !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  transition: transform 0.2s ease !important;
+  /* background-image (sort-desc.svg) injected by skin.js via getURL */
+}
+.cp-dd.open .cp-dd-chevron { transform: rotate(180deg) !important; }
+.cp-dd-list {
+  /* position: fixed escapes the search box's overflow:hidden clipping and
+     renders above everything; coordinates are set by skin.js open() from the
+     trigger's rect, and the menu closes on scroll to stay anchored. */
+  position: fixed !important;
+  margin: 0 !important;
+  padding: 4px !important;
+  list-style: none !important;
+  z-index: 2147483000 !important;
+  background: var(--cp-surface) !important;
+  border: 1px solid var(--cp-box-edge) !important;
+  border-radius: var(--cp-radius-ctl) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+  opacity: 0 !important;
+  transform: translateY(-6px) !important;
+  pointer-events: none !important;
+  transition: opacity 0.15s ease, transform 0.15s ease !important;
+}
+.cp-dd.open .cp-dd-list {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+  pointer-events: auto !important;
+}
+.cp-dd-opt {
+  padding: 8px 12px !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  color: var(--cp-text) !important;
+  font-size: 14px !important;
+}
+.cp-dd-opt:hover { background: rgba(110, 76, 150, 0.18) !important; }
+.cp-dd-opt[aria-selected="true"] { color: var(--cp-primary) !important; font-weight: 600 !important; }
 
 /* ============================================================
    Filter override — ignore user's dark-mode extension
@@ -1411,6 +1625,24 @@ td[width="82%"]:has(.cp-results-box) > form > table {
 ::view-transition-group(cp-sidebar) { animation-duration: 0s !important; }
 
 /* ============================================================
+   Login anti-FOUC — hide the raw legacy form until skin.js
+   builds the card, so the original never flashes on load.
+   buildLoginCard() adds body.cp-login-page, which reveals it.
+   The animation is a safety fallback: if skin.js never runs,
+   the form still reveals after 600ms so login is never blocked.
+   ============================================================ */
+form[name="loginForm"] {
+  position: fixed !important; inset: 0 !important; margin: 0 !important;
+  visibility: hidden !important;
+  animation: cp-login-reveal 0s linear 0.6s forwards !important;
+}
+@keyframes cp-login-reveal { to { visibility: visible; } }
+body.cp-login-page form[name="loginForm"] {
+  visibility: visible !important;
+  animation: none !important;
+}
+
+/* ============================================================
    Login Page — Arctic Clarity glass card
    ============================================================ */
 body.cp-login-page form[name="loginForm"] {
@@ -1479,6 +1711,7 @@ body.cp-login-page .cp-login-btn:hover { background: #5E3F86 !important; }
 body.cp-login-page .cp-login-logo {
   display: block !important;
   width: 56px !important;
+  aspect-ratio: 159 / 92 !important;
   height: auto !important;
   margin: 0 auto 4px !important;
 }
