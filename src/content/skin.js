@@ -234,6 +234,16 @@ document.addEventListener("cp:reskin", function () {
   } catch (e) {
     console.warn("[CommPilot Skin] reskin tagMenuColumns", e);
   }
+  try {
+    staggerCards();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin staggerCards", e);
+  }
+  try {
+    revealResultsBox();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin revealResultsBox", e);
+  }
 });
 
 /*
@@ -572,8 +582,86 @@ function enhanceSelects() {
         var t = dd.querySelector(".cp-dd-trigger"); if (t) t.setAttribute("aria-expanded", "false");
       });
     });
+    /* Smooth add/remove of search-criteria rows. Capture phase runs BEFORE
+       the page's legacy addRow/delRow click handler (attached directly to
+       the button), so we snapshot the search box height + row positions;
+       the bubble-phase document listener runs AFTER it in the SAME event
+       dispatch, so we re-enhance selects, measure, and start every
+       animation synchronously — no task boundary means the browser never
+       paints the raw intermediate state (un-enhanced selects shifting
+       columns / new row visible before its fade begins). */
+    var cpSearchSnap = null;
+    function isAddDelBtn(t) {
+      return t && t.matches && t.matches('input.bwbutton[value="+"], input.bwbutton[value="-"]');
+    }
     document.addEventListener("click", function (e) {
-      if (e.target && e.target.matches && e.target.matches('input.bwbutton[value="+"]')) setTimeout(enhanceSelects, 0);
+      if (!isAddDelBtn(e.target)) return;
+      var box = e.target.closest(".cp-search-box");
+      if (!box) return;
+      var rows = [];
+      box.querySelectorAll("tr").forEach(function (tr) {
+        rows.push({ tr: tr, top: tr.getBoundingClientRect().top });
+      });
+      var btns = {};
+      box.querySelectorAll('input.bwbutton').forEach(function (b) {
+        if (b.value === "+" || b.value === "Search") (btns[b.value] = btns[b.value] || []).push(b.getBoundingClientRect());
+      });
+      cpSearchSnap = { box: box, h: box.getBoundingClientRect().height, rows: rows, btns: btns };
+    }, true);
+    document.addEventListener("click", function (e) {
+      if (!isAddDelBtn(e.target)) return;
+      enhanceSelects();
+      var snap = cpSearchSnap;
+      cpSearchSnap = null;
+      if (!snap) return;
+      try {
+        var box = snap.box;
+        var ease = "cubic-bezier(0,0,0.2,1)";
+        var newH = box.getBoundingClientRect().height;
+        if (Math.abs(newH - snap.h) > 1) {
+          box.animate(
+            [{ height: snap.h + "px" }, { height: newH + "px" }],
+            { duration: 240, easing: ease }
+          );
+        }
+        var oldTops = new Map();
+        snap.rows.forEach(function (r) { oldTops.set(r.tr, r.top); });
+        box.querySelectorAll("tr").forEach(function (tr) {
+          if (!oldTops.has(tr)) {
+            tr.animate(
+              [{ opacity: 0 }, { opacity: 1 }],
+              { duration: 200, delay: 80, easing: ease, fill: "backwards" }
+            );
+          } else {
+            var dy = oldTops.get(tr) - tr.getBoundingClientRect().top;
+            if (Math.abs(dy) > 1) {
+              tr.animate(
+                [{ transform: "translateY(" + dy + "px)" }, { transform: "none" }],
+                { duration: 240, easing: ease }
+              );
+            }
+          }
+        });
+        /* The legacy code recreates + and Search on whichever row is
+           last — glide them from their old spot to the new one instead
+           of teleporting. Singleton match by value; skip if counts
+           differ (unexpected layout). */
+        ["+", "Search"].forEach(function (v) {
+          var olds = (snap.btns && snap.btns[v]) || [];
+          var news = box.querySelectorAll('input.bwbutton[value="' + v + '"]');
+          if (olds.length === 1 && news.length === 1) {
+            var r = news[0].getBoundingClientRect();
+            var dx = olds[0].left - r.left;
+            var dy = olds[0].top - r.top;
+            if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+              news[0].animate(
+                [{ transform: "translate(" + dx + "px," + dy + "px)" }, { transform: "none" }],
+                { duration: 240, easing: ease }
+              );
+            }
+          }
+        });
+      } catch (err) {}
     });
     window.addEventListener("scroll", function () {
       document.querySelectorAll(".cp-dd.open").forEach(function (dd) {
@@ -584,6 +672,67 @@ function enhanceSelects() {
   } catch (e) { console.warn("[CommPilot Skin] cpDropdownGlobalInit:", e); }
 })();
 enhanceSelects();
+
+function staggerCards() {
+  try {
+    /* Menu cards (BASIC/ADVANCED columns) — tune independently of rows */
+    var CARD_STEP = 65, CARD_DUR = 250;
+    /* Result rows (Groups & other list pages) — smaller step so a full
+       page of rows finishes quickly with NO cap (a cap makes every row
+       past it share one delay and pop in simultaneously) */
+    var ROW_STEP = 40, ROW_DUR = 220;
+    function run(el, delay, dur) {
+      try {
+        el.animate(
+          [
+            { opacity: 0, transform: "scale(0.97)" },
+            { opacity: 1, transform: "scale(1)" }
+          ],
+          { duration: dur, delay: delay, easing: "cubic-bezier(0,0,0.2,1)", fill: "backwards" }
+        );
+      } catch (e) {}
+    }
+    // Menu cards: stagger within each column so both columns fill top-down
+    document.querySelectorAll("td.cp-menu-col").forEach(function (col) {
+      col.querySelectorAll(".cp-menu-card").forEach(function (card, i) { run(card, i * CARD_STEP, CARD_DUR); });
+    });
+    // Result rows: stagger down the whole list at the row cadence
+    document.querySelectorAll(".cp-results-box tr.unselected").forEach(function (row, i) {
+      run(row, i * ROW_STEP, ROW_DUR);
+    });
+  } catch (e) { console.warn("[CommPilot Skin] staggerCards:", e); }
+}
+staggerCards();
+
+/*
+ * Grow-in entrance for the results box. Animates height 0 -> measured
+ * height with a fade, but only when the box NEWLY appears (search on an
+ * empty list) — cpResultsWasVisible tracks whether the previous content
+ * already had a results box, so pagination/sort swaps don't re-grow it.
+ * Runs after layout (wrapResultsBox + wrapResultsScroll) so the measured
+ * height is final.
+ */
+var cpResultsWasVisible = false;
+function revealResultsBox() {
+  try {
+    var box = document.querySelector(".cp-results-box");
+    var wasVisible = cpResultsWasVisible;
+    cpResultsWasVisible = !!box;
+    if (!box || wasVisible) return;
+    var h = box.getBoundingClientRect().height;
+    if (!h) return;
+    var prevOverflow = box.style.overflow;
+    box.style.overflow = "hidden";
+    var anim = box.animate(
+      [
+        { height: "0px", opacity: 0 },
+        { height: h + "px", opacity: 1 }
+      ],
+      { duration: 360, easing: "cubic-bezier(0,0,0.2,1)" }
+    );
+    anim.onfinish = function () { box.style.overflow = prevOverflow; };
+  } catch (e) { console.warn("[CommPilot Skin] revealResultsBox:", e); }
+}
 
 /*
  * Wrap the results table, spacer, and pagination table into a single
@@ -906,6 +1055,7 @@ moveButtonBar();
 wrapResultsScroll();
 trimEditColumn();
 makeRowsClickable();
+revealResultsBox();
 
 /*
  * Help mode toggle + tooltip overlay.
@@ -1126,4 +1276,84 @@ makeRowsClickable();
     },
     true
   );
+
+  /* ============================================================
+     Help-coverage DEBUG overlay (dev tool). Header toggle that
+     colour-codes every help-eligible element by whether it has an
+     entry in help-content.json (green = has, red = missing) and
+     logs the uncovered keys to the console for authoring.
+     ============================================================ */
+  var debugMode = false;
+
+  function scanHelpCoverage() {
+    if (!helpData) return;
+    var covered = [], missing = [];
+    function mark(el, type, key, label) {
+      var has =
+        type === "name"
+          ? !!(helpData.byName && helpData.byName[key])
+          : !!(helpData.byText && helpData.byText[key]);
+      el.classList.remove("cp-help-has", "cp-help-none");
+      el.classList.add(has ? "cp-help-has" : "cp-help-none");
+      (has ? covered : missing).push({ type: type, key: key, label: label });
+    }
+    document.querySelectorAll(".cp-menu-card").forEach(function (card) {
+      var link = card.querySelector("a.navMenuItem[name]");
+      if (link) mark(card, "name", link.getAttribute("name"), (link.textContent || "").trim());
+    });
+    document.querySelectorAll("a.navMenuItem[name]").forEach(function (link) {
+      if (link.closest(".cp-menu-card")) return;
+      mark(link, "name", link.getAttribute("name"), (link.textContent || "").trim());
+    });
+    document.querySelectorAll("a.leftnavfolder, a.leftnavfolderopen").forEach(function (link) {
+      var t = (link.textContent || "").trim();
+      mark(link, "text", t, t);
+    });
+    try {
+      console.group("[CommPilot Skin] Help coverage — " + covered.length + " covered, " + missing.length + " missing");
+      if (missing.length) {
+        if (console.table) console.table(missing);
+        else missing.forEach(function (m) { console.log("MISSING", m.type, m.key, "—", m.label); });
+      }
+      console.groupEnd();
+    } catch (e) {}
+  }
+
+  function clearCoverageTags() {
+    document.querySelectorAll(".cp-help-has, .cp-help-none").forEach(function (el) {
+      el.classList.remove("cp-help-has", "cp-help-none");
+    });
+  }
+
+  function toggleHelpDebug() {
+    debugMode = !debugMode;
+    document.body.classList.toggle("cp-help-debug", debugMode);
+    var b = document.querySelector(".cp-help-debug-btn");
+    if (b) b.setAttribute("aria-pressed", String(debugMode));
+    if (debugMode) scanHelpCoverage();
+    else clearCoverageTags();
+  }
+
+  function wireHelpDebugButton() {
+    if (document.querySelector(".cp-help-debug-btn")) return true;
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "cp-help-debug-btn";
+    btn.textContent = "Help Coverage";
+    btn.setAttribute("aria-pressed", "false");
+    btn.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleHelpDebug();
+    }, true);
+    document.body.appendChild(btn);
+    return true;
+  }
+
+  if (!wireHelpDebugButton()) setTimeout(wireHelpDebugButton, 500);
+
+  document.addEventListener("cp:reskin", function () {
+    wireHelpDebugButton();
+    if (debugMode) scanHelpCoverage();
+  });
 })();

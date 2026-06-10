@@ -44,6 +44,7 @@ html {
   background: var(--cp-bg) !important;
   color: var(--cp-text) !important;
   color-scheme: dark !important;
+  scrollbar-gutter: stable both-edges !important;
 }
 
 body {
@@ -306,7 +307,7 @@ form[name="leftNavForm"] a.leftnavfolderopen {
   text-decoration: none !important;
   font-size: 13px !important;
   font-family: var(--cp-font-sans) !important;
-  transition: background 0.15s ease, color 0.15s ease !important;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease !important;
 }
 
 /* Idle nav item */
@@ -318,8 +319,9 @@ form[name="leftNavForm"] a.leftnavfolder {
 
 /* Hover nav item */
 form[name="leftNavForm"] a.leftnavfolder:hover {
-  background: var(--cp-glass-edge) !important;
-  color: var(--cp-text) !important;
+  background: rgba(110, 76, 150, 0.15) !important;
+  color: var(--cp-primary) !important;
+  transform: translateX(3px) !important;
 }
 
 /* Active nav item — inset rounded pill */
@@ -1255,10 +1257,22 @@ a.listSortHeader:not(:has(.cp-sort-ico))::after {
 }
 a.listSortHeader:not(:has(.cp-sort-ico)):hover::after { opacity: 0.5 !important; }
 
-/* Search criteria row — left-align controls; let the value input grow to
-   fill the row (a proper search bar) while + and Search stay at the right. */
+/* Search criteria rows — frozen column geometry so adding/removing rows
+   never shifts anything horizontally. Every column has a reserved width
+   (including the "-" slot, which is empty on the first row); the value
+   input (col 3) absorbs the remaining width. Selects/dropdowns fill
+   their columns so all rows align identically. */
 #searchTable td { text-align: left !important; }
-#searchTable tr td:nth-child(3) { width: 100% !important; }
+#searchTable tbody tr:not(#trHeader):not(#trLast) > td:nth-child(1) { width: 190px !important; }
+#searchTable tbody tr:not(#trHeader):not(#trLast) > td:nth-child(2) { width: 150px !important; }
+#searchTable tbody tr:not(#trHeader):not(#trLast) > td:nth-child(3) { width: 100% !important; }
+#searchTable tbody tr:not(#trHeader):not(#trLast) > td:nth-child(4),
+#searchTable tbody tr:not(#trHeader):not(#trLast) > td:nth-child(5) {
+  width: 40px !important;
+  min-width: 40px !important;
+  text-align: center !important;
+}
+#searchTable tbody tr:not(#trHeader):not(#trLast) > td:nth-child(6) { width: 110px !important; }
 #searchTable input[type="text"] {
   width: 100% !important;
   box-sizing: border-box !important;
@@ -1269,6 +1283,9 @@ a.listSortHeader:not(:has(.cp-sort-ico)):hover::after { opacity: 0.5 !important;
   padding: 8px 10px !important;
   font-size: 14px !important;
 }
+#searchTable .cp-dd { width: 100% !important; }
+#searchTable .cp-dd .cp-dd-trigger { width: 100% !important; box-sizing: border-box !important; }
+#searchTable input.bwbutton[value="Search"] { width: 100% !important; box-sizing: border-box !important; }
 
 /* ============================================================
    Textarea
@@ -1622,7 +1639,6 @@ td[width="82%"]:has(.cp-results-box) > form > table {
   background-position: center !important;
 }
 
-::view-transition-group(cp-sidebar) { animation-duration: 0s !important; }
 
 /* ============================================================
    Login anti-FOUC — hide the raw legacy form until skin.js
@@ -1714,4 +1730,40 @@ body.cp-login-page .cp-login-logo {
   aspect-ratio: 159 / 92 !important;
   height: auto !important;
   margin: 0 auto 4px !important;
+}
+
+/* ============================================================
+   Help-coverage DEBUG overlay (dev tool) — toggled from the
+   header "Help Coverage" button. Green = has a help entry,
+   red = missing. Active button turns orange.
+   ============================================================ */
+.cp-help-debug-btn {
+  position: fixed !important;
+  top: 8px !important;
+  right: 12px !important;
+  z-index: 2147483600 !important;
+  padding: 4px 11px !important;
+  font-family: var(--cp-font-label, sans-serif) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
+  color: var(--cp-text, #e8e8e8) !important;
+  background: var(--cp-surface, #2a2825) !important;
+  border: 1px solid var(--cp-box-edge, #3c3a37) !important;
+  border-radius: var(--cp-radius-ctl, 6px) !important;
+  cursor: pointer !important;
+}
+.cp-help-debug-btn[aria-pressed="true"] {
+  color: var(--cp-orange, #E89150) !important;
+  border-color: var(--cp-orange, #E89150) !important;
+}
+body.cp-help-debug .cp-help-has {
+  outline: 2px solid #98c379 !important;
+  outline-offset: -2px !important;
+  background: rgba(152, 195, 121, 0.10) !important;
+}
+body.cp-help-debug .cp-help-none {
+  outline: 2px solid #e06c75 !important;
+  outline-offset: -2px !important;
+  background: rgba(224, 108, 117, 0.10) !important;
 }

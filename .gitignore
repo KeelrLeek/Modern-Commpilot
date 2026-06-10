@@ -13,3 +13,9 @@ _metadata/
 
 # Local Claude Code settings (machine-specific)
 .claude/
+
+# Harvested vendor help topics (Cisco/BroadWorks proprietary — source material
+# for authoring help-content.json, never shipped or committed)
+assets/help/raw/*.htm
+assets/help/raw/*.html
+assets/help/raw/*_files/

@@ -44,6 +44,90 @@
     "/Reseller/StirShaken/": {
       "title": "STIR/SHAKEN",
       "body": "STIR/SHAKEN is the caller-ID authentication framework that cryptographically signs outbound calls and verifies inbound ones to combat illegal spoofing and robocalls. Configure signing, attestation/tagging level (A/B/C), and verification behavior here. Correct configuration is often a regulatory requirement for delivering trusted caller ID."
+    },
+    "/Reseller/CallRecordingPlatforms/": {
+      "title": "Call Recording Platforms",
+      "body": "A Call Recording Platform is an external recording system integrated with BroadWorks that captures and stores call audio. This screen lists the recording platforms available to the reseller; once defined, a platform can be assigned to users or groups whose Call Recording service routes its media there. Configure these when offering compliance or quality-monitoring recording."
+    },
+    "/Reseller/Endpoints/": {
+      "title": "Identity/Device Endpoints",
+      "body": "An Identity/Device Endpoint is an individual line/port on a device profile — the registration that binds a user or service to a physical or soft phone. This screen lists all endpoints assigned across the reseller, so you can see which devices are in use and how lines are allocated."
+    },
+    "/Reseller/DeviceType/": {
+      "title": "Identity/Device Profile Types",
+      "body": "An Identity/Device Profile Type is the template for a model of phone or device (for example a Polycom VVX, a Yealink, or a generic SIP endpoint). It defines the model's capabilities, number of ports, config-file handling, and tags. Add, modify, or remove the device types available in the reseller; individual device profiles are then created from these types."
+    },
+    "/Reseller/DeviceInventory/": {
+      "title": "Identity/Device Profile Inventory",
+      "body": "The Identity/Device Profile Inventory lists every provisioned device profile — each an instance of a device type — across the reseller. These are the actual phones and devices configured for users and groups. Use it to find a specific device, see its assignment, and manage endpoints regardless of which group owns them."
+    },
+    "/Reseller/Domains/": {
+      "title": "Domains",
+      "body": "A Domain is a SIP domain (the part after the @ in a user's address) available for assignment to groups and users. This screen lists all domains provisioned at the reseller; groups draw from these when creating users so each identity is addressed within an approved domain."
+    },
+    "/Reseller/DnManagement/": {
+      "title": "Numbers",
+      "body": "Numbers are the telephone numbers (DNs) in the reseller's inventory, available to assign to groups, users, and services. This screen displays all phone numbers at the reseller level so you can see what is available, assigned, or activated, and manage number allocation across groups."
+    },
+    "/Reseller/DnSummary/": {
+      "title": "Numbers Usage",
+      "body": "Numbers Usage is a reporting view of how the reseller's phone numbers are being consumed — totals and breakdowns of assigned versus available DNs across groups. Use it to gauge number-inventory utilization and plan when more numbers need to be ordered."
+    },
+    "/Reseller/NumberRanges/": {
+      "title": "Enterprise Trunk Number Ranges",
+      "body": "Enterprise Trunk Number Ranges define contiguous blocks of numbers carried over Enterprise Trunking — the trunk-based routing that lets an enterprise present many DIDs across shared trunk capacity. This screen lists the number ranges configured for the reseller's enterprise trunks."
+    },
+    "/Reseller/NumberPrefixes/": {
+      "title": "Enterprise Trunk Number Prefixes",
+      "body": "Enterprise Trunk Number Prefixes define the leading digit patterns used to route calls over Enterprise Trunks. This screen lists the prefixes provisioned for the reseller, which determine which dialed numbers are carried on enterprise trunk groups."
+    },
+    "/Reseller/XsiPolicyProfile/ServiceProvider/": {
+      "title": "Xsi Policy Profile",
+      "body": "An Xsi Policy Profile governs what the Xtended Services Interface (Xsi) APIs are allowed to do — the policy controlling third-party and client-application access to call control and user data over BroadWorks' web-services interface. This screen lists the Xsi policy profiles assigned at the reseller, used to authorize integrations such as Receptionist, Call Center, and UC clients."
+    },
+    "/Reseller/DeviceFamilies/": {
+      "title": "Device Management Device Families",
+      "body": "A Device Management Device Family groups related device types so configuration tag sets can be applied to many models at once. Add, modify, or remove device families, which are used to assign tag sets to one or more device types — simplifying Device Management configuration across a fleet."
+    },
+    "/Reseller/DeviceTags/": {
+      "title": "Device Management Tag Sets",
+      "body": "A Device Management Tag Set is a collection of configuration tags (name/value pairs) substituted into device config files during provisioning. Add, modify, or remove the tag sets assignable to device types, and manage the reseller's default tag set — this is how feature settings and parameters are pushed to phones through Device Management."
+    },
+    "/Reseller/MSDNManagement/": {
+      "title": "Mobile Subscriber Directory Numbers",
+      "body": "Mobile Subscriber Directory Numbers (MSDNs) are the mobile numbers managed for BroadWorks Mobility — the directory numbers tied to mobile or SIM-based subscribers. This screen lists all MSDNs in the reseller, used when provisioning mobile lines and fixed-mobile convergence features."
+    },
+    "/Reseller/CallNotify/": {
+      "title": "Call Notify",
+      "body": "Call Notify emails a designated address when an incoming call matches defined criteria, including the caller's number and name. This reseller-level screen manages Call Notify configuration and the email templates used, so the service can be offered consistently to the groups and users beneath the reseller."
+    },
+    "/Reseller/Collaborate/": {
+      "title": "Collaborate",
+      "body": "Collaborate is BroadWorks' built-in audio and video conferencing service — meeting rooms, screen sharing, and instant or reservationless conferences. This reseller-level screen manages Collaborate configuration so the collaboration service can be authorized and provisioned for groups and users."
+    },
+    "/Reseller/EmergencyZone/": {
+      "title": "Emergency Zones",
+      "body": "Emergency Zones define location-based boundaries that control where devices are permitted to register and how emergency (911) calls are handled, helping ensure calls route with the correct location. This reseller-level screen manages the emergency zone configuration applied to groups and users."
+    },
+    "/Reseller/VM/": {
+      "title": "Voice Messaging",
+      "body": "Voice Messaging is the voicemail service — mailboxes, greetings, and message delivery and notification. This reseller-level screen manages voice messaging configuration and defaults so voicemail can be authorized and applied to the groups and users beneath the reseller."
+    },
+    "/Reseller/CallCenter/": {
+      "title": "Call Center",
+      "body": "Call Center is BroadWorks' ACD contact-center service — queues, agents, supervisors, and routing policies. This reseller-level screen is the entry point for Call Center configuration that supports the queues and agents provisioned within groups."
+    },
+    "/Reseller/MeetMeConferencing/": {
+      "title": "Meet-Me Conferencing",
+      "body": "Meet-Me Conferencing provides dial-in audio conference bridges — conference ports with host and attendee access codes. This reseller-level screen is the entry point for Meet-Me Conferencing configuration that supports the bridges provisioned within groups."
+    },
+    "/Reseller/EmergencyCallNotification/": {
+      "title": "Emergency Call Notification",
+      "body": "Emergency Call Notification alerts designated people — by email or a monitoring group — whenever a 911 or emergency call is placed, supporting safety and compliance requirements such as Kari's Law. This reseller-level screen configures who is notified and how when an emergency call occurs."
+    },
+    "/Reseller/MailParameters/": {
+      "title": "Mail Parameters",
+      "body": "Mail Parameters define the outbound email (SMTP) settings BroadWorks uses to send notifications — voicemail-to-email, Call Notify, fault alerts, and similar. This reseller-level screen configures the mail server, sender address, and related parameters so the platform's email features deliver correctly."
     }
   },
 
