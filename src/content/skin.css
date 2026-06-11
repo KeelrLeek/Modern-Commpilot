@@ -1659,6 +1659,25 @@ body.cp-login-page form[name="loginForm"] {
 }
 
 /* ============================================================
+   Full-load anti-FOUC — cloak.js paints a dark splash overlay
+   (#cp-cloak) at document_start so the browser's grey pre-paint
+   background ends at first paint, and the raw legacy layout
+   loads hidden underneath. skin.js fades the overlay out and
+   removes it once restructuring is done. The animation here is
+   the failsafe: if skin.js never runs, the overlay fades itself
+   away after 1.2s so the page can never stay covered.
+   ============================================================ */
+#cp-cloak {
+  animation: cp-cloak-fallback 0.3s ease-out 1.2s forwards;
+}
+@keyframes cp-cloak-fallback { to { opacity: 0; visibility: hidden; } }
+/* Mid-recovery stub pages (stubguard.js sets cp-stub-hold) stay covered —
+   they navigate away on their own; fading would expose the raw stub. */
+html.cp-stub-hold #cp-cloak {
+  animation: none !important;
+}
+
+/* ============================================================
    Login Page — Arctic Clarity glass card
    ============================================================ */
 body.cp-login-page form[name="loginForm"] {

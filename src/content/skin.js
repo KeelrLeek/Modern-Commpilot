@@ -3,6 +3,9 @@ console.log("[Modern CommPilot Skin] content script loaded");
 function cpSaveRecoverToken(resetTries) {
   try {
     if (location.pathname.indexOf("/Login/") !== -1 || document.querySelector('input[type=password]')) return;
+    // Contentless redirect-stub pages carry a login-context token the server
+    // rejects for app POSTs — saving it would poison the recovery store.
+    if (!document.querySelector('td[width="82%"], a.navMenuItem, .navOptions')) return;
     var t = document.getElementsByName("formtokenserial")[0];
     if (t && t.value && chrome.storage) {
       var o = { cpRecoverToken: t.value };
@@ -1356,4 +1359,28 @@ revealResultsBox();
     wireHelpDebugButton();
     if (debugMode) scanHelpCoverage();
   });
+})();
+
+// Full-load reveal — everything above runs synchronously at document_end,
+// so the page is in its final skinned shape here. Fade out and remove the
+// splash overlay that cloak.js painted at document_start. Contentless stub
+// pages (mid-recovery redirects) keep the cloak up — they navigate away on
+// their own, and revealing them would flash the raw white stub.
+(function () {
+  try {
+    var contentful = !!document.querySelector('td[width="82%"], form[name="loginForm"], a.navMenuItem, .navOptions');
+    if (contentful) {
+      try { sessionStorage.setItem("cp-stub-tries", "0"); } catch (e) {}
+    }
+    var o = document.getElementById("cp-cloak");
+    if (!o) return;
+    if (!contentful || document.documentElement.classList.contains("cp-stub-hold")) return;
+    var done = function () { try { o.remove(); } catch (e) {} };
+    if (o.animate) {
+      o.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: "ease-out" }).onfinish = done;
+      setTimeout(done, 400);
+    } else {
+      done();
+    }
+  } catch (e) {}
 })();
