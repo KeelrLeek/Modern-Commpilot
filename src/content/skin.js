@@ -920,6 +920,64 @@ function buildLoginCard() {
 buildLoginCard();
 
 /*
+ * Login transition — when a login actually submits, dissolve the card into
+ * the same dark "CommPilot" splash that cloak.js paints on every incoming
+ * page. All login hops are same-origin POSTs, so paint holding carries the
+ * identical splash through the round-trip and the home page fades in from
+ * it — one continuous transition instead of a page-load pop.
+ */
+function cpLoginSplash() {
+  if (document.getElementById("cp-cloak")) return;
+  document.documentElement.classList.add("cp-stub-hold"); // pin: skip the CSS failsafe fade
+  var o = document.createElement("div");
+  o.id = "cp-cloak";
+  o.setAttribute(
+    "style",
+    "position:fixed;inset:0;z-index:2147483647;background:#1c1b19;" +
+      "display:flex;align-items:center;justify-content:center;" +
+      "font:600 14px/1.4 'Nunito','Segoe UI',system-ui,sans-serif;color:#6b6862;"
+  );
+  o.textContent = "CommPilot";
+  document.documentElement.appendChild(o);
+  if (o.animate) o.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: "ease-out" });
+  // Failsafe: if no navigation ever happens (legacy validation blocked the
+  // submit), give the form back.
+  setTimeout(function () {
+    var still = document.getElementById("cp-cloak");
+    if (!still) return;
+    document.documentElement.classList.remove("cp-stub-hold");
+    var drop = function () { try { still.remove(); } catch (e) {} };
+    if (still.animate) {
+      still.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: "ease-out" }).onfinish = drop;
+      setTimeout(drop, 400);
+    } else {
+      drop();
+    }
+  }, 8000);
+}
+
+(function wireLoginTransition() {
+  var form = document.querySelector('form[name="loginForm"]');
+  if (!form) return;
+  function fieldsFilled() {
+    var u = form.querySelector('input[name="EnteredUserID"]');
+    var p = form.querySelector('input[name="Password"]');
+    return !!(u && p && u.value.trim() && p.value);
+  }
+  // Early fade on the actions we can see coming (click / Enter)…
+  var btn = form.querySelector(".cp-login-btn");
+  if (btn) {
+    btn.addEventListener("click", function () { if (fieldsFilled()) cpLoginSplash(); }, true);
+  }
+  form.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && fieldsFilled()) cpLoginSplash();
+  }, true);
+  // …and the guaranteed catch: beforeunload only fires when a navigation
+  // really starts, so every successful submit path lands here.
+  window.addEventListener("beforeunload", function () { cpLoginSplash(); });
+})();
+
+/*
  * Move the breadcrumb trail (a.headerAuthLevelLink chain) out of the
  * header bar and place it just above the page title as a thin bar.
  */

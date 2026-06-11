@@ -1,4 +1,4 @@
-// Same-origin reload recovery, v3.
+// Same-origin reload recovery + single-navigation login.
 //
 // Why this shape: the app is POST-only — any main-frame GET that reaches a
 // session-aware endpoint invalidates the session's token state (replaying
@@ -11,28 +11,34 @@
 // session logic. Content scripts inject there; this script recognizes the
 // interstitial and re-POSTs the last meaningful navigation with the stored
 // formtokenserial (bridged from chrome.storage by cloak.js — tokens
-// harvested from real logged-in pages by skin.js). Every hop is
-// same-origin, so paint holding keeps the previous page (or the dark
-// cloak) on screen end to end.
+// harvested from real logged-in pages by skin.js).
 //
-// Defense in depth: if a redirect-stub document ever does load (fetch-level
-// GETs, dead sessions), the HTMLFormElement.prototype.submit patch below
-// hijacks its auto-redirect to /Login/ and attempts the same replay.
-// Loop guard: "cp-stub-tries" in sessionStorage — two recovery attempts
-// without a contentful page load in between (skin.js resets the counter)
-// means the session is really dead, and /Login/ proceeds normally.
+// The login branch exists because the white "between documents" flash is
+// the browser's own canvas — unpaintable by page code — and it appears per
+// navigation. Native login burns THREE documents (login → auth stub →
+// home). Here the slow auth POST happens via fetch while the dark login
+// page stays on screen, and only the final fast hop is a real navigation.
+// Failed logins never navigate at all: the error renders inline on the
+// card and the fresh token from the response is swapped in for the retry.
+//
+// NOTE: an earlier version also patched HTMLFormElement.prototype.submit
+// on ALL pages to hijack any redirect-stub whose target contained
+// "/Login/". That heuristic cannot distinguish the logout-bounce from the
+// legitimate POST-LOGIN HANDOFF stub, so it broke logins — verified live.
+// Do not bring it back. Dead-session POSTs bouncing to /Login/ natively is
+// correct behavior.
+//
+// Loop guard: "cp-stub-tries" in sessionStorage — two interstitial
+// recoveries without a contentful page load in between (skin.js resets the
+// counter) means the session is really dead, and /Login/ proceeds normally.
 (function () {
   if (window !== window.top) return;
   var path = location.pathname || "";
-  if (path.indexOf("/Login/") !== -1 || path.indexOf("/Logout/") !== -1) return;
 
   var LOGIN = "/commpilot/Login/";
   var HOME = { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
   var realSubmit = HTMLFormElement.prototype.submit;
 
-  function pageHasContent() {
-    return !!document.querySelector('td[width="82%"], form[name="loginForm"], a.navMenuItem, .navOptions');
-  }
   function tries() {
     try { return parseInt(sessionStorage.getItem("cp-stub-tries") || "0", 10) || 0; } catch (e) { return 0; }
   }
@@ -58,6 +64,126 @@
     (document.body || document.documentElement).appendChild(f);
     realSubmit.call(f);
   }
+
+  // Parse a redirect-stub document: target URL, data object, fresh token.
+  function extractStub(doc) {
+    var ss = doc.querySelectorAll("script");
+    var src = "";
+    for (var i = 0; i < ss.length; i++) src += (ss[i].textContent || "") + "\n";
+    var m = /redirectPost\s*\(\s*['"]([^'"]+)['"]\s*,\s*(\{[\s\S]*?\})\s*\)/.exec(src);
+    if (!m) return null;
+    var data = {};
+    var re = /(\w+)\s*:\s*['"]([^'"]*)['"]/g, mm;
+    while ((mm = re.exec(m[2]))) data[mm[1]] = mm[2];
+    var tEl = doc.getElementsByName("formtokenserial")[0];
+    return { target: m[1].replace(/\\u002F/g, "/"), data: data, token: tEl ? tEl.value : null };
+  }
+
+  // Dark splash — same look as cloak.js paints on incoming documents.
+  function splashUp() {
+    try { document.documentElement.classList.add("cp-stub-hold"); } catch (e) {}
+    if (document.getElementById("cp-cloak")) return;
+    var o = document.createElement("div");
+    o.id = "cp-cloak";
+    o.setAttribute(
+      "style",
+      "position:fixed;inset:0;z-index:2147483647;background:#1c1b19;" +
+        "display:flex;align-items:center;justify-content:center;" +
+        "font:600 14px/1.4 'Nunito','Segoe UI',system-ui,sans-serif;color:#6b6862;"
+    );
+    o.textContent = "CommPilot";
+    document.documentElement.appendChild(o);
+    if (o.animate) o.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: "ease-out" });
+  }
+  function splashDown() {
+    try { document.documentElement.classList.remove("cp-stub-hold"); } catch (e) {}
+    var o = document.getElementById("cp-cloak");
+    if (!o) return;
+    var drop = function () { try { o.remove(); } catch (e) {} };
+    if (o.animate) {
+      o.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: "ease-out" }).onfinish = drop;
+      setTimeout(drop, 400);
+    } else {
+      drop();
+    }
+  }
+
+  function showLoginError(doc) {
+    try {
+      var msg = "";
+      var cand = Array.prototype.slice.call(doc.querySelectorAll("td,span,div,p,b,font")).find(function (el) {
+        return el.childElementCount === 0 &&
+          /not authorized|login again|session timeout|invalid|incorrect|failed/i.test(el.textContent || "");
+      });
+      if (cand) msg = cand.textContent.trim();
+      if (!msg) msg = "Sign-in failed. Please check your User ID and password and try again.";
+      var card = document.querySelector(".cp-login-card");
+      if (!card) return;
+      var al = card.querySelector(".cp-login-alert");
+      if (!al) {
+        al = document.createElement("div");
+        al.className = "cp-login-alert";
+        card.insertBefore(al, card.querySelector(".cp-login-field") || null);
+      }
+      al.textContent = msg;
+    } catch (e) {}
+  }
+
+  // ---- Single-navigation login (/Login/ pages only) ----------------------
+  if (path.indexOf("/Login/") !== -1) {
+    var armedLogin = true;
+
+    function loginFetchFlow(form) {
+      splashUp();
+      var body = new URLSearchParams();
+      try {
+        new FormData(form).forEach(function (v, k) { body.append(k, v); });
+      } catch (e) {}
+      fetch(String(form.getAttribute("action") || form.action), {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body.toString(),
+        credentials: "same-origin"
+      })
+        .then(function (r) { return r.text(); })
+        .then(function (html) {
+          var doc = new DOMParser().parseFromString(html, "text/html");
+          var stub = extractStub(doc);
+          if (stub && stub.target && stub.token) {
+            console.log("[stubguard] login ok — entering app via", stub.target);
+            replay({ url: stub.target, params: stub.data }, stub.token);
+            return;
+          }
+          // No handoff stub — login failed (or unexpected page). Stay on
+          // this page: refresh the token so a retry is valid, show why.
+          console.log("[stubguard] login produced no handoff — staying on form");
+          var freshTok = doc.getElementsByName("formtokenserial")[0];
+          var liveTok = form.querySelector('input[name="formtokenserial"]');
+          if (freshTok && liveTok) liveTok.value = freshTok.value;
+          showLoginError(doc);
+          splashDown();
+          armedLogin = true;
+        })
+        .catch(function (e) {
+          console.warn("[stubguard] login fetch failed — native fallback", e);
+          try { realSubmit.call(form); } catch (err) {}
+        });
+    }
+
+    HTMLFormElement.prototype.submit = function () {
+      try {
+        if (armedLogin && this.querySelector('input[name="Password"]')) {
+          armedLogin = false;
+          loginFetchFlow(this);
+          return;
+        }
+      } catch (e) {}
+      return realSubmit.apply(this, arguments);
+    };
+    return;
+  }
+
+  if (path.indexOf("/Logout/") !== -1) return;
 
   // Query cloak.js (ISOLATED world) for the stored nav + token, then hand
   // {nav, token} to finish() — nav falls back to sessionStorage, then HOME.
@@ -104,30 +230,5 @@
     }
     bumpTries();
     bridgeRecover("interstitial recovery", function () { location.replace(LOGIN); });
-    return;
   }
-
-  // ---- Stub hijack (defense in depth) -----------------------------------
-  var armed = true;
-  HTMLFormElement.prototype.submit = function () {
-    try {
-      if (
-        armed &&
-        (document.readyState === "loading" || document.readyState === "interactive") &&
-        !pageHasContent() &&
-        String(this.action || "").indexOf("/Login/") !== -1 &&
-        tries() < 2
-      ) {
-        armed = false;
-        bumpTries();
-        try { document.documentElement.classList.add("cp-stub-hold"); } catch (e) {}
-        var loginForm = this;
-        bridgeRecover("stub hijack", function () {
-          try { realSubmit.call(loginForm); } catch (e) {}
-        });
-        return;
-      }
-    } catch (e) {}
-    return realSubmit.apply(this, arguments);
-  };
 })();
