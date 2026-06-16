@@ -27,6 +27,10 @@
   var _orig = null;
   var cpHook = null;
   var cpSrcCollector = null;
+  var cpSectionQueue = [];
+  var cpSectionRunning = false;
+  var cpSectionAborted = false;
+  var cpConsoleObserver = null;
 
   // Re-execute scripts inside a container by replacing each <script>
   // with a fresh copy that carries the live nonce.
@@ -403,5 +407,234 @@
         }
       }
     } catch (e) {}
+
+    // ---- Unified Console (Phase 1) ----------------------------------
+    function cpReexecWiringScripts(container) {
+      var origAdd = document.addEventListener;
+      document.addEventListener = function (type, fn, opts) {
+        if (type === "DOMContentLoaded" && typeof fn === "function") {
+          Promise.resolve().then(function () { try { fn.call(document, new Event("DOMContentLoaded")); } catch (e) { console.warn("[pjax] console DCL shim err", e); } });
+          return;
+        }
+        return origAdd.call(document, type, fn, opts);
+      };
+      var origWinAdd = window.addEventListener;
+      window.addEventListener = function (type, fn, opts) {
+        if (type === "load" && typeof fn === "function") {
+          Promise.resolve().then(function () { try { fn.call(window, new Event("load")); } catch (e) { console.warn("[pjax] console load shim err", e); } });
+          return;
+        }
+        return origWinAdd.call(window, type, fn, opts);
+      };
+      var nonce = LIVE_NONCE || (document.querySelector("script[nonce]") || {}).nonce || "";
+      var scripts = container.querySelectorAll("script");
+      for (var si = 0; si < scripts.length; si++) {
+        var old = scripts[si];
+        if (old.src) continue;
+        var txt = (old.textContent || "").trim();
+        if (!txt || !/getElementById\(['"](?:link_|anchor_)/.test(txt) || !/redirectPost/.test(txt)) continue;
+        var s = document.createElement("script");
+        if (nonce) s.setAttribute("nonce", nonce);
+        s.textContent = txt;
+        try { old.parentNode.replaceChild(s, old); } catch (e) {}
+      }
+      document.addEventListener = origAdd;
+      window.addEventListener = origWinAdd;
+      if (window.redirectPost !== cpHook) { _orig = window.redirectPost; window.redirectPost = cpHook; }
+    }
+
+    function cpEnqueueSection(fn) {
+      if (cpSectionAborted) return;
+      cpSectionQueue.push(fn);
+      cpProcessSectionQueue();
+    }
+    function cpProcessSectionQueue() {
+      if (cpSectionAborted) { cpSectionQueue = []; cpSectionRunning = false; return; }
+      if (cpSectionRunning || cpSectionQueue.length === 0) return;
+      cpSectionRunning = true;
+      var next = cpSectionQueue.shift();
+      try {
+        var p = next();
+        if (p && typeof p.then === "function") {
+          p.then(function () { cpSectionRunning = false; cpProcessSectionQueue(); })
+           .catch(function () { cpSectionRunning = false; cpProcessSectionQueue(); });
+        } else {
+          cpSectionRunning = false; cpProcessSectionQueue();
+        }
+      } catch (e) {
+        cpSectionRunning = false; cpProcessSectionQueue();
+      }
+    }
+
+    function cpFetchSection(folder, menuId) {
+      return new Promise(function (resolve) {
+        cpEnqueueSection(function () {
+          if (cpSectionAborted) { resolve(null); return; }
+          var liveTokEl = document.getElementsByName("formtokenserial")[0];
+          var token = liveTokEl ? liveTokEl.value : null;
+          return cpFollow("/commpilot/Common/folder_contents.jsp", { folder: folder, menuId: menuId || "8" }, token, 0)
+            .then(function (res) {
+              if (cpSectionAborted || !res || res.auth === false || !res.doc) { resolve(null); return; }
+              var newTok = res.doc.getElementsByName("formtokenserial")[0];
+              if (newTok) {
+                var tokens = document.getElementsByName("formtokenserial");
+                for (var i = 0; i < tokens.length; i++) tokens[i].value = newTok.value;
+              }
+              var td = res.doc.querySelector('td[width="82%"]');
+              resolve(td ? td.innerHTML : null);
+            })
+            .catch(function () { resolve(null); });
+        });
+      });
+    }
+
+    function cpBuildConsole() {
+      if (document.querySelector(".cp-console")) return;
+      var contentCell = document.querySelector('td[width="82%"]');
+      if (!contentCell) return;
+      cpSectionAborted = false;
+      // Enumerate folders from the sidebar
+      var folders = [];
+      var navAnchors = document.querySelectorAll('form[name="leftNavForm"] a.leftnavfolder, form[name="leftNavForm"] a.leftnavfolderopen');
+      navAnchors.forEach(function (a) {
+        var name = (a.textContent || "").trim().split(/\n/)[0].trim();
+        if (!name) return;
+        var folder = "", menuId = "8";
+        var onclick = a.getAttribute("onclick") || "";
+        var fm = /folder\s*:\s*['"](R\d+)['"]/i.exec(onclick);
+        if (fm) folder = fm[1];
+        var mm = /menuId\s*:\s*['"](\d+)['"]/i.exec(onclick);
+        if (mm) menuId = mm[1];
+        if (!folder) {
+          var el = a;
+          for (var hop = 0; hop < 4 && el; hop++) {
+            var scripts = el.querySelectorAll("script");
+            for (var si = 0; si < scripts.length; si++) {
+              var txt = scripts[si].textContent || "";
+              var fm2 = /folder['"\s:,]+(R\d+)/.exec(txt);
+              if (fm2) { folder = fm2[1]; break; }
+              var mm2 = /menuId['"\s:,]+(\d+)/.exec(txt);
+              if (mm2) menuId = mm2[1];
+            }
+            if (folder) break;
+            el = el.parentNode;
+          }
+        }
+        if (!folder) return;
+        folders.push({ name: name, folder: folder, menuId: menuId });
+      });
+      if (folders.length === 0) return;
+      // Build console DOM
+      var consoleDiv = document.createElement("div");
+      consoleDiv.className = "cp-console";
+      folders.forEach(function (f) {
+        var sec = document.createElement("section");
+        sec.className = "cp-console-section";
+        sec.setAttribute("data-cp-folder", f.folder);
+        var head = document.createElement("div");
+        head.className = "cp-console-head";
+        head.textContent = f.name;
+        var bodyEl = document.createElement("div");
+        bodyEl.className = "cp-console-body";
+        var loading = document.createElement("div");
+        loading.className = "cp-console-loading";
+        loading.textContent = "Loading\u2026";
+        bodyEl.appendChild(loading);
+        sec.appendChild(head);
+        sec.appendChild(bodyEl);
+        consoleDiv.appendChild(sec);
+      });
+      while (contentCell.firstChild) contentCell.removeChild(contentCell.firstChild);
+      contentCell.appendChild(consoleDiv);
+      // IntersectionObserver
+      cpConsoleObserver = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          var bodyEl = entry.target;
+          if (bodyEl.dataset.cpRequested === "1" || bodyEl.getAttribute("data-cp-loaded") === "1" || !document.querySelector(".cp-console")) return;
+          bodyEl.dataset.cpRequested = "1";
+          var sec = bodyEl.closest(".cp-console-section");
+          var folder = sec ? sec.getAttribute("data-cp-folder") : "";
+          var mId = "8";
+          for (var fi = 0; fi < folders.length; fi++) { if (folders[fi].folder === folder) { mId = folders[fi].menuId; break; } }
+          cpFetchSection(folder, mId).then(function (html) {
+            if (cpSectionAborted || !document.querySelector(".cp-console")) return;
+            if (html) {
+              bodyEl.innerHTML = html;
+              bodyEl.setAttribute("data-cp-loaded", "1");
+              document.dispatchEvent(new Event("cp:reskin"));
+              cpReexecWiringScripts(bodyEl);
+            } else {
+              delete bodyEl.dataset.cpRequested;
+              bodyEl.innerHTML = "";
+              var retryBtn = document.createElement("button");
+              retryBtn.textContent = "Couldn\u2019t load \u2014 Retry";
+              retryBtn.style.cssText = "background:none;border:1px solid var(--cp-border, #3c3a37);border-radius:6px;padding:6px 14px;color:var(--cp-text, #e8e8e8);cursor:pointer;font:inherit;";
+              retryBtn.addEventListener("click", function () {
+                delete bodyEl.dataset.cpRequested;
+                bodyEl.innerHTML = "";
+                var ld = document.createElement("div");
+                ld.className = "cp-console-loading";
+                ld.textContent = "Loading\u2026";
+                bodyEl.appendChild(ld);
+                bodyEl.dataset.cpRequested = "1";
+                cpFetchSection(folder, mId).then(function (html2) {
+                  if (cpSectionAborted || !document.querySelector(".cp-console")) return;
+                  if (html2) { bodyEl.innerHTML = html2; bodyEl.setAttribute("data-cp-loaded", "1"); document.dispatchEvent(new Event("cp:reskin")); cpReexecWiringScripts(bodyEl); }
+                  else { delete bodyEl.dataset.cpRequested; bodyEl.innerHTML = ""; bodyEl.appendChild(retryBtn); }
+                });
+              });
+              bodyEl.appendChild(retryBtn);
+            }
+          });
+        });
+      }, { rootMargin: "400px" });
+      consoleDiv.querySelectorAll(".cp-console-body").forEach(function (bodyEl) {
+        cpConsoleObserver.observe(bodyEl);
+      });
+    }
+
+    function cpAddConsoleToggle() {
+      var isHome = !!document.querySelector('a.leftnavfolder, a.leftnavfolderopen');
+      if (!isHome) return;
+      var titleTable = document.querySelector("td.screenName");
+      if (!titleTable) return;
+      var existing = document.querySelector(".cp-console-btn");
+      if (existing) {
+        existing.textContent = document.querySelector(".cp-console") ? "Back to menu" : "All Sections";
+        return;
+      }
+      var btn = document.createElement("button");
+      btn.className = "cp-console-btn";
+      btn.textContent = document.querySelector(".cp-console") ? "Back to menu" : "All Sections";
+      btn.addEventListener("click", function () {
+        if (document.querySelector(".cp-console")) {
+          window.redirectPost("/commpilot/Common/folder_contents.jsp", { folder: "R0", menuId: "8" });
+        } else {
+          cpBuildConsole();
+        }
+      });
+      var parentTd = titleTable.closest("td");
+      if (!parentTd) return;
+      var parentTable = parentTd.closest("table");
+      if (parentTable) {
+        var wrap = document.createElement("div");
+        wrap.style.cssText = "display:flex;align-items:center;justify-content:space-between;width:100%;";
+        var innerTable = parentTd.querySelector("table");
+        if (innerTable) {
+          innerTable.parentNode.insertBefore(wrap, innerTable);
+          wrap.appendChild(innerTable);
+          wrap.appendChild(btn);
+        } else {
+          parentTd.appendChild(btn);
+          btn.style.cssText = "float:right;margin:8px 24px 0 0;";
+        }
+      }
+    }
+
+    // Wire toggle on reskin (runs after every pjax swap)
+    document.addEventListener("cp:reskin", function () { cpAddConsoleToggle(); });
+    // Initial add for pages that already have folders (refresh / recovery land)
+    cpAddConsoleToggle();
   }
 })();

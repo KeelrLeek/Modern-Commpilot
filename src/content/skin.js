@@ -161,6 +161,9 @@ function wrapMenuCards() {
       console.warn("[CommPilot Skin] wrapMenuCards: skipping item", e);
     }
   });
+  document.querySelectorAll(".cp-console-body:not([data-cp-menu-done])").forEach(function (b) {
+    b.setAttribute("data-cp-menu-done", "1");
+  });
 }
 
 function tagMenuColumns() {
@@ -170,6 +173,9 @@ function tagMenuColumns() {
       var col = t && t.parentElement;
       if (col && col.tagName === "TD") col.classList.add("cp-menu-col");
     } catch (e) {}
+  });
+  document.querySelectorAll(".cp-console-body:not([data-cp-menu-done])").forEach(function (b) {
+    b.setAttribute("data-cp-menu-done", "1");
   });
 }
 
@@ -527,7 +533,7 @@ function formatPageIndicator() {
  */
 function enhanceSelects() {
   try {
-    document.querySelectorAll("#searchTable select").forEach(function (sel) {
+    function processSelect(sel) {
       if (sel.dataset.cpDd) return;
       sel.dataset.cpDd = "1";
       var dd = document.createElement("div"); dd.className = "cp-dd";
@@ -547,11 +553,6 @@ function enhanceSelects() {
         list.style.top = (r.bottom + 4) + "px";
         list.style.left = r.left + "px";
         list.style.minWidth = r.width + "px";
-        /* html { scrollbar-gutter: both-edges } insets Chromium's
-           fixed-position origin by the left gutter while rect coords
-           stay viewport-true, drifting the menu right by the gutter
-           width. Measure the actual drift and pull it back. (Left
-           only — top reads wrong mid-transition from translateY.) */
         var drift = list.getBoundingClientRect().left - r.left;
         if (Math.abs(drift) > 0.5) list.style.left = (r.left - drift) + "px";
       }
@@ -578,7 +579,9 @@ function enhanceSelects() {
       sel.parentNode.insertBefore(dd, sel.nextSibling);
       sel.style.setProperty("display", "none", "important");
       sync();
-    });
+    }
+    document.querySelectorAll("#searchTable select").forEach(processSelect);
+    document.querySelectorAll(".cp-console-body select").forEach(processSelect);
   } catch (e) { console.warn("[CommPilot Skin] enhanceSelects:", e); }
 }
 (function cpDropdownGlobalInit() {
@@ -700,8 +703,9 @@ function staggerCards() {
         );
       } catch (e) {}
     }
-    // Menu cards: stagger within each column so both columns fill top-down
+    // Menu cards: stagger within each column so both columns fill top-down (skip console sections)
     document.querySelectorAll("td.cp-menu-col").forEach(function (col) {
+      if (col.closest(".cp-console")) return;
       col.querySelectorAll(".cp-menu-card").forEach(function (card, i) { run(card, i * CARD_STEP, CARD_DUR); });
     });
     // Result rows: stagger down the whole list at the row cadence
