@@ -71,7 +71,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["assets/fonts/*", "assets/icons/*", "assets/help/*", "src/recover.html", "src/recover.js"],
+      "resources": ["assets/fonts/*", "assets/icons/*", "assets/help/*"],
       "matches": ["https://apps01.avpaas.io/*"]
     }
   ]

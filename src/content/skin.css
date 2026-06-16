@@ -728,6 +728,8 @@ td.enduserbody:has(.cp-results-box) > .cp-results-box {
 .cp-results-box > table:has(td.listHeader):not(:has(a)) {
   display: none !important;
 }
+/* Suppress the results box when search returns zero matches */
+.cp-results-box.cp-empty { display: none !important; }
 
 /* Results table inside .cp-results-box — no border-radius/overflow
    (the wrapper owns those).  No margin-bottom to avoid gap before
@@ -940,6 +942,12 @@ tr.unselected > td:nth-child(2) a.tableLinkHover {
   z-index: 3 !important;
   background: var(--cp-surface-low) !important;
 }
+/* Cancel the border-spacing strip above the sticky header so the
+   dark header bar caps the results box flush to its top edge.
+   Keep the -5px in sync with the table's border-spacing (0 5px). */
+.cp-results-scroll > table {
+  margin-top: -5px !important;
+}
 
 /* Generic selection classes */
 A.selected {
@@ -999,30 +1007,75 @@ A.tab {
 }
 
 /* ============================================================
-   User Messages
+   Alert cards — restyled from legacy .error/.warning/.informational
+   cells into Trifecta cards with badge, title, body, code chip.
    ============================================================ */
-.error {
-  font-size: 12px !important;
+/* Hide legacy banner cells — the alert card renders via cpInsertTopAlert */
+.cp-alert-host { display: none !important; }
+/* Card container — flat Trifecta, matches box style */
+.cp-alert {
+  display: flex !important;
+  gap: 12px !important;
+  align-items: center !important;
+  padding: 12px 16px !important;
+  margin: 0 16px 12px 16px !important;
+  border-radius: var(--cp-radius-ctl, 6px) !important;
+  border: 1px solid !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+  box-sizing: border-box !important;
+}
+.cp-alert-error {
   color: #ffb4ab !important;
-  background-color: rgba(147, 0, 10, 0.2) !important;
-  border: 1px solid rgba(255, 180, 171, 0.3) !important;
-  padding: 8px 12px !important;
+  background: rgba(147, 0, 10, 0.2) !important;
+  border-color: rgba(255, 180, 171, 0.3) !important;
 }
-
-.warning {
-  font-size: 12px !important;
+.cp-alert-warning {
   color: var(--cp-secondary) !important;
-  background-color: rgba(232, 145, 80, 0.12) !important;
-  border: 1px solid rgba(232, 145, 80, 0.30) !important;
-  padding: 8px 12px !important;
+  background: rgba(232, 145, 80, 0.12) !important;
+  border-color: rgba(232, 145, 80, 0.30) !important;
 }
-
-.informational {
-  font-size: 12px !important;
+.cp-alert-info {
   color: var(--cp-primary) !important;
-  background-color: rgba(110, 76, 150, 0.12) !important;
-  border: 1px solid rgba(110, 76, 150, 0.28) !important;
-  padding: 8px 12px !important;
+  background: rgba(110, 76, 150, 0.12) !important;
+  border-color: rgba(110, 76, 150, 0.28) !important;
+}
+/* Badge — 30px severity-tinted circle with dark SVG icon */
+.cp-alert-badge {
+  flex-shrink: 0 !important;
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: currentColor !important;
+}
+.cp-alert-error .cp-alert-badge { color: #ffb4ab !important; }
+.cp-alert-warning .cp-alert-badge { color: var(--cp-secondary) !important; }
+.cp-alert-info .cp-alert-badge { color: var(--cp-primary) !important; }
+.cp-alert-badge svg { color: #1e1e1e !important; }
+/* Content block */
+.cp-alert-content { flex: 1 !important; min-width: 0 !important; }
+.cp-alert-title {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: inherit !important;
+}
+.cp-alert-body {
+  font-size: 13px !important;
+  color: var(--cp-text-muted) !important;
+  margin-top: 2px !important;
+}
+/* Code chip — right-aligned monospace pill */
+.cp-alert-chip {
+  flex-shrink: 0 !important;
+  font-size: 11px !important;
+  font-family: var(--cp-font-mono, monospace) !important;
+  color: var(--cp-text-muted) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  padding: 2px 8px !important;
+  border-radius: 10px !important;
+  white-space: nowrap !important;
 }
 
 /* ============================================================

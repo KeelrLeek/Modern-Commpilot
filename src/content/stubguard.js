@@ -111,11 +111,14 @@
   function showLoginError(doc) {
     try {
       var msg = "";
-      var cand = Array.prototype.slice.call(doc.querySelectorAll("td,span,div,p,b,font")).find(function (el) {
-        return el.childElementCount === 0 &&
-          /not authorized|login again|session timeout|invalid|incorrect|failed/i.test(el.textContent || "");
-      });
-      if (cand) msg = cand.textContent.trim();
+      var el = doc.querySelector(".loginerror");
+      if (el && el.textContent.trim()) msg = el.textContent.trim();
+      if (!msg) {
+        var cand = Array.prototype.slice.call(doc.querySelectorAll("td,span,div,p,b,font")).find(function (e) {
+          return e.childElementCount === 0 && /not authorized|login again|session timeout|invalid|incorrect|failed|disabled|locked|expired|suspend/i.test(e.textContent || "");
+        });
+        if (cand) msg = cand.textContent.trim();
+      }
       if (!msg) msg = "Sign-in failed. Please check your User ID and password and try again.";
       var card = document.querySelector(".cp-login-card");
       if (!card) return;
@@ -133,8 +136,114 @@
   if (path.indexOf("/Login/") !== -1) {
     var armedLogin = true;
 
+    function cpLoginFollow(u, p, token, depth) {
+      var fb = new URLSearchParams();
+      for (var k in p) if (Object.prototype.hasOwnProperty.call(p, k)) fb.append(k, p[k]);
+      if (token) fb.append("formtokenserial", token);
+      return fetch(u, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: fb.toString(),
+        credentials: "same-origin"
+      })
+        .then(function (r) { return r.text(); })
+        .then(function (html) {
+          if (html.indexOf("Please login again") !== -1 || html.indexOf("not authorized to access the system") !== -1) return { auth: false };
+          var d = new DOMParser().parseFromString(html, "text/html");
+          if (d.querySelector('td[width="82%"]')) return { doc: d };
+          var stub = extractStub(d);
+          if (stub && stub.target && depth < 4) {
+            if (stub.target.indexOf("/Login/") !== -1) return { fallback: true };
+            console.log("[stubguard] morph following stub ->", stub.target);
+            return cpLoginFollow(stub.target, stub.data, stub.token, depth + 1);
+          }
+          return { doc: d };
+        });
+    }
+
+    function morphIntoApp(stub) {
+      if (!window.__cpReexec || !window.__cpPjaxMorphed) {
+        console.warn("[stubguard] morph helpers missing — native fallback");
+        replay({ url: stub.target, params: stub.data }, stub.token);
+        return;
+      }
+      cpLoginFollow(stub.target, stub.data, stub.token, 0)
+        .then(function (res) {
+          if (!res || res.auth === false || res.fallback || !res.doc.querySelector('td[width="82%"]')) {
+            console.warn("[stubguard] morph follow failed — native fallback");
+            replay({ url: stub.target, params: stub.data }, stub.token);
+            return;
+          }
+          var doc = res.doc;
+          try { document.title = doc.title; } catch (e) {}
+          /* Merge stylesheets and styles from doc.head */
+          var liveHead = document.head || document.documentElement;
+          doc.head.querySelectorAll("link[rel=stylesheet], style").forEach(function (el) {
+            var key = el.tagName === "LINK" ? el.getAttribute("href") : (el.textContent || "").trim().slice(0, 200);
+            if (!key) return;
+            var exists = Array.prototype.some.call(liveHead.querySelectorAll("link[rel=stylesheet], style"), function (existing) {
+              if (el.tagName === "LINK" && existing.tagName === "LINK") return existing.getAttribute("href") === key;
+              if (el.tagName === "STYLE" && existing.tagName === "STYLE") return (existing.textContent || "").trim().slice(0, 200) === key;
+              return false;
+            });
+            if (!exists) liveHead.appendChild(el.cloneNode(true));
+          });
+          /* Replace body wholesale */
+          var liveBody = document.body;
+          for (var ai = liveBody.attributes.length - 1; ai >= 0; ai--) liveBody.removeAttribute(liveBody.attributes[ai].name);
+          for (var ai2 = 0; ai2 < doc.body.attributes.length; ai2++) liveBody.setAttribute(doc.body.attributes[ai2].name, doc.body.attributes[ai2].value);
+          liveBody.innerHTML = doc.body.innerHTML;
+          /* Re-exec head scripts not already present */
+          var headScripts = [];
+          doc.head.querySelectorAll("script").forEach(function (oldScript) {
+            var key = oldScript.src || (oldScript.textContent || "").trim().slice(0, 200);
+            if (!key) return;
+            var exists = Array.prototype.some.call(liveHead.querySelectorAll("script"), function (existing) {
+              if (oldScript.src) return existing.src === oldScript.src;
+              return !existing.src && (existing.textContent || "").trim().slice(0, 200) === key;
+            });
+            if (!exists) headScripts.push(oldScript.cloneNode(true));
+          });
+          var headWrapper = null;
+          if (headScripts.length > 0) {
+            headWrapper = document.createElement("div");
+            headWrapper.style.display = "none";
+            document.body.appendChild(headWrapper);
+            for (var hi = 0; hi < headScripts.length; hi++) headWrapper.appendChild(headScripts[hi]);
+          }
+          var headReady = headScripts.length > 0
+            ? window.__cpReexec([headWrapper])
+            : Promise.resolve(0);
+          /* Move head script nodes to live head synchronously (nodes exist even if src hasn't loaded) */
+          if (headWrapper) {
+            while (headWrapper.firstChild) liveHead.appendChild(headWrapper.firstChild);
+            document.body.removeChild(headWrapper);
+          }
+          /* Chain body reexec + pjax wiring + reveal after all head scripts have loaded */
+          headReady
+            .then(function () {
+              return window.__cpReexec([liveBody]);
+            })
+            .then(function () {
+              var pjaxOk = window.__cpPjaxMorphed({ url: stub.target, params: stub.data });
+              if (!pjaxOk) console.warn("[stubguard] __cpPjaxMorphed returned false — pjax unavailable");
+              try { document.documentElement.classList.remove("cp-stub-hold"); } catch (e) {}
+              document.dispatchEvent(new Event("cp:morphed"));
+            })
+            .catch(function (e) {
+              console.warn("[stubguard] morph failed — native fallback", e);
+              replay({ url: stub.target, params: stub.data }, stub.token);
+            });
+        })
+        .catch(function (e) {
+          console.warn("[stubguard] morph failed — native fallback", e);
+          replay({ url: stub.target, params: stub.data }, stub.token);
+        });
+    }
+
     function loginFetchFlow(form) {
-      splashUp();
+      var loginFlowStart = Date.now();
+      document.dispatchEvent(new CustomEvent("cp:loginsplash"));
       var body = new URLSearchParams();
       try {
         new FormData(form).forEach(function (v, k) { body.append(k, v); });
@@ -150,19 +259,32 @@
           var doc = new DOMParser().parseFromString(html, "text/html");
           var stub = extractStub(doc);
           if (stub && stub.target && stub.token) {
-            console.log("[stubguard] login ok — entering app via", stub.target);
-            replay({ url: stub.target, params: stub.data }, stub.token);
-            return;
+            if (stub.target.indexOf("/Login/") !== -1) {
+              console.log("[stubguard] login produced /Login/ stub — failed login");
+            } else {
+              console.log("[stubguard] login ok — morphing into app via", stub.target);
+              morphIntoApp(stub);
+              return;
+            }
           }
-          // No handoff stub — login failed (or unexpected page). Stay on
-          // this page: refresh the token so a retry is valid, show why.
+          // No handoff stub, or /Login/ stub — login failed.
           console.log("[stubguard] login produced no handoff — staying on form");
-          var freshTok = doc.getElementsByName("formtokenserial")[0];
+          armedLogin = true; // re-arm immediately so a quick retry never falls through to native submit
           var liveTok = form.querySelector('input[name="formtokenserial"]');
-          if (freshTok && liveTok) liveTok.value = freshTok.value;
-          showLoginError(doc);
-          splashDown();
-          armedLogin = true;
+          var MIN_SPLASH = 600;
+          var showFail = function (errDoc) {
+            var freshTok = errDoc.getElementsByName("formtokenserial")[0];
+            if (freshTok && liveTok) liveTok.value = freshTok.value;
+            var reveal = function () { showLoginError(errDoc); splashDown(); };
+            var elapsed = Date.now() - loginFlowStart;
+            if (elapsed < MIN_SPLASH) { setTimeout(reveal, MIN_SPLASH - elapsed); } else { reveal(); }
+          };
+          // The failure response is a stub with no message; the real error (td.loginerror) is
+          // session-stored and renders on a GET of the login page.
+          fetch("/commpilot/Login/", { credentials: "same-origin" })
+            .then(function (r) { return r.text(); })
+            .then(function (loginHtml) { showFail(new DOMParser().parseFromString(loginHtml, "text/html")); })
+            .catch(function () { showFail(doc); });
         })
         .catch(function (e) {
           console.warn("[stubguard] login fetch failed — native fallback", e);

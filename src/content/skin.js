@@ -36,6 +36,7 @@ window.addEventListener("message", function (e) {
  * declared in web_accessible_resources).
  */
 (function injectAssetCss() {
+  if (document.getElementById("cp-skin-assets")) return;
   const url = (p) => chrome.runtime.getURL(p);
 
   // Map each left-nav row (1 = "OPTIONS:" label, 2..7 = items) to its icon.
@@ -162,8 +163,6 @@ function wrapMenuCards() {
   });
 }
 
-wrapMenuCards();
-
 function tagMenuColumns() {
   document.querySelectorAll("td.menuCategory").forEach(function (mc) {
     try {
@@ -173,8 +172,6 @@ function tagMenuColumns() {
     } catch (e) {}
   });
 }
-
-tagMenuColumns();
 
 document.addEventListener("cp:reskin", function () {
   try {
@@ -243,9 +240,19 @@ document.addEventListener("cp:reskin", function () {
     console.warn("[CommPilot Skin] reskin staggerCards", e);
   }
   try {
+    suppressEmptyResults();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin suppressEmptyResults", e);
+  }
+  try {
     revealResultsBox();
   } catch (e) {
     console.warn("[CommPilot Skin] reskin revealResultsBox", e);
+  }
+  try {
+    restyleAlerts();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin restyleAlerts", e);
   }
 });
 
@@ -294,7 +301,7 @@ document.addEventListener("cp:reskin", function () {
  * at the bottom of the sidebar panel.  Each link is MOVED (not cloned)
  * so its original id, inline event listeners, and click handlers survive.
  */
-(function moveHeaderLinks() {
+function moveHeaderLinks() {
   try {
     if (document.querySelector(".cp-sidebar-footer")) return;
 
@@ -341,7 +348,7 @@ document.addEventListener("cp:reskin", function () {
   } catch (e) {
     console.warn("[CommPilot Skin] moveHeaderLinks:", e);
   }
-})();
+}
 
 /*
  * Forward the Home footer button's click to the header "Reseller" link.
@@ -359,21 +366,16 @@ document.addEventListener("cp:reskin", function () {
  *
  * Only the Home click is intercepted — Help toggle and Logout are untouched.
  */
-(function wireHomeButton() {
+function cpWireHomeButton() {
   try {
-    if (window.__cpHomeWired) return;
-    window.__cpHomeWired = true;
+    var homeBtn = document.querySelector('.cp-footer-btn[data-cp-icon="home"]');
+    if (!homeBtn) return;
+    if (homeBtn.dataset.cpHomeWired) return;
+    homeBtn.dataset.cpHomeWired = "1";
 
-    const homeBtn = document.querySelector(
-      '.cp-footer-btn[data-cp-icon="home"]'
-    );
-    const resellerLink = document.querySelector(
-      'a.headerAuthLevelLink'
-    );
+    var resellerLink = document.querySelector('a.headerAuthLevelLink');
 
-    /* Both must exist; if the Reseller link is absent (e.g. a page
-       without it), leave Home unchanged. */
-    if (!homeBtn || !resellerLink) return;
+    if (!resellerLink) return;
 
     /* Verify the Reseller link text is "Reseller" */
     if (resellerLink.textContent.trim() !== "Reseller") return;
@@ -390,7 +392,7 @@ document.addEventListener("cp:reskin", function () {
   } catch (e) {
     console.warn("[CommPilot Skin] wireHomeButton:", e);
   }
-})();
+}
 
 /*
  * Append a sort-direction icon to the active column header.
@@ -432,7 +434,6 @@ function wireSortIcons() {
     console.warn("[CommPilot Skin] wireSortIcons:", e);
   }
 }
-wireSortIcons();
 
 /*
  * Wire the "+" add-row buttons.  Styling is handled by CSS attribute
@@ -490,7 +491,6 @@ function wirePaginationIcons() {
     console.warn("[CommPilot Skin] wirePaginationIcons:", e);
   }
 }
-wirePaginationIcons();
 
 /*
  * Reformat the legacy "[ Page N of M ]" pagination text into a compact
@@ -517,7 +517,6 @@ function formatPageIndicator() {
     });
   } catch (e) { console.warn("[CommPilot Skin] formatPageIndicator:", e); }
 }
-formatPageIndicator();
 
 /*
  * Replace the native <select> popups in the search criteria with a branded,
@@ -548,6 +547,13 @@ function enhanceSelects() {
         list.style.top = (r.bottom + 4) + "px";
         list.style.left = r.left + "px";
         list.style.minWidth = r.width + "px";
+        /* html { scrollbar-gutter: both-edges } insets Chromium's
+           fixed-position origin by the left gutter while rect coords
+           stay viewport-true, drifting the menu right by the gutter
+           width. Measure the actual drift and pull it back. (Left
+           only — top reads wrong mid-transition from translateY.) */
+        var drift = list.getBoundingClientRect().left - r.left;
+        if (Math.abs(drift) > 0.5) list.style.left = (r.left - drift) + "px";
       }
       function sync() {
         list.innerHTML = "";
@@ -674,7 +680,6 @@ function enhanceSelects() {
     }, true);
   } catch (e) { console.warn("[CommPilot Skin] cpDropdownGlobalInit:", e); }
 })();
-enhanceSelects();
 
 function staggerCards() {
   try {
@@ -705,7 +710,6 @@ function staggerCards() {
     });
   } catch (e) { console.warn("[CommPilot Skin] staggerCards:", e); }
 }
-staggerCards();
 
 /*
  * Grow-in entrance for the results box. Animates height 0 -> measured
@@ -799,8 +803,6 @@ function wrapResultsBox() {
   }
 }
 
-wrapResultsBox();
-
 /*
  * Wrap the search panel table in a rounded glass container div,
  * matching the treatment wrapResultsBox gives the results table.
@@ -822,12 +824,25 @@ function wrapSearchBox() {
   }
 }
 
-wrapSearchBox();
-
 /*
  * Login page — build a centered glass card from the legacy form fields.
  * Idempotent: checks for .cp-login-card before rebuilding.
  */
+var cpLoginExitAnim = null;
+var cpLoginEntranceDone = false;
+var cpLoginMorphPending = false;
+var cpSplashShownAt = 0;
+var cpSplashPulseAnim = null;
+var cpLoginBtnOrigText = "";
+function cpResetLoginButton() {
+  var b = document.querySelector(".cp-login-btn");
+  if (!b) return;
+  b.classList.remove("cp-login-btn-loading");
+  b.style.removeProperty("pointer-events");
+  var sp = b.querySelector(".cp-login-spinner"); if (sp) sp.remove();
+  if (cpLoginBtnOrigText) b.textContent = cpLoginBtnOrigText;
+}
+var cpWireHelpBodyFn = null;
 function buildLoginCard() {
   try {
     var form = document.querySelector('form[name="loginForm"]');
@@ -849,17 +864,25 @@ function buildLoginCard() {
     logo.className = "cp-login-logo";
     logo.src = chrome.runtime.getURL("assets/icons/trifecta-mark.svg");
     logo.alt = "";
+    logo.style.opacity = "0";
+    var _revealLogo = function () { try { logo.style.opacity = "1"; } catch (e) {} };
+    if (logo.complete && logo.naturalWidth > 0) { _revealLogo(); }
+    else {
+      logo.addEventListener("load", _revealLogo, { once: true });
+      logo.addEventListener("error", _revealLogo, { once: true });
+    }
     card.appendChild(logo);
     card.appendChild(brand);
     card.appendChild(sub);
 
     // Session/auth notice -> styled alert (only when present)
-    var notice = Array.prototype.slice.call(document.querySelectorAll("td,span,div,p,b,font"))
-      .find(function (e) {
-        return e.childElementCount === 0 &&
-          /not authorized|login again|session timeout/i.test(e.textContent || "");
+    var notice = document.querySelector(".loginerror");
+    if (!notice || !notice.textContent.trim()) {
+      notice = Array.prototype.slice.call(document.querySelectorAll("td,span,div,p,b,font")).find(function (e) {
+        return e.childElementCount === 0 && /not authorized|login again|session timeout|disabled|locked/i.test(e.textContent || "");
       });
-    if (notice) {
+    }
+    if (notice && notice.textContent.trim()) {
       var al = document.createElement("div");
       al.className = "cp-login-alert";
       al.textContent = notice.textContent.trim();
@@ -912,12 +935,34 @@ function buildLoginCard() {
     });
 
     form.appendChild(card);
+
+    // Entrance: if the incoming-page splash (cloak.js) is still covering the
+    // page, defer the entrance until the reveal block starts fading it —
+    // otherwise the whole animation plays invisibly under the splash. Keep
+    // the card hidden meanwhile so it doesn't show at rest mid-fade.
+    if (document.getElementById("cp-cloak")) {
+      card.style.opacity = "0";
+    } else {
+      cpLoginEntrance();
+    }
   } catch (e) {
     console.warn("[CommPilot Skin] buildLoginCard:", e);
   }
 }
 
-buildLoginCard();
+/* Stagger the login card + children in. Runs once; callable from build
+   (no splash), the reveal block (splash fading), or the cloak observer. */
+function cpLoginEntrance() {
+  if (cpLoginEntranceDone) return;
+  var card = document.querySelector(".cp-login-card");
+  if (!card) return;
+  cpLoginEntranceDone = true;
+  card.style.removeProperty("opacity");
+  card.animate(
+    [{ opacity: 0, transform: "translateY(12px) scale(0.99)" }, { opacity: 1, transform: "translateY(0) scale(1)" }],
+    { duration: 300, easing: "cubic-bezier(0,0,0.2,1)" }
+  );
+}
 
 /*
  * Login transition — when a login actually submits, dissolve the card into
@@ -928,24 +973,75 @@ buildLoginCard();
  */
 function cpLoginSplash() {
   if (document.getElementById("cp-cloak")) return;
-  document.documentElement.classList.add("cp-stub-hold"); // pin: skip the CSS failsafe fade
+  // Button feedback
+  var btn = document.querySelector(".cp-login-btn");
+  if (btn && !btn.classList.contains("cp-login-btn-loading")) {
+    cpLoginBtnOrigText = btn.textContent;
+    btn.textContent = "";
+    var sp = document.createElement("span");
+    sp.className = "cp-login-spinner";
+    sp.style.cssText = "border:2px solid rgba(198,168,232,0.35);border-top-color:#C6A8E8;border-radius:50%;width:14px;height:14px;margin-right:8px;vertical-align:-2px;display:inline-block";
+    btn.appendChild(sp);
+    btn.appendChild(document.createTextNode("Signing in\u2026"));
+    if (sp.animate) {
+      sp.animate([{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }], { duration: 700, iterations: Infinity, easing: "linear" });
+    }
+    btn.classList.add("cp-login-btn-loading");
+    btn.style.pointerEvents = "none";
+  }
+  // Card exit with delay so button state registers
+  var exitCard = document.querySelector(".cp-login-card");
+  if (exitCard) {
+    cpLoginExitAnim = exitCard.animate(
+      [{ opacity: 1, transform: "translateY(0) scale(1)" }, { opacity: 0, transform: "translateY(-6px) scale(0.985)" }],
+      { duration: 180, easing: "ease-out", fill: "forwards", delay: 120 }
+    );
+  }
+  cpLoginMorphPending = true;
+  cpSplashShownAt = performance.now();
+  document.documentElement.classList.add("cp-stub-hold");
   var o = document.createElement("div");
   o.id = "cp-cloak";
   o.setAttribute(
     "style",
     "position:fixed;inset:0;z-index:2147483647;background:#1c1b19;" +
-      "display:flex;align-items:center;justify-content:center;" +
-      "font:600 14px/1.4 'Nunito','Segoe UI',system-ui,sans-serif;color:#6b6862;"
+      "display:flex;flex-direction:column;align-items:center;justify-content:center;"
   );
-  o.textContent = "CommPilot";
+  var mark = document.createElement("img");
+  mark.className = "cp-cloak-mark";
+  mark.src = chrome.runtime.getURL("assets/icons/trifecta-mark.svg");
+  mark.style.cssText = "width:72px;height:auto;opacity:0";
+  o.appendChild(mark);
+  var word = document.createElement("div");
+  word.className = "cp-cloak-word";
+  word.style.cssText = "font:600 14px/1.4 'Nunito','Segoe UI',system-ui,sans-serif;color:#a4a29c;margin-top:14px;opacity:0";
+  word.textContent = "CommPilot";
+  o.appendChild(word);
   document.documentElement.appendChild(o);
-  if (o.animate) o.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: "ease-out" });
+  if (o.animate) {
+    o.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: "ease-out" });
+  }
+  var _startMarkAnims = function () {
+    if (mark.animate) {
+      mark.animate([{ opacity: 0, transform: "scale(0.82)" }, { opacity: 1, transform: "scale(1)" }], { duration: 260, easing: "cubic-bezier(0,0,0.2,1)", fill: "forwards" });
+      word.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: "ease-out", delay: 100, fill: "forwards" });
+      cpSplashPulseAnim = mark.animate([{ transform: "scale(1)" }, { transform: "scale(1.045)" }, { transform: "scale(1)" }], { duration: 1600, iterations: Infinity, easing: "ease-in-out" });
+    }
+  };
+  if (mark.complete && mark.naturalWidth > 0) { _startMarkAnims(); }
+  else {
+    mark.addEventListener("load", _startMarkAnims, { once: true });
+    setTimeout(_startMarkAnims, 250);
+  }
   // Failsafe: if no navigation ever happens (legacy validation blocked the
   // submit), give the form back.
   setTimeout(function () {
     var still = document.getElementById("cp-cloak");
     if (!still) return;
     document.documentElement.classList.remove("cp-stub-hold");
+    cpResetLoginButton();
+    cpLoginMorphPending = false;
+    if (cpSplashPulseAnim) { try { cpSplashPulseAnim.cancel(); } catch (e) {} cpSplashPulseAnim = null; }
     var drop = function () { try { still.remove(); } catch (e) {} };
     if (still.animate) {
       still.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: "ease-out" }).onfinish = drop;
@@ -956,15 +1052,15 @@ function cpLoginSplash() {
   }, 8000);
 }
 
-(function wireLoginTransition() {
+function cpWireLoginBody() {
   var form = document.querySelector('form[name="loginForm"]');
-  if (!form) return;
+  if (!form || form.dataset.cpLoginWired) return;
+  form.dataset.cpLoginWired = "1";
   function fieldsFilled() {
     var u = form.querySelector('input[name="EnteredUserID"]');
     var p = form.querySelector('input[name="Password"]');
     return !!(u && p && u.value.trim() && p.value);
   }
-  // Early fade on the actions we can see coming (click / Enter)…
   var btn = form.querySelector(".cp-login-btn");
   if (btn) {
     btn.addEventListener("click", function () { if (fieldsFilled()) cpLoginSplash(); }, true);
@@ -972,19 +1068,65 @@ function cpLoginSplash() {
   form.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && fieldsFilled()) cpLoginSplash();
   }, true);
-  // …and the guaranteed catch: beforeunload only fires when a navigation
-  // really starts, so every successful submit path lands here.
-  window.addEventListener("beforeunload", function () { cpLoginSplash(); });
+}
+window.addEventListener("beforeunload", function () { cpLoginSplash(); });
+
+/* Watch for #cp-cloak removal to animate card back in on failed login. */
+(function setupLoginReturnAnim() {
+  if (!document.querySelector('form[name="loginForm"]')) return;
+  var obs = new MutationObserver(function (mutations) {
+    for (var mi = 0; mi < mutations.length; mi++) {
+      var mut = mutations[mi];
+      for (var ri = 0; ri < mut.removedNodes.length; ri++) {
+        if (mut.removedNodes[ri].id === "cp-cloak") {
+          /* First removal = the initial page reveal — that's the entrance,
+             not a failed-login return. */
+          if (!cpLoginEntranceDone) { cpLoginEntrance(); break; }
+          if (cpLoginExitAnim) { cpLoginExitAnim.cancel(); cpLoginExitAnim = null; }
+          cpResetLoginButton(); cpLoginMorphPending = false;
+          if (cpSplashPulseAnim) { try { cpSplashPulseAnim.cancel(); } catch (e) {} cpSplashPulseAnim = null; }
+          var card = document.querySelector(".cp-login-card");
+          if (card) {
+            card.style.opacity = "0";
+            card.style.transform = "translateY(-6px) scale(0.985)";
+            if (cpLoginExitAnim) { try { cpLoginExitAnim.cancel(); } catch (e) {} cpLoginExitAnim = null; }
+            var _ret = card.animate(
+              [{ opacity: 0, transform: "translateY(-6px) scale(0.985)" },
+               { opacity: 1, transform: "translateY(0) scale(1)" }],
+              { duration: 280, easing: "cubic-bezier(0,0,0.2,1)", fill: "both" }
+            );
+            _ret.onfinish = function () { try { card.style.opacity = ""; card.style.transform = ""; } catch (e) {} };
+            var alertEl = card.querySelector(".cp-login-alert");
+            if (alertEl) {
+              var ah = alertEl.getBoundingClientRect().height;
+              if (ah) {
+                var prevOverflow = alertEl.style.overflow;
+                alertEl.style.overflow = "hidden";
+                /* height animation needs border-box or the padding stays
+                   visible at height:0 (same fix as the .cp-alert grow-in) */
+                alertEl.style.boxSizing = "border-box";
+                alertEl.animate(
+                  [{ height: "0px", opacity: 0 }, { height: ah + "px", opacity: 1 }],
+                  { duration: 260, easing: "ease-out" }
+                ).onfinish = function () { alertEl.style.overflow = prevOverflow; };
+              }
+            }
+          }
+          break;
+        }
+      }
+    }
+  });
+  obs.observe(document.documentElement, { childList: true });
 })();
 
 /*
  * Move the breadcrumb trail (a.headerAuthLevelLink chain) out of the
  * header bar and place it just above the page title as a thin bar.
  */
-(function moveBreadcrumb() {
+function cpMoveBreadcrumb() {
   try {
-    if (document.documentElement.dataset.cpBreadcrumbMoved) return;
-    document.documentElement.dataset.cpBreadcrumbMoved = "1";
+    if (document.querySelector(".cp-breadcrumb")) return;
 
     var src = document.querySelector("td.headerBar a.headerAuthLevelLink");
     if (!src) return;
@@ -1012,7 +1154,7 @@ function cpLoginSplash() {
   } catch (e) {
     console.warn("[CommPilot Skin] moveBreadcrumb:", e);
   }
-})();
+}
 
 /*
  * Move interactive elements from the bottom button bar into
@@ -1112,11 +1254,220 @@ function makeRowsClickable() {
   } catch (e) { console.warn("[CommPilot Skin] makeRowsClickable:", e); }
 }
 
-moveButtonBar();
-wrapResultsScroll();
-trimEditColumn();
-makeRowsClickable();
-revealResultsBox();
+/*
+ * Restyle legacy status banners (.error / .warning / .informational) into
+ * Trifecta alert cards with badge icon, title, body, and code chip.
+ */
+/* ---- alert-card helpers (shared by restyleAlerts + suppressEmptyResults) ---- */
+function alertSeverityMeta(cls) {
+  if (cls === "error") return { severity: "error", defaultTitle: "Something went wrong" };
+  if (cls === "warning") return { severity: "warning", defaultTitle: "Heads up" };
+  return { severity: "info", defaultTitle: "Notice" };
+}
+function alertBuildSvgIcon(severity) {
+  var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 20 20");
+  svg.setAttribute("width", "18");
+  svg.setAttribute("height", "18");
+  svg.setAttribute("fill", "currentColor");
+  var d;
+  if (severity === "error") {
+    d = "M10 2.5a1.5 1.5 0 0 1 1.31.75l7.01 12.25A1.5 1.5 0 0 1 17.01 17H2.99a1.5 1.5 0 0 1-1.31-2.25L8.69 3.25A1.5 1.5 0 0 1 10 2.5zm0 2.5a.75.75 0 0 0-.75.75v4a.75.75 0 0 0 1.5 0v-4A.75.75 0 0 0 10 5zm0 7.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2z";
+  } else if (severity === "warning") {
+    d = "M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm0 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zm0 2.75a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0V7a.75.75 0 0 1 .75-.75zM10 12.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2z";
+  } else {
+    d = "M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm0 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zm0 2.25a.75.75 0 1 1 0 1.5.75.75 0 0 1 0-1.5zm-.5 3.5a.75.75 0 0 0-.75.75v3a.75.75 0 0 0 1.5 0v-3a.75.75 0 0 0-.75-.75z";
+  }
+  var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", d);
+  svg.appendChild(path);
+  return svg;
+}
+function alertAddThousands(n) {
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+/* Build a .cp-alert element (badge + title + body + optional code chip). */
+function cpBuildAlert(severity, title, body, code) {
+  var card = document.createElement("div");
+  card.className = "cp-alert cp-alert-" + severity;
+  card.title = body;
+  var badge = document.createElement("span");
+  badge.className = "cp-alert-badge";
+  badge.appendChild(alertBuildSvgIcon(severity));
+  card.appendChild(badge);
+  var content = document.createElement("div");
+  content.className = "cp-alert-content";
+  var titleEl = document.createElement("div");
+  titleEl.className = "cp-alert-title";
+  titleEl.textContent = title;
+  content.appendChild(titleEl);
+  var bodyEl = document.createElement("div");
+  bodyEl.className = "cp-alert-body";
+  bodyEl.textContent = body;
+  content.appendChild(bodyEl);
+  card.appendChild(content);
+  if (code) {
+    var chip = document.createElement("span");
+    chip.className = "cp-alert-chip";
+    chip.textContent = code;
+    card.appendChild(chip);
+  }
+  return card;
+}
+/* Insert an alert card at the top of the content cell with grow-in animation. */
+function cpInsertTopAlert(card) {
+  try {
+    var searchBox = document.querySelector(".cp-search-box");
+    var parent, ref;
+    if (searchBox) { parent = searchBox.parentNode; ref = searchBox; }
+    else {
+      parent = document.querySelector('td[width="82%"]');
+      ref = parent ? parent.firstChild : null;
+    }
+    if (!parent) return;
+    parent.insertBefore(card, ref);
+    var topCard = parent.querySelector(".cp-alert");
+    if (topCard) {
+      var sib = topCard.previousSibling;
+      while (sib) {
+        if (sib.nodeType === 8) { sib = sib.previousSibling; continue; }
+        if (sib.nodeType === 3) {
+          if (/^\s*$/.test(sib.nodeValue)) { sib = sib.previousSibling; continue; }
+          break;
+        }
+        if (sib.nodeType === 1) {
+          var tag = (sib.tagName || "").toLowerCase();
+          if (tag === "br") { sib.style.setProperty("display", "none", "important"); sib = sib.previousSibling; continue; }
+          if (tag === "script" || tag === "style" || (tag === "input" && sib.type === "hidden")) { sib = sib.previousSibling; continue; }
+          break;
+        }
+        break;
+      }
+      var allAlerts = parent.querySelectorAll(".cp-alert");
+      for (var ai = 0; ai < allAlerts.length; ai++) allAlerts[ai].style.removeProperty("margin-top");
+      var tips = document.querySelectorAll("td.tip");
+      var tip = null;
+      for (var ti = 0; ti < tips.length; ti++) {
+        if (tips[ti].getBoundingClientRect().bottom <= topCard.getBoundingClientRect().top) tip = tips[ti];
+      }
+      if (tip) {
+        /* Measure from the tip TEXT's ink rect, not the cell rect: td.tip
+           is ~18px taller than its text (bottom padding + row stretch), so
+           a cell-bottom gap reads far larger to the eye. 12px from the ink
+           bottom visually matches the card's 12px bottom rhythm. */
+        var inkRange = document.createRange();
+        inkRange.selectNodeContents(tip);
+        var inkRect = inkRange.getBoundingClientRect();
+        var tipBottom = inkRect.height ? inkRect.bottom : tip.getBoundingClientRect().bottom;
+        var gap = topCard.getBoundingClientRect().top - tipBottom;
+        var delta = 12 - gap;
+        if (Math.abs(delta) >= 1) topCard.style.setProperty("margin-top", delta + "px", "important");
+      }
+    }
+    var h = card.getBoundingClientRect().height;
+    if (h) {
+      var prevOverflow = card.style.overflow;
+      card.style.overflow = "hidden";
+      var anim = card.animate(
+        [
+          { height: "0px", opacity: 0, marginBottom: "0px" },
+          { height: h + "px", opacity: 1, marginBottom: "12px" }
+        ],
+        { duration: 360, easing: "cubic-bezier(0,0,0.2,1)" }
+      );
+      anim.onfinish = function () { card.style.overflow = prevOverflow; };
+    }
+  } catch (e) { console.warn("[CommPilot Skin] cpInsertTopAlert:", e); }
+}
+
+/*
+ * Restyle legacy status banners (.error / .warning / .informational) into
+ * Trifecta alert cards with badge icon, title, body, and code chip.
+ */
+function restyleAlerts() {
+  try {
+    var contentCell = document.querySelector('td[width="82%"]');
+    if (!contentCell) return;
+
+    var KNOWN_CODES = {
+      "4027": { severity: "warning", title: "Too many results" }
+    };
+
+    /* Capture eligible banners and build cards. Iterate in reverse so
+       cpInsertTopAlert (which inserts before .cp-search-box) preserves
+       the original top-to-bottom document order: first banner on top. */
+    var els = contentCell.querySelectorAll(".error, .warning, .informational");
+    for (var idx = els.length - 1; idx >= 0; idx--) {
+      var el = els[idx];
+      try {
+        if (el.dataset.cpAlert) continue;
+        el.dataset.cpAlert = "1";
+
+        var cls = "informational";
+        if (el.classList.contains("error")) cls = "error";
+        else if (el.classList.contains("warning")) cls = "warning";
+
+        var text = (el.textContent || "").trim();
+        if (text.length <= 20) continue;
+
+        var codeStr = "", body = text, known = null;
+        var m = /^(?:Failed to read:\s*)?\[(Error|Warning)\s+(\d+)\]\s*(.*)/i.exec(text);
+        if (m) {
+          codeStr = m[1] + " " + m[2];
+          known = KNOWN_CODES[m[2]];
+          if (known) cls = known.severity;
+          body = m[3] || "";
+          if (body) body = body.charAt(0).toUpperCase() + body.slice(1);
+        }
+
+        body = body.replace(/\b(\d{4,})\b/g, function (s) { return alertAddThousands(s); });
+
+        var meta = alertSeverityMeta(cls);
+        var card = cpBuildAlert(meta.severity, known ? known.title : meta.defaultTitle, body, codeStr || null);
+        card.title = text;
+
+        el.classList.add("cp-alert-host");
+        el.innerHTML = "";
+
+        cpInsertTopAlert(card);
+      } catch (e) {
+        console.warn("[CommPilot Skin] restyleAlerts item:", e);
+      }
+    }
+  } catch (e) { console.warn("[CommPilot Skin] restyleAlerts:", e); }
+}
+
+/*
+ * Suppress the results box when search returns zero matches. Hide the box,
+ * reset the reveal-state flag, and show a "No results" info alert card.
+ */
+function suppressEmptyResults() {
+  try {
+    /* Clean up any stale [data-cp-empty] alert from a previous empty search. */
+    var stale = document.querySelector('.cp-alert[data-cp-empty]');
+    if (stale) stale.remove();
+
+    var box = document.querySelector(".cp-results-box");
+    if (!box) return;
+
+    var cells = box.querySelectorAll("td");
+    var isEmpty = Array.prototype.some.call(cells, function (td) {
+      return /^no entries present$/i.test(td.textContent.trim());
+    });
+    if (!isEmpty) return;
+
+    /* Hide the box — suppresses pagination + OK footer too */
+    box.classList.add("cp-empty");
+
+    /* Let the next non-empty search get its grow-in reveal */
+    cpResultsWasVisible = false;
+
+    /* Insert "No results" info alert */
+    var card = cpBuildAlert("info", "No results", "No entries matched your search. Adjust the criteria and try again.");
+    card.setAttribute("data-cp-empty", "");
+    cpInsertTopAlert(card);
+  } catch (e) { console.warn("[CommPilot Skin] suppressEmptyResults:", e); }
+}
 
 /*
  * Help mode toggle + tooltip overlay.
@@ -1171,7 +1522,11 @@ revealResultsBox();
     tooltipEl.style.left = "0px";
     tooltipEl.style.top = "0px";
     var rect = tooltipEl.getBoundingClientRect();
-    var x = cx + 15;
+    /* scrollbar-gutter: both-edges insets the fixed-position origin by the
+       left gutter while cursor coords stay viewport-true — subtract it.
+       (html rect left == the gutter width; 0 when there is no gutter.) */
+    var gutter = document.documentElement.getBoundingClientRect().left;
+    var x = cx + 15 - gutter;
     var y = cy + 15;
     if (x + rect.width > window.innerWidth - 10) x = cx - rect.width - 15;
     if (y + rect.height > window.innerHeight - 10) y = cy - rect.height - 15;
@@ -1212,10 +1567,10 @@ revealResultsBox();
 
   /* ---------- wire Help button (capture phase) ---------- */
   function wireHelpButton() {
-    var btn = document.querySelector(
-      '.cp-footer-btn[data-cp-icon="help"]'
-    );
+    var btn = document.querySelector('.cp-footer-btn[data-cp-icon="help"]');
     if (!btn) return false;
+    if (btn.dataset.cpHelpWired) return true;
+    btn.dataset.cpHelpWired = "1";
     btn.addEventListener(
       "click",
       function (e) {
@@ -1396,6 +1751,8 @@ revealResultsBox();
   }
 
   function wireHelpDebugButton() {
+    try { if (localStorage.getItem("cpHelpDebug") !== "1") return true; } catch (e) { return true; }
+    if (location.pathname.indexOf("/Login/") !== -1) return true;
     if (document.querySelector(".cp-help-debug-btn")) return true;
     var btn = document.createElement("button");
     btn.type = "button";
@@ -1417,14 +1774,16 @@ revealResultsBox();
     wireHelpDebugButton();
     if (debugMode) scanHelpCoverage();
   });
+  cpWireHelpBodyFn = function cpWireHelpBody() { wireHelpButton(); wireHelpDebugButton(); };
 })();
 
-// Full-load reveal — everything above runs synchronously at document_end,
-// so the page is in its final skinned shape here. Fade out and remove the
-// splash overlay that cloak.js painted at document_start. Contentless stub
-// pages (mid-recovery redirects) keep the cloak up — they navigate away on
-// their own, and revealing them would flash the raw white stub.
-(function () {
+/*
+ * Full-load reveal — fade out and remove the splash overlay that cloak.js
+ * painted at document_start. Contentless stub pages (mid-recovery redirects)
+ * keep the cloak up — they navigate away on their own, and revealing them
+ * would flash the raw white stub.
+ */
+function cpRevealCloak() {
   try {
     var contentful = !!document.querySelector('td[width="82%"], form[name="loginForm"], a.navMenuItem, .navOptions');
     if (contentful) {
@@ -1433,12 +1792,79 @@ revealResultsBox();
     var o = document.getElementById("cp-cloak");
     if (!o) return;
     if (!contentful || document.documentElement.classList.contains("cp-stub-hold")) return;
-    var done = function () { try { o.remove(); } catch (e) {} };
+    if (cpLoginMorphPending) {
+      var MIN = 450;
+      var elapsed = performance.now() - cpSplashShownAt;
+      if (elapsed < MIN) { setTimeout(cpRevealCloak, MIN - elapsed); return; }
+      cpLoginMorphPending = false;
+      if (cpSplashPulseAnim) { try { cpSplashPulseAnim.cancel(); } catch (e) {} cpSplashPulseAnim = null; }
+      var mk = o.querySelector(".cp-cloak-mark");
+      if (mk && mk.animate) {
+        mk.animate([{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(1.12)" }], { duration: 240, easing: "ease-in", fill: "forwards" });
+      }
+      var done = function () { try { o.remove(); } catch (e) {} };
+      if (o.animate) {
+        o.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260, easing: "ease-out" }).onfinish = done;
+        setTimeout(done, 520);
+      } else {
+        done();
+      }
+      // Home arrival — gentle rise-in for the swapped app
+      var container = document.querySelector('td[width="82%"]');
+      if (!container) container = document.body;
+      if (container && container.animate) {
+        container.animate([{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "translateY(0)" }], { duration: 260, easing: "cubic-bezier(0,0,0.2,1)" });
+      }
+      return;
+    }
+    var isLoginPage = !!document.querySelector(".cp-login-card");
+    var done = function () { try { o.remove(); } catch (e) {} if (isLoginPage) cpLoginEntrance(); };
     if (o.animate) {
       o.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: "ease-out" }).onfinish = done;
       setTimeout(done, 400);
     } else {
       done();
     }
+    if (!isLoginPage) cpLoginEntrance();
   } catch (e) {}
-})();
+}
+
+/*
+ * Full-skin DOM pass — re-applies every DOM transformation to the current
+ * document body. Called on initial page load and on "cp:morphed" when
+ * stubguard swaps in a fresh body (zero-navigation login morph).
+ * The relative call order matches the original top-level execution order.
+ */
+function cpSkinDomPass() {
+  wrapMenuCards();
+  tagMenuColumns();
+  moveHeaderLinks();
+  cpWireHomeButton();
+  wireSortIcons();
+  wirePaginationIcons();
+  formatPageIndicator();
+  enhanceSelects();
+  staggerCards();
+  wrapResultsBox();
+  wrapSearchBox();
+  buildLoginCard();
+  cpWireLoginBody();
+  cpMoveBreadcrumb();
+  moveButtonBar();
+  wrapResultsScroll();
+  trimEditColumn();
+  makeRowsClickable();
+  suppressEmptyResults();
+  revealResultsBox();
+  restyleAlerts();
+  cpRevealCloak();
+  if (cpWireHelpBodyFn) cpWireHelpBodyFn();
+  cpSaveRecoverToken(false);
+}
+
+/* Re-skin on body morph (zero-navigation login — future phase). */
+document.addEventListener("cp:morphed", function () { cpSkinDomPass(); });
+document.addEventListener("cp:loginsplash", function () { cpLoginSplash(); });
+
+/* Initial skin pass on this document. */
+cpSkinDomPass();
