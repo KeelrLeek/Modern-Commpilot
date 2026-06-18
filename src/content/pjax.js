@@ -276,7 +276,11 @@
                 var fOpen = doc.querySelector("a.leftnavfolderopen");
                 var openText = fOpen ? fOpen.textContent.trim() : null;
                 if (openText) {
-                  document.querySelectorAll('form[name="leftNavForm"] a').forEach(function (la) {
+                  // Only the real folder anchors — NOT the submenu sub-items, which are also
+                  // <a> inside leftNavForm. Without :not(.cp-subitem) the sync slapped
+                  // leftnavfolder/leftnavfolderopen onto every sub-item, restyling them as
+                  // folders for a frame on each pjax nav (the sidebar "jump" on option click).
+                  document.querySelectorAll('form[name="leftNavForm"] a:not(.cp-subitem)').forEach(function (la) {
                     var active = la.textContent.trim() === openText;
                     la.classList.toggle("leftnavfolderopen", active);
                     la.classList.toggle("leftnavfolder", !active);
@@ -619,14 +623,22 @@
         sec.setAttribute("data-cp-folder", f.folder);
         var head = document.createElement("div");
         head.className = "cp-console-head";
+        // Inner wrapper holds the fading content (icon + name + count) so the head's solid
+        // background can stay put and mask the cards while the content fades on scroll.
+        var headInner = document.createElement("div");
+        headInner.className = "cp-console-head-inner";
+        var headIco = document.createElement("span");
+        headIco.className = "cp-console-head-ico";   // per-folder glyph; mask set by skin.js
         var headName = document.createElement("span");
         headName.className = "cp-console-head-name";
         headName.textContent = f.name;
         var headCount = document.createElement("span");
         headCount.className = "cp-console-count";
         headCount.hidden = true;
-        head.appendChild(headName);
-        head.appendChild(headCount);
+        headInner.appendChild(headIco);
+        headInner.appendChild(headName);
+        headInner.appendChild(headCount);
+        head.appendChild(headInner);
         var bodyEl = document.createElement("div");
         bodyEl.className = "cp-console-body";
         var loading = document.createElement("div");
@@ -660,7 +672,10 @@
               cpReexecWiringScripts(bodyEl);
               cpSetSectionCount(bodyEl);
               cpSummarizeLeaves(bodyEl);
+              cpPopulateSubmenu(folder, bodyEl);
               cpFitConsoleTail();
+              cpHeadFade();
+              cpJumpToPending();
             } else {
               delete bodyEl.dataset.cpRequested;
               bodyEl.innerHTML = "";
@@ -677,7 +692,7 @@
                 bodyEl.dataset.cpRequested = "1";
                 cpFetchSection(folder, mId).then(function (html2) {
                   if (cpSectionAborted || !document.querySelector(".cp-console")) return;
-                  if (html2) { bodyEl.innerHTML = html2; bodyEl.setAttribute("data-cp-loaded", "1"); document.dispatchEvent(new Event("cp:reskin")); cpReexecWiringScripts(bodyEl); cpSetSectionCount(bodyEl); cpSummarizeLeaves(bodyEl); }
+                  if (html2) { bodyEl.innerHTML = html2; bodyEl.setAttribute("data-cp-loaded", "1"); document.dispatchEvent(new Event("cp:reskin")); cpReexecWiringScripts(bodyEl); cpSetSectionCount(bodyEl); cpSummarizeLeaves(bodyEl); cpPopulateSubmenu(folder, bodyEl); }
                   else { delete bodyEl.dataset.cpRequested; bodyEl.innerHTML = ""; bodyEl.appendChild(retryBtn); }
                 });
               });
@@ -691,17 +706,65 @@
       });
       cpSyncConsoleClass();
       cpWireConsoleScroll();
+      cpEnsureSubmenuScaffold();
       cpFitConsoleTail();
       cpScrollSpy();
+      cpHeadFade();
+      cpJumpToPending();
     }
 
-    // Shared: set the active sidebar folder highlight by folder id (R0..R5).
+    // Shared: set the active sidebar folder highlight by folder id (R0..R5), and drive the
+    // submenu accordion — the active folder's submenu opens and all others close (single-open,
+    // synced to scroll-spy + folder click, both of which call this).
     function cpHighlightFolder(fid) {
       if (!fid) return;
       document.querySelectorAll('form[name="leftNavForm"] a.leftnavfolder, form[name="leftNavForm"] a.leftnavfolderopen').forEach(function (o) {
         var on = o.getAttribute("data-cp-folder") === fid;
         o.classList.toggle("leftnavfolderopen", on);
         o.classList.toggle("leftnavfolder", !on);
+        var host = o.closest("td") || o.parentNode;
+        if (host && host.classList) host.classList.toggle("cp-grp-open", on);
+      });
+    }
+
+    // Add a chevron + an (empty) collapsible submenu container under each sidebar folder.
+    // Idempotent. Submenus are filled per-folder as the console sections lazy-load.
+    function cpEnsureSubmenuScaffold() {
+      document.querySelectorAll('form[name="leftNavForm"] a.leftnavfolder, form[name="leftNavForm"] a.leftnavfolderopen').forEach(function (a) {
+        var fid = a.getAttribute("data-cp-folder");
+        if (!fid || a.querySelector(".cp-fold-chev")) return;
+        var chev = document.createElement("span");
+        chev.className = "cp-fold-chev";
+        a.appendChild(chev);
+        var sm = document.createElement("div");
+        sm.className = "cp-submenu";
+        sm.setAttribute("data-cp-folder", fid);
+        sm.innerHTML = '<div class="cp-submenu-in"><div class="cp-submenu-panel"></div></div>';
+        if (a.parentNode) a.parentNode.insertBefore(sm, a.nextSibling);
+      });
+    }
+
+    // Fill a folder's submenu from its console section's card options (title + click-through
+    // to the real card anchor, which carries the existing nav wiring — no extra fetch).
+    function cpPopulateSubmenu(folder, bodyEl) {
+      if (!folder || !bodyEl) return;
+      var panel = document.querySelector('.cp-submenu[data-cp-folder="' + folder + '"] .cp-submenu-panel');
+      if (!panel) return;
+      panel.innerHTML = "";
+      bodyEl.querySelectorAll(".cp-menu-card").forEach(function (card) {
+        var link = card.querySelector(".cp-card-title a.navMenuItem") || card.querySelector("a.navMenuItem") || card.querySelector('a[id^="link_"]');
+        if (!link) return;
+        var title = (link.textContent || "").trim();
+        if (!title) return;
+        var item = document.createElement("a");
+        item.className = "cp-subitem";
+        item.textContent = title;
+        item.title = title;
+        item.addEventListener("click", function (e) {
+          e.preventDefault();
+          if (link && document.contains(link)) link.click();
+        });
+        panel.appendChild(item);
       });
     }
 
@@ -733,6 +796,11 @@
     // Scroll-spy: highlight the sidebar folder for the section currently pinned at the top
     // of the panel — the last section whose top has reached the active line below the top.
     function cpScrollSpy() {
+      // Skip while a folder-click smooth-scroll is in flight. The click sets the active folder
+      // directly, but for the scroll's first frames the console is still at its OLD position, so
+      // the spy would re-pick the old top-of-viewport folder — flipping the accordion back, then
+      // forward again as the scroll arrives. That open/close read as a 2-frame "jump".
+      if (Date.now() < cpSpySuppressUntil) return;
       var cons = document.querySelector(".cp-console");
       if (!cons) return;
       var secs = cons.querySelectorAll(".cp-console-section");
@@ -748,13 +816,47 @@
     }
 
     var cpSpyRaf = 0;
+    var cpSpySuppressUntil = 0;
+    var cpPendingFolder = null;
+    // Sticky-header fade-on-scroll (Fade + shrink). As an outgoing .cp-console-head is pushed up
+    // by the next section, fade ONLY its inner content (icon+name+count) — opacity reaches 0 once
+    // it's pushed up by 30% of the header height — plus a slight scale-down. The head's background
+    // stays SOLID, masking the cards behind it (no peek-through). Cheap; runs in the scroll rAF.
+    function cpHeadFade() {
+      var cons = document.querySelector(".cp-console");
+      if (!cons) return;
+      var consTop = cons.getBoundingClientRect().top;
+      cons.querySelectorAll(".cp-console-head").forEach(function (head) {
+        var inner = head.querySelector(".cp-console-head-inner");
+        if (!inner) return;
+        var top = head.getBoundingClientRect().top - consTop;
+        var H = head.offsetHeight || 50;
+        var p = top < 0 ? Math.max(0, Math.min(1, 1 + top / (H * 0.30))) : 1;
+        inner.style.opacity = p;
+        inner.style.transform = top < 0 ? ("scale(" + (0.9 + 0.1 * p).toFixed(3) + ")") : "";
+      });
+    }
+    // After landing on the console from a sidebar folder click made on a list/leaf page, jump to
+    // THAT folder's section instead of the default top. Re-runs as sections lazy-load (content
+    // above the target grows, shifting it) and clears once the target section itself has loaded.
+    function cpJumpToPending() {
+      if (!cpPendingFolder) return;
+      var sec = document.querySelector('.cp-console-section[data-cp-folder="' + cpPendingFolder + '"]');
+      if (!sec) { cpPendingFolder = null; return; }
+      cpSpySuppressUntil = Date.now() + 800;
+      cpFitConsoleTail();
+      sec.scrollIntoView({ block: 'start' });
+      cpHighlightFolder(cpPendingFolder);
+      var body = sec.querySelector('.cp-console-body');
+      if (body && body.getAttribute("data-cp-loaded") === "1") cpPendingFolder = null;
+    }
     function cpWireConsoleScroll() {
       var cons = document.querySelector(".cp-console");
       if (!cons || cons.dataset.cpSpyWired === "1") return;
       cons.dataset.cpSpyWired = "1";
       cons.addEventListener("scroll", function () {
         if (cpSpyRaf) return;
-        cpSpyRaf = requestAnimationFrame(function () { cpSpyRaf = 0; cpScrollSpy(); cpFitConsoleTail(); });
+        cpSpyRaf = requestAnimationFrame(function () { cpSpyRaf = 0; cpScrollSpy(); cpFitConsoleTail(); cpHeadFade(); });
       }, { passive: true });
     }
 
@@ -810,7 +912,12 @@
       // Build ONLY when the content cell is a folder MENU (has navMenu options), never a list/leaf
       // destination. Check CONTENT, not location.pathname — pjax fires cp:reskin BEFORE it updates the
       // URL, so location.pathname is stale (still the previous page) at this moment.
-      if (!cell || !cell.querySelector('a.navMenuItem')) return;
+      if (!cell || !cell.querySelector('a.navMenuItem')) {
+        // List/leaf page (not a folder menu): collapse any sidebar submenu left open from the
+        // console so the expanded accordion doesn't persist onto the list page.
+        document.querySelectorAll('form[name="leftNavForm"] td.cp-grp-open').forEach(function (td) { td.classList.remove("cp-grp-open"); });
+        return;
+      }
       cpBuildConsole();   // no-ops at non-reseller levels (its R0–R5 regex finds no folders)
     }
 
@@ -825,16 +932,25 @@
     document.addEventListener("click", function (e) {
       var a = e.target.closest && e.target.closest('a.leftnavfolder, a.leftnavfolderopen');
       if (!a) return;
-      if (!document.querySelector('.cp-console')) return;
       var fid = a.getAttribute('data-cp-folder');
       if (!fid) return;
+      if (!document.querySelector('.cp-console')) {
+        // Not on the console (e.g. a Groups/Users list): let the native nav take us to the
+        // reseller menu, but remember which folder was clicked so the console jumps to THAT
+        // section instead of defaulting to the top (Profile).
+        cpPendingFolder = fid;
+        return;
+      }
       var sec = document.querySelector('.cp-console-section[data-cp-folder="' + fid + '"]');
       if (!sec) return;
       e.preventDefault();
       e.stopImmediatePropagation();
+      // Suppress the scroll-spy for the smooth-scroll's duration so it doesn't flip the accordion
+      // back to the lagging top-of-viewport folder mid-scroll (the sidebar "jump" on folder click).
+      cpSpySuppressUntil = Date.now() + 700;
       cpFitConsoleTail();   // ensure trailing space first, so the target (esp. the last section) can reach the top
       sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      cpHighlightFolder(fid);   // instant highlight; the scroll-spy keeps it in sync as the smooth scroll settles
+      cpHighlightFolder(fid);   // instant highlight; spy stays suppressed until the scroll settles
     }, true);
   }
 })();

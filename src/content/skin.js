@@ -54,7 +54,8 @@ window.addEventListener("message", function (e) {
   for (const [row, path] of Object.entries(navIcons)) {
     css += `
 form[name="leftNavForm"] table tr:nth-child(${row}) a::before {
-  background-image: url("${url(path)}") !important;
+  -webkit-mask-image: url("${url(path)}") !important;
+  mask-image: url("${url(path)}") !important;
 }`;
   }
 
@@ -65,7 +66,7 @@ form[name="leftNavForm"] table tr:nth-child(${row}) a::before {
   ["R0", "R1", "R2", "R3", "R4", "R5"].forEach((folder, i) => {
     const path = navIcons[i + 2];
     css += `
-.cp-console-section[data-cp-folder="${folder}"] .cp-console-head::before {
+.cp-console-section[data-cp-folder="${folder}"] .cp-console-head-ico {
   -webkit-mask-image: url("${url(path)}") !important;
   mask-image: url("${url(path)}") !important;
 }`;
@@ -81,7 +82,8 @@ form[name="leftNavForm"] table tr:nth-child(${row}) a::before {
   for (const { icon, path } of footerIcons) {
     css += `
 .cp-footer-btn[data-cp-icon="${icon}"]::before {
-  background-image: url("${url(path)}") !important;
+  -webkit-mask-image: url("${url(path)}") !important;
+  mask-image: url("${url(path)}") !important;
 }`;
   }
 

@@ -226,30 +226,37 @@ td.headandfoot[width="18%"] {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 36px !important;
-  height: 36px !important;
+  width: 30px !important;
+  height: 30px !important;
   border-radius: var(--cp-radius-ctl) !important;
-  color: transparent !important;
+  color: var(--cp-text-muted) !important;
   font-size: 0 !important;
   text-decoration: none !important;
-  transition: background 0.15s ease !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
 }
 
-/* Icon box — sized and positioned by ::before;
-   background-image is injected by skin.js via chrome.runtime.getURL */
+/* Icon box — sized/positioned by ::before; mask-image (injected by skin.js)
+   + background-color:currentColor so the glyph recolours with the button's
+   state (muted at rest, lavender on hover). */
 .cp-footer-btn::before {
   content: "" !important;
   display: block !important;
-  width: 20px !important;
-  height: 20px !important;
-  background-repeat: no-repeat !important;
-  background-position: center !important;
-  background-size: contain !important;
+  width: 16px !important;
+  height: 16px !important;
+  background-color: currentColor !important;
+  -webkit-mask-repeat: no-repeat !important;
+  mask-repeat: no-repeat !important;
+  -webkit-mask-position: center !important;
+  mask-position: center !important;
+  -webkit-mask-size: contain !important;
+  mask-size: contain !important;
   flex-shrink: 0 !important;
 }
 
+/* Footer button hover — off-grey box + lavender icon, NO nudge. */
 .cp-footer-btn:hover {
-  background: var(--cp-glass-edge) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--cp-primary) !important;
 }
 
 /* Main layout table (sidebar + content) — constrained to 1440px,
@@ -270,13 +277,13 @@ body > table[height="100%"] {
 .navOptions {
   font-family: var(--cp-font-label) !important;
   font-size: 11px !important;
-  font-weight: 500 !important;
-  letter-spacing: 0.05em !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
   text-transform: uppercase !important;
   color: var(--cp-text-muted) !important;
   background: transparent !important;
-  border-bottom: 1px solid var(--cp-outline) !important;
-  padding: 8px 12px 6px 12px !important;
+  border-bottom: none !important;
+  padding: 10px 12px 8px 12px !important;
 }
 
 /* Neutralize legacy nav cells — pill visual lives on the anchor.
@@ -293,46 +300,46 @@ form[name="leftNavForm"] td.leftnavfolderopen {
   line-height: 0 !important;
 }
 
-/* Shared anchor base — centered flex row */
+/* Shared anchor base — centered flex row. 13.5px / gap 11 / radius 10 = v5 .fold. */
 form[name="leftNavForm"] a.leftnavfolder,
 form[name="leftNavForm"] a.leftnavfolderopen {
   display: flex !important;
   align-items: center !important;
-  gap: 10px !important;
+  gap: 11px !important;
   width: 100% !important;
   box-sizing: border-box !important;
   padding: 10px 12px !important;
-  border-radius: var(--cp-radius-ctl) !important;
+  border-radius: 10px !important;
   margin: 2px 0 !important;
   text-decoration: none !important;
-  font-size: 13px !important;
+  font-size: 13.5px !important;
   font-family: var(--cp-font-sans) !important;
   transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease !important;
 }
 
-/* Idle nav item */
+/* Idle nav item — MUTED text+icon (resting hierarchy, v5). */
 form[name="leftNavForm"] a.leftnavfolder {
-  color: var(--cp-text) !important;
+  color: var(--cp-text-muted) !important;
   font-weight: 400 !important;
   background: transparent !important;
 }
 
-/* Hover nav item */
+/* Hover nav item — off-grey box + lavender text/icon + 3px slide (kept). */
 form[name="leftNavForm"] a.leftnavfolder:hover {
-  background: rgba(110, 76, 150, 0.15) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
   color: var(--cp-primary) !important;
   transform: translateX(3px) !important;
 }
 
-/* Active nav item — inset rounded pill */
+/* Active nav item — purple fill + bright text/icon, no slide (v5 .fold.on). */
 form[name="leftNavForm"] a.leftnavfolderopen {
   color: var(--cp-text) !important;
   font-weight: 600 !important;
-  background: rgba(110, 76, 150, 0.25) !important;
+  background: rgba(110, 76, 150, 0.22) !important;
 }
 
 form[name="leftNavForm"] a.leftnavfolderopen:hover {
-  background: rgba(110, 76, 150, 0.35) !important;
+  background: rgba(110, 76, 150, 0.22) !important;
   color: var(--cp-text) !important;
 }
 
@@ -342,7 +349,9 @@ form[name="leftNavForm"] a.leftnavfolderopen:hover {
     robust than mask-image, which renders invisible on any parse failure)
    ============================================================ */
 
-/* Base ::before for all nav item anchors */
+/* Base ::before for all nav item anchors — mask-image (injected by skin.js)
+   + background-color:currentColor so the glyph tracks the anchor's state
+   colour: muted at rest, lavender on hover, bright on the active folder. */
 form[name="leftNavForm"] a.leftnavfolder::before,
 form[name="leftNavForm"] a.leftnavfolderopen::before {
   content: "" !important;
@@ -350,9 +359,13 @@ form[name="leftNavForm"] a.leftnavfolderopen::before {
   display: inline-block !important;
   width: 18px !important;
   height: 18px !important;
-  background-repeat: no-repeat !important;
-  background-position: center !important;
-  background-size: contain !important;
+  background-color: currentColor !important;
+  -webkit-mask-repeat: no-repeat !important;
+  mask-repeat: no-repeat !important;
+  -webkit-mask-position: center !important;
+  mask-position: center !important;
+  -webkit-mask-size: contain !important;
+  mask-size: contain !important;
 }
 
 /* Per-row nav icon background-images are injected at runtime by skin.js
@@ -1944,8 +1957,12 @@ html.cp-console-active body > table[height="100%"] {
   /* 1488 = v5's 1440px shell (sidebar 220 + 12 gap + console 1208) PLUS the 48px the
      cells lose to the table's inset (12px table padding + 12px outer border-spacing =
      24px per side ×2). Net: the visible sidebar+console span is 1440 and the console
-     panel is 1208px — exactly v5's width. (Was 1440, which gave a 1160px console.) */
-  max-width: 1488px !important;
+     panel is 1208px — exactly v5's width. (Was 1440, which gave a 1160px console.)
+     Cap raised 1488→1524 to widen the sidebar (→256) WITHOUT shrinking the console:
+     console = 1524 − 256 sidebar − 60 table inset = 1208 (preserved). Safe because the
+     shell is centered with ~520px of free margin each side on a 2560px window; on a
+     window narrower than ~1525px the shell hits the edge and the console cedes width. */
+  max-width: 1524px !important;
   height: auto !important;
   margin: 12px auto 0 !important;
   border-collapse: separate !important;
@@ -1966,12 +1983,16 @@ html.cp-console-active body > table[height="100%"] > tbody > tr > td:not([width=
 /* Sidebar — 220px floating rounded panel */
 html.cp-console-active td.headandfoot[width="18%"] {
   vertical-align: top !important;
-  /* Pin to v5's 220px. In auto table-layout a cell's `width` is only a hint:
-     non-greedy content let the sidebar swell to 248, fully-greedy content
-     collapsed it to its 202px min-content floor. min-width is a hard floor and
-     the greedy content cell (width:100% below) caps the top → exactly 220px. */
-  width: 220px !important;
-  min-width: 220px !important;
+  /* Pinned width. In auto table-layout a cell follows its content's PREFERRED width,
+     so the long bold "Meet-Me Conferencing" (active) pushed the sidebar to ~231, stealing
+     2px from the content panel each time you jumped to/from Meet-Me (the resize glitch).
+     A min-width floor ABOVE that widest state pins it constant → no resize. 256 also widens
+     the sidebar to the roomier preview proportion; the shell cap was raised in step (see
+     body>table max-width below) so the console keeps its 1208 width instead of ceding it.
+     min-width:0 on the name does NOT help — an auto cell still grants content its preferred
+     width. */
+  width: 256px !important;
+  min-width: 256px !important;
   box-sizing: border-box !important;
   border-radius: 16px !important;
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28) !important;
@@ -1979,15 +2000,139 @@ html.cp-console-active td.headandfoot[width="18%"] {
      (#232220); only the top bar is the lighter --cp-surface (#2a2825). */
   background: var(--cp-surface-low, #232220) !important;
   border: 1px solid var(--cp-border, #3c3a37) !important;
-  padding: 8px !important;
+  /* padding-top 0 so the OPTIONS header band starts at the panel's inner top and
+     its 44px height centres OPTIONS level with the RESELLER breadcrumb (style A).
+     padding-bottom 44 reserves the matching footer band. */
+  padding: 0 8px 44px 8px !important;
+}
+
+/* Sidebar header band — OPTIONS as a 44px zone mirroring the 43px panel header.
+   Legacy "Options:" text hidden (font-size 0); ::before re-prints "OPTIONS" (no colon),
+   vertically centred via the cell's vertical-align:middle. */
+html.cp-console-active .navOptions {
+  height: 44px !important;
+  vertical-align: middle !important;
+  padding: 0 14px !important;
+  border-bottom: none !important;
+  font-size: 0 !important;
+}
+html.cp-console-active .navOptions::before {
+  content: "OPTIONS" !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: var(--cp-text-muted) !important;
+}
+
+/* Full-bleed top divider at the bottom of the 44px OPTIONS band. Drawn on the cell
+   (not the inset table) so it spans edge to edge; the panel's overflow:hidden + 16px
+   radius clip it seamlessly into the rounded corners. */
+html.cp-console-active td.headandfoot[width="18%"]::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 44px !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 1px !important;
+  background: var(--cp-border, #3c3a37) !important;
+  z-index: 2 !important;
+  pointer-events: none !important;
+}
+
+/* Breathing room between the top divider and the first folder — the divider sits at
+   the 44px band bottom, so without this the first item is flush against the line.
+   :not(.cp-subitem) so it hits ONLY the folder anchor — the first folder's submenu
+   sub-items are also <a> inside this same row, and without the guard they'd all inherit
+   the 10px top margin (Profile's dropdown spaced wider than the others). */
+html.cp-console-active form[name="leftNavForm"] table tr:nth-child(2) a:not(.cp-subitem) {
+  margin-top: 10px !important;
+}
+
+/* Footer band — full-bleed 44px mirroring the header band; seamless edge-to-edge top
+   divider (border-top spans the full inner width); buttons centred, no nudge. */
+html.cp-console-active .cp-sidebar-footer {
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: 44px !important;
+  padding: 0 !important;
+  gap: 10px !important;
+  border-top: 1px solid var(--cp-border, #3c3a37) !important;
+  justify-content: center !important;
+}
+
+/* ============================================================
+   Sidebar folder submenus (accordion, style C — inset panel).
+   Chevron + collapsible list injected per folder by pjax.js; the
+   OPEN folder follows the scroll-spy / click (cpHighlightFolder
+   toggles cp-grp-open on the folder's cell). Inset panel lives on
+   .cp-submenu-panel (inner) so the collapsing wrapper contributes
+   ZERO height when closed — no gap under collapsed folders. */
+html.cp-console-active a.leftnavfolder .cp-fold-chev,
+html.cp-console-active a.leftnavfolderopen .cp-fold-chev {
+  width: 6px !important;
+  height: 6px !important;
+  margin-left: auto !important;
+  margin-right: 2px !important;
+  border-right: 1.5px solid currentColor !important;
+  border-bottom: 1.5px solid currentColor !important;
+  transform: rotate(45deg) !important;
+  transition: transform 0.26s ease !important;
+  flex: 0 0 auto !important;
+  opacity: 0.75 !important;
+}
+html.cp-console-active td.cp-grp-open a .cp-fold-chev {
+  transform: rotate(-135deg) !important;
+}
+html.cp-console-active .cp-submenu {
+  display: grid !important;
+  grid-template-rows: 0fr !important;
+  transition: grid-template-rows 0.26s ease !important;
+}
+html.cp-console-active td.cp-grp-open .cp-submenu {
+  grid-template-rows: 1fr !important;
+}
+html.cp-console-active .cp-submenu-in { overflow: hidden !important; }
+html.cp-console-active .cp-submenu-panel {
+  background: rgba(0, 0, 0, 0.18) !important;
+  border-radius: 8px !important;
+  margin: 2px 4px 6px !important;
+  padding: 4px !important;
+}
+html.cp-console-active .cp-subitem {
+  display: block !important;
+  padding: 6px 10px 6px 12px !important;
+  margin: 1px 0 !important;
+  border-radius: 8px !important;
+  color: var(--cp-text-muted) !important;
+  font: 400 12px/1.3 "Nunito", sans-serif !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+  transition: background 0.12s ease, color 0.12s ease, transform 0.12s ease !important;
+}
+html.cp-console-active .cp-subitem:hover {
+  color: var(--cp-primary) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  transform: translateX(3px) !important;
 }
 
 /* Content cell — floating rounded panel, flex column so breadcrumb stays on top */
 html.cp-console-active td[width="82%"] {
   vertical-align: top !important;
-  /* Greedy so it absorbs all remaining width, holding the sidebar at its 220px
+  /* Greedy so it absorbs all remaining width, holding the sidebar at its pinned
      min-width (see the sidebar rule above) — without this the sidebar swells. */
   width: 100% !important;
+  /* Height floor = the console's natural height (≈ breadcrumb + capped .cp-console;
+     measured 822 at vh 913 → reserve 91). On the console it's a no-op; on a LIST page
+     (no tall .cp-console, just a short search form) it stops the whole shell collapsing —
+     both cells share the table row, so without this, navigating console↔list snapped the
+     panels 822↔462. The list content sits at top with space below (Stage-2 fill is the
+     later polish). */
+  height: calc(100vh - 92px) !important;
   box-sizing: border-box !important;
   border-radius: 16px !important;
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28) !important;
@@ -2062,6 +2207,15 @@ html.cp-console-active .cp-console::-webkit-scrollbar-thumb {
 html.cp-console-active .cp-console::-webkit-scrollbar-track {
   background: transparent !important;
 }
+/* Reserve 16px of blank space at the BOTTOM of the scroll track so the scrollbar stops
+   ABOVE the panel's 16px rounded corner instead of being clipped by it. This lives on the
+   scrollbar (zero layout impact) — a bottom padding/margin/border on the content instead
+   gets ADDED to the table-cell's height and pushes the whole panel past the viewport. */
+html.cp-console-active .cp-console::-webkit-scrollbar-button:vertical:end {
+  display: block !important;
+  height: 16px !important;
+  background: transparent !important;
+}
 
 /* ============================================================
    Console content styles (also active without html.cp-console-active
@@ -2078,21 +2232,28 @@ html.cp-console-active .cp-console::-webkit-scrollbar-track {
   position: sticky !important;
   top: 0 !important;
   z-index: 5 !important;
+  /* Background stays SOLID (never faded) so it masks the cards behind while the header is
+     pushed up — only .cp-console-head-inner fades/scales on scroll (cpHeadFade in pjax.js). */
   background: var(--cp-surface-low, #232220) !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 12px !important;
   margin: 0 -22px !important;
   padding: 16px 22px 12px !important;
   border-bottom: none !important;
 }
+/* Inner content (icon + name + count) — the fade/scale target on scroll. */
+.cp-console-head-inner {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  transform-origin: left center !important;
+  will-change: opacity, transform !important;
+}
 /* Section-header icon (user pick, Option A — plain icon): the per-folder sidebar glyph,
    set as a mask-image by skin.js injectAssetCss keyed by the section's data-cp-folder
    (R0..R5), recoloured to the lavender accent via background-color. Replaces the old
-   4×24 accent bar. (mask-image can't be live-tested under the page CSP — the mask
-   MECHANISM was validated on a temp element; the ::before is verified on reload.) */
-.cp-console-head::before {
-  content: "" !important;
+   4×24 accent bar. Now a REAL element (.cp-console-head-ico) inside .cp-console-head-inner,
+   not a ::before, so it can fade with the title on scroll. (mask-image can't be live-tested
+   under the page CSP — verified on reload.) */
+.cp-console-head-ico {
   width: 26px !important;
   height: 26px !important;
   background-color: var(--cp-primary, #C6A8E8) !important;
@@ -2180,10 +2341,10 @@ html.cp-console-active .cp-console::-webkit-scrollbar-track {
   padding: 9px 11px !important;
   background: rgba(0, 0, 0, 0.22) !important;
   border: 1px solid rgba(255, 255, 255, 0.05) !important;
-  border-radius: 6px !important;
+  border-radius: 7px !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 2px !important;
+  gap: 3px !important;
 }
 .cp-leaf-loading {
   color: var(--cp-text-muted, #a4a29c) !important;
@@ -2205,7 +2366,7 @@ html.cp-console-active .cp-console::-webkit-scrollbar-track {
 }
 .cp-leaf-val {
   color: var(--cp-text, #e8e8e8) !important;
-  font: 600 0.82rem/1.4 "Nunito", sans-serif !important;
+  font: 600 13px/1.4 "Nunito", sans-serif !important;
   text-align: right !important;
   word-break: break-word !important;
 }
@@ -2229,6 +2390,9 @@ html.cp-console-active .cp-menu-card {
   max-width: calc(50% - 16px) !important;
   width: auto !important;
   margin: 0 0 10px 0 !important;
+  /* v5 --rad-card is 9px; base site cards stay 8px (--cp-radius-card) per the
+     canonical-box rule — this 1px bump is console-scoped to match the mockup. */
+  border-radius: 9px !important;
 }
 /* Inter-column (BASIC | ADVANCED) gap = 30px, matching v5's grid gap. The half-column
    cap (above) is REQUIRED for single-column sections (keeps their lone card half-width,
@@ -2251,6 +2415,7 @@ html.cp-console-active td.cp-menu-col + td.cp-menu-col .cp-menu-card {
 html.cp-console-active .cp-card-title a.navMenuItem {
   padding: 11px 14px 2px 14px !important;
   font-size: 13.5px !important;
+  font-weight: 700 !important;
 }
 html.cp-console-active .cp-card-desc {
   padding: 0 14px 11px 14px !important;
