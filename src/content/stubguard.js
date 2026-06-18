@@ -241,7 +241,8 @@
         });
     }
 
-    function loginFetchFlow(form) {
+    function loginFetchFlow(form, attempt) {
+      attempt = attempt || 0;
       var loginFlowStart = Date.now();
       document.dispatchEvent(new CustomEvent("cp:loginsplash"));
       var body = new URLSearchParams();
@@ -275,6 +276,26 @@
           var showFail = function (errDoc) {
             var freshTok = errDoc.getElementsByName("formtokenserial")[0];
             if (freshTok && liveTok) liveTok.value = freshTok.value;
+
+            // Idle "stale session / not authorized" glitch: the first POST after long idle is rejected on a
+            // stale token (regardless of credentials) and the rejection mints a fresh token (just swapped into
+            // the form above). Re-submit ONCE, silently, under the splash. This is gated on the SPECIFIC
+            // session-timeout / not-authorized message — "Authentication failed" (wrong password), account
+            // "disabled", and lockout messages use different text and are NEVER auto-retried, so wrong
+            // passwords are never silently hammered. Capped at one retry (attempt < 1) so it can never loop.
+            if (attempt < 1 && freshTok) {
+              var staleGlitch = false;
+              errDoc.querySelectorAll(".loginerror").forEach(function (e) {
+                if (/not authorized to access the system|session timeout/i.test(e.textContent || "")) staleGlitch = true;
+              });
+              if (staleGlitch) {
+                console.log("[stubguard] stale-session login glitch — silent retry with fresh token");
+                armedLogin = false;            // we drive the retry directly; prevent a stray submit piling on
+                loginFetchFlow(form, attempt + 1);
+                return;                         // keep splash up; skip showing the error
+              }
+            }
+
             var reveal = function () { showLoginError(errDoc); splashDown(); };
             var elapsed = Date.now() - loginFlowStart;
             if (elapsed < MIN_SPLASH) { setTimeout(reveal, MIN_SPLASH - elapsed); } else { reveal(); }

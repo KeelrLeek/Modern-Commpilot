@@ -488,6 +488,84 @@
       });
     }
 
+    function cpSetSectionCount(bodyEl) {
+      if (!bodyEl) return;
+      var n = bodyEl.querySelectorAll('a[id^="link_"]').length || bodyEl.querySelectorAll('.cp-menu-card').length;
+      var sec = bodyEl.closest('.cp-console-section');
+      var chip = sec ? sec.querySelector('.cp-console-head .cp-console-count') : null;
+      if (!chip) return;
+      if (n > 0) { chip.textContent = String(n); chip.hidden = false; }
+      else { chip.hidden = true; }
+    }
+
+    // Option `name` paths whose leaf pages are simple read-only label:value settings — summarize inline.
+    var CP_LEAF_ALLOW = ["/Reseller/Profile/"];
+
+    function cpFetchLeaf(path) {
+      return new Promise(function (resolve) {
+        cpEnqueueSection(function () {
+          if (cpSectionAborted) { resolve(null); return; }
+          var liveTokEl = document.getElementsByName("formtokenserial")[0];
+          var token = liveTokEl ? liveTokEl.value : null;
+          return cpFollow(path, {}, token, 0)
+            .then(function (res) {
+              if (cpSectionAborted || !res || res.auth === false || !res.doc) { resolve(null); return; }
+              var newTok = res.doc.getElementsByName("formtokenserial")[0];
+              if (newTok) {
+                var tokens = document.getElementsByName("formtokenserial");
+                for (var i = 0; i < tokens.length; i++) tokens[i].value = newTok.value;
+              }
+              var cell = res.doc.querySelector('td[width="82%"]');
+              if (!cell) { resolve(null); return; }
+              // Verify leaf-like: not a list (no search/results table)
+              if (cell.querySelector('#searchTable, #resultsTable, input[name="searchString"]')) { resolve(null); return; }
+              var out = [];
+              var trs = cell.querySelectorAll("tr");
+              for (var j = 0; j < trs.length && out.length < 6; j++) {
+                var tds = [];
+                for (var k = 0; k < trs[j].children.length; k++) { if (trs[j].children[k].tagName === "TD") tds.push(trs[j].children[k]); }
+                if (tds.length < 2) continue;
+                var label = (tds[0].textContent || "").trim();
+                if (!label || label.length > 40 || !/:\s*$/.test(label)) continue;  // label cells end with ":"
+                var inp = tds[1].querySelector("input, select, textarea");
+                var val = inp ? (inp.value || "") : (tds[1].textContent || "").trim();
+                if (!val) continue;
+                out.push({ label: label.replace(/:\s*$/, ""), value: val.slice(0, 80) });
+              }
+              resolve(out.length ? out : null);
+            })
+            .catch(function () { resolve(null); });
+        });
+      });
+    }
+
+    function cpSummarizeLeaves(bodyEl) {
+      if (!bodyEl) return;
+      CP_LEAF_ALLOW.forEach(function (target) {
+        var anchor = bodyEl.querySelector('a[name="' + target + '"]');
+        if (!anchor) return;
+        var card = anchor.closest(".cp-menu-card") || anchor.parentNode;
+        if (!card || card.querySelector(".cp-leaf-summary")) return;  // already summarized
+        var box = document.createElement("div");
+        box.className = "cp-leaf-summary";
+        var loading = document.createElement("div");
+        loading.className = "cp-leaf-loading";
+        loading.textContent = "\u2026";
+        box.appendChild(loading);
+        card.appendChild(box);
+        cpFetchLeaf("/commpilot" + target).then(function (rows) {
+          if (cpSectionAborted || !document.querySelector(".cp-console") || !box.isConnected) { return; }
+          if (!rows) { box.remove(); return; }
+          box.innerHTML = "";
+          rows.forEach(function (r) {
+            var row = document.createElement("div"); row.className = "cp-leaf-row";
+            var k = document.createElement("span"); k.className = "cp-leaf-key"; k.textContent = r.label;
+            var v = document.createElement("span"); v.className = "cp-leaf-val"; v.textContent = r.value;
+            row.appendChild(k); row.appendChild(v); box.appendChild(row);
+          });
+        }).catch(function () { try { box.remove(); } catch (e) {} });
+      });
+    }
     function cpBuildConsole() {
       if (document.querySelector(".cp-console")) return;
       var contentCell = document.querySelector('td[width="82%"]');
@@ -521,19 +599,34 @@
           }
         }
         if (!folder) return;
+        a.setAttribute("data-cp-folder", folder);
         folders.push({ name: name, folder: folder, menuId: menuId });
       });
       if (folders.length === 0) return;
       // Build console DOM
       var consoleDiv = document.createElement("div");
       consoleDiv.className = "cp-console";
+      // Breadcrumb header — built here, inserted into the content cell ABOVE .cp-console
+      // (below) so it stays pinned while the console scrolls internally.
+      var crumb = document.createElement("div");
+      crumb.className = "cp-breadcrumb";
+      var crumbSeg = document.createElement("a");
+      crumbSeg.textContent = "Reseller";
+      crumb.appendChild(crumbSeg);
       folders.forEach(function (f) {
         var sec = document.createElement("section");
         sec.className = "cp-console-section";
         sec.setAttribute("data-cp-folder", f.folder);
         var head = document.createElement("div");
         head.className = "cp-console-head";
-        head.textContent = f.name;
+        var headName = document.createElement("span");
+        headName.className = "cp-console-head-name";
+        headName.textContent = f.name;
+        var headCount = document.createElement("span");
+        headCount.className = "cp-console-count";
+        headCount.hidden = true;
+        head.appendChild(headName);
+        head.appendChild(headCount);
         var bodyEl = document.createElement("div");
         bodyEl.className = "cp-console-body";
         var loading = document.createElement("div");
@@ -545,6 +638,7 @@
         consoleDiv.appendChild(sec);
       });
       while (contentCell.firstChild) contentCell.removeChild(contentCell.firstChild);
+      contentCell.appendChild(crumb);
       contentCell.appendChild(consoleDiv);
       // IntersectionObserver
       cpConsoleObserver = new IntersectionObserver(function (entries) {
@@ -564,6 +658,8 @@
               bodyEl.setAttribute("data-cp-loaded", "1");
               document.dispatchEvent(new Event("cp:reskin"));
               cpReexecWiringScripts(bodyEl);
+              cpSetSectionCount(bodyEl);
+              cpSummarizeLeaves(bodyEl);
             } else {
               delete bodyEl.dataset.cpRequested;
               bodyEl.innerHTML = "";
@@ -580,7 +676,7 @@
                 bodyEl.dataset.cpRequested = "1";
                 cpFetchSection(folder, mId).then(function (html2) {
                   if (cpSectionAborted || !document.querySelector(".cp-console")) return;
-                  if (html2) { bodyEl.innerHTML = html2; bodyEl.setAttribute("data-cp-loaded", "1"); document.dispatchEvent(new Event("cp:reskin")); cpReexecWiringScripts(bodyEl); }
+                  if (html2) { bodyEl.innerHTML = html2; bodyEl.setAttribute("data-cp-loaded", "1"); document.dispatchEvent(new Event("cp:reskin")); cpReexecWiringScripts(bodyEl); cpSetSectionCount(bodyEl); cpSummarizeLeaves(bodyEl); }
                   else { delete bodyEl.dataset.cpRequested; bodyEl.innerHTML = ""; bodyEl.appendChild(retryBtn); }
                 });
               });
@@ -592,49 +688,89 @@
       consoleDiv.querySelectorAll(".cp-console-body").forEach(function (bodyEl) {
         cpConsoleObserver.observe(bodyEl);
       });
+      cpSyncConsoleClass();
     }
 
-    function cpAddConsoleToggle() {
-      var isHome = !!document.querySelector('a.leftnavfolder, a.leftnavfolderopen');
-      if (!isHome) return;
-      var titleTable = document.querySelector("td.screenName");
-      if (!titleTable) return;
-      var existing = document.querySelector(".cp-console-btn");
-      if (existing) {
-        existing.textContent = document.querySelector(".cp-console") ? "Back to menu" : "All Sections";
-        return;
-      }
-      var btn = document.createElement("button");
-      btn.className = "cp-console-btn";
-      btn.textContent = document.querySelector(".cp-console") ? "Back to menu" : "All Sections";
-      btn.addEventListener("click", function () {
-        if (document.querySelector(".cp-console")) {
-          window.redirectPost("/commpilot/Common/folder_contents.jsp", { folder: "R0", menuId: "8" });
-        } else {
-          cpBuildConsole();
+    function cpSyncConsoleClass() {
+      // The floating SHELL (top bar + sidebar + content panel) is active on ANY reseller app
+      // page that carries the left-nav folder sidebar — the console MENU and the list pages
+      // (Groups/Users/etc.) alike — so the shell persists as you navigate and only the central
+      // panel content swaps. (Class name is historical; it now gates the whole shell.) Absent on
+      // login/recovery/logout pages (no leftNavForm), so those stay untouched.
+      var active = !!document.querySelector('form[name="leftNavForm"] a.leftnavfolder, form[name="leftNavForm"] a.leftnavfolderopen');
+      document.documentElement.classList.toggle("cp-console-active", active);
+      if (active) {
+        // Blank stray "-" placeholder text in the legacy header (empty level slot).
+        // It's a lone "-" text node sharing a cell with whitespace, so target the node directly.
+        var hdr = document.querySelector("body > table:first-of-type");
+        if (hdr) {
+          var w = document.createTreeWalker(hdr, NodeFilter.SHOW_TEXT, null);
+          var tn;
+          while ((tn = w.nextNode())) {
+            if ((tn.textContent || "").trim() === "-") tn.textContent = "";
+          }
         }
+        // Inject/refresh the CommPilot top-bar overlay (brand LEFT + welcome RIGHT).
+        // A fixed layer tracks the floating bar exactly; the legacy welcome span is
+        // hidden via CSS and its text is mirrored into .cp-welcome on the right.
+        var topbar = document.querySelector(".cp-topbar");
+        if (!topbar) {
+          topbar = document.createElement("div");
+          topbar.className = "cp-topbar";
+          var brand = document.createElement("div");
+          brand.className = "cp-brand";
+          brand.innerHTML = '<svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,6 94,86 6,86" fill="#6E4C96"></polygon><polygon points="50,40 72,84 28,84" fill="#E89150"></polygon></svg><span class="cp-brand-name">Comm<b>Pilot</b></span>';
+          var welcome = document.createElement("div");
+          welcome.className = "cp-welcome";
+          topbar.appendChild(brand);
+          topbar.appendChild(welcome);
+          document.body.appendChild(topbar);
+        }
+        var welSrc = document.querySelector(".headerBarWelcome");
+        var welEl = topbar.querySelector(".cp-welcome");
+        if (welEl && welSrc) welEl.textContent = (welSrc.textContent || "").replace(/\s+/g, " ").trim();
+      } else {
+        var tb = document.querySelector(".cp-topbar");
+        if (tb && tb.parentNode) tb.parentNode.removeChild(tb);
+      }
+    }
+
+    function cpAutoConsole() {
+      cpSyncConsoleClass();
+      if (document.querySelector(".cp-console")) return;                 // already showing the console
+      if (!document.querySelector('a.leftnavfolder, a.leftnavfolderopen')) return;  // not a reseller folder page
+      var cell = document.querySelector('td[width="82%"]');
+      // Build ONLY when the content cell is a folder MENU (has navMenu options), never a list/leaf
+      // destination. Check CONTENT, not location.pathname — pjax fires cp:reskin BEFORE it updates the
+      // URL, so location.pathname is stale (still the previous page) at this moment.
+      if (!cell || !cell.querySelector('a.navMenuItem')) return;
+      cpBuildConsole();   // no-ops at non-reseller levels (its R0–R5 regex finds no folders)
+    }
+
+    // Build console on reskin (runs after every pjax swap)
+    document.addEventListener("cp:reskin", cpAutoConsole);
+    // Also build after the zero-nav login morph (it dispatches cp:morphed, not cp:reskin)
+    document.addEventListener("cp:morphed", cpAutoConsole);
+    // Initial build for pages that already have folders (refresh / recovery land)
+    cpAutoConsole();
+
+    // Capture-phase sidebar folder click → scroll to section while console is showing
+    document.addEventListener("click", function (e) {
+      var a = e.target.closest && e.target.closest('a.leftnavfolder, a.leftnavfolderopen');
+      if (!a) return;
+      if (!document.querySelector('.cp-console')) return;
+      var fid = a.getAttribute('data-cp-folder');
+      if (!fid) return;
+      var sec = document.querySelector('.cp-console-section[data-cp-folder="' + fid + '"]');
+      if (!sec) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // sync the sidebar active highlight to the clicked folder
+      document.querySelectorAll('form[name="leftNavForm"] a.leftnavfolder, form[name="leftNavForm"] a.leftnavfolderopen').forEach(function (o) {
+        o.classList.remove('leftnavfolderopen'); o.classList.add('leftnavfolder');
       });
-      var parentTd = titleTable.closest("td");
-      if (!parentTd) return;
-      var parentTable = parentTd.closest("table");
-      if (parentTable) {
-        var wrap = document.createElement("div");
-        wrap.style.cssText = "display:flex;align-items:center;justify-content:space-between;width:100%;";
-        var innerTable = parentTd.querySelector("table");
-        if (innerTable) {
-          innerTable.parentNode.insertBefore(wrap, innerTable);
-          wrap.appendChild(innerTable);
-          wrap.appendChild(btn);
-        } else {
-          parentTd.appendChild(btn);
-          btn.style.cssText = "float:right;margin:8px 24px 0 0;";
-        }
-      }
-    }
-
-    // Wire toggle on reskin (runs after every pjax swap)
-    document.addEventListener("cp:reskin", function () { cpAddConsoleToggle(); });
-    // Initial add for pages that already have folders (refresh / recovery land)
-    cpAddConsoleToggle();
+      a.classList.remove('leftnavfolder'); a.classList.add('leftnavfolderopen');
+    }, true);
   }
 })();

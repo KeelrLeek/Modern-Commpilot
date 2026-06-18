@@ -1843,22 +1843,231 @@ body.cp-help-debug .cp-help-none {
 /* ============================================================
    Unified Console — aggregated menu sections
    ============================================================ */
+/* ============================================================
+   Console-active layout shell — gated under html.cp-console-active
+   ============================================================ */
+
+/* Viewport lock */
+html.cp-console-active,
+html.cp-console-active body {
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Full-width floating curved top bar — spans the page, not capped to 1440px */
+html.cp-console-active body > table:first-of-type {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  width: auto !important;
+  min-height: 56px !important;
+  background: var(--cp-surface, #2a2825) !important;
+  border: 1px solid var(--cp-border, #3c3a37) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28) !important;
+  margin: 12px !important;
+  margin-bottom: 0 !important;
+  padding: 0 12px !important;
+}
+
+/* CommPilot top-bar overlay — a fixed layer that EXACTLY tracks the floating bar
+   (top/left/right:12 = the bar's own 12px margin + the scrollbar gutter, so both
+   share the same offset and line up to the pixel). Brand LEFT + welcome RIGHT via
+   flex space-between. This sidesteps the legacy header table's nested cells, which
+   trapped the welcome span in a narrow box so text-align:right never reached the edge. */
+.cp-topbar {
+  position: fixed !important;
+  top: 12px !important;
+  left: 12px !important;
+  right: 12px !important;
+  height: 56px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 22px !important;
+  pointer-events: none !important;
+  z-index: 30 !important;
+}
+.cp-brand {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  font: 700 16px/1 "Nunito", sans-serif !important;
+  color: var(--cp-text) !important;
+}
+.cp-brand .cp-brand-name b { color: var(--cp-primary, #C6A8E8) !important; }
+.cp-welcome {
+  color: var(--cp-text-muted, #a4a29c) !important;
+  font: 400 13px/1 "Nunito", sans-serif !important;
+}
+/* Legacy welcome is trapped in a narrow nested cell — hide it; the overlay shows it right-aligned */
+html.cp-console-active .headerBarWelcome { display: none !important; }
+/* Legacy header auth-level breadcrumb ("Reseller") — hide so it doesn't peek out behind the top-bar
+   overlay on the console. (skin.js cpMoveBreadcrumb skips hiding it when the console already built its
+   own .cp-breadcrumb; on LIST pages the link is MOVED into .cp-breadcrumb so this selector no longer
+   matches it there — only the un-moved console-leak copy is hidden.) */
+html.cp-console-active td.headerBar a.headerAuthLevelLink { display: none !important; }
+
+/* Collapse spacer rows inside the curved top bar */
+html.cp-console-active .headerBar:has(img:only-child) {
+  display: none !important;
+}
+
+/* Inner header table: no border-bottom or max-width in console mode */
+html.cp-console-active td[colspan="3"] > table {
+  border-bottom: none !important;
+  max-width: none !important;
+  margin: 0 !important;
+  width: auto !important;
+}
+
+/* Main layout — keep it a REAL TABLE (centered at 1440px) with 12px gaps between
+   the sidebar and content cells. Flex-converting this legacy multi-row table broke
+   it (rows went side-by-side and shoved content to the right). */
+html.cp-console-active body > table[height="100%"] {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 1440px !important;
+  height: auto !important;
+  margin: 12px auto 0 !important;
+  border-collapse: separate !important;
+  border-spacing: 12px 0 !important;
+}
+
+/* Sidebar — 220px floating rounded panel */
+html.cp-console-active td.headandfoot[width="18%"] {
+  vertical-align: top !important;
+  width: 232px !important;
+  box-sizing: border-box !important;
+  border-radius: 16px !important;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28) !important;
+  background: var(--cp-surface, #2a2825) !important;
+  border: 1px solid var(--cp-border, #3c3a37) !important;
+  padding: 8px !important;
+}
+
+/* Content cell — floating rounded panel, flex column so breadcrumb stays on top */
+html.cp-console-active td[width="82%"] {
+  vertical-align: top !important;
+  box-sizing: border-box !important;
+  border-radius: 16px !important;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28) !important;
+  background: var(--cp-surface-low, #232220) !important;
+  border: 1px solid var(--cp-border, #3c3a37) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Breadcrumb pinned at top of the console panel */
+html.cp-console-active .cp-breadcrumb {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+  padding: 13px 22px !important;
+  margin: 0 !important;
+  border-bottom: 1px solid var(--cp-border, #3c3a37) !important;
+}
+html.cp-console-active .cp-breadcrumb a {
+  font-size: 11.5px !important;
+  letter-spacing: 0.07em !important;
+  text-transform: uppercase !important;
+  vertical-align: middle !important;
+}
+html.cp-console-active .cp-breadcrumb a:last-child {
+  color: var(--cp-primary, #C6A8E8) !important;
+}
+html.cp-console-active .cp-breadcrumb a + a::before {
+  display: inline-block !important;
+  content: "" !important;
+  width: 11px !important;
+  height: 11px !important;
+  margin: 0 7px !important;
+  vertical-align: middle !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+}
+
+/* Console is the internal scroll container. The offset reserves the fixed chrome
+   ABOVE the console (top bar 12+56, gap to panel, breadcrumb ~44) PLUS a 12px bottom
+   gap, so the console's bottom lands 12px above the viewport. If this is too small the
+   shell overflows the viewport, the body auto-scrolls to compensate, and that tucks the
+   header above the top edge + slams the panel bottom flush (the "cut off" bug). */
+html.cp-console-active .cp-console {
+  max-height: calc(100vh - 184px) !important;
+  overflow-y: auto !important;
+  /* No top padding: the sticky section head pins flush to the console top. An 8px top
+     padding left an 8px strip above the pinned head where scrolling content (BASIC/
+     ADVANCED) leaked through. The 8px was folded into the max-height offset (192→184)
+     so the 12px bottom gap is unchanged. */
+  padding: 0 22px 36px !important;
+  gap: 24px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Trifecta scrollbar for the console panel */
+html.cp-console-active .cp-console::-webkit-scrollbar {
+  width: 11px !important;
+}
+html.cp-console-active .cp-console::-webkit-scrollbar-thumb {
+  background: var(--cp-border, #3c3a37) !important;
+  border-radius: 6px !important;
+  border: 3px solid var(--cp-surface-low, #232220) !important;
+}
+html.cp-console-active .cp-console::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+/* ============================================================
+   Console content styles (also active without html.cp-console-active
+   for backward compat, but visually scoped via .cp-console)
+   ============================================================ */
 .cp-console {
   display: flex !important;
   flex-direction: column !important;
   gap: 24px !important;
   padding-top: 8px !important;
 }
+.cp-console-section { scroll-margin-top: 16px !important; }
 .cp-console-head {
   position: sticky !important;
   top: 0 !important;
-  z-index: 2 !important;
-  background: var(--cp-surface) !important;
-  color: var(--cp-text) !important;
-  font: 600 1.05rem/1.3 "Nunito", sans-serif !important;
-  padding: 10px 6px !important;
-  border-bottom: 1px solid var(--cp-border, #3c3a37) !important;
+  z-index: 5 !important;
+  background: var(--cp-surface-low, #232220) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  margin: 0 -22px !important;
+  padding: 16px 22px 12px !important;
+  border-bottom: none !important;
 }
+.cp-console-head::before {
+  content: "" !important;
+  width: 4px !important;
+  height: 24px !important;
+  background: var(--cp-primary, #C6A8E8) !important;
+  border-radius: 2px !important;
+  flex: 0 0 auto !important;
+}
+.cp-console-head::after {
+  content: "" !important;
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: 100% !important;
+  height: 20px !important;
+  background: linear-gradient(var(--cp-surface-low, #232220), rgba(35, 34, 32, 0)) !important;
+  pointer-events: none !important;
+}
+.cp-console-head-name {
+  font: 700 22px/1 "Nunito", sans-serif !important;
+  color: var(--cp-text) !important;
+}
+/* Hide the duplicate page title embedded in each fetched section */
+.cp-console-body td.screenName { display: none !important; }
 .cp-console-body {
   min-height: 48px !important;
   padding: 6px 2px !important;
@@ -1883,4 +2092,94 @@ body.cp-help-debug .cp-help-none {
   background: rgba(110, 76, 150, 0.12) !important;
   border-color: var(--cp-primary-strong) !important;
   color: var(--cp-primary) !important;
+}
+.cp-console-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  padding: 4px 6px 12px !important;
+  border-bottom: 1px solid var(--cp-border, #3c3a37) !important;
+}
+.cp-console-title {
+  font: 700 1.15rem/1.3 "Nunito", sans-serif !important;
+  color: var(--cp-text) !important;
+}
+.cp-console-count {
+  display: inline-block !important;
+  margin-left: 10px !important;
+  padding: 1px 9px !important;
+  border-radius: 999px !important;
+  background: rgba(110, 76, 150, 0.22) !important;
+  color: var(--cp-primary, #C6A8E8) !important;
+  font: 700 0.72rem/1.6 "Nunito", sans-serif !important;
+  vertical-align: middle !important;
+}
+.cp-console-count[hidden] { display: none !important; }
+.cp-leaf-summary {
+  margin: 2px 14px 12px !important;
+  padding: 9px 11px !important;
+  background: rgba(0, 0, 0, 0.22) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-radius: 6px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+.cp-leaf-loading {
+  color: var(--cp-text-muted, #a4a29c) !important;
+  font: 400 0.82rem/1.4 "Nunito", sans-serif !important;
+}
+.cp-leaf-row {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 3px 0 !important;
+}
+.cp-leaf-key {
+  color: var(--cp-text-muted, #a4a29c) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  font: 700 10.5px/1.3 "Nunito", sans-serif !important;
+  flex: 0 0 auto !important;
+}
+.cp-leaf-val {
+  color: var(--cp-text, #e8e8e8) !important;
+  font: 600 0.82rem/1.4 "Nunito", sans-serif !important;
+  text-align: right !important;
+  word-break: break-word !important;
+}
+
+/* ============================================================
+   Console card spacing — aligned to the v5 mockup. The legacy
+   .cp-menu-card is capped at max-width:360px (skin.css ~486) for
+   narrow plain menus; in the console that left cards floating in
+   ~525px columns with a huge dead gap. We RAISE the cap to ~510px
+   (≈ half the ~1068px panel minus the gap), so:
+     • TWO-column sections (Profile/Resources): each card fills its
+       ~half column → BASIC | ADVANCED line up like v5's 1fr 1fr.
+     • ONE-column sections (Services/Call Center/Meet-Me/Utilities):
+       cards stay HALF-width, left-aligned — matching v5, which uses
+       a 2-col grid with an EMPTY right column (NOT full-bleed cards).
+   Plus v5 padding + type scale (13.5/12px) and a 30px inter-column
+   gap (15px padding on the 2nd column + 15px slack left on the 1st).
+   Console-scoped so plain legacy menu pages keep the 360px cap.
+   ============================================================ */
+html.cp-console-active .cp-menu-card {
+  max-width: 510px !important;
+  width: auto !important;
+  margin: 0 0 10px 0 !important;
+}
+html.cp-console-active td.cp-menu-col + td.cp-menu-col {
+  padding-left: 15px !important;
+}
+html.cp-console-active .cp-card-title a.navMenuItem {
+  padding: 11px 14px 2px 14px !important;
+  font-size: 13.5px !important;
+}
+html.cp-console-active .cp-card-desc {
+  padding: 0 14px 11px 14px !important;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
 }
