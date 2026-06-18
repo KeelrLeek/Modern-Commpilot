@@ -718,10 +718,23 @@ function staggerCards() {
         );
       } catch (e) {}
     }
-    // Menu cards: stagger within each column so both columns fill top-down (skip console sections)
+    // Menu cards: stagger within each column so both columns fill top-down. SKIP console
+    // sections here — cp:reskin fires on every section lazy-load, so this global pass would
+    // re-animate all already-shown console cards each time. Console sections are handled below,
+    // gated per-body so each section waterfalls exactly ONCE (the reskin where its cards land).
     document.querySelectorAll("td.cp-menu-col").forEach(function (col) {
       if (col.closest(".cp-console")) return;
       col.querySelectorAll(".cp-menu-card").forEach(function (card, i) { run(card, i * CARD_STEP, CARD_DUR); });
+    });
+    // Console sections: waterfall each section's cards the first time it has them (i.e. right
+    // as it lazy-loads), masking the section load. Per-column so both BASIC/ADVANCED columns
+    // fill top-down in parallel, matching the list/menu look. data-cp-staggered gates it to once.
+    document.querySelectorAll(".cp-console-body:not([data-cp-staggered])").forEach(function (body) {
+      if (!body.querySelector(".cp-menu-card")) return;   // not loaded yet — let a later reskin catch it
+      body.setAttribute("data-cp-staggered", "1");
+      body.querySelectorAll("td.cp-menu-col").forEach(function (col) {
+        col.querySelectorAll(".cp-menu-card").forEach(function (card, i) { run(card, i * CARD_STEP, CARD_DUR); });
+      });
     });
     // Result rows: stagger down the whole list at the row cadence
     document.querySelectorAll(".cp-results-box tr.unselected").forEach(function (row, i) {

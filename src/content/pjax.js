@@ -567,6 +567,16 @@
             var v = document.createElement("span"); v.className = "cp-leaf-val"; v.textContent = r.value;
             row.appendChild(k); row.appendChild(v); box.appendChild(row);
           });
+          // This summary just grew (… → real rows). If it sits in a section ABOVE a jump anchor, that
+          // growth shoved the anchor down — re-pin the anchor flush. Gated on "still near the top" so a
+          // user who has since scrolled away isn't yanked back.
+          if (cpJumpAnchorSec && document.contains(cpJumpAnchorSec)) {
+            var lfCons = document.querySelector(".cp-console");
+            if (lfCons) {
+              var off = cpJumpAnchorSec.getBoundingClientRect().top - lfCons.getBoundingClientRect().top;
+              if (off >= 0 && off < 320) lfCons.scrollTop += off;
+            }
+          }
         }).catch(function () { try { box.remove(); } catch (e) {} });
       });
     }
@@ -583,7 +593,11 @@
         if (!name) return;
         var folder = "", menuId = "8";
         var onclick = a.getAttribute("onclick") || "";
-        var fm = /folder\s*:\s*['"](R\d+)['"]/i.exec(onclick);
+        // Folder ids are level-scoped, NOT just reseller R0..R5: the Service Provider level uses
+        // S0,S1,S2,S5,S3 (S-prefixed, non-contiguous) with menuId 2, and Group/User levels use their
+        // own letter prefixes. Match any single-letter+digits id so the console enumerates folders at
+        // every level (menuId is parsed dynamically below). Reseller R-ids still match unchanged.
+        var fm = /folder\s*:\s*['"]([A-Z]\d+)['"]/i.exec(onclick);
         if (fm) folder = fm[1];
         var mm = /menuId\s*:\s*['"](\d+)['"]/i.exec(onclick);
         if (mm) menuId = mm[1];
@@ -593,7 +607,7 @@
             var scripts = el.querySelectorAll("script");
             for (var si = 0; si < scripts.length; si++) {
               var txt = scripts[si].textContent || "";
-              var fm2 = /folder['"\s:,]+(R\d+)/.exec(txt);
+              var fm2 = /folder['"\s:,]+([A-Z]\d+)/.exec(txt);
               if (fm2) { folder = fm2[1]; break; }
               var mm2 = /menuId['"\s:,]+(\d+)/.exec(txt);
               if (mm2) menuId = mm2[1];
@@ -607,6 +621,14 @@
         folders.push({ name: name, folder: folder, menuId: menuId });
       });
       if (folders.length === 0) return;
+      // LEVEL GATE: the aggregated one-scroll console currently only works at the RESELLER level.
+      // Folder ENUMERATION is level-general (the regex above matches R/S/… ids), but deeper levels
+      // (Service Provider S-ids, and Group/User) return content-less SHELLS to the out-of-band
+      // folder_contents.jsp fetch — that endpoint renders a folder's menu only to a real top-level
+      // navigation there, never to an XHR. So aggregating them would show empty sections. Until a
+      // per-level fetch model is implemented, build only for reseller (R-scheme) folders; other
+      // levels keep their native menu inside the floating shell (cpSyncConsoleClass still applies it).
+      if (!folders.every(function (f) { return /^R\d+$/.test(f.folder); })) return;
       // Build console DOM
       var consoleDiv = document.createElement("div");
       consoleDiv.className = "cp-console";
@@ -621,6 +643,7 @@
         var sec = document.createElement("section");
         sec.className = "cp-console-section";
         sec.setAttribute("data-cp-folder", f.folder);
+        sec.setAttribute("data-cp-menuid", f.menuId);   // read by cpLoadAndRevealSection (sequential reveal)
         var head = document.createElement("div");
         head.className = "cp-console-head";
         // Inner wrapper holds the fading content (icon + name + count) so the head's solid
@@ -652,65 +675,17 @@
       while (contentCell.firstChild) contentCell.removeChild(contentCell.firstChild);
       contentCell.appendChild(crumb);
       contentCell.appendChild(consoleDiv);
-      // IntersectionObserver
-      cpConsoleObserver = new IntersectionObserver(function (entries) {
-        entries.forEach(function (entry) {
-          if (!entry.isIntersecting) return;
-          var bodyEl = entry.target;
-          if (bodyEl.dataset.cpRequested === "1" || bodyEl.getAttribute("data-cp-loaded") === "1" || !document.querySelector(".cp-console")) return;
-          bodyEl.dataset.cpRequested = "1";
-          var sec = bodyEl.closest(".cp-console-section");
-          var folder = sec ? sec.getAttribute("data-cp-folder") : "";
-          var mId = "8";
-          for (var fi = 0; fi < folders.length; fi++) { if (folders[fi].folder === folder) { mId = folders[fi].menuId; break; } }
-          cpFetchSection(folder, mId).then(function (html) {
-            if (cpSectionAborted || !document.querySelector(".cp-console")) return;
-            if (html) {
-              bodyEl.innerHTML = html;
-              bodyEl.setAttribute("data-cp-loaded", "1");
-              document.dispatchEvent(new Event("cp:reskin"));
-              cpReexecWiringScripts(bodyEl);
-              cpSetSectionCount(bodyEl);
-              cpSummarizeLeaves(bodyEl);
-              cpPopulateSubmenu(folder, bodyEl);
-              cpFitConsoleTail();
-              cpHeadFade();
-              cpJumpToPending();
-            } else {
-              delete bodyEl.dataset.cpRequested;
-              bodyEl.innerHTML = "";
-              var retryBtn = document.createElement("button");
-              retryBtn.textContent = "Couldn\u2019t load \u2014 Retry";
-              retryBtn.style.cssText = "background:none;border:1px solid var(--cp-border, #3c3a37);border-radius:6px;padding:6px 14px;color:var(--cp-text, #e8e8e8);cursor:pointer;font:inherit;";
-              retryBtn.addEventListener("click", function () {
-                delete bodyEl.dataset.cpRequested;
-                bodyEl.innerHTML = "";
-                var ld = document.createElement("div");
-                ld.className = "cp-console-loading";
-                ld.textContent = "Loading\u2026";
-                bodyEl.appendChild(ld);
-                bodyEl.dataset.cpRequested = "1";
-                cpFetchSection(folder, mId).then(function (html2) {
-                  if (cpSectionAborted || !document.querySelector(".cp-console")) return;
-                  if (html2) { bodyEl.innerHTML = html2; bodyEl.setAttribute("data-cp-loaded", "1"); document.dispatchEvent(new Event("cp:reskin")); cpReexecWiringScripts(bodyEl); cpSetSectionCount(bodyEl); cpSummarizeLeaves(bodyEl); cpPopulateSubmenu(folder, bodyEl); }
-                  else { delete bodyEl.dataset.cpRequested; bodyEl.innerHTML = ""; bodyEl.appendChild(retryBtn); }
-                });
-              });
-              bodyEl.appendChild(retryBtn);
-            }
-          });
-        });
-      }, { rootMargin: "400px" });
-      consoleDiv.querySelectorAll(".cp-console-body").forEach(function (bodyEl) {
-        cpConsoleObserver.observe(bodyEl);
-      });
+      // Sequential-expand reveal (Option A): every section starts HIDDEN, then they reveal one at a
+      // time top-down from the anchor (the jumped-to folder, else Profile at the top) as each loads —
+      // each section slides in and cascades its cards (staggerCards), so the console grows downward
+      // and the load is masked. cpStartRevealSequence owns the load order; the old IntersectionObserver
+      // lazy-load is retired (all 6 reseller sections load per build regardless).
+      consoleDiv.querySelectorAll(".cp-console-section").forEach(function (s) { s.style.display = "none"; });
       cpSyncConsoleClass();
       cpWireConsoleScroll();
       cpEnsureSubmenuScaffold();
-      cpFitConsoleTail();
-      cpScrollSpy();
       cpHeadFade();
-      cpJumpToPending();
+      cpStartRevealSequence(cpPendingFolder);
     }
 
     // Shared: set the active sidebar folder highlight by folder id (R0..R5), and drive the
@@ -779,7 +754,12 @@
       if (!cons) return;
       var secs = cons.querySelectorAll(".cp-console-section");
       if (!secs.length) return;
-      var last = secs[secs.length - 1];
+      // Last VISIBLE section — during the sequential-expand reveal the not-yet-revealed sections are
+      // display:none (offsetParent null); sizing the tail off a hidden last section would reserve a
+      // full panel's worth of empty scroll space mid-cascade.
+      var last = null;
+      for (var li = secs.length - 1; li >= 0; li--) { if (secs[li].offsetParent !== null) { last = secs[li]; break; } }
+      if (!last) return;
       var tail = cons.querySelector(".cp-console-tail");
       if (!tail) {
         tail = document.createElement("div");
@@ -789,7 +769,18 @@
       } else if (tail !== cons.lastElementChild) {
         cons.appendChild(tail);   // keep it last if a section was (re)appended after it
       }
-      var hpx = Math.max(0, cons.clientHeight - last.offsetHeight) + "px";
+      // While the reveal sequence runs, reserve a FULL viewport of tail below the last revealed
+      // section so the anchor re-pin always has enough scroll headroom to pull the anchor flush to the
+      // top — otherwise, jumping to a section near the bottom (Utilities/Meet-Me), the first
+      // above-sections can't be scrolled past (scrollTop clamps at maxScrollTop) and they paint at the
+      // top until later sections load (the "Call Center / Meet-Me pops up" flash). Use the STABLE
+      // viewport height, NOT cons.clientHeight: right after the pjax swap the panel is still sizing up
+      // (measured live at 554px on the first reveal, then 1112px) so a clientHeight-based tail is far
+      // too short exactly when headroom matters most. window.innerHeight is stable from frame 1 and is
+      // always ≥ the panel's final height (the panel is capped at vh − chrome). Tight tail (so the last
+      // section can still reach the top) is restored when the sequence completes (cpRevealBusy false).
+      var hpx = (cpRevealBusy ? Math.max(cons.clientHeight, window.innerHeight || 0)
+                              : Math.max(0, cons.clientHeight - last.offsetHeight)) + "px";
       if (tail.style.height !== hpx) tail.style.height = hpx;
     }
 
@@ -818,6 +809,21 @@
     var cpSpyRaf = 0;
     var cpSpySuppressUntil = 0;
     var cpPendingFolder = null;
+    // The section a jump landed on (non-top anchor only). Kept so that late async content growth in a
+    // section ABOVE it (e.g. Profile's leaf-summary fetch resolving after the cascade) can re-pin the
+    // anchor flush instead of letting it jump down. Re-set each reveal sequence; gated on "still near
+    // the top" at re-pin time so a user who has scrolled away isn't yanked back.
+    var cpJumpAnchorSec = null;
+    // True while the reveal sequence is running. The chain makes programmatic re-pin scrolls; if the
+    // console's scroll handler runs on those it lets the scroll-spy briefly open the accordion of the
+    // section that flickered to the top, and cpFitConsoleTail can nudge the scroll — the "Call Center
+    // pops up for a frame" flash. Gate the handler off while revealing.
+    var cpRevealBusy = false;
+    // Sequential-expand reveal: sections load + reveal STRICTLY one at a time (cpRevealStep chain) —
+    // the next section's fetch doesn't even start until the previous has loaded, revealed, and this
+    // dwell elapsed. So the top-down cascade is unmistakably sequential (Profile loads, finishes,
+    // THEN Resources…) regardless of how fast the fetches resolve. Tune the cadence here.
+    var CP_REVEAL_DWELL = 250;
     // Sticky-header fade-on-scroll (Fade + shrink). As an outgoing .cp-console-head is pushed up
     // by the next section, fade ONLY its inner content (icon+name+count) — opacity reaches 0 once
     // it's pushed up by 30% of the header height — plus a slight scale-down. The head's background
@@ -836,25 +842,170 @@
         inner.style.transform = top < 0 ? ("scale(" + (0.9 + 0.1 * p).toFixed(3) + ")") : "";
       });
     }
-    // After landing on the console from a sidebar folder click made on a list/leaf page, jump to
-    // THAT folder's section instead of the default top. Re-runs as sections lazy-load (content
-    // above the target grows, shifting it) and clears once the target section itself has loaded.
-    function cpJumpToPending() {
-      if (!cpPendingFolder) return;
-      var sec = document.querySelector('.cp-console-section[data-cp-folder="' + cpPendingFolder + '"]');
-      if (!sec) { cpPendingFolder = null; return; }
-      cpSpySuppressUntil = Date.now() + 800;
-      cpFitConsoleTail();
-      sec.scrollIntoView({ block: 'start' });
-      cpHighlightFolder(cpPendingFolder);
-      var body = sec.querySelector('.cp-console-body');
-      if (body && body.getAttribute("data-cp-loaded") === "1") cpPendingFolder = null;
+    // Load ONE console section (fetch its folder content → swap it in → re-skin + wire submenu/counts
+    // → reveal it), then invoke `done` so the strict chain (cpRevealStep) can advance to the next.
+    // Sections start hidden; cpRevealSection slides this one in JUST BEFORE the reskin so the section
+    // fade AND its card cascade both play visibly. `done` is always called (even on failure) so a bad
+    // section never stalls the chain. Reads folder + menuId from the section element.
+    function cpLoadAndRevealSection(sec, aboveAnchor, anchorSec, done) {
+      var bodyEl = sec && sec.querySelector(".cp-console-body");
+      if (!bodyEl || !document.querySelector(".cp-console")) { if (done) done(); return; }
+      if (bodyEl.getAttribute("data-cp-loaded") === "1" || bodyEl.dataset.cpRequested === "1") { if (done) done(); return; }
+      bodyEl.dataset.cpRequested = "1";
+      var folder = sec.getAttribute("data-cp-folder");
+      var mId = sec.getAttribute("data-cp-menuid") || "8";
+      cpFetchSection(folder, mId).then(function (html) {
+        if (cpSectionAborted || !sec || !document.contains(sec) || !document.querySelector(".cp-console")) { if (done) done(); return; }
+        if (html) {
+          bodyEl.innerHTML = html;
+          bodyEl.setAttribute("data-cp-loaded", "1");
+          cpRevealSection(sec, aboveAnchor);   // animated cascade for anchor + below; plain show for above
+          document.dispatchEvent(new Event("cp:reskin"));   // wrapMenuCards etc. → the section's FINAL height
+          cpReexecWiringScripts(bodyEl);
+          cpSetSectionCount(bodyEl);
+          cpSummarizeLeaves(bodyEl);
+          cpPopulateSubmenu(folder, bodyEl);
+          // An above-anchor section was just inserted above the pinned anchor. Re-pin the anchor flush
+          // to the console top — an ABSOLUTE, idempotent scroll (sets the exact position, no per-section
+          // delta to accumulate so nothing drifts), the same alignment the sidebar click uses. After
+          // reskin, so heights are final.
+          if (aboveAnchor && anchorSec && document.contains(anchorSec)) {
+            var rpCons = document.querySelector(".cp-console");
+            if (rpCons) {
+              rpCons.scrollTop += (anchorSec.getBoundingClientRect().top - rpCons.getBoundingClientRect().top);
+              // Anchor re-pinned: reveal any above-section now sitting fully off-screen above the
+              // viewport. One still poking into view (a clamp) stays hidden and is flipped by a later
+              // re-pin or by cpRevealStep on completion — so it never paints at the top.
+              cpRevealAboveOffscreen(rpCons);
+            }
+          }
+          cpFitConsoleTail();
+          cpHeadFade();
+        } else {
+          cpRevealSection(sec, aboveAnchor);
+          bodyEl.innerHTML = "";
+          var retryBtn = document.createElement("button");
+          retryBtn.textContent = "Couldn’t load — Retry";
+          retryBtn.style.cssText = "background:none;border:1px solid var(--cp-border, #3c3a37);border-radius:6px;padding:6px 14px;color:var(--cp-text, #e8e8e8);cursor:pointer;font:inherit;";
+          retryBtn.addEventListener("click", function () {
+            bodyEl.innerHTML = "";
+            var ld = document.createElement("div");
+            ld.className = "cp-console-loading";
+            ld.textContent = "Loading…";
+            bodyEl.appendChild(ld);
+            delete bodyEl.dataset.cpRequested;
+            bodyEl.removeAttribute("data-cp-loaded");
+            cpLoadAndRevealSection(sec, aboveAnchor, anchorSec, null);
+          });
+          bodyEl.appendChild(retryBtn);
+        }
+        if (done) done();
+      });
     }
+
+    // Reveal a section that started hidden (sequential expand). Two modes:
+    //  • Normal (anchor + sections BELOW it): show it + a soft slide-in; its cards then cascade via
+    //    staggerCards (skin.js). This is the visible top-down expand.
+    //  • aboveAnchor (sections ABOVE the jumped-to anchor): off-screen above the pinned anchor — just
+    //    show it, no entrance animation. The caller then RE-PINS the anchor flush (absolute scroll) so
+    //    these never paint at the top (the "Meet-Me flashes" bug) and never shift the anchor.
+    //    Idempotent (data-cp-revealed).
+    function cpRevealSection(sec, aboveAnchor) {
+      if (!sec || sec.dataset.cpRevealed === "1") return;
+      sec.dataset.cpRevealed = "1";
+      if (aboveAnchor) {
+        // Off-screen above the pinned anchor. Reveal it into LAYOUT (so it occupies space and the
+        // re-pin can scroll the anchor flush above it) but keep it INVISIBLE until the re-pin has
+        // confirmed it sits fully off-screen above the viewport. This is the belt-and-suspenders that
+        // guarantees the above-sections can never paint at the top: even if a frame's re-pin clamps
+        // (e.g. layout still settling), an invisible section shows nothing. cpLoadAndRevealSection
+        // flips it visible once its bottom is at/above the console top; cpRevealStep flips any
+        // stragglers visible on completion. No entrance animation (it's off-screen anyway). The caller
+        // scroll-compensates AFTER reskin, once the section's final height is known — compensating here
+        // would use the pre-card-wrap height and the anchor would jump.
+        sec.style.display = "";
+        sec.style.visibility = "hidden";
+        return;
+      }
+      sec.style.display = "";
+      try {
+        sec.animate(
+          [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "translateY(0)" }],
+          { duration: 340, easing: "cubic-bezier(0,0,0.2,1)" }
+        );
+      } catch (e) {}
+    }
+
+    // Flip any visibility:hidden above-anchor section to visible once it sits fully off-screen above
+    // the console viewport (its bottom at/above the console top). Called after each above re-pin so a
+    // section is only ever shown when it can't paint inside the viewport. Idempotent.
+    function cpRevealAboveOffscreen(cons) {
+      if (!cons) return;
+      var cTop = cons.getBoundingClientRect().top;
+      cons.querySelectorAll('.cp-console-section[data-cp-revealed="1"]').forEach(function (s) {
+        if (s.style.visibility !== "hidden") return;
+        if (s.getBoundingClientRect().bottom - cTop <= 1) s.style.visibility = "";
+      });
+    }
+
+    // Drive the sequential-expand order: ANCHOR section first, then DOWN to the last, then UP to fill
+    // the sections above the anchor (those reveal off-screen above the pinned anchor, so scroll-up
+    // stays seamless). Anchor = the jumped-to folder, else the top (Profile). Hands the order to the
+    // strict chain (cpRevealStep) — one section loads+reveals fully before the next begins.
+    function cpStartRevealSequence(anchorFolder) {
+      var cons = document.querySelector(".cp-console");
+      if (!cons) return;
+      cons.style.overflowAnchor = "none";   // we manage the scroll during reveal; stop the browser's own scroll-anchoring from fighting our re-pin
+      var secs = cons.querySelectorAll(".cp-console-section");
+      if (!secs.length) return;
+      var anchorIdx = 0;
+      if (anchorFolder) {
+        for (var i = 0; i < secs.length; i++) {
+          if (secs[i].getAttribute("data-cp-folder") === anchorFolder) { anchorIdx = i; break; }
+        }
+      }
+      cpHighlightFolder(secs[anchorIdx].getAttribute("data-cp-folder"));
+      cpPendingFolder = null;   // anchor is baked into `order` below; the flag's job is done
+      cpJumpAnchorSec = anchorIdx > 0 ? secs[anchorIdx] : null;   // only a non-top jump needs late re-pinning
+      cpRevealBusy = true;      // gate the scroll handler until the chain completes (cpRevealStep clears it)
+      var order = [];
+      for (var d = anchorIdx; d < secs.length; d++) order.push(d);          // anchor → bottom (visible cascade)
+      for (var u = anchorIdx - 1; u >= 0; u--) order.push(u);               // then above (fills off-screen, scroll-compensated)
+      cpRevealStep(secs, order, 0);
+    }
+
+    // Strict sequential chain: load + reveal ONE section, and only after it has revealed (+ a short
+    // dwell so it's visibly settled) start the NEXT one. Nothing overlaps — this is the "Profile
+    // loads, finishes, THEN Resources…" behaviour. Sections ABOVE the anchor (order[i] < order[0])
+    // reveal off-screen with scroll compensation and no dwell (they're not part of the visible
+    // cascade, just preloaded for seamless scroll-up). Robust to fast fetches (the dwell, not the
+    // network, sets the cadence) and to slow ones (each still waits for its own load to finish).
+    function cpRevealStep(secs, order, i) {
+      if (cpSectionAborted || !document.querySelector(".cp-console")) { cpRevealBusy = false; return; }
+      if (i >= order.length) {
+        // Sequence complete — re-enable the scroll handler + restore the proper (tight) tail. Also
+        // reveal any above-section still held invisible (one that never got confirmed off-screen, e.g.
+        // a residual clamp) so nothing is left hidden.
+        cpRevealBusy = false;
+        var cdone = document.querySelector(".cp-console");
+        if (cdone) cdone.querySelectorAll(".cp-console-section").forEach(function (s) { if (s.style.visibility) s.style.visibility = ""; });
+        cpFitConsoleTail();
+        return;
+      }
+      var sec = secs[order[i]];
+      if (!sec || !document.contains(sec)) { cpRevealStep(secs, order, i + 1); return; }
+      var aboveAnchor = order[i] < order[0];   // order[0] is the anchor's DOM index
+      cpLoadAndRevealSection(sec, aboveAnchor, secs[order[0]], function () {
+        setTimeout(function () { cpRevealStep(secs, order, i + 1); }, aboveAnchor ? 0 : CP_REVEAL_DWELL);
+      });
+    }
+
     function cpWireConsoleScroll() {
       var cons = document.querySelector(".cp-console");
       if (!cons || cons.dataset.cpSpyWired === "1") return;
       cons.dataset.cpSpyWired = "1";
       cons.addEventListener("scroll", function () {
+        if (cpRevealBusy) return;   // ignore the reveal's own re-pin scrolls (prevents the accordion-flash / scroll-nudge)
         if (cpSpyRaf) return;
         cpSpyRaf = requestAnimationFrame(function () { cpSpyRaf = 0; cpScrollSpy(); cpFitConsoleTail(); cpHeadFade(); });
       }, { passive: true });
@@ -949,7 +1100,15 @@
       // back to the lagging top-of-viewport folder mid-scroll (the sidebar "jump" on folder click).
       cpSpySuppressUntil = Date.now() + 700;
       cpFitConsoleTail();   // ensure trailing space first, so the target (esp. the last section) can reach the top
-      sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Scroll the section flush to the top of the console MANUALLY rather than scrollIntoView():
+      // the section headers are position:sticky, and scrollIntoView over-scrolls to clear the sticky
+      // header, leaving a gap above the section (the "extra space" bug). Aligning the section's top to
+      // the console's top by hand lands it flush, exactly like a manual scroll does.
+      var cons = document.querySelector('.cp-console');
+      if (cons) {
+        var target = cons.scrollTop + (sec.getBoundingClientRect().top - cons.getBoundingClientRect().top);
+        cons.scrollTo({ top: target, behavior: 'smooth' });
+      }
       cpHighlightFolder(fid);   // instant highlight; spy stays suppressed until the scroll settles
     }, true);
   }
