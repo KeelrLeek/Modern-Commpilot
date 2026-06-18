@@ -660,6 +660,7 @@
               cpReexecWiringScripts(bodyEl);
               cpSetSectionCount(bodyEl);
               cpSummarizeLeaves(bodyEl);
+              cpFitConsoleTail();
             } else {
               delete bodyEl.dataset.cpRequested;
               bodyEl.innerHTML = "";
@@ -689,6 +690,72 @@
         cpConsoleObserver.observe(bodyEl);
       });
       cpSyncConsoleClass();
+      cpWireConsoleScroll();
+      cpFitConsoleTail();
+      cpScrollSpy();
+    }
+
+    // Shared: set the active sidebar folder highlight by folder id (R0..R5).
+    function cpHighlightFolder(fid) {
+      if (!fid) return;
+      document.querySelectorAll('form[name="leftNavForm"] a.leftnavfolder, form[name="leftNavForm"] a.leftnavfolderopen').forEach(function (o) {
+        var on = o.getAttribute("data-cp-folder") === fid;
+        o.classList.toggle("leftnavfolderopen", on);
+        o.classList.toggle("leftnavfolder", !on);
+      });
+    }
+
+    // Trailing space so the LAST section can scroll all the way to the top of the panel
+    // (otherwise the console bottoms out with the last section only partway up). A trailing
+    // SPACER div is used, not padding-bottom — padding-bottom is NOT counted as scrollable
+    // overflow in a flex column (verified live: it never grew scrollHeight), whereas a child
+    // element always does. Height = console viewport − last section height; recomputed as
+    // sections lazy-load and on scroll, so it self-adjusts to real heights and viewport size.
+    function cpFitConsoleTail() {
+      var cons = document.querySelector(".cp-console");
+      if (!cons) return;
+      var secs = cons.querySelectorAll(".cp-console-section");
+      if (!secs.length) return;
+      var last = secs[secs.length - 1];
+      var tail = cons.querySelector(".cp-console-tail");
+      if (!tail) {
+        tail = document.createElement("div");
+        tail.className = "cp-console-tail";
+        tail.style.cssText = "flex:0 0 auto;pointer-events:none;";
+        cons.appendChild(tail);
+      } else if (tail !== cons.lastElementChild) {
+        cons.appendChild(tail);   // keep it last if a section was (re)appended after it
+      }
+      var hpx = Math.max(0, cons.clientHeight - last.offsetHeight) + "px";
+      if (tail.style.height !== hpx) tail.style.height = hpx;
+    }
+
+    // Scroll-spy: highlight the sidebar folder for the section currently pinned at the top
+    // of the panel — the last section whose top has reached the active line below the top.
+    function cpScrollSpy() {
+      var cons = document.querySelector(".cp-console");
+      if (!cons) return;
+      var secs = cons.querySelectorAll(".cp-console-section");
+      if (!secs.length) return;
+      var consTop = cons.getBoundingClientRect().top;
+      var line = 90;
+      var active = secs[0];
+      for (var i = 0; i < secs.length; i++) {
+        if (secs[i].getBoundingClientRect().top - consTop <= line) active = secs[i];
+        else break;
+      }
+      cpHighlightFolder(active.getAttribute("data-cp-folder"));
+    }
+
+    var cpSpyRaf = 0;
+    function cpWireConsoleScroll() {
+      var cons = document.querySelector(".cp-console");
+      if (!cons || cons.dataset.cpSpyWired === "1") return;
+      cons.dataset.cpSpyWired = "1";
+      cons.addEventListener("scroll", function () {
+        if (cpSpyRaf) return;
+        cpSpyRaf = requestAnimationFrame(function () { cpSpyRaf = 0; cpScrollSpy(); cpFitConsoleTail(); });
+      }, { passive: true });
     }
 
     function cpSyncConsoleClass() {
@@ -765,12 +832,9 @@
       if (!sec) return;
       e.preventDefault();
       e.stopImmediatePropagation();
+      cpFitConsoleTail();   // ensure trailing space first, so the target (esp. the last section) can reach the top
       sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      // sync the sidebar active highlight to the clicked folder
-      document.querySelectorAll('form[name="leftNavForm"] a.leftnavfolder, form[name="leftNavForm"] a.leftnavfolderopen').forEach(function (o) {
-        o.classList.remove('leftnavfolderopen'); o.classList.add('leftnavfolder');
-      });
-      a.classList.remove('leftnavfolder'); a.classList.add('leftnavfolderopen');
+      cpHighlightFolder(fid);   // instant highlight; the scroll-spy keeps it in sync as the smooth scroll settles
     }, true);
   }
 })();

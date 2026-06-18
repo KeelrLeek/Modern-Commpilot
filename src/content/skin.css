@@ -1854,6 +1854,19 @@ html.cp-console-active body {
   overflow: hidden !important;
 }
 
+/* Drop the both-edges scrollbar gutter in console mode. The global
+   html{scrollbar-gutter:stable both-edges} reserves ~15px on each side so the
+   centered list-page layout doesn't shift when its scrollbar appears — but in
+   console mode the body is overflow:hidden (no scrollbar), so that reserved gutter
+   is just dead space that pushed the fixed top bar (left:12/right:12) out to 27px.
+   Resetting to auto makes the top bar's side gutters equal its 12px top gutter.
+   Safe for the list-page dropdown/tooltip popups: their gutter compensation is a
+   runtime measure-and-subtract, so it self-corrects to zero drift when the gutter
+   is absent (see gotcha-scrollbar-gutter-fixed-drift). */
+html.cp-console-active {
+  scrollbar-gutter: auto !important;
+}
+
 /* Full-width floating curved top bar — spans the page, not capped to 1440px */
 html.cp-console-active body > table:first-of-type {
   display: flex !important;
@@ -1928,21 +1941,43 @@ html.cp-console-active td[colspan="3"] > table {
 html.cp-console-active body > table[height="100%"] {
   box-sizing: border-box !important;
   width: 100% !important;
-  max-width: 1440px !important;
+  /* 1488 = v5's 1440px shell (sidebar 220 + 12 gap + console 1208) PLUS the 48px the
+     cells lose to the table's inset (12px table padding + 12px outer border-spacing =
+     24px per side ×2). Net: the visible sidebar+console span is 1440 and the console
+     panel is 1208px — exactly v5's width. (Was 1440, which gave a 1160px console.) */
+  max-width: 1488px !important;
   height: auto !important;
   margin: 12px auto 0 !important;
   border-collapse: separate !important;
   border-spacing: 12px 0 !important;
 }
 
+/* Collapse the legacy spacer ROW + spacer CELLS so the sidebar↔content gap and
+   the header↔panels gap are a uniform 12px (matching v5). The legacy layout puts
+   a 12px-tall spacer row above the sidebar/content row, and TWO 6px spacer cells
+   between the sidebar (width 18%) and content (width 82%) cells. With the table's
+   12px border-spacing that read as 24px vertical and 48px horizontal. Hiding every
+   direct cell that isn't the 18%/82% panel collapses both (an all-cells-hidden row
+   takes 0 height). Direct-child combinators keep nested content-table cells safe. */
+html.cp-console-active body > table[height="100%"] > tbody > tr > td:not([width="18%"]):not([width="82%"]) {
+  display: none !important;
+}
+
 /* Sidebar — 220px floating rounded panel */
 html.cp-console-active td.headandfoot[width="18%"] {
   vertical-align: top !important;
-  width: 232px !important;
+  /* Pin to v5's 220px. In auto table-layout a cell's `width` is only a hint:
+     non-greedy content let the sidebar swell to 248, fully-greedy content
+     collapsed it to its 202px min-content floor. min-width is a hard floor and
+     the greedy content cell (width:100% below) caps the top → exactly 220px. */
+  width: 220px !important;
+  min-width: 220px !important;
   box-sizing: border-box !important;
   border-radius: 16px !important;
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28) !important;
-  background: var(--cp-surface, #2a2825) !important;
+  /* Same color as the console panel — v5 puts the sidebar AND console both on --panel
+     (#232220); only the top bar is the lighter --cp-surface (#2a2825). */
+  background: var(--cp-surface-low, #232220) !important;
   border: 1px solid var(--cp-border, #3c3a37) !important;
   padding: 8px !important;
 }
@@ -1950,6 +1985,9 @@ html.cp-console-active td.headandfoot[width="18%"] {
 /* Content cell — floating rounded panel, flex column so breadcrumb stays on top */
 html.cp-console-active td[width="82%"] {
   vertical-align: top !important;
+  /* Greedy so it absorbs all remaining width, holding the sidebar at its 220px
+     min-width (see the sidebar rule above) — without this the sidebar swells. */
+  width: 100% !important;
   box-sizing: border-box !important;
   border-radius: 16px !important;
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28) !important;
@@ -1996,14 +2034,18 @@ html.cp-console-active .cp-breadcrumb a + a::before {
    shell overflows the viewport, the body auto-scrolls to compensate, and that tucks the
    header above the top edge + slams the panel bottom flush (the "cut off" bug). */
 html.cp-console-active .cp-console {
-  max-height: calc(100vh - 184px) !important;
+  max-height: calc(100vh - 172px) !important;
   overflow-y: auto !important;
   /* No top padding: the sticky section head pins flush to the console top. An 8px top
      padding left an 8px strip above the pinned head where scrolling content (BASIC/
      ADVANCED) leaked through. The 8px was folded into the max-height offset (192→184)
-     so the 12px bottom gap is unchanged. */
+     so the 12px bottom gap is unchanged. Then collapsing the legacy spacer row (see the
+     main shell-table rule) moved the panels up 12px, so the offset dropped another 12
+     (184→172) to keep the bottom gap at a uniform 12px. */
   padding: 0 22px 36px !important;
-  gap: 24px !important;
+  /* 6px inter-section gap to match v5's tight `.section{margin-top:6}` rhythm (was 24px).
+     With the section body's bottom padding zeroed, last-card→next-head ≈ 16px. */
+  gap: 6px !important;
   display: flex !important;
   flex-direction: column !important;
 }
@@ -2044,12 +2086,23 @@ html.cp-console-active .cp-console::-webkit-scrollbar-track {
   padding: 16px 22px 12px !important;
   border-bottom: none !important;
 }
+/* Section-header icon (user pick, Option A — plain icon): the per-folder sidebar glyph,
+   set as a mask-image by skin.js injectAssetCss keyed by the section's data-cp-folder
+   (R0..R5), recoloured to the lavender accent via background-color. Replaces the old
+   4×24 accent bar. (mask-image can't be live-tested under the page CSP — the mask
+   MECHANISM was validated on a temp element; the ::before is verified on reload.) */
 .cp-console-head::before {
   content: "" !important;
-  width: 4px !important;
-  height: 24px !important;
-  background: var(--cp-primary, #C6A8E8) !important;
-  border-radius: 2px !important;
+  width: 26px !important;
+  height: 26px !important;
+  background-color: var(--cp-primary, #C6A8E8) !important;
+  -webkit-mask-repeat: no-repeat !important;
+  mask-repeat: no-repeat !important;
+  -webkit-mask-position: center !important;
+  mask-position: center !important;
+  -webkit-mask-size: contain !important;
+  mask-size: contain !important;
+  border-radius: 0 !important;
   flex: 0 0 auto !important;
 }
 .cp-console-head::after {
@@ -2070,7 +2123,9 @@ html.cp-console-active .cp-console::-webkit-scrollbar-track {
 .cp-console-body td.screenName { display: none !important; }
 .cp-console-body {
   min-height: 48px !important;
-  padding: 6px 2px !important;
+  /* bottom padding 0 so section-to-section spacing is driven by the last card's margin
+     + the console's 6px gap (v5 rhythm), not extra body padding. */
+  padding: 6px 2px 0 !important;
 }
 .cp-console-loading {
   color: var(--cp-text-muted) !important;
@@ -2106,13 +2161,17 @@ html.cp-console-active .cp-console::-webkit-scrollbar-track {
   color: var(--cp-text) !important;
 }
 .cp-console-count {
+  /* Count pill = v5 `.count`: 12px/700 lavender on rgba(110,76,150,0.24), padding
+     2px 11px, full radius. margin-left:0 so the only gap to the title is the head's
+     12px flex gap (was a 10px margin ON TOP of that = 22px, too far). Vertically
+     centred with the title via the head's align-items:center; line-height kept snug. */
   display: inline-block !important;
-  margin-left: 10px !important;
-  padding: 1px 9px !important;
+  margin-left: 0 !important;
+  padding: 2px 11px !important;
   border-radius: 999px !important;
-  background: rgba(110, 76, 150, 0.22) !important;
+  background: rgba(110, 76, 150, 0.24) !important;
   color: var(--cp-primary, #C6A8E8) !important;
-  font: 700 0.72rem/1.6 "Nunito", sans-serif !important;
+  font: 700 12px/1.4 "Nunito", sans-serif !important;
   vertical-align: middle !important;
 }
 .cp-console-count[hidden] { display: none !important; }
@@ -2152,27 +2211,42 @@ html.cp-console-active .cp-console::-webkit-scrollbar-track {
 }
 
 /* ============================================================
-   Console card spacing — aligned to the v5 mockup. The legacy
-   .cp-menu-card is capped at max-width:360px (skin.css ~486) for
-   narrow plain menus; in the console that left cards floating in
-   ~525px columns with a huge dead gap. We RAISE the cap to ~510px
-   (≈ half the ~1068px panel minus the gap), so:
-     • TWO-column sections (Profile/Resources): each card fills its
-       ~half column → BASIC | ADVANCED line up like v5's 1fr 1fr.
-     • ONE-column sections (Services/Call Center/Meet-Me/Utilities):
-       cards stay HALF-width, left-aligned — matching v5, which uses
-       a 2-col grid with an EMPTY right column (NOT full-bleed cards).
-   Plus v5 padding + type scale (13.5/12px) and a 30px inter-column
-   gap (15px padding on the 2nd column + 15px slack left on the 1st).
-   Console-scoped so plain legacy menu pages keep the 360px cap.
+   Console card spacing — aligned to the v5 mockup. Plain legacy
+   menus keep the base 360px .cp-menu-card cap; in the console we
+   cap at HALF the column — calc(50% - 16px) — so a lone card is
+   half-width, left-aligned, matching v5 (which renders single-col
+   sections as a 2-col grid with an EMPTY right column). The 16px
+   offset makes a single-col card (½ of the full ~1100px column)
+   equal a 2-col card (½-column minus its 14px gutter) → card width
+   is CONSISTENT across single- and two-column sections. (Was a flat
+   510px, which made single-col cards 24px NARROWER than the 534px
+   2-col cards — the inconsistency the user spotted.) Two-column
+   sections override this to max-width:none and FILL their column
+   (see the inter-column rule below). Plus v5 padding + type scale
+   (13.5/12px). Console-scoped so plain menus keep the 360px cap.
    ============================================================ */
 html.cp-console-active .cp-menu-card {
-  max-width: 510px !important;
+  max-width: calc(50% - 16px) !important;
   width: auto !important;
   margin: 0 0 10px 0 !important;
 }
+/* Inter-column (BASIC | ADVANCED) gap = 30px, matching v5's grid gap. The half-column
+   cap (above) is REQUIRED for single-column sections (keeps their lone card half-width,
+   not full-bleed), but in TWO-column sections that cap left the card ~40px short of the
+   550px column's right edge → a 55px inter-card gap. So in 2-col sections ONLY, let the cards
+   FILL their column (max-width:none) and split a 14px+14px column padding = a clean 30px
+   gap with equal cards. Scoped via the adjacent-sibling :has so SINGLE-column sections
+   (no sibling cp-menu-col) keep the 510 cap — the safe, scoped form of the memory's
+   "never blanket max-width:none" rule. */
+html.cp-console-active td.cp-menu-col:has(+ td.cp-menu-col) {
+  padding-right: 14px !important;
+}
 html.cp-console-active td.cp-menu-col + td.cp-menu-col {
-  padding-left: 15px !important;
+  padding-left: 14px !important;
+}
+html.cp-console-active td.cp-menu-col:has(+ td.cp-menu-col) .cp-menu-card,
+html.cp-console-active td.cp-menu-col + td.cp-menu-col .cp-menu-card {
+  max-width: none !important;
 }
 html.cp-console-active .cp-card-title a.navMenuItem {
   padding: 11px 14px 2px 14px !important;
@@ -2182,4 +2256,72 @@ html.cp-console-active .cp-card-desc {
   padding: 0 14px 11px 14px !important;
   font-size: 12px !important;
   line-height: 1.4 !important;
+}
+
+/* Card-to-card vertical gap = 10px (matching v5). The legacy column stacked THREE
+   spacers between cards: the card's 10px margin-bottom (the v5-correct one) + the
+   column tbody's 8px flex gap + the card-row td's 1px+1px padding = 20px. Zero the
+   flex gap and the card-cell padding so the 10px card margin stands alone. The
+   td-padding reset is scoped with :has(.cp-menu-card) so the menuCategory
+   (BASIC/ADVANCED) label cell — which relies on its own padding — is untouched. */
+html.cp-console-active td.cp-menu-col > table > tbody {
+  gap: 0 !important;
+  row-gap: 0 !important;
+}
+html.cp-console-active td.cp-menu-col > table > tbody > tr > td:has(.cp-menu-card) {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Section-header → BASIC/ADVANCED label vertical spacing = v5 (~12px). The fetched
+   legacy menu table opens with two spacer rows (<td height="15"> then <td height="5">)
+   before the menu-column row, and the menuCategory cell carried a 24px top padding —
+   together ~50px of dead space below the section head (vs v5's ~12px). Hide the
+   outer-table spacer rows (the `.cp-console-body > table` direct-child path keeps the
+   inner card tables safe — their rows are nested under td.cp-menu-col) and trim the
+   label padding to 6px top / 12px bottom, so head→label ≈ 12px and label→first-card
+   ≈ 12px, matching v5. */
+html.cp-console-active .cp-console-body > table > tbody > tr:has(> td[height]) {
+  display: none !important;
+}
+
+/* BASIC/ADVANCED label = v5: a flush-left flex row [bar][label][rule] on ONE line,
+   vertically centred. The legacy menuCategory was a position:relative cell with an
+   ABSOLUTE bar (::before at top:24/left:24) and an ABSOLUTE underline (::after at
+   bottom:0). Trimming the cell's top padding to 6px left the bar hanging low and the
+   rule sitting BELOW the text (the user-flagged bug). Make the cell a flex row and
+   demote BOTH pseudos to static so they become inline flex items: ::before is the bar,
+   ::after is the rule that fills the remaining width (border-bottom, vertically
+   centred). 0 left padding flushes the bar to the column edge, aligned with the cards.
+   (Pseudo-element layout can't be live-tested under the page CSP — verified on reload.) */
+html.cp-console-active .menuCategory {
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+  padding: 6px 0 12px 0 !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+}
+html.cp-console-active .menuCategory::before {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  margin: 0 !important;
+  width: 3px !important;
+  height: 13px !important;
+  background: var(--cp-primary, #C6A8E8) !important;
+  border-radius: 2px !important;
+  flex: 0 0 auto !important;
+}
+html.cp-console-active .menuCategory::after {
+  position: static !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: auto !important;
+  max-width: none !important;
+  height: 0 !important;
+  margin: 0 !important;
+  background: none !important;
+  border-bottom: 1px solid var(--cp-outline) !important;
+  flex: 1 1 auto !important;
 }

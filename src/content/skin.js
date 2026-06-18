@@ -58,6 +58,19 @@ form[name="leftNavForm"] table tr:nth-child(${row}) a::before {
 }`;
   }
 
+  // Console section-header icons: reuse the same nav icons (navIcons rows 2..7 map to
+  // the R0..R5 folders) as a mask-image on each .cp-console-head::before, so the header
+  // shows the section's sidebar glyph recoloured to the accent (via background-color in
+  // skin.css). The ::before box + mask sizing live in skin.css; here we set the image.
+  ["R0", "R1", "R2", "R3", "R4", "R5"].forEach((folder, i) => {
+    const path = navIcons[i + 2];
+    css += `
+.cp-console-section[data-cp-folder="${folder}"] .cp-console-head::before {
+  -webkit-mask-image: url("${url(path)}") !important;
+  mask-image: url("${url(path)}") !important;
+}`;
+  });
+
   // Footer icon background-images (injected early so they're ready when
   // moveHeaderLinks moves the <a> nodes and adds data-cp-icon attributes).
   const footerIcons = [
