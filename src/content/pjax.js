@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.58";
+  var CP_PJAX_VERSION = "0.2.59";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
 
   try { history.replaceState({ cpNav: { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } } }, "", location.href); } catch (e) {}
@@ -569,7 +569,12 @@
       if (e.shiftKey) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      var nav = cpLastNav || { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
+      // Fall back to the persisted cp-last-nav (sessionStorage) before the reseller-home default: after a
+      // reload-button recovery the page is fresh, so the in-memory cpLastNav is null even though we ARE deep
+      // in an SP/group/user — without this, F5 right after the reload button jumps all the way to reseller.
+      var nav = cpLastNav;
+      if (!nav) { try { nav = JSON.parse(sessionStorage.getItem("cp-last-nav") || "null"); } catch (e) {} }
+      if (!nav || !nav.url) nav = { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
       console.log("[pjax] reload intercepted → replay", nav.url);
       try { window.redirectPost(nav.url, nav.params || {}); } catch (err) { console.warn("[pjax] reload replay failed", err); }
     }, true);
