@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.46";
+  var CP_PJAX_VERSION = "0.2.51";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
 
   try { history.replaceState({ cpNav: { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } } }, "", location.href); } catch (e) {}
@@ -178,7 +178,16 @@
         typeof u === "string" &&
         (u.indexOf("folder_contents.jsp") !== -1 ||
           /\/commpilot\/Reseller\/[A-Za-z]+\/(index\.jsp)?$/.test(u) ||
+          // SP-scoped list landings (e.g. the SP "Groups" card → /ServiceProvider/Members/, Users, etc.).
+          // These serve real content to a plain background fetch (verified: Members returns the full list,
+          // not a shell), so they ride the SAME fetch path as reseller lists — no iframe (cpNeedsFrame stays
+          // false for them). Only list LANDINGS match (one section segment + optional index.jsp); deeper
+          // /Modify/ edit pages don't.
+          /\/commpilot\/ServiceProvider\/[A-Za-z]+\/(index\.jsp)?$/.test(u) ||
           /\/ServiceProviders\/Modify\//.test(u) ||
+          // GROUP entry (clicking a group row). The URL depends on which list you came from: the SP Groups
+          // list → /ServiceProvider/Members/Modify/, the reseller Groups list → /Reseller/Groups/Modify/.
+          /\/(?:ServiceProvider\/Members|Reseller\/Groups)\/Modify\//.test(u) ||
           u.indexOf("/commpilot/Common/page.jsp") !== -1 ||
           u.indexOf("/commpilot/Common/sort.jsp") !== -1)
       );
@@ -279,7 +288,10 @@
     // fetch); plain fetch for everything reseller (proven, leaves the working console path untouched).
     function cpNeedsFrame(url, params) {
       if (typeof url !== "string") return false;
-      if (/\/ServiceProviders\/Modify\//.test(url)) return true;
+      // Entity-context entries gate folder_contents behind a NAVIGATION (XHR shells), so use the iframe.
+      if (/\/ServiceProviders\/Modify\//.test(url)) return true;                          // Service Provider entry
+      if (/\/(?:ServiceProvider\/Members|Reseller\/Groups)\/Modify\//.test(url)) return true;  // Group entry (from SP or reseller list)
+      // Non-reseller folder menus (S/G/… not R) also shell to XHR → iframe. Reseller (R) stays on plain fetch.
       if (url.indexOf("folder_contents.jsp") !== -1 && params && params.folder && !/^R\d+$/.test(params.folder)) return true;
       return false;
     }
@@ -396,6 +408,12 @@
                 var fNav = doc.querySelector('form[name="leftNavForm"]');
                 var liveNav = document.querySelector('form[name="leftNavForm"]');
                 if (fNav && liveNav && cpSidebarSig(fNav) !== cpSidebarSig(liveNav)) {
+                  // LEVEL CHANGE (e.g. group → SP via the breadcrumb): drop any aggregation state still in
+                  // flight from the OLD level. Otherwise the new level's cpBuildConsole hits its
+                  // `aggLevel && cpAggActive` dedup guard (cpAggActive lingering from the level we just left)
+                  // and BAILS — so e.g. clicking the SP pill mid-group-build shows the SP's raw single-folder
+                  // menu instead of the aggregated console until a later rebuild clears the flag.
+                  cpAggEnd();
                   liveNav.innerHTML = fNav.innerHTML;
                   cpLiveNav = liveNav;
                 }
@@ -750,12 +768,20 @@
       });
     }
     // Navigate to a breadcrumb segment's level (ancestor segments are clickable links). The auth-trail
-    // source links are consumed by skin.js after the crumb is built, so we resolve targets by position:
-    // the top segment (idx 0) is the reseller home; a Service-Provider ancestor (when deeper levels exist)
-    // re-enters via the recorded cpSpEntry; everything falls back to reseller home. Routes through cpHook.
-    function cpCrumbNav(idx) {
+    // source links are consumed before the pills are built, so we resolve targets from the trail itself:
+    //   idx 0  → reseller home.
+    //   idx 1  → the Service-Provider ancestor. The SP entry KEY is the SP's display name (observed live:
+    //            {key:'IT Pros', P_key:'IT Pros'}), which is exactly this pill's text — so we re-enter the
+    //            group's ACTUAL parent SP by name, regardless of whether an SP was entered this session
+    //            (cpSpEntry can be null when the group was reached straight from the reseller list, or point
+    //            at a DIFFERENT SP). This fixes the SP pill landing on reseller / the wrong SP.
+    //   deeper → not yet wired by name (revisit with the User level); fall back to cpSpEntry, else reseller.
+    function cpCrumbNav(idx, trail) {
       try {
-        if (idx > 0 && cpSpEntry && cpSpEntry.url) { window.redirectPost(cpSpEntry.url, cpSpEntry.params || {}); return; }
+        trail = trail || [];
+        if (idx === 0) { window.redirectPost("/commpilot/Common/folder_contents.jsp", { folder: "R0", menuId: "8" }); return; }
+        if (idx === 1 && trail[1]) { window.redirectPost("/commpilot/Reseller/ServiceProviders/Modify/index.jsp", { key: trail[1], P_key: trail[1] }); return; }
+        if (cpSpEntry && cpSpEntry.url) { window.redirectPost(cpSpEntry.url, cpSpEntry.params || {}); return; }
         window.redirectPost("/commpilot/Common/folder_contents.jsp", { folder: "R0", menuId: "8" });
       } catch (e) {}
     }
@@ -794,8 +820,8 @@
           pill.setAttribute("role", "link");
           pill.setAttribute("tabindex", "0");
           (function (idx) {
-            pill.addEventListener("click", function (e) { e.preventDefault(); cpCrumbNav(idx); });
-            pill.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cpCrumbNav(idx); } });
+            pill.addEventListener("click", function (e) { e.preventDefault(); cpCrumbNav(idx, trail); });
+            pill.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cpCrumbNav(idx, trail); } });
           })(i);
         }
         crumb.appendChild(pill);
@@ -847,11 +873,12 @@
       });
       if (folders.length === 0) return;
       // LEVEL GATE: build the aggregated one-scroll console where we can retrieve every folder's content.
-      // Reseller (R-ids) loads via plain background fetch. The Service-Provider level (S-ids) loads each
-      // folder via cpAggNavigate (the BARE {folder,menuId} sidebar-click params over cpFollowFrame — see
-      // the agg transport notes). Group/User (other prefixes) stay native until their entry is wired —
-      // widen this set (e.g. [RSGU]) as each lands.
-      if (!folders.every(function (f) { return /^[RS]\d+$/.test(f.folder); })) return;
+      // Reseller (R-ids) loads via plain background fetch. The Service-Provider (S-ids) and Group (G-ids)
+      // levels load each folder via cpAggNavigate (the BARE {folder,menuId} sidebar-click params over
+      // cpFollowFrame — see the agg transport notes); the menuId is read per-folder from the wiring (R=8,
+      // S=2, G=1), so the same machinery serves every level. User (other prefixes) stay native until their
+      // entry is wired — widen this set (e.g. [RSGU]) as each lands.
+      if (!folders.every(function (f) { return /^[RSG]\d+$/.test(f.folder); })) return;
       var aggLevel = !folders.every(function (f) { return /^R\d+$/.test(f.folder); });
       // SWITCHER (debug/fallback): at non-reseller levels, localStorage.cpSpAgg === "0" forces the
       // single-folder mode (skip the aggregated build → native menu in the shell, sidebar clicks

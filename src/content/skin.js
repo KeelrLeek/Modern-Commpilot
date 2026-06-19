@@ -53,6 +53,8 @@ window.addEventListener("message", function (e) {
     meetme: "assets/icons/meetme.svg",
     utilities: "assets/icons/utilities.svg",
     "comm-barring": "assets/icons/comm-barring.svg",
+    callingplan: "assets/icons/calling-plan.svg",
+    unknown: "assets/icons/unknown.svg",
   };
 
   let css = "";
@@ -1936,15 +1938,19 @@ function cpRevealCloak() {
  */
 function cpFolderIconKey(name) {
   var n = (name || "").toLowerCase().replace(/[^a-z]/g, "");
-  if (!n) return "resources";
+  if (!n) return "unknown";
   if (n.indexOf("profile") !== -1) return "profile";
   if (n.indexOf("resource") !== -1) return "resources";
   if (n.indexOf("barring") !== -1) return "comm-barring";
+  if (n.indexOf("calling") !== -1) return "callingplan";
   if (n.indexOf("callcenter") !== -1) return "callcenter";
   if (n.indexOf("meetme") !== -1 || n.indexOf("conferenc") !== -1) return "meetme";
   if (n.indexOf("utilit") !== -1) return "utilities";
   if (n.indexOf("service") !== -1) return "services";
-  return "resources";
+  // No match → the distinct "unknown" glyph (a ?), NOT the folder/resources icon — so a folder
+  // that still needs a real glyph (e.g. a new level's folder) is obvious at a glance, not silently
+  // borrowing another icon. Add a name case + iconFile entry when wiring that folder's real glyph.
+  return "unknown";
 }
 function tagSidebarIcons() {
   var folders = document.querySelectorAll(
