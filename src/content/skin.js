@@ -56,6 +56,7 @@ window.addEventListener("message", function (e) {
     callingplan: "assets/icons/calling-plan.svg",
     "incoming-calls": "assets/icons/incoming-calls.svg",
     "outgoing-calls": "assets/icons/outgoing-calls.svg",
+    "call-control": "assets/icons/call-control.svg",
     messaging: "assets/icons/messaging.svg",
     "client-apps": "assets/icons/client-apps.svg",
     unknown: "assets/icons/unknown.svg",
@@ -1946,6 +1947,7 @@ function cpFolderIconKey(name) {
   if (n.indexOf("profile") !== -1) return "profile";
   if (n.indexOf("resource") !== -1) return "resources";
   if (n.indexOf("barring") !== -1) return "comm-barring";
+  if (n.indexOf("callcontrol") !== -1) return "call-control";
   if (n.indexOf("incoming") !== -1) return "incoming-calls";
   if (n.indexOf("outgoing") !== -1) return "outgoing-calls";
   if (n.indexOf("messaging") !== -1) return "messaging";

@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.55";
+  var CP_PJAX_VERSION = "0.2.58";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
 
   try { history.replaceState({ cpNav: { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } } }, "", location.href); } catch (e) {}
@@ -39,6 +39,11 @@
   var cpConsoleObserver = null;
   var cpFrameSeq = 0;
   var cpSpEntry = null;
+  // The CURRENT entity id (e.g. a user id) for the breadcrumb's last pill. Captured from each pjax swap's
+  // FETCHED doc (cpHook) because after the swap the live header keeps the PREVIOUS entity (it isn't swapped)
+  // and the fresh content cell has none — so neither live source is reliable. null = no pjax swap yet this
+  // page load (cpBuildConsole then reads the live header, which IS fresh on an initial/recovery load).
+  var cpCurEntity = null;
   var cpAggActive = false;
   var cpAggToken = null;
   var cpAggAnchorFolder = null;
@@ -386,6 +391,12 @@
                 return;
               }
               var doc = res.doc;
+
+              // Stash the FRESH current entity (user/group id) from the fetched doc so cpBuildConsole's
+              // breadcrumb can append it — the live header keeps the previous entity across pjax navs, and the
+              // swapped content cell has none. Empty string when the new level has no entity (reseller/SP/group)
+              // → cpBuildConsole appends no id pill (and the stale header value is ignored).
+              try { var _fe = doc.querySelector("span.headerAuthLevel"); cpCurEntity = _fe ? (_fe.textContent || "").replace(/^\s*:\s*/, "").trim() : ""; } catch (e) { cpCurEntity = ""; }
 
               // Token refresh from response
               var newTok = doc.getElementsByName("formtokenserial")[0];
@@ -780,12 +791,20 @@
     //            group's ACTUAL parent SP by name, regardless of whether an SP was entered this session
     //            (cpSpEntry can be null when the group was reached straight from the reseller list, or point
     //            at a DIFFERENT SP). This fixes the SP pill landing on reseller / the wrong SP.
-    //   deeper → not yet wired by name (revisit with the User level); fall back to cpSpEntry, else reseller.
+    //   idx 2  → the GROUP ancestor (only clickable at the User level, where group is no longer current).
+    //            The group entry KEY is the `SP>%Group` composite (observed: the user key is
+    //            `SP>%Group>%User`), rebuilt from the trail texts trail[1]+">%"+trail[2]; re-enters the group
+    //            via its Modify entry.
+    //   idx 3  → the USERS-LIST ancestor (User level) → the group's Users list /Group/Members/ (the group
+    //            context is live, so a plain list nav restores it).
+    //   deeper → fall back to cpSpEntry, else reseller.
     function cpCrumbNav(idx, trail) {
       try {
         trail = trail || [];
         if (idx === 0) { window.redirectPost("/commpilot/Common/folder_contents.jsp", { folder: "R0", menuId: "8" }); return; }
         if (idx === 1 && trail[1]) { window.redirectPost("/commpilot/Reseller/ServiceProviders/Modify/index.jsp", { key: trail[1], P_key: trail[1] }); return; }
+        if (idx === 2 && trail[1] && trail[2]) { var gk = trail[1] + ">%" + trail[2]; window.redirectPost("/commpilot/ServiceProvider/Members/Modify/index.jsp", { key: gk, P_key: gk }); return; }
+        if (idx === 3) { window.redirectPost("/commpilot/Group/Members/", {}); return; }
         if (cpSpEntry && cpSpEntry.url) { window.redirectPost(cpSpEntry.url, cpSpEntry.params || {}); return; }
         window.redirectPost("/commpilot/Common/folder_contents.jsp", { folder: "R0", menuId: "8" });
       } catch (e) {}
@@ -935,12 +954,16 @@
         if (existingCrumb) existingCrumb.querySelectorAll(".cp-bc-seg, .cp-bc-cur, a").forEach(function (a) { pushSeg((a.textContent || "").trim()); });
       }
       if (!trail.length) trail = ["Reseller"];
-      // Current ENTITY (e.g. a user id) lives in span.headerAuthLevel — append it as the current pill (like
-      // the live site's "… Users : id"). Scope the lookup to the FRESHLY-swapped content cell, NOT the whole
-      // document: a stale entity span from a previous user/group page lingers in the un-swapped header after a
-      // pjax nav, and reseller/SP consoles have no current entity, so a document-wide read appended the OLD id.
-      var _tl = trail.length, _ce = contentCell.querySelector("span.headerAuthLevel");
-      if (_ce) pushSeg((_ce.textContent || "").replace(/^\s*:\s*/, "").trim());
+      // Current ENTITY (e.g. a user id) → the breadcrumb's last pill (like the live site's "… Users : id").
+      // The entity lives in span.headerAuthLevel, which is in the HEADER — but the header isn't swapped on a
+      // pjax nav, so it holds the PREVIOUS entity (stale), and the fresh content cell has none. So prefer
+      // cpCurEntity, stashed by the last cpHook swap from the FETCHED doc (fresh per level; "" for reseller/
+      // SP/group). Only on a fresh page load (no swap yet — cpCurEntity null) is the live header reliable.
+      var _tl = trail.length;
+      var _ent = (cpCurEntity !== null)
+        ? cpCurEntity
+        : (function () { var h = document.querySelector("span.headerAuthLevel"); return h ? (h.textContent || "").replace(/^\s*:\s*/, "").trim() : ""; })();
+      if (_ent) pushSeg(_ent);
       var crumb = cpBuildPillCrumb(trail, trail.length > _tl);   // route · clickable ancestors · arrows · current
       folders.forEach(function (f) {
         var sec = document.createElement("section");
