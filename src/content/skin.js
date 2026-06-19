@@ -39,38 +39,47 @@ window.addEventListener("message", function (e) {
   if (document.getElementById("cp-skin-assets")) return;
   const url = (p) => chrome.runtime.getURL(p);
 
-  // Map each left-nav row (1 = "OPTIONS:" label, 2..7 = items) to its icon.
-  const navIcons = {
-    2: "assets/icons/profile.svg",
-    3: "assets/icons/resources.svg",
-    4: "assets/icons/services.svg",
-    5: "assets/icons/callcenter.svg",
-    6: "assets/icons/meetme.svg",
-    7: "assets/icons/utilities.svg",
+  // Folder glyphs, one palette for the sidebar AND the console section headers. The SIDEBAR icon is
+  // keyed by data-cp-icon — a NAME-derived key skin.js stamps on each folder (tagSidebarIcons) — NOT
+  // by row position. Positional (tr:nth-child) keying broke at the Service-Provider level: its 5
+  // folders (Profile / Resources / Services / Communication Barring / Utilities) sit in different
+  // rows than reseller's 6, so rows 5/6 reused the call-center / meet-me glyphs. Name-keying is
+  // level-agnostic and is applied at document_end, so there's no glyph-less flash.
+  const iconFile = {
+    profile: "assets/icons/profile.svg",
+    resources: "assets/icons/resources.svg",
+    services: "assets/icons/services.svg",
+    callcenter: "assets/icons/callcenter.svg",
+    meetme: "assets/icons/meetme.svg",
+    utilities: "assets/icons/utilities.svg",
+    "comm-barring": "assets/icons/comm-barring.svg",
   };
 
   let css = "";
 
-  for (const [row, path] of Object.entries(navIcons)) {
+  for (const [key, path] of Object.entries(iconFile)) {
     css += `
-form[name="leftNavForm"] table tr:nth-child(${row}) a::before {
+form[name="leftNavForm"] a[data-cp-icon="${key}"]::before {
   -webkit-mask-image: url("${url(path)}") !important;
   mask-image: url("${url(path)}") !important;
 }`;
   }
 
-  // Console section-header icons: reuse the same nav icons (navIcons rows 2..7 map to
-  // the R0..R5 folders) as a mask-image on each .cp-console-head::before, so the header
-  // shows the section's sidebar glyph recoloured to the accent (via background-color in
-  // skin.css). The ::before box + mask sizing live in skin.css; here we set the image.
-  ["R0", "R1", "R2", "R3", "R4", "R5"].forEach((folder, i) => {
-    const path = navIcons[i + 2];
+  // Console section-header icons reuse the same glyphs on each .cp-console-head-ico, keyed by the same
+  // name-derived data-cp-icon that tagSidebarIcons stamps — so SP/Group/User sections key correctly
+  // too, not just reseller R0..R5. Recoloured to the accent via background-color in skin.css.
+  for (const [key, path] of Object.entries(iconFile)) {
     css += `
-.cp-console-section[data-cp-folder="${folder}"] .cp-console-head-ico {
+.cp-console-head-ico[data-cp-icon="${key}"] {
   -webkit-mask-image: url("${url(path)}") !important;
   mask-image: url("${url(path)}") !important;
 }`;
-  });
+  }
+  // Until a glyph is stamped, stay transparent rather than flash a solid colour box.
+  css += `
+form[name="leftNavForm"] a.leftnavfolder:not([data-cp-icon])::before,
+form[name="leftNavForm"] a.leftnavfolderopen:not([data-cp-icon])::before,
+.cp-console-head-ico:not([data-cp-icon]) { background-color: transparent !important; }`;
 
   // Footer icon background-images (injected early so they're ready when
   // moveHeaderLinks moves the <a> nodes and adds data-cp-icon attributes).
@@ -254,6 +263,11 @@ document.addEventListener("cp:reskin", function () {
     tagMenuColumns();
   } catch (e) {
     console.warn("[CommPilot Skin] reskin tagMenuColumns", e);
+  }
+  try {
+    tagSidebarIcons();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin tagSidebarIcons", e);
   }
   try {
     staggerCards();
@@ -1152,9 +1166,16 @@ window.addEventListener("beforeunload", function () { cpLoginSplash(); });
   obs.observe(document.documentElement, { childList: true });
 })();
 
+/* Inline Lucide SVGs for the pill breadcrumb (kept identical to pjax.js cpBuildConsole so the console
+ * and the list/leaf pages render the same crumb). route = leading glyph; arrow = separator. */
+var CP_BC_ROUTE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>';
+var CP_BC_ARROW_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
+
 /*
- * Move the breadcrumb trail (a.headerAuthLevelLink chain) out of the
- * header bar and place it just above the page title as a thin bar.
+ * Build the breadcrumb as the PILL TRAIL (Option B) on list/leaf pages — the same look as the console
+ * (pjax cpBuildConsole). The real a.headerAuthLevelLink elements are MOVED into the bar so they keep
+ * their native onclick (ancestors stay clickable for free); the current/last level is neutralised.
+ * The `if (.cp-breadcrumb) return` guard means the console's own pill crumb wins on console pages.
  */
 function cpMoveBreadcrumb() {
   try {
@@ -1170,15 +1191,60 @@ function cpMoveBreadcrumb() {
     var titleTable = title.closest("table");
     if (!titleTable) return;
 
-    var bar = document.createElement("div");
-    bar.className = "cp-breadcrumb";
+    /* The real trail links, in order, deduped against consecutive repeats (the auth links can repeat). */
+    var links = Array.prototype.slice.call(cell.querySelectorAll("a.headerAuthLevelLink"));
+    var segs = [];
+    for (var i = 0; i < links.length; i++) {
+      var t = (links[i].textContent || "").trim();
+      if (t && (!segs.length || (segs[segs.length - 1].textContent || "").trim() !== t)) segs.push(links[i]);
+    }
+    if (!segs.length) return;
 
-    /* Move every child node EXCEPT img and script elements */
-    var nodes = Array.from(cell.childNodes);
-    for (var i = 0; i < nodes.length; i++) {
-      var n = nodes[i];
-      if (n.nodeType === 1 && (n.tagName === "IMG" || n.tagName === "SCRIPT")) continue;
-      bar.appendChild(n);
+    var bar = document.createElement("div");
+    bar.className = "cp-breadcrumb cp-bc-pill";
+    var lead = document.createElement("span");
+    lead.className = "cp-bc-lead";
+    lead.setAttribute("aria-hidden", "true");
+    lead.innerHTML = CP_BC_ROUTE_SVG;
+    bar.appendChild(lead);
+
+    /* Current ENTITY (e.g. a user id) lives in span.headerAuthLevel, separate from the level links.
+       If present, every level link becomes a clickable ancestor and the entity is the current pill. */
+    var curSpan = document.querySelector("span.headerAuthLevel");
+    var curEnt = curSpan ? (curSpan.textContent || "").replace(/^\s*:\s*/, "").trim() : "";
+    if (curEnt && (segs[segs.length - 1].textContent || "").trim() === curEnt) curEnt = "";   /* dedupe vs last level */
+
+    for (var j = 0; j < segs.length; j++) {
+      if (j > 0) {
+        var sep = document.createElement("span");
+        sep.className = "cp-bc-sep";
+        sep.setAttribute("aria-hidden", "true");
+        sep.innerHTML = CP_BC_ARROW_SVG;
+        bar.appendChild(sep);
+      }
+      var a = segs[j];
+      var isCur = (j === segs.length - 1) && !curEnt;   /* last level is current ONLY if there's no entity */
+      a.classList.add(isCur ? "cp-bc-cur" : "cp-bc-seg");
+      if (isCur) {
+        a.setAttribute("aria-current", "page");
+        a.removeAttribute("href");
+        a.onclick = function (e) { if (e && e.preventDefault) e.preventDefault(); return false; };   /* current level = not a link */
+      }
+      bar.appendChild(a);   /* MOVES the real link out of the cell — ancestors keep their native onclick */
+    }
+
+    /* Append the entity as the current pill (matches the live "… Users : id"); .cp-bc-id keeps its case. */
+    if (curEnt) {
+      var esep = document.createElement("span");
+      esep.className = "cp-bc-sep";
+      esep.setAttribute("aria-hidden", "true");
+      esep.innerHTML = CP_BC_ARROW_SVG;
+      bar.appendChild(esep);
+      var idPill = document.createElement("span");
+      idPill.className = "cp-bc-cur cp-bc-id";
+      idPill.setAttribute("aria-current", "page");
+      idPill.textContent = curEnt;
+      bar.appendChild(idPill);
     }
 
     titleTable.parentNode.insertBefore(bar, titleTable);
@@ -1862,6 +1928,40 @@ function cpRevealCloak() {
 }
 
 /*
+ * Stamp each left-nav FOLDER with a name-derived data-cp-icon key so injectAssetCss masks the right
+ * glyph onto its ::before regardless of the folder's row position or level (reseller / SP / group /
+ * user). Submenu sub-items (.cp-subitem) are <a> inside leftNavForm too but aren't folders, so skip
+ * them. Unknown names fall back to the neutral folder glyph so a folder NEVER renders as a mask-less
+ * solid colour square.
+ */
+function cpFolderIconKey(name) {
+  var n = (name || "").toLowerCase().replace(/[^a-z]/g, "");
+  if (!n) return "resources";
+  if (n.indexOf("profile") !== -1) return "profile";
+  if (n.indexOf("resource") !== -1) return "resources";
+  if (n.indexOf("barring") !== -1) return "comm-barring";
+  if (n.indexOf("callcenter") !== -1) return "callcenter";
+  if (n.indexOf("meetme") !== -1 || n.indexOf("conferenc") !== -1) return "meetme";
+  if (n.indexOf("utilit") !== -1) return "utilities";
+  if (n.indexOf("service") !== -1) return "services";
+  return "resources";
+}
+function tagSidebarIcons() {
+  var folders = document.querySelectorAll(
+    'form[name="leftNavForm"] a.leftnavfolder:not(.cp-subitem), form[name="leftNavForm"] a.leftnavfolderopen:not(.cp-subitem)'
+  );
+  folders.forEach(function (a) {
+    var name = (a.textContent || "").trim().split(/\n/)[0].trim();
+    a.setAttribute("data-cp-icon", cpFolderIconKey(name));
+  });
+  // Console section-header glyphs — keyed by the section's name so SP/Group/User sections match too.
+  document.querySelectorAll(".cp-console-head-ico").forEach(function (ico) {
+    var nm = ico.parentNode && ico.parentNode.querySelector(".cp-console-head-name");
+    if (nm) ico.setAttribute("data-cp-icon", cpFolderIconKey((nm.textContent || "").trim()));
+  });
+}
+
+/*
  * Full-skin DOM pass — re-applies every DOM transformation to the current
  * document body. Called on initial page load and on "cp:morphed" when
  * stubguard swaps in a fresh body (zero-navigation login morph).
@@ -1870,6 +1970,7 @@ function cpRevealCloak() {
 function cpSkinDomPass() {
   wrapMenuCards();
   tagMenuColumns();
+  tagSidebarIcons();
   moveHeaderLinks();
   cpWireHomeButton();
   wireSortIcons();

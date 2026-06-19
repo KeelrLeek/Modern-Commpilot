@@ -19,3 +19,12 @@ _metadata/
 assets/help/raw/*.htm
 assets/help/raw/*.html
 assets/help/raw/*_files/
+
+# Claude workflow artifacts (memory, archived debug harness, session handoff prompts) —
+# local dev aids, not part of the shipped extension
+claude-memory/
+dev-scaffolding/
+session-handoff/
+
+# Console layout design mockups (visual reference / scratch — not shipped)
+Testing HTML Files/console-layout-mockup*.html

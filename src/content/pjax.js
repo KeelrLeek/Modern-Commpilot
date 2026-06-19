@@ -1,4 +1,10 @@
 (function () {
+  // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
+  // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
+  // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
+  var CP_PJAX_VERSION = "0.2.45";
+  try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
+
   try { history.replaceState({ cpNav: { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } } }, "", location.href); } catch (e) {}
 
   var onLogin =
@@ -31,6 +37,18 @@
   var cpSectionRunning = false;
   var cpSectionAborted = false;
   var cpConsoleObserver = null;
+  var cpFrameSeq = 0;
+  var cpSpEntry = null;
+  var cpAggActive = false;
+  var cpAggToken = null;
+  var cpAggAnchorFolder = null;
+  var cpAggCache = null;   // SP pre-fetch cache {folder: menuHtml|null}, filled before the page is wiped
+  // RESELLER anchor reuse: the open folder cpHook just fetched to land here IS the console's anchor
+  // section, so re-fetching it (the old behaviour) fired a SECOND back-to-back folder_contents on the
+  // rotating single-use token → the anchor (Profile) intermittently shelled = "Couldn't load — Retry".
+  // Capture that already-fetched menu once and let cpFetchSection reuse it (mirrors cpAggCache at SP).
+  var cpEntryFolder = null;   // the captured anchor folder id (e.g. "R0")
+  var cpEntryHtml = null;     // its menu HTML; consumed once by cpFetchSection, then nulled
 
   // Re-execute scripts inside a container by replacing each <script>
   // with a fresh copy that carries the live nonce.
@@ -160,6 +178,7 @@
         typeof u === "string" &&
         (u.indexOf("folder_contents.jsp") !== -1 ||
           /\/commpilot\/Reseller\/[A-Za-z]+\/(index\.jsp)?$/.test(u) ||
+          /\/ServiceProviders\/Modify\//.test(u) ||
           u.indexOf("/commpilot/Common/page.jsp") !== -1 ||
           u.indexOf("/commpilot/Common/sort.jsp") !== -1)
       );
@@ -206,15 +225,139 @@
         });
     }
 
+    // Iframe transport. At Service-Provider / Group / User levels, folder_contents.jsp returns a
+    // content-less SHELL to an out-of-band fetch (XHR) but real CONTENT to a navigation. A hidden
+    // sandboxed iframe IS a navigation, so it retrieves the real menu with no top-level nav/flash.
+    // sandbox="allow-same-origin" (NO allow-scripts) keeps the doc readable AND neutralises the
+    // page's frame-buster (which otherwise drives top.location back out). Mirrors cpFollow's
+    // {doc,html}|{auth:false} contract incl. redirect-stub following (the SP "Modify" entry →
+    // folder_contents 2-step), so cpHook's swap logic is identical regardless of transport.
+    function cpFollowFrame(url, params, token, depth) {
+      return new Promise(function (resolve) {
+        var ifr = document.createElement("iframe");
+        ifr.name = "cpFrame" + (++cpFrameSeq);
+        ifr.setAttribute("sandbox", "allow-same-origin");
+        ifr.style.cssText = "position:absolute;width:10px;height:10px;border:0;left:-9999px;top:-9999px";
+        document.body.appendChild(ifr);
+        var settled = false;
+        function done(val) {
+          if (settled) return;
+          settled = true;
+          try { ifr.remove(); } catch (e) {}
+          resolve(val);
+        }
+        function post(u, p, tok, d) {
+          var f = document.createElement("form");
+          f.method = "POST"; f.action = u; f.target = ifr.name;
+          function add(n, v) { var inp = document.createElement("input"); inp.type = "hidden"; inp.name = n; inp.value = v; f.appendChild(inp); }
+          for (var k in p) if (Object.prototype.hasOwnProperty.call(p, k)) add(k, p[k]);
+          if (tok) add("formtokenserial", tok);
+          document.body.appendChild(f);
+          ifr.onload = function () {
+            var html = "";
+            try {
+              if ((ifr.contentWindow.location.href || "") === "about:blank") return;  // initial load, ignore
+              html = ifr.contentDocument.documentElement.outerHTML;
+            } catch (e) { try { f.remove(); } catch (e2) {} done({ auth: false }); return; }
+            try { f.remove(); } catch (e) {}
+            if (!html || html.length < 300) return;
+            if (html.indexOf("Please login again") !== -1 || html.indexOf("not authorized to access the system") !== -1) { done({ auth: false }); return; }
+            var fdoc = new DOMParser().parseFromString(html, "text/html");
+            if (fdoc.querySelector('td[width="82%"]')) { done({ doc: fdoc, html: html }); return; }
+            var stub = cpExtractStub(fdoc);
+            if (stub && stub.target && d < 4) { console.log("[pjax] frame stub ->", stub.target); post(stub.target, stub.data, stub.token, d + 1); return; }
+            done({ doc: fdoc, html: html });
+          };
+          f.submit();
+        }
+        post(url, params || {}, token, depth || 0);
+        setTimeout(function () { done({ auth: false }); }, 8000);
+      });
+    }
+
+    // Which transport: iframe for the SP entry and for non-reseller folder menus (both shell out to
+    // fetch); plain fetch for everything reseller (proven, leaves the working console path untouched).
+    function cpNeedsFrame(url, params) {
+      if (typeof url !== "string") return false;
+      if (/\/ServiceProviders\/Modify\//.test(url)) return true;
+      if (url.indexOf("folder_contents.jsp") !== -1 && params && params.folder && !/^R\d+$/.test(params.folder)) return true;
+      return false;
+    }
+
+    // Pipe-joined folder-name signature of a sidebar, to detect a LEVEL change (reseller ⇄ SP …).
+    function cpSidebarSig(navEl) {
+      if (!navEl) return "";
+      var as = navEl.querySelectorAll("a.leftnavfolder, a.leftnavfolderopen");
+      var out = [];
+      for (var i = 0; i < as.length; i++) {
+        var t = (as[i].textContent || "").trim().split(/\n/)[0].trim();
+        if (t) out.push(t);
+      }
+      return out.join("|");
+    }
+
+    // --- AGGREGATION transport for the non-reseller (SP/Group/User) one-scroll console ----------------
+    // Each folder's menu is fetched the SAME way a real sidebar click does: a BARE folder_contents POST
+    // {folder:Sn, menuId} over a sandboxed same-origin iframe (cpFollowFrame → navigation semantics, returns
+    // the real menu rather than the XHR shell), threading the rotating formtokenserial into the live inputs.
+    // The menuId MUST be the level's real one (Service Provider = 2, reseller = 8); it comes from the
+    // per-folder enumeration — a wrong menuId returns a content-less shell (this was THE bug; SP defaulted to
+    // 8 → see claude-memory/gotcha-diff-request-before-theorizing). Loads run BEFORE cpBuildConsole wipes the
+    // page (the wiped console DOM also shells), into cpAggCache; finalize then builds the console from cache.
+    // Debug scaffolding (delay/retry/[agg] logging) + live diagnostic harnesses are archived in
+    // dev-scaffolding/sp-aggregation-debug-and-diagnostics.js.
+    function cpAggBegin(anchorFolder, anchorHtml) {
+      cpAggEnd();
+      cpAggActive = true;
+      cpAggAnchorFolder = anchorFolder || null;
+      cpAggCache = {};
+      if (anchorFolder && anchorHtml != null) cpAggCache[anchorFolder] = anchorHtml;
+      var t = document.getElementsByName("formtokenserial")[0];
+      cpAggToken = t ? t.value : null;
+    }
+    function cpAggEnd() {
+      cpAggActive = false; cpAggToken = null; cpAggAnchorFolder = null; cpAggCache = null;
+    }
+    function cpAggPrefetch(folders) {
+      var seq = Promise.resolve();
+      folders.forEach(function (f) {
+        if (f.folder === cpAggAnchorFolder) return;   // anchor reuses its captured menu
+        seq = seq.then(function () {
+          if (cpSectionAborted) { cpAggCache[f.folder] = null; return; }
+          var tokEl = document.getElementsByName("formtokenserial")[0];
+          var tok = (tokEl ? tokEl.value : null) || cpAggToken;
+          return cpFollowFrame("/commpilot/Common/folder_contents.jsp", { folder: f.folder, menuId: f.menuId || "2" }, tok, 0)
+            .then(function (res) {
+              if (!res || res.auth === false || !res.doc) { cpAggCache[f.folder] = null; return; }
+              var nt = res.doc.getElementsByName("formtokenserial")[0];
+              if (nt && nt.value) { cpAggToken = nt.value; var ts = document.getElementsByName("formtokenserial"); for (var i = 0; i < ts.length; i++) ts[i].value = nt.value; }
+              var td = res.doc.querySelector('td[width="82%"]');
+              var n = td ? td.querySelectorAll('a.navMenuItem').length : 0;
+              cpAggCache[f.folder] = (td && n > 0) ? td.innerHTML : null;
+            })
+            .catch(function () { cpAggCache[f.folder] = null; });
+        });
+      });
+      return seq;
+    }
+    function cpAggNavigate(folder) {
+      // Reveal-time read: return the pre-fetched menu HTML (null if that folder shelled). No live load —
+      // the loads already happened against the intact page in cpAggPrefetch.
+      return Promise.resolve(cpAggCache ? cpAggCache[folder] : null);
+    }
+
     cpHook = function (url, params) {
       try {
         if (isPjaxUrl(url)) {
           var mySeq = ++cpSeq;
           try { cpLastNav = { url: url, params: params || {} }; } catch (e) {}
+          // Remember the SP entry (Modify nav) — recorded for reload/replay + future Group/User work.
+          try { if (/\/ServiceProviders\/Modify\//.test(url)) cpSpEntry = { url: url, params: params || {} }; } catch (e) {}
           try { if (url.indexOf("/Common/page.jsp") === -1 && url.indexOf("/Common/sort.jsp") === -1) { var _nav = { url: url, params: params || {} }; sessionStorage.setItem("cp-last-nav", JSON.stringify(_nav)); window.postMessage({ __cpRecoverNav: _nav }, location.origin); } } catch (e) {}
           var liveTokEl = document.getElementsByName("formtokenserial")[0];
-          console.log("[pjax] fetching", url);
-          cpFollow(url, params, liveTokEl ? liveTokEl.value : null, 0)
+          var cpLoader = cpNeedsFrame(url, params) ? cpFollowFrame : cpFollow;
+          console.log("[pjax]", cpLoader === cpFollowFrame ? "iframe-loading" : "fetching", url);
+          cpLoader(url, params, liveTokEl ? liveTokEl.value : null, 0)
             .then(function (res) {
               if (mySeq !== cpSeq) {
                 console.log("[pjax] superseded — dropping stale swap");
@@ -243,29 +386,43 @@
               }
               liveCell.innerHTML = fetched.innerHTML;
 
+              // Level change → swap the sidebar too. pjax normally KEEPS the sidebar and only syncs the
+              // active highlight (reseller folders never change), but entering an SP/Group/User swaps the
+              // whole folder set (reseller R-folders ⇄ Service-Provider S-folders, etc.). Swap when the
+              // fetched folder signature differs; its wiring scripts are re-executed in the shim block
+              // below (cpLiveNav) so the new folders' clicks navigate.
+              var cpLiveNav = null;
+              try {
+                var fNav = doc.querySelector('form[name="leftNavForm"]');
+                var liveNav = document.querySelector('form[name="leftNavForm"]');
+                if (fNav && liveNav && cpSidebarSig(fNav) !== cpSidebarSig(liveNav)) {
+                  liveNav.innerHTML = fNav.innerHTML;
+                  cpLiveNav = liveNav;
+                }
+              } catch (e) { console.warn("[pjax] sidebar swap", e); cpLiveNav = null; }
+
               // Update tab title from fetched page
               try { if (doc.title) document.title = doc.title; } catch (e) {}
 
-              // Restore breadcrumb above swapped title
+              // Restore breadcrumb above swapped title — PILL TRAIL (cpBuildPillCrumb), matching the console
+              // and the initial-load crumb. Source the trail texts from the fetched header links (deduped);
+              // cpBuildPillCrumb wires the ancestors (cpCrumbNav). This replaces the old bare-<a> crumb that
+              // made non-console pages revert to the legacy look after a pjax nav.
               try {
                 var fCrumbLink = doc.querySelector('td.headerBar a.headerAuthLevelLink');
                 var newTitle = liveCell.querySelector("td.screenName");
                 if (fCrumbLink && newTitle) {
                   var fCell = fCrumbLink.closest("td");
                   var titleTable = newTitle.closest("table");
-                  var bar = document.createElement("div");
-                  bar.className = "cp-breadcrumb";
-                  Array.prototype.slice.call(fCell.childNodes).forEach(function (n) {
-                    if (n.nodeType === 1 && (n.tagName === "IMG" || n.tagName === "SCRIPT")) return;
-                    bar.appendChild(document.importNode(n, true));
-                  });
-                  bar.querySelectorAll("a.headerAuthLevelLink").forEach(function (a) {
-                    a.style.cursor = "pointer";
-                    a.addEventListener("click", function () {
-                      window.redirectPost("/commpilot/Common/folder_contents.jsp", { folder: "R0", menuId: "8" });
-                    });
-                  });
-                  if (titleTable && titleTable.parentNode) titleTable.parentNode.insertBefore(bar, titleTable);
+                  var ctLinks = Array.prototype.slice.call(fCell.querySelectorAll("a.headerAuthLevelLink"));
+                  var ctrail = [];
+                  ctLinks.forEach(function (a) { var t = (a.textContent || "").trim(); if (t && (!ctrail.length || ctrail[ctrail.length - 1] !== t)) ctrail.push(t); });
+                  // Append the current entity (span.headerAuthLevel — e.g. a user id) as the current pill.
+                  var cLen = ctrail.length, cEnt = doc.querySelector("span.headerAuthLevel");
+                  if (cEnt) { var et = (cEnt.textContent || "").replace(/^\s*:\s*/, "").trim(); if (et && ctrail[ctrail.length - 1] !== et) ctrail.push(et); }
+                  if (ctrail.length && titleTable && titleTable.parentNode) {
+                    titleTable.parentNode.insertBefore(cpBuildPillCrumb(ctrail, ctrail.length > cLen), titleTable);
+                  }
                 }
               } catch (e) {
                 console.warn("[pjax] breadcrumb restore", e);
@@ -321,6 +478,7 @@
                 return origWinAdd.call(this, type, fn, opts);
               };
               var n = reexecScripts(liveCell);
+              if (cpLiveNav) reexecScripts(cpLiveNav);
               document.addEventListener = origAdd;
               window.addEventListener = origWinAdd;
               if (window.redirectPost !== cpHook) { _orig = window.redirectPost; window.redirectPost = cpHook; }
@@ -474,6 +632,17 @@
       return new Promise(function (resolve) {
         cpEnqueueSection(function () {
           if (cpSectionAborted) { resolve(null); return; }
+          if (cpAggActive) {
+            // SP level: load this folder via the bare sidebar-click params over cpFollowFrame.
+            return cpAggNavigate(folder, menuId).then(function (html) { resolve(html); });
+          }
+          // RESELLER anchor: reuse the menu cpHook just fetched to navigate here (captured in
+          // cpBuildConsole) instead of issuing an identical, redundant folder_contents on the rotating
+          // token. One-shot — clear after use so it can never go stale or be reused by a later build.
+          if (cpEntryFolder && cpEntryFolder === folder && cpEntryHtml != null) {
+            var reuse = cpEntryHtml; cpEntryFolder = null; cpEntryHtml = null;
+            resolve(reuse); return;
+          }
           var liveTokEl = document.getElementsByName("formtokenserial")[0];
           var token = liveTokEl ? liveTokEl.value : null;
           return cpFollow("/commpilot/Common/folder_contents.jsp", { folder: folder, menuId: menuId || "8" }, token, 0)
@@ -580,6 +749,59 @@
         }).catch(function () { try { box.remove(); } catch (e) {} });
       });
     }
+    // Navigate to a breadcrumb segment's level (ancestor segments are clickable links). The auth-trail
+    // source links are consumed by skin.js after the crumb is built, so we resolve targets by position:
+    // the top segment (idx 0) is the reseller home; a Service-Provider ancestor (when deeper levels exist)
+    // re-enters via the recorded cpSpEntry; everything falls back to reseller home. Routes through cpHook.
+    function cpCrumbNav(idx) {
+      try {
+        if (idx > 0 && cpSpEntry && cpSpEntry.url) { window.redirectPost(cpSpEntry.url, cpSpEntry.params || {}); return; }
+        window.redirectPost("/commpilot/Common/folder_contents.jsp", { folder: "R0", menuId: "8" });
+      } catch (e) {}
+    }
+    // Inline Lucide SVGs for the pill breadcrumb — kept identical to skin.js (CP_BC_ROUTE_SVG/ARROW_SVG) so
+    // the console (cpBuildConsole), pjax swaps (cpHook restore), and list/leaf pages (skin.js) all match.
+    var CP_BC_ROUTE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>';
+    var CP_BC_ARROW_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
+    // Build the PILL TRAIL breadcrumb (Option B) from an array of segment texts. Shared by cpBuildConsole
+    // (console pages) and cpHook's restore (list/leaf pjax swaps). Ancestors are clickable via cpCrumbNav;
+    // the current/last level is a static pill.
+    function cpBuildPillCrumb(trail, idLast) {
+      var crumb = document.createElement("div");
+      crumb.className = "cp-breadcrumb cp-bc-pill";
+      var lead = document.createElement("span");
+      lead.className = "cp-bc-lead";
+      lead.setAttribute("aria-hidden", "true");
+      lead.innerHTML = CP_BC_ROUTE_SVG;
+      crumb.appendChild(lead);
+      trail.forEach(function (seg, i) {
+        if (i > 0) {
+          var sep = document.createElement("span");
+          sep.className = "cp-bc-sep";
+          sep.setAttribute("aria-hidden", "true");
+          sep.innerHTML = CP_BC_ARROW_SVG;
+          crumb.appendChild(sep);
+        }
+        var isCur = (i === trail.length - 1);
+        var pill = document.createElement(isCur ? "span" : "a");
+        // The last segment is the current pill; if it's the entity ID (idLast) it gets .cp-bc-id so the
+        // CSS preserves its case (an id like RSG171001@phonenetwork.net, not an uppercased level name).
+        pill.className = isCur ? (idLast ? "cp-bc-cur cp-bc-id" : "cp-bc-cur") : "cp-bc-seg";
+        pill.textContent = seg;
+        if (isCur) {
+          pill.setAttribute("aria-current", "page");
+        } else {
+          pill.setAttribute("role", "link");
+          pill.setAttribute("tabindex", "0");
+          (function (idx) {
+            pill.addEventListener("click", function (e) { e.preventDefault(); cpCrumbNav(idx); });
+            pill.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cpCrumbNav(idx); } });
+          })(i);
+        }
+        crumb.appendChild(pill);
+      });
+      return crumb;
+    }
     function cpBuildConsole() {
       if (document.querySelector(".cp-console")) return;
       var contentCell = document.querySelector('td[width="82%"]');
@@ -607,10 +829,13 @@
             var scripts = el.querySelectorAll("script");
             for (var si = 0; si < scripts.length; si++) {
               var txt = scripts[si].textContent || "";
-              var fm2 = /folder['"\s:,]+([A-Z]\d+)/.exec(txt);
-              if (fm2) { folder = fm2[1]; break; }
+              // Read menuId FIRST — the folder + menuId live in the SAME redirectPost({folder:'S1',menuId:'2'})
+              // call, so breaking on the folder match before reading menuId left menuId at its "8" default.
+              // That made SP folders (which need menuId:2) post folder_contents{Sn,menuId:8} → server SHELL.
               var mm2 = /menuId['"\s:,]+(\d+)/.exec(txt);
               if (mm2) menuId = mm2[1];
+              var fm2 = /folder['"\s:,]+([A-Z]\d+)/.exec(txt);
+              if (fm2) { folder = fm2[1]; break; }
             }
             if (folder) break;
             el = el.parentNode;
@@ -621,24 +846,71 @@
         folders.push({ name: name, folder: folder, menuId: menuId });
       });
       if (folders.length === 0) return;
-      // LEVEL GATE: the aggregated one-scroll console currently only works at the RESELLER level.
-      // Folder ENUMERATION is level-general (the regex above matches R/S/… ids), but deeper levels
-      // (Service Provider S-ids, and Group/User) return content-less SHELLS to the out-of-band
-      // folder_contents.jsp fetch — that endpoint renders a folder's menu only to a real top-level
-      // navigation there, never to an XHR. So aggregating them would show empty sections. Until a
-      // per-level fetch model is implemented, build only for reseller (R-scheme) folders; other
-      // levels keep their native menu inside the floating shell (cpSyncConsoleClass still applies it).
-      if (!folders.every(function (f) { return /^R\d+$/.test(f.folder); })) return;
+      // LEVEL GATE: build the aggregated one-scroll console where we can retrieve every folder's content.
+      // Reseller (R-ids) loads via plain background fetch. The Service-Provider level (S-ids) loads each
+      // folder via cpAggNavigate (the BARE {folder,menuId} sidebar-click params over cpFollowFrame — see
+      // the agg transport notes). Group/User (other prefixes) stay native until their entry is wired —
+      // widen this set (e.g. [RSGU]) as each lands.
+      if (!folders.every(function (f) { return /^[RS]\d+$/.test(f.folder); })) return;
+      var aggLevel = !folders.every(function (f) { return /^R\d+$/.test(f.folder); });
+      // SWITCHER (debug/fallback): at non-reseller levels, localStorage.cpSpAgg === "0" forces the
+      // single-folder mode (skip the aggregated build → native menu in the shell, sidebar clicks
+      // foreground-navigate). Any other value (incl. unset) = aggregate. Reseller ignores it.
+      try { if (aggLevel && localStorage.getItem("cpSpAgg") === "0") return; } catch (e) {}
+      // DEDUP GUARD: on entry, cpAutoConsole fires TWICE (cp:reskin then a second reskin/morph), so
+      // cpBuildConsole runs twice. At aggLevel that would start TWO concurrent cpAggPrefetch walks racing the
+      // single-use formtokenserial — they stomp each other and both shell. Bail the dup while a prefetch/
+      // reveal is already in flight (cpAggActive set in cpAggBegin, cleared in cpAggEnd at reveal end).
+      if (aggLevel && cpAggActive) return;
+      // LEAVING an SP/aggregation console for a reseller (non-agg) one: clear stale aggregation state.
+      // cpFetchSection's `if (cpAggActive)` branch runs BEFORE the live fetch, so if a previous SP build's
+      // cpAggActive is still set (its reveal not yet finished — e.g. clicking the RESELLER breadcrumb while
+      // the SP console is still building), this reseller console's section loads route through cpAggNavigate,
+      // whose cache holds only the PREVIOUS (S) folders → null → "Couldn't load". Profile (fetched first) is
+      // the usual casualty; an instant click shells ALL sections. Clearing it here forces the live fetch path.
+      if (!aggLevel) cpAggEnd();
+      // Capture the entry's OPEN folder + its already-fetched menu HTML NOW — before the cell is wiped.
+      // The open folder is the one cpHook just navigated to, which is ALSO the console's anchor section,
+      // so reusing this avoids re-requesting it. SP seeds it into cpAggCache (cpAggBegin); reseller stores
+      // it in the one-shot cpEntry* cache that cpFetchSection consults. Strip the breadcrumb so it doesn't
+      // leak into the section card. (At reseller, dropping the redundant anchor fetch also kills the
+      // back-to-back folder_contents that intermittently shelled Profile on the SP→reseller breadcrumb.)
+      cpEntryFolder = null; cpEntryHtml = null;   // reset fresh per build
+      var openA = document.querySelector('form[name="leftNavForm"] a.leftnavfolderopen');
+      var entryFolder = openA ? openA.getAttribute("data-cp-folder") : null;
+      var entryHtml = null;
+      if (entryFolder) {
+        var cellClone = contentCell.cloneNode(true);
+        cellClone.querySelectorAll(".cp-breadcrumb").forEach(function (b) { b.remove(); });
+        entryHtml = cellClone.innerHTML;
+      }
+      var aggAnchorFolder = aggLevel ? entryFolder : null;
+      var aggAnchorHtml = aggLevel ? entryHtml : null;
+      if (!aggLevel) { cpEntryFolder = entryFolder; cpEntryHtml = entryHtml; }
       // Build console DOM
       var consoleDiv = document.createElement("div");
       consoleDiv.className = "cp-console";
       // Breadcrumb header — built here, inserted into the content cell ABOVE .cp-console
       // (below) so it stays pinned while the console scrolls internally.
-      var crumb = document.createElement("div");
-      crumb.className = "cp-breadcrumb";
-      var crumbSeg = document.createElement("a");
-      crumbSeg.textContent = "Reseller";
-      crumb.appendChild(crumbSeg);
+      // Breadcrumb — derive the REAL level trail (Reseller; Reseller › <SP>; …) rather than
+      // hardcoding "Reseller". Source the segments from the live auth links if present, else from an
+      // already-built .cp-breadcrumb (skin.js/pjax), else fall back to "Reseller". Captured BEFORE the
+      // content cell is wiped below.
+      var trail = [];
+      var pushSeg = function (t) { if (t && trail[trail.length - 1] !== t) trail.push(t); };   // dedupe consecutive (the auth links can repeat "Reseller")
+      document.querySelectorAll("a.headerAuthLevelLink").forEach(function (a) { pushSeg((a.textContent || "").trim()); });
+      if (!trail.length) {
+        var existingCrumb = document.querySelector(".cp-breadcrumb");
+        if (existingCrumb) existingCrumb.querySelectorAll(".cp-bc-seg, .cp-bc-cur, a").forEach(function (a) { pushSeg((a.textContent || "").trim()); });
+      }
+      if (!trail.length) trail = ["Reseller"];
+      // Current ENTITY (e.g. a user id) lives in span.headerAuthLevel — append it as the current pill (like
+      // the live site's "… Users : id"). Scope the lookup to the FRESHLY-swapped content cell, NOT the whole
+      // document: a stale entity span from a previous user/group page lingers in the un-swapped header after a
+      // pjax nav, and reseller/SP consoles have no current entity, so a document-wide read appended the OLD id.
+      var _tl = trail.length, _ce = contentCell.querySelector("span.headerAuthLevel");
+      if (_ce) pushSeg((_ce.textContent || "").replace(/^\s*:\s*/, "").trim());
+      var crumb = cpBuildPillCrumb(trail, trail.length > _tl);   // route · clickable ancestors · arrows · current
       folders.forEach(function (f) {
         var sec = document.createElement("section");
         sec.className = "cp-console-section";
@@ -672,20 +944,44 @@
         sec.appendChild(bodyEl);
         consoleDiv.appendChild(sec);
       });
-      while (contentCell.firstChild) contentCell.removeChild(contentCell.firstChild);
-      contentCell.appendChild(crumb);
-      contentCell.appendChild(consoleDiv);
-      // Sequential-expand reveal (Option A): every section starts HIDDEN, then they reveal one at a
-      // time top-down from the anchor (the jumped-to folder, else Profile at the top) as each loads —
-      // each section slides in and cascades its cards (staggerCards), so the console grows downward
-      // and the load is masked. cpStartRevealSequence owns the load order; the old IntersectionObserver
-      // lazy-load is retired (all 6 reseller sections load per build regardless).
-      consoleDiv.querySelectorAll(".cp-console-section").forEach(function (s) { s.style.display = "none"; });
-      cpSyncConsoleClass();
-      cpWireConsoleScroll();
-      cpEnsureSubmenuScaffold();
-      cpHeadFade();
-      cpStartRevealSequence(cpPendingFolder);
+      // MOUNT = wipe the cell, insert the console skeleton, wire it. Sequential-expand reveal (Option A):
+      // every section starts HIDDEN, then reveals top-down from the anchor as each loads, cards cascading
+      // (staggerCards), masking the load.
+      var mountConsole = function () {
+        while (contentCell.firstChild) contentCell.removeChild(contentCell.firstChild);
+        contentCell.appendChild(crumb);
+        contentCell.appendChild(consoleDiv);
+        consoleDiv.querySelectorAll(".cp-console-section").forEach(function (s) { s.style.display = "none"; });
+        cpSyncConsoleClass();
+        cpWireConsoleScroll();
+        cpEnsureSubmenuScaffold();
+        cpHeadFade();
+      };
+      // Anchor on the entry's open folder at aggregation levels (its cached content reveals first, then the
+      // rest fill from cache); reseller keeps the pending-folder jump.
+      var startReveal = function () {
+        cpStartRevealSequence(aggLevel ? (cpPendingFolder || aggAnchorFolder) : cpPendingFolder);
+      };
+      if (aggLevel) {
+        // MOUNT THE SKELETON IMMEDIATELY so the single-folder entry page doesn't FLASH before the aggregated
+        // console appears. The pre-fetch loads use the captured token + session (cpFollowFrame POSTs from
+        // document.body, not the visible cell), so wiping the static menu first is safe. Show a brief
+        // "Loading…" in the empty panel until the pre-fetch fills cpAggCache and the sections cascade in.
+        cpAggBegin(aggAnchorFolder, aggAnchorHtml);
+        mountConsole();
+        var aggLoad = document.createElement("div");
+        aggLoad.className = "cp-console-loading";
+        aggLoad.setAttribute("data-cp-agg-loading", "1");
+        aggLoad.textContent = "Loading…";
+        consoleDiv.appendChild(aggLoad);
+        cpAggPrefetch(folders).then(function () {
+          var ln = consoleDiv.querySelector('[data-cp-agg-loading]'); if (ln) ln.remove();
+          startReveal();
+        });
+      } else {
+        mountConsole();
+        startReveal();
+      }
     }
 
     // Shared: set the active sidebar folder highlight by folder id (R0..R5), and drive the
@@ -849,7 +1145,11 @@
     // section never stalls the chain. Reads folder + menuId from the section element.
     function cpLoadAndRevealSection(sec, aboveAnchor, anchorSec, done) {
       var bodyEl = sec && sec.querySelector(".cp-console-body");
-      if (!bodyEl || !document.querySelector(".cp-console")) { if (done) done(); return; }
+      // Bail if this section was detached by a newer build / level change (a superseded reveal sequence from a
+      // previous console — e.g. the old SP reveal still ticking after we swapped to reseller). Without the
+      // document.contains(sec) check it would still issue a (wasted, token-rotating) fetch for a section that
+      // is no longer in the DOM, racing the live console's own loads.
+      if (!bodyEl || !document.contains(sec) || !document.querySelector(".cp-console")) { if (done) done(); return; }
       if (bodyEl.getAttribute("data-cp-loaded") === "1" || bodyEl.dataset.cpRequested === "1") { if (done) done(); return; }
       bodyEl.dataset.cpRequested = "1";
       var folder = sec.getAttribute("data-cp-folder");
@@ -859,6 +1159,11 @@
         if (html) {
           bodyEl.innerHTML = html;
           bodyEl.setAttribute("data-cp-loaded", "1");
+          // Drop the embedded page breadcrumb (the auth-level trail links) from the fetched folder content
+          // BEFORE cp:reskin — otherwise skin.js converts each one into a per-section .cp-breadcrumb under
+          // every header. The console shows ONE breadcrumb, pinned at the top of the panel (built in
+          // cpBuildConsole). Also clears any already-converted crumb that rode in via the anchor cache.
+          bodyEl.querySelectorAll(".cp-breadcrumb, a.headerAuthLevelLink").forEach(function (b) { b.remove(); });
           cpRevealSection(sec, aboveAnchor);   // animated cascade for anchor + below; plain show for above
           document.dispatchEvent(new Event("cp:reskin"));   // wrapMenuCards etc. → the section's FINAL height
           cpReexecWiringScripts(bodyEl);
@@ -981,8 +1286,9 @@
     // cascade, just preloaded for seamless scroll-up). Robust to fast fetches (the dwell, not the
     // network, sets the cadence) and to slow ones (each still waits for its own load to finish).
     function cpRevealStep(secs, order, i) {
-      if (cpSectionAborted || !document.querySelector(".cp-console")) { cpRevealBusy = false; return; }
+      if (cpSectionAborted || !document.querySelector(".cp-console")) { cpRevealBusy = false; cpAggEnd(); return; }
       if (i >= order.length) {
+        cpAggEnd();   // walk complete — clear the agg cursor/token/flags
         // Sequence complete — re-enable the scroll handler + restore the proper (tight) tail. Also
         // reveal any above-section still held invisible (one that never got confirmed off-screen, e.g.
         // a residual clamp) so nothing is left hidden.
@@ -1069,7 +1375,7 @@
         document.querySelectorAll('form[name="leftNavForm"] td.cp-grp-open').forEach(function (td) { td.classList.remove("cp-grp-open"); });
         return;
       }
-      cpBuildConsole();   // no-ops at non-reseller levels (its R0–R5 regex finds no folders)
+      cpBuildConsole();   // no-ops at non-reseller levels (the reseller-only gate returns early there)
     }
 
     // Build console on reskin (runs after every pjax swap)

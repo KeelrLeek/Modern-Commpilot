@@ -2173,6 +2173,68 @@ html.cp-console-active .cp-breadcrumb a + a::before {
   background-position: center !important;
 }
 
+/* Console breadcrumb — PILL TRAIL (Option B) + leading route glyph + inline arrow separators.
+   pjax (cpBuildConsole) builds: .cp-bc-lead (route icon) · .cp-bc-seg (clickable ancestor pills) ·
+   .cp-bc-sep (arrow) · .cp-bc-cur (current level pill). Scoped to .cp-bc-pill so the legacy list-page
+   breadcrumb (bare <a>, styled above) is untouched. Higher specificity overrides the .cp-breadcrumb a rules. */
+html.cp-console-active .cp-breadcrumb.cp-bc-pill {
+  gap: 7px !important;
+  font-size: 13px !important;
+}
+html.cp-console-active .cp-bc-pill .cp-bc-lead {
+  flex: none !important;
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 7px !important;
+  background: rgba(110, 76, 150, 0.20) !important;
+  color: var(--cp-primary, #C6A8E8) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-right: 3px !important;
+}
+html.cp-console-active .cp-bc-pill .cp-bc-lead svg { width: 14px !important; height: 14px !important; }
+html.cp-console-active .cp-bc-pill .cp-bc-seg,
+html.cp-console-active .cp-bc-pill .cp-bc-cur {
+  font-family: var(--cp-font-label) !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.07em !important;
+  text-transform: uppercase !important;
+  line-height: 1.5 !important;
+  white-space: nowrap !important;
+  padding: 4px 11px !important;
+  border-radius: 7px !important;
+  text-decoration: none !important;
+  vertical-align: middle !important;
+}
+html.cp-console-active .cp-bc-pill .cp-bc-seg {
+  color: var(--cp-text-muted) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  cursor: pointer !important;
+  transition: background 0.12s, color 0.12s !important;
+}
+html.cp-console-active .cp-bc-pill .cp-bc-seg:hover {
+  background: rgba(110, 76, 150, 0.22) !important;
+  color: var(--cp-primary, #C6A8E8) !important;
+}
+html.cp-console-active .cp-bc-pill .cp-bc-cur {
+  color: var(--cp-primary, #C6A8E8) !important;
+  background: rgba(110, 76, 150, 0.26) !important;
+}
+/* Entity-id current pill (e.g. RSG171001@phonenetwork.net) — keep its real case, don't uppercase. */
+html.cp-console-active .cp-bc-pill .cp-bc-cur.cp-bc-id {
+  text-transform: none !important;
+  letter-spacing: 0.01em !important;
+}
+html.cp-console-active .cp-bc-pill .cp-bc-sep {
+  flex: none !important;
+  color: #6f6a64 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+html.cp-console-active .cp-bc-pill .cp-bc-sep svg { width: 13px !important; height: 13px !important; }
+
 /* Console is the internal scroll container. The offset reserves the fixed chrome
    ABOVE the console (top bar 12+56, gap to panel, breadcrumb ~44) PLUS a 12px bottom
    gap, so the console's bottom lands 12px above the viewport. If this is too small the
