@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.45";
+  var CP_PJAX_VERSION = "0.2.46";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
 
   try { history.replaceState({ cpNav: { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } } }, "", location.href); } catch (e) {}
@@ -965,18 +965,17 @@
       if (aggLevel) {
         // MOUNT THE SKELETON IMMEDIATELY so the single-folder entry page doesn't FLASH before the aggregated
         // console appears. The pre-fetch loads use the captured token + session (cpFollowFrame POSTs from
-        // document.body, not the visible cell), so wiping the static menu first is safe. Show a brief
-        // "Loading…" in the empty panel until the pre-fetch fills cpAggCache and the sections cascade in.
+        // document.body, not the visible cell), so wiping the static menu first is safe.
         cpAggBegin(aggAnchorFolder, aggAnchorHtml);
         mountConsole();
-        var aggLoad = document.createElement("div");
-        aggLoad.className = "cp-console-loading";
-        aggLoad.setAttribute("data-cp-agg-loading", "1");
-        aggLoad.textContent = "Loading…";
-        consoleDiv.appendChild(aggLoad);
+        // Reveal the ANCHOR section (Profile) RIGHT AWAY from its entry cache — its cards cascade in as the
+        // visual "hider", so no standalone "Loading…" placeholder is needed (same as the reseller console,
+        // where the card cascade masks the per-section load). The remaining folders pre-fetch in the
+        // background and cascade in below once cpAggCache is filled.
+        var aggAnchorSec = aggAnchorFolder && consoleDiv.querySelector('.cp-console-section[data-cp-folder="' + aggAnchorFolder + '"]');
+        if (aggAnchorSec) cpLoadAndRevealSection(aggAnchorSec, false, aggAnchorSec, null);
         cpAggPrefetch(folders).then(function () {
-          var ln = consoleDiv.querySelector('[data-cp-agg-loading]'); if (ln) ln.remove();
-          startReveal();
+          startReveal();   // anchor already revealed (skipped as loaded); the rest cascade in from cache
         });
       } else {
         mountConsole();
