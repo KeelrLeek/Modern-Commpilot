@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.51";
+  var CP_PJAX_VERSION = "0.2.55";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
 
   try { history.replaceState({ cpNav: { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } } }, "", location.href); } catch (e) {}
@@ -178,16 +178,20 @@
         typeof u === "string" &&
         (u.indexOf("folder_contents.jsp") !== -1 ||
           /\/commpilot\/Reseller\/[A-Za-z]+\/(index\.jsp)?$/.test(u) ||
-          // SP-scoped list landings (e.g. the SP "Groups" card → /ServiceProvider/Members/, Users, etc.).
-          // These serve real content to a plain background fetch (verified: Members returns the full list,
-          // not a shell), so they ride the SAME fetch path as reseller lists — no iframe (cpNeedsFrame stays
-          // false for them). Only list LANDINGS match (one section segment + optional index.jsp); deeper
-          // /Modify/ edit pages don't.
+          // SP- and GROUP-scoped list landings (e.g. SP "Groups" → /ServiceProvider/Members/, SP "Users" →
+          // /ServiceProvider/Users/; GROUP "Users" → /Group/Members/, group Departments/Schedules/etc.).
+          // These serve real content to a plain background fetch (verified: SP Members + Group Members both
+          // return the full list, not a shell), so they ride the SAME fetch path as reseller lists — no iframe
+          // (cpNeedsFrame stays false). Only list LANDINGS match (one section segment + optional index.jsp);
+          // deeper /Modify/ edit pages don't.
           /\/commpilot\/ServiceProvider\/[A-Za-z]+\/(index\.jsp)?$/.test(u) ||
+          /\/commpilot\/Group\/[A-Za-z]+\/(index\.jsp)?$/.test(u) ||
           /\/ServiceProviders\/Modify\//.test(u) ||
           // GROUP entry (clicking a group row). The URL depends on which list you came from: the SP Groups
           // list → /ServiceProvider/Members/Modify/, the reseller Groups list → /Reseller/Groups/Modify/.
           /\/(?:ServiceProvider\/Members|Reseller\/Groups)\/Modify\//.test(u) ||
+          // USER entry (clicking a user row in a group's Users list) → /Group/Members/Modify/.
+          /\/Group\/Members\/Modify\//.test(u) ||
           u.indexOf("/commpilot/Common/page.jsp") !== -1 ||
           u.indexOf("/commpilot/Common/sort.jsp") !== -1)
       );
@@ -291,6 +295,7 @@
       // Entity-context entries gate folder_contents behind a NAVIGATION (XHR shells), so use the iframe.
       if (/\/ServiceProviders\/Modify\//.test(url)) return true;                          // Service Provider entry
       if (/\/(?:ServiceProvider\/Members|Reseller\/Groups)\/Modify\//.test(url)) return true;  // Group entry (from SP or reseller list)
+      if (/\/Group\/Members\/Modify\//.test(url)) return true;                            // User entry (from a group's Users list)
       // Non-reseller folder menus (S/G/… not R) also shell to XHR → iframe. Reseller (R) stays on plain fetch.
       if (url.indexOf("folder_contents.jsp") !== -1 && params && params.folder && !/^R\d+$/.test(params.folder)) return true;
       return false;
@@ -873,12 +878,11 @@
       });
       if (folders.length === 0) return;
       // LEVEL GATE: build the aggregated one-scroll console where we can retrieve every folder's content.
-      // Reseller (R-ids) loads via plain background fetch. The Service-Provider (S-ids) and Group (G-ids)
+      // Reseller (R-ids) loads via plain background fetch. The Service-Provider (S), Group (G) and User (U)
       // levels load each folder via cpAggNavigate (the BARE {folder,menuId} sidebar-click params over
       // cpFollowFrame — see the agg transport notes); the menuId is read per-folder from the wiring (R=8,
-      // S=2, G=1), so the same machinery serves every level. User (other prefixes) stay native until their
-      // entry is wired — widen this set (e.g. [RSGU]) as each lands.
-      if (!folders.every(function (f) { return /^[RSG]\d+$/.test(f.folder); })) return;
+      // S=2, G=1, U=0), so the same machinery serves every level. Any other prefix stays native until wired.
+      if (!folders.every(function (f) { return /^[RSGU]\d+$/.test(f.folder); })) return;
       var aggLevel = !folders.every(function (f) { return /^R\d+$/.test(f.folder); });
       // SWITCHER (debug/fallback): at non-reseller levels, localStorage.cpSpAgg === "0" forces the
       // single-folder mode (skip the aggregated build → native menu in the shell, sidebar clicks

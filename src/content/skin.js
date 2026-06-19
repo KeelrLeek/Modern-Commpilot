@@ -54,6 +54,10 @@ window.addEventListener("message", function (e) {
     utilities: "assets/icons/utilities.svg",
     "comm-barring": "assets/icons/comm-barring.svg",
     callingplan: "assets/icons/calling-plan.svg",
+    "incoming-calls": "assets/icons/incoming-calls.svg",
+    "outgoing-calls": "assets/icons/outgoing-calls.svg",
+    messaging: "assets/icons/messaging.svg",
+    "client-apps": "assets/icons/client-apps.svg",
     unknown: "assets/icons/unknown.svg",
   };
 
@@ -1942,6 +1946,10 @@ function cpFolderIconKey(name) {
   if (n.indexOf("profile") !== -1) return "profile";
   if (n.indexOf("resource") !== -1) return "resources";
   if (n.indexOf("barring") !== -1) return "comm-barring";
+  if (n.indexOf("incoming") !== -1) return "incoming-calls";
+  if (n.indexOf("outgoing") !== -1) return "outgoing-calls";
+  if (n.indexOf("messaging") !== -1) return "messaging";
+  if (n.indexOf("application") !== -1) return "client-apps";
   if (n.indexOf("calling") !== -1) return "callingplan";
   if (n.indexOf("callcenter") !== -1) return "callcenter";
   if (n.indexOf("meetme") !== -1 || n.indexOf("conferenc") !== -1) return "meetme";
