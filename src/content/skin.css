@@ -1878,6 +1878,12 @@ html.cp-console-active body {
    is absent (see gotcha-scrollbar-gutter-fixed-drift). */
 html.cp-console-active {
   scrollbar-gutter: auto !important;
+  /* Shared header-band height for the sidebar OPTIONS band AND the console breadcrumb — they sit on the
+     same row and their bottom dividers must align. The .cp-console max-height offset (calc(100vh - 172px))
+     also reserves this height. PIN both bands to this var so their CONTENT can never drive the height:
+     letting the breadcrumb grow with its content (e.g. the pill trail = 52px) is what twice broke the
+     bottom padding + divider alignment. Change the band height here only. */
+  --cp-band-h: 44px;
 }
 
 /* Full-width floating curved top bar — spans the page, not capped to 1440px */
@@ -2010,7 +2016,7 @@ html.cp-console-active td.headandfoot[width="18%"] {
    Legacy "Options:" text hidden (font-size 0); ::before re-prints "OPTIONS" (no colon),
    vertically centred via the cell's vertical-align:middle. */
 html.cp-console-active .navOptions {
-  height: 44px !important;
+  height: var(--cp-band-h) !important;
   vertical-align: middle !important;
   padding: 0 14px !important;
   border-bottom: none !important;
@@ -2142,13 +2148,18 @@ html.cp-console-active td[width="82%"] {
   overflow: hidden !important;
 }
 
-/* Breadcrumb pinned at top of the console panel */
+/* Breadcrumb pinned at top of the console panel. FIXED height = the shared band height (NOT padding-
+   driven) so its content — bare <a> trail, pill trail, a 5-segment user crumb, whatever — can never
+   change the band height and re-break the bottom padding / OPTIONS-divider alignment. Pills/route glyph
+   centre vertically within the band. */
 html.cp-console-active .cp-breadcrumb {
   flex: 0 0 auto !important;
   display: flex !important;
   align-items: center !important;
   gap: 9px !important;
-  padding: 13px 22px !important;
+  height: var(--cp-band-h) !important;
+  box-sizing: border-box !important;
+  padding: 0 22px !important;
   margin: 0 !important;
   border-bottom: 1px solid var(--cp-border, #3c3a37) !important;
 }
