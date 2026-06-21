@@ -1220,6 +1220,19 @@ function cpMoveBreadcrumb() {
     var curSpan = document.querySelector("span.headerAuthLevel");
     var curEnt = curSpan ? (curSpan.textContent || "").replace(/^\s*:\s*/, "").trim() : "";
     if (curEnt && (segs[segs.length - 1].textContent || "").trim() === curEnt) curEnt = "";   /* dedupe vs last level */
+    /* At the user level any "Users" members-list link is redundant with the entity id ("… Group › Users ›
+       id" → "… Group › id"); its position varies, so drop EVERY "Users" link (keep the other ancestors). */
+    if (curEnt && segs.length > 1) segs = segs.filter(function (a) { return (a.textContent || "").trim() !== "Users"; });
+
+    /* On a plain LIST/section page (no entity) name the page itself as the current pill, from the
+       screenName (e.g. "Service Providers"), so the trail reads "Reseller › Service Providers" instead of
+       stopping at the level. Strip a leading "<id>: " prefix some screenNames carry. */
+    var curPage = "";
+    if (!curEnt && !document.querySelector("a.navMenuItem")) {   /* skip on folder MENU/base pages (their anchor isn't a page) */
+      var pn = (title.textContent || "").trim();
+      var pci = pn.indexOf(": "); if (pci > 0 && pn.slice(0, pci).indexOf(" ") === -1) pn = pn.slice(pci + 2).trim();
+      if (pn && (segs[segs.length - 1].textContent || "").trim() !== pn) curPage = pn;
+    }
 
     for (var j = 0; j < segs.length; j++) {
       if (j > 0) {
@@ -1230,7 +1243,7 @@ function cpMoveBreadcrumb() {
         bar.appendChild(sep);
       }
       var a = segs[j];
-      var isCur = (j === segs.length - 1) && !curEnt;   /* last level is current ONLY if there's no entity */
+      var isCur = (j === segs.length - 1) && !curEnt && !curPage;   /* last level is current ONLY if there's no entity AND no page name */
       a.classList.add(isCur ? "cp-bc-cur" : "cp-bc-seg");
       if (isCur) {
         a.setAttribute("aria-current", "page");
@@ -1252,6 +1265,20 @@ function cpMoveBreadcrumb() {
       idPill.setAttribute("aria-current", "page");
       idPill.textContent = curEnt;
       bar.appendChild(idPill);
+    }
+
+    /* Append the page name as the current pill on plain list/section pages (no entity). */
+    if (curPage) {
+      var psep = document.createElement("span");
+      psep.className = "cp-bc-sep";
+      psep.setAttribute("aria-hidden", "true");
+      psep.innerHTML = CP_BC_ARROW_SVG;
+      bar.appendChild(psep);
+      var pPill = document.createElement("span");
+      pPill.className = "cp-bc-cur";
+      pPill.setAttribute("aria-current", "page");
+      pPill.textContent = curPage;
+      bar.appendChild(pPill);
     }
 
     titleTable.parentNode.insertBefore(bar, titleTable);

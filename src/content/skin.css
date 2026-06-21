@@ -2233,8 +2233,9 @@ html.cp-console-active .cp-bc-pill .cp-bc-cur {
   color: var(--cp-primary, #C6A8E8) !important;
   background: rgba(110, 76, 150, 0.26) !important;
 }
-/* Entity-id current pill (e.g. RSG171001@phonenetwork.net) — keep its real case, don't uppercase. */
-html.cp-console-active .cp-bc-pill .cp-bc-cur.cp-bc-id {
+/* Entity-id pill (e.g. RSG171001@phonenetwork.net) — keep its real case, don't uppercase. Applies whether
+   it's the current pill (user home) or a clickable ancestor (on a user sub-page: "… › <id> › Addresses"). */
+html.cp-console-active .cp-bc-pill .cp-bc-id {
   text-transform: none !important;
   letter-spacing: 0.01em !important;
 }
@@ -2339,6 +2340,10 @@ html.cp-console-active .cp-console::-webkit-scrollbar-button:vertical:end {
   border-radius: 0 !important;
   flex: 0 0 auto !important;
 }
+/* Bottom-edge dissolve for cards scrolling UP under the pinned header. Opacity is SCROLL-DRIVEN
+   via --cp-head-fade (set per-frame by cpHeadFade in pjax.js): 0 when the section is parked — so
+   BASIC/ADVANCED sitting just below the header stay crisp — ramping to 1 as content slides under it.
+   (Was always-on, which permanently dimmed the top of the category labels.) */
 .cp-console-head::after {
   content: "" !important;
   position: absolute !important;
@@ -2347,6 +2352,7 @@ html.cp-console-active .cp-console::-webkit-scrollbar-button:vertical:end {
   top: 100% !important;
   height: 20px !important;
   background: linear-gradient(var(--cp-surface-low, #232220), rgba(35, 34, 32, 0)) !important;
+  opacity: var(--cp-head-fade, 0) !important;
   pointer-events: none !important;
 }
 .cp-console-head-name {

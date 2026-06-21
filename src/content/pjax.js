@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.60";
+  var CP_PJAX_VERSION = "0.2.68";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
 
   try { history.replaceState({ cpNav: { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } } }, "", location.href); } catch (e) {}
@@ -48,6 +48,9 @@
   var cpAggToken = null;
   var cpAggAnchorFolder = null;
   var cpAggCache = null;   // SP pre-fetch cache {folder: menuHtml|null}, filled before the page is wiped
+  var cpAggReady = null;   // {folder: {promise, resolve}} — per-folder deferred so the reveal can await each
+                           // folder PROGRESSIVELY as its (sequential) prefetch resolves, instead of waiting
+                           // for the whole prefetch. Removes the upfront dead gap on SP/Group/User entry.
   // RESELLER anchor reuse: the open folder cpHook just fetched to land here IS the console's anchor
   // section, so re-fetching it (the old behaviour) fired a SECOND back-to-back folder_contents on the
   // rotating single-use token → the anchor (Profile) intermittently shelled = "Couldn't load — Retry".
@@ -197,6 +200,11 @@
           /\/(?:ServiceProvider\/Members|Reseller\/Groups)\/Modify\//.test(u) ||
           // USER entry (clicking a user row in a group's Users list) → /Group/Members/Modify/.
           /\/Group\/Members\/Modify\//.test(u) ||
+          // USER SUB-PAGES (the settings pages behind each user folder option) → /commpilot/User/<Section>/
+          // (e.g. /User/Addresses/, /User/Profile/). They serve real content to a plain background fetch
+          // (verified: /User/Profile/ returns the full form, not a shell), so they ride the plain-fetch path —
+          // no iframe (cpNeedsFrame stays false). Content stays raw BroadSoft for now; Phase B skins it.
+          /\/commpilot\/User\/[A-Za-z]+\/(index\.jsp)?$/.test(u) ||
           u.indexOf("/commpilot/Common/page.jsp") !== -1 ||
           u.indexOf("/commpilot/Common/sort.jsp") !== -1)
       );
@@ -328,43 +336,61 @@
     // page (the wiped console DOM also shells), into cpAggCache; finalize then builds the console from cache.
     // Debug scaffolding (delay/retry/[agg] logging) + live diagnostic harnesses are archived in
     // dev-scaffolding/sp-aggregation-debug-and-diagnostics.js.
+    function cpDefer() { var d = {}; d.promise = new Promise(function (r) { d.resolve = r; }); return d; }
     function cpAggBegin(anchorFolder, anchorHtml) {
       cpAggEnd();
       cpAggActive = true;
       cpAggAnchorFolder = anchorFolder || null;
       cpAggCache = {};
-      if (anchorFolder && anchorHtml != null) cpAggCache[anchorFolder] = anchorHtml;
+      cpAggReady = {};
+      if (anchorFolder && anchorHtml != null) {
+        cpAggCache[anchorFolder] = anchorHtml;
+        cpAggReady[anchorFolder] = { promise: Promise.resolve(anchorHtml), resolve: function () {} };
+      }
       var t = document.getElementsByName("formtokenserial")[0];
       cpAggToken = t ? t.value : null;
     }
     function cpAggEnd() {
-      cpAggActive = false; cpAggToken = null; cpAggAnchorFolder = null; cpAggCache = null;
+      cpAggActive = false; cpAggToken = null; cpAggAnchorFolder = null; cpAggCache = null; cpAggReady = null;
     }
     function cpAggPrefetch(folders) {
+      // Pre-create a deferred per non-anchor folder up front so cpAggNavigate ALWAYS has a promise to
+      // return — even for a folder the reveal reaches before its sequential load has started. Each load
+      // settles its own (captured) deferred, so the reveal cascades each folder in as it lands rather than
+      // waiting for the whole walk (the old await-all-then-startReveal dead gap). Loads stay SEQUENTIAL —
+      // they thread the rotating single-use formtokenserial, so they cannot be parallelised.
+      folders.forEach(function (f) {
+        if (f.folder === cpAggAnchorFolder) return;
+        if (!cpAggReady[f.folder]) cpAggReady[f.folder] = cpDefer();
+      });
       var seq = Promise.resolve();
       folders.forEach(function (f) {
         if (f.folder === cpAggAnchorFolder) return;   // anchor reuses its captured menu
+        var deferred = cpAggReady[f.folder];           // capture THIS build's deferred (survives a cpAggEnd swap)
         seq = seq.then(function () {
-          if (cpSectionAborted) { cpAggCache[f.folder] = null; return; }
+          var settle = function (html) { if (cpAggCache) cpAggCache[f.folder] = html; deferred.resolve(html); };
+          if (cpSectionAborted) { settle(null); return; }
           var tokEl = document.getElementsByName("formtokenserial")[0];
           var tok = (tokEl ? tokEl.value : null) || cpAggToken;
           return cpFollowFrame("/commpilot/Common/folder_contents.jsp", { folder: f.folder, menuId: f.menuId || "2" }, tok, 0)
             .then(function (res) {
-              if (!res || res.auth === false || !res.doc) { cpAggCache[f.folder] = null; return; }
+              if (!res || res.auth === false || !res.doc) { settle(null); return; }
               var nt = res.doc.getElementsByName("formtokenserial")[0];
               if (nt && nt.value) { cpAggToken = nt.value; var ts = document.getElementsByName("formtokenserial"); for (var i = 0; i < ts.length; i++) ts[i].value = nt.value; }
               var td = res.doc.querySelector('td[width="82%"]');
               var n = td ? td.querySelectorAll('a.navMenuItem').length : 0;
-              cpAggCache[f.folder] = (td && n > 0) ? td.innerHTML : null;
+              settle((td && n > 0) ? td.innerHTML : null);
             })
-            .catch(function () { cpAggCache[f.folder] = null; });
+            .catch(function () { settle(null); });
         });
       });
       return seq;
     }
     function cpAggNavigate(folder) {
-      // Reveal-time read: return the pre-fetched menu HTML (null if that folder shelled). No live load —
-      // the loads already happened against the intact page in cpAggPrefetch.
+      // Reveal-time read: await this folder's prefetch deferred (resolves to the menu HTML, or null if it
+      // shelled). The loads run in cpAggPrefetch (against the intact page); here we just wait for THIS one,
+      // so a section reveals the moment its own load lands — no waiting on the rest of the walk.
+      if (cpAggReady && cpAggReady[folder]) return cpAggReady[folder].promise;
       return Promise.resolve(cpAggCache ? cpAggCache[folder] : null);
     }
 
@@ -451,11 +477,29 @@
                   var ctLinks = Array.prototype.slice.call(fCell.querySelectorAll("a.headerAuthLevelLink"));
                   var ctrail = [];
                   ctLinks.forEach(function (a) { var t = (a.textContent || "").trim(); if (t && (!ctrail.length || ctrail[ctrail.length - 1] !== t)) ctrail.push(t); });
-                  // Append the current entity (span.headerAuthLevel — e.g. a user id) as the current pill.
-                  var cLen = ctrail.length, cEnt = doc.querySelector("span.headerAuthLevel");
-                  if (cEnt) { var et = (cEnt.textContent || "").replace(/^\s*:\s*/, "").trim(); if (et && ctrail[ctrail.length - 1] !== et) ctrail.push(et); }
+                  // Append the CURRENT PAGE as the trailing pill(s) so the trail names where you are:
+                  //  • Entity (a user id in span.headerAuthLevel) → the id pill. On a user SUB-PAGE (a settings
+                  //    page, no navMenuItem) the id becomes a clickable ANCESTOR and the page name is the
+                  //    current pill: "… Group › <user-id> › Addresses". On the user home (a folder MENU) the id
+                  //    is the current pill.
+                  //  • A plain LIST page (no entity) → the screenName as the current pill ("… › Groups").
+                  //  • A folder MENU (a level base/home — has navMenuItem) → no page pill: it becomes the
+                  //    aggregated console, whose anchor ("Profile") isn't a page. (cpBuildConsole inherits this
+                  //    crumb, so a stray name here would leak onto the console.)
+                  var isMenu = !!doc.querySelector("a.navMenuItem");
+                  var cEnt = doc.querySelector("span.headerAuthLevel");
+                  var et = cEnt ? (cEnt.textContent || "").replace(/^\s*:\s*/, "").trim() : "";
+                  if (et && ctrail[ctrail.length - 1] === et) et = "";   // dedupe vs last ancestor
+                  var sn = "";
+                  if (!isMenu && newTitle) {
+                    sn = (newTitle.textContent || "").trim();
+                    var ci = sn.indexOf(": "); if (ci > 0 && sn.slice(0, ci).indexOf(" ") === -1) sn = sn.slice(ci + 2).trim();  // strip a leading "<id>: " prefix
+                  }
+                  if (et) ctrail.push(et);                                   // entity id: ancestor if a page follows, else current
+                  var isIdLast = !!et;
+                  if (sn && ctrail[ctrail.length - 1] !== sn) { ctrail.push(sn); isIdLast = false; }   // page name = current pill
                   if (ctrail.length && titleTable && titleTable.parentNode) {
-                    titleTable.parentNode.insertBefore(cpBuildPillCrumb(ctrail, ctrail.length > cLen), titleTable);
+                    titleTable.parentNode.insertBefore(cpBuildPillCrumb(ctrail, isIdLast), titleTable);
                   }
                 }
               } catch (e) {
@@ -806,6 +850,14 @@
     function cpCrumbNav(idx, trail) {
       try {
         trail = trail || [];
+        var seg = trail[idx] || "";
+        // User-id pill (a clickable ANCESTOR on a user sub-page) → re-enter the user = back to the user home
+        // console. Rebuild the entry key "SP >% Group >% UserId" from the trail (SP=1, Group=2 once "Users" is
+        // dropped), mirroring how the group pill rebuilds its key at idx 2.
+        if (/@/.test(seg) && trail[1] && trail[2]) {
+          var uk = trail[1] + ">%" + trail[2] + ">%" + seg;
+          window.redirectPost("/commpilot/Group/Members/Modify/index.jsp", { key: uk, P_key: uk }); return;
+        }
         if (idx === 0) { window.redirectPost("/commpilot/Common/folder_contents.jsp", { folder: "R0", menuId: "8" }); return; }
         if (idx === 1 && trail[1]) { window.redirectPost("/commpilot/Reseller/ServiceProviders/Modify/index.jsp", { key: trail[1], P_key: trail[1] }); return; }
         if (idx === 2 && trail[1] && trail[2]) { var gk = trail[1] + ">%" + trail[2]; window.redirectPost("/commpilot/ServiceProvider/Members/Modify/index.jsp", { key: gk, P_key: gk }); return; }
@@ -822,6 +874,16 @@
     // (console pages) and cpHook's restore (list/leaf pjax swaps). Ancestors are clickable via cpCrumbNav;
     // the current/last level is a static pill.
     function cpBuildPillCrumb(trail, idLast) {
+      trail = trail.slice();
+      // Is the last pill the current ENTITY id (case-preserved)? Trust the caller's idLast, but also treat
+      // an id-looking last segment (contains "@", e.g. a user id) as one — the trail source is inconsistent.
+      var lastIsId = !!idLast || /@/.test(trail[trail.length - 1] || "");
+      // Drop a redundant/stale "Users" members-list segment anywhere it is NOT the current (last) pill.
+      // "Users" is the legit current pill only on a Users LIST page (last segment) — there it stays. The user
+      // level carries it as a redundant ancestor, and the un-swapped live header can leak a STALE "Users"
+      // into other levels ("Users randomly appears"); both are scrubbed here. The surviving ancestors stay
+      // index-aligned for cpCrumbNav. Guard length>2 so a sparse trail can't collapse to just the id.
+      if (trail.length > 2) trail = trail.filter(function (s, i) { return !(s === "Users" && i !== trail.length - 1); });
       var crumb = document.createElement("div");
       crumb.className = "cp-breadcrumb cp-bc-pill";
       var lead = document.createElement("span");
@@ -838,10 +900,14 @@
           crumb.appendChild(sep);
         }
         var isCur = (i === trail.length - 1);
+        var segIsId = /@/.test(seg);   // an entity id (e.g. a user id) — keep its real case wherever it sits,
+                                        // including as a clickable ANCESTOR on a user sub-page (.cp-bc-id).
         var pill = document.createElement(isCur ? "span" : "a");
-        // The last segment is the current pill; if it's the entity ID (idLast) it gets .cp-bc-id so the
+        // The last segment is the current pill; an id segment (idLast or id-looking) gets .cp-bc-id so the
         // CSS preserves its case (an id like RSG171001@phonenetwork.net, not an uppercased level name).
-        pill.className = isCur ? (idLast ? "cp-bc-cur cp-bc-id" : "cp-bc-cur") : "cp-bc-seg";
+        pill.className = isCur
+          ? ((lastIsId || segIsId) ? "cp-bc-cur cp-bc-id" : "cp-bc-cur")
+          : (segIsId ? "cp-bc-seg cp-bc-id" : "cp-bc-seg");
         pill.textContent = seg;
         if (isCur) {
           pill.setAttribute("aria-current", "page");
@@ -953,11 +1019,13 @@
       // content cell is wiped below.
       var trail = [];
       var pushSeg = function (t) { if (t && trail[trail.length - 1] !== t) trail.push(t); };   // dedupe consecutive (the auth links can repeat "Reseller")
-      document.querySelectorAll("a.headerAuthLevelLink").forEach(function (a) { pushSeg((a.textContent || "").trim()); });
-      if (!trail.length) {
-        var existingCrumb = document.querySelector(".cp-breadcrumb");
-        if (existingCrumb) existingCrumb.querySelectorAll(".cp-bc-seg, .cp-bc-cur, a").forEach(function (a) { pushSeg((a.textContent || "").trim()); });
-      }
+      // Prefer the FRESH crumb cpHook (pjax) / cpMoveBreadcrumb (full load) just built from the FETCHED doc.
+      // The live header's a.headerAuthLevelLink are STALE on a pjax swap (the header isn't swapped — the same
+      // reason cpCurEntity exists) and leak the PREVIOUS level's segments — that's what made "Users" randomly
+      // appear at other levels. Read the just-built crumb first; the live links are only the fresh-load fallback.
+      var existingCrumb = document.querySelector(".cp-breadcrumb");
+      if (existingCrumb) existingCrumb.querySelectorAll(".cp-bc-seg, .cp-bc-cur, a").forEach(function (a) { pushSeg((a.textContent || "").trim()); });
+      if (!trail.length) document.querySelectorAll("a.headerAuthLevelLink").forEach(function (a) { pushSeg((a.textContent || "").trim()); });
       if (!trail.length) trail = ["Reseller"];
       // Current ENTITY (e.g. a user id) → the breadcrumb's last pill (like the live site's "… Users : id").
       // The entity lives in span.headerAuthLevel, which is in the HEADER — but the header isn't swapped on a
@@ -1033,9 +1101,12 @@
         // background and cascade in below once cpAggCache is filled.
         var aggAnchorSec = aggAnchorFolder && consoleDiv.querySelector('.cp-console-section[data-cp-folder="' + aggAnchorFolder + '"]');
         if (aggAnchorSec) cpLoadAndRevealSection(aggAnchorSec, false, aggAnchorSec, null);
-        cpAggPrefetch(folders).then(function () {
-          startReveal();   // anchor already revealed (skipped as loaded); the rest cascade in from cache
-        });
+        // Kick off the sequential prefetch and start the reveal CONCURRENTLY (don't await the whole walk).
+        // Each reveal step awaits only its own folder's deferred (cpAggNavigate), so sections cascade in as
+        // their loads land — anchor instant, then S1 the moment it resolves, etc. — instead of anchor → a
+        // ~500ms dead gap (all 4 folders) → burst. Matches the reseller console's continuous trickle.
+        cpAggPrefetch(folders);
+        startReveal();   // anchor already revealed (skipped as loaded); the rest reveal progressively from cache
       } else {
         mountConsole();
         startReveal();
@@ -1189,11 +1260,20 @@
       cons.querySelectorAll(".cp-console-head").forEach(function (head) {
         var inner = head.querySelector(".cp-console-head-inner");
         if (!inner) return;
-        var top = head.getBoundingClientRect().top - consTop;
+        var hr = head.getBoundingClientRect();
+        var top = hr.top - consTop;
         var H = head.offsetHeight || 50;
         var p = top < 0 ? Math.max(0, Math.min(1, 1 + top / (H * 0.30))) : 1;
         inner.style.opacity = p;
         inner.style.transform = top < 0 ? ("scale(" + (0.9 + 0.1 * p).toFixed(3) + ")") : "";
+        // Drive the bottom-edge gradient (.cp-console-head::after, opacity:var(--cp-head-fade,0)):
+        // 0 when the section is parked (body starts flush under the head → labels crisp), ramping to 1
+        // as the body scrolls UP under the pinned header. body is the head's next sibling (.cp-console-body).
+        var body = head.nextElementSibling;
+        if (body) {
+          var under = hr.bottom - body.getBoundingClientRect().top;
+          head.style.setProperty("--cp-head-fade", Math.max(0, Math.min(1, under / 16)).toFixed(3));
+        }
       });
     }
     // Load ONE console section (fetch its folder content → swap it in → re-skin + wire submenu/counts
