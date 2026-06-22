@@ -2,8 +2,13 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.77";
+  var CP_PJAX_VERSION = "0.2.97";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
+
+  // Single-page sign-out: minimum time (ms) the "Signing out…" spinner stays up
+  // before landing on the login, so a fast logout still reads as a smooth,
+  // intentional moment instead of a flicker. See cpSignOutFetch / cpHook.
+  var CP_LOGOUT_MIN_MS = 1400;
 
   try { history.replaceState({ cpNav: { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } } }, "", location.href); } catch (e) {}
 
@@ -399,8 +404,73 @@
       return Promise.resolve(cpAggCache ? cpAggCache[folder] : null);
     }
 
+    // Single-page sign-out. The footer Log out (confirmed in skin.js's modal,
+    // which sets the cp-signing-out flag) calls redirectPost(logoutUrl, {}).
+    // Rather than navigate to the raw /Logout/ landing and then bounce to
+    // /Login/ (two documents → spinner restart + flash), we run the SAME logout
+    // request as a background fetch while the "Signing out…" spinner stays on
+    // THIS page, hold it for a minimum beat, then go once to the styled login.
+    // Faithful to the real request: same url + params + the live formtokenserial
+    // (what redirectPost itself would post). On fetch failure we fall back to the
+    // real navigation logout (correctness over polish) — skin.js's cpLogoutToLogin
+    // then carries /Logout/ → /Login/.
+    function cpSignOutFetch(url, params) {
+      var start = Date.now();
+      var LOGIN = "/commpilot/Login/";
+      function go() {
+        var wait = Math.max(0, CP_LOGOUT_MIN_MS - (Date.now() - start));
+        setTimeout(function () {
+          var navd = false;
+          function nav() { if (navd) return; navd = true; try { location.replace(LOGIN); } catch (e) { location.href = LOGIN; } }
+          // Just before the swap, HIDE the base console (sidebar) + darken html/body.
+          // THIS is the real flash fix: at the document-swap teardown the browser
+          // drops the fixed overlay from the painted frame but still paints the base
+          // console (sidebar) — so the base must be display:none, not merely covered
+          // (proven: a pagehide trace showed the sidebar 0×0/display:none = no flash,
+          // while opaque-overlay attempts still flashed). The console stays VISIBLE
+          // (dimmed) through the hold for the popup look; we only hide it here.
+          try {
+            var de = document.documentElement, b = document.body;
+            de.style.setProperty("background", "#1c1b19", "important");
+            b.style.setProperty("background", "#1c1b19", "important");
+            var kids = b.children;
+            for (var i = 0; i < kids.length; i++) {
+              var ch = kids[i];
+              if (ch.classList && ch.classList.contains("cp-logout-overlay")) continue;
+              var t = ch.tagName;
+              if (t === "SCRIPT" || t === "STYLE" || t === "LINK") continue;
+              ch.style.setProperty("display", "none", "important");
+            }
+          } catch (e) {}
+          // Force a paint of the hidden state before navigating, so the HELD teardown
+          // frame is base-hidden (a single rAF runs before paint; double = after one
+          // paint). setTimeout is the fallback for throttled/background tabs.
+          try { requestAnimationFrame(function () { requestAnimationFrame(nav); }); } catch (e) { nav(); }
+          setTimeout(nav, 160);
+        }, wait);
+      }
+      function fallback() { try { _orig.call(window, url, params); } catch (e) { go(); } }
+      try {
+        var body = new URLSearchParams();
+        for (var k in params) if (Object.prototype.hasOwnProperty.call(params, k)) body.append(k, params[k]);
+        var tEl = document.getElementsByName("formtokenserial")[0];
+        if (tEl && tEl.value) body.append("formtokenserial", tEl.value);
+        console.log("[pjax] sign-out fetch", url);
+        fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+          credentials: "same-origin"
+        }).then(go, fallback);
+      } catch (e) { fallback(); }
+    }
+
     cpHook = function (url, params) {
       try {
+        // Sign-out interception (must precede isPjaxUrl): when skin.js's logout
+        // confirmation has armed cp-signing-out, this redirectPost IS the logout.
+        var _so = 0; try { _so = parseInt(sessionStorage.getItem("cp-signing-out") || "0", 10); } catch (e) {}
+        if (_so && (Date.now() - _so < 15000)) { cpSignOutFetch(url, params || {}); return; }
         if (isPjaxUrl(url)) {
           var mySeq = ++cpSeq;
           try { cpLastNav = { url: url, params: params || {} }; } catch (e) {}
@@ -934,6 +1004,13 @@
           })(i);
         }
         crumb.appendChild(pill);
+      });
+      // Transition animation (destination focus): on each nav only the CURRENT pill slides + pops in; the
+      // stable ancestors stay put. rAF so it runs after the caller inserts the crumb (WAAPI on a detached
+      // node wouldn't paint). cpBuildPillCrumb runs once per crumb build, i.e. once per navigation.
+      var animPill = crumb.querySelector(".cp-bc-cur");
+      if (animPill) requestAnimationFrame(function () {
+        try { animPill.animate([{ opacity: 0, transform: "scale(0.82) translateX(10px)" }, { opacity: 1, transform: "none" }], { duration: 300, easing: "cubic-bezier(0.34,1.4,0.64,1)" }); } catch (e) {}
       });
       return crumb;
     }

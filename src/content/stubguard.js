@@ -120,15 +120,19 @@
         if (cand) msg = cand.textContent.trim();
       }
       if (!msg) msg = "Sign-in failed. Please check your User ID and password and try again.";
-      var card = document.querySelector(".cp-login-card");
-      if (!card) return;
-      var al = card.querySelector(".cp-login-alert");
+      // Insert into the form panel (split-panel login) — falling back to the card.
+      // .cp-login-field now lives inside .cp-login-form-panel, so inserting relative
+      // to it must use that panel as the parent (card.insertBefore threw silently).
+      var panel = document.querySelector(".cp-login-form-panel") || document.querySelector(".cp-login-card");
+      if (!panel) return;
+      var al = panel.querySelector(".cp-login-alert");
       if (!al) {
         al = document.createElement("div");
         al.className = "cp-login-alert";
-        card.insertBefore(al, card.querySelector(".cp-login-field") || null);
+        al.innerHTML = '<svg class="cp-login-alert-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg><span class="cp-login-alert-msg"></span>';
+        panel.insertBefore(al, panel.querySelector(".cp-login-field") || null);
       }
-      al.textContent = msg;
+      (al.querySelector(".cp-login-alert-msg") || al).textContent = msg;
     } catch (e) {}
   }
 

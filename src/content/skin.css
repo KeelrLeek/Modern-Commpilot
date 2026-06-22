@@ -1755,29 +1755,53 @@ body.cp-login-page form[name="loginForm"] {
     var(--cp-bg) !important;
 }
 body.cp-login-page .cp-login-card {
-  width: 100% !important; max-width: 380px !important; box-sizing: border-box !important;
+  width: 100% !important; max-width: 480px !important; box-sizing: border-box !important;
+  display: flex !important; flex-direction: row !important; padding: 0 !important; overflow: hidden !important;
+  background: var(--cp-surface) !important;
+  border: 1px solid var(--cp-box-edge) !important;
+  border-radius: var(--cp-radius-card) !important;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.45) !important;
+}
+/* LEFT brand panel — purple gradient, mark + wordmark + tagline, vertically centred */
+body.cp-login-page .cp-login-brand-panel {
+  flex: 0 0 184px !important; box-sizing: border-box !important;
+  display: flex !important; flex-direction: column !important;
+  align-items: center !important; justify-content: center !important; text-align: center !important;
+  gap: 10px !important; padding: 34px 22px !important;
+  background: linear-gradient(160deg, #3a2b52, #241c2c) !important;
+  border-right: 1px solid var(--cp-box-edge) !important;
+}
+/* RIGHT form panel — the moved fields + remember + Sign In */
+body.cp-login-page .cp-login-form-panel {
+  flex: 1 1 auto !important; min-width: 0 !important; box-sizing: border-box !important;
   display: flex !important; flex-direction: column !important; gap: 14px !important;
   padding: 32px 28px !important;
-  background: color-mix(in srgb, var(--cp-surface) 85%, transparent) !important;
-  border: 1px solid var(--cp-glass-edge) !important;
-  border-radius: var(--cp-radius-card) !important;
-  box-shadow: inset 0 1px 0 var(--cp-glass-edge), 0 20px 50px rgba(0,0,0,0.45) !important;
-  backdrop-filter: var(--cp-blur) !important; -webkit-backdrop-filter: var(--cp-blur) !important;
 }
 body.cp-login-page .cp-login-brand {
-  font-family: var(--cp-font-label) !important; font-size: 26px !important; font-weight: 600 !important;
+  font-family: var(--cp-font-label) !important; font-size: 21px !important; font-weight: 700 !important;
   letter-spacing: -0.02em !important; color: var(--cp-text) !important; text-align: center !important;
+}
+body.cp-login-page .cp-login-brand-accent { color: var(--cp-primary) !important; }
+body.cp-login-page .cp-login-tagline {
+  font-family: var(--cp-font-label) !important; font-size: 11.5px !important; line-height: 1.45 !important;
+  color: var(--cp-text-muted) !important; text-align: center !important;
 }
 body.cp-login-page .cp-login-sub {
   margin: -6px 0 6px !important; font-size: 13px !important;
   color: var(--cp-text-muted) !important; text-align: center !important;
 }
 body.cp-login-page .cp-login-alert {
-  font-size: 12.5px !important; line-height: 1.4 !important; color: var(--cp-text) !important;
-  background: color-mix(in srgb, var(--cp-tertiary) 16%, transparent) !important;
-  border: 1px solid color-mix(in srgb, var(--cp-tertiary) 40%, transparent) !important;
+  display: flex !important; align-items: flex-start !important; gap: 9px !important;
+  font-size: 12.5px !important; line-height: 1.4 !important; color: #ffb4ab !important;
+  background: rgba(224, 108, 117, 0.12) !important;
+  border: 1px solid rgba(224, 108, 117, 0.38) !important;
   border-radius: var(--cp-radius-ctl) !important; padding: 10px 12px !important;
 }
+body.cp-login-page .cp-login-alert-ico {
+  flex: none !important; width: 16px !important; height: 16px !important;
+  margin-top: 1px !important; color: #ffb4ab !important;
+}
+body.cp-login-page .cp-login-alert-msg { flex: 1 1 auto !important; min-width: 0 !important; }
 body.cp-login-page .cp-login-field { display: flex !important; flex-direction: column !important; gap: 6px !important; }
 body.cp-login-page .cp-login-label {
   font-family: var(--cp-font-label) !important; font-size: 12px !important; color: var(--cp-text-muted) !important;
@@ -2635,4 +2659,181 @@ html.cp-console-active .menuCategory::after {
   background: none !important;
   border-bottom: 1px solid var(--cp-outline) !important;
   flex: 1 1 auto !important;
+}
+
+/* ============================================================
+   Logout confirmation modal (Option A) — the footer "Log out"
+   button opens a centered confirmation popup instead of jumping
+   straight to the raw legacy logout page. Built/wired in skin.js
+   (cpShowLogoutModal / cpWireLogoutButton). Trifecta dark tokens.
+   ============================================================ */
+.cp-logout-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483600 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+}
+.cp-logout-modal {
+  box-sizing: border-box !important;
+  width: 340px !important;
+  max-width: calc(100vw - 48px) !important;
+  background: var(--cp-surface) !important;
+  border: 1px solid var(--cp-box-edge) !important;
+  border-radius: 12px !important;
+  padding: 24px 24px 20px !important;
+  text-align: center !important;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45) !important;
+  font-family: var(--cp-font-sans) !important;
+}
+.cp-logout-badge {
+  width: 52px !important;
+  height: 52px !important;
+  margin: 0 auto 14px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(110, 76, 150, 0.18) !important;
+  color: var(--cp-primary) !important;
+}
+.cp-logout-badge svg {
+  width: 26px !important;
+  height: 26px !important;
+  display: block !important;
+}
+.cp-logout-title {
+  margin: 0 0 6px !important;
+  font: 700 19px/1.3 var(--cp-font-sans) !important;
+  color: var(--cp-text) !important;
+}
+.cp-logout-sub {
+  margin: 0 !important;
+  font: 400 13px/1.5 var(--cp-font-sans) !important;
+  color: var(--cp-text-muted) !important;
+}
+.cp-logout-who {
+  margin: 9px 0 0 !important;
+  font: 600 12px/1.4 var(--cp-font-sans) !important;
+  color: var(--cp-primary) !important;
+}
+.cp-logout-btns {
+  display: flex !important;
+  gap: 10px !important;
+  margin-top: 20px !important;
+}
+.cp-logout-btn {
+  flex: 1 1 0 !important;
+  padding: 9px 0 !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--cp-radius-ctl) !important;
+  font: 700 13px/1.2 var(--cp-font-sans) !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
+}
+.cp-logout-cancel {
+  background: transparent !important;
+  border-color: var(--cp-box-edge) !important;
+  color: var(--cp-text) !important;
+}
+.cp-logout-cancel:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--cp-primary) !important;
+}
+.cp-logout-confirm {
+  background: var(--cp-primary-strong) !important;
+  border-color: var(--cp-primary-strong) !important;
+  color: var(--cp-on-primary) !important;
+}
+.cp-logout-confirm:hover {
+  background: #5E3F86 !important;
+}
+.cp-logout-btn:focus-visible {
+  outline: 2px solid var(--cp-primary) !important;
+  outline-offset: 2px !important;
+}
+
+/* ============================================================
+   Sign-out splash — a continuous "Signing out…" spinner shown from
+   the confirm dialog through the sign-out navigation to the login
+   card, so the server-side session teardown reads as one branded
+   screen instead of a hang. cpShowLogoutModal morphs the dialog into
+   this (.cp-signout-body); cloak.js paints the identical splash on
+   the following documents (gated on cp-signing-out); skin.js sends
+   /Logout/ straight to /Login/. The ring carries the same log-out
+   icon as the confirmation dialog. Trifecta dark tokens.
+   ============================================================ */
+@keyframes cp-signout-spin { to { transform: rotate(360deg); } }
+.cp-signout-body {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  font-family: var(--cp-font-sans) !important;
+}
+.cp-signout-ring {
+  position: relative !important;
+  width: 76px !important;
+  height: 76px !important;
+  margin-bottom: 20px !important;
+}
+.cp-signout-spin {
+  position: absolute !important;
+  inset: 0 !important;
+  animation: cp-signout-spin 0.9s linear infinite !important;
+}
+.cp-signout-spin svg {
+  width: 76px !important;
+  height: 76px !important;
+  display: block !important;
+}
+.cp-signout-track {
+  fill: none !important;
+  stroke: var(--cp-box-edge) !important;
+  stroke-width: 4 !important;
+}
+.cp-signout-arc {
+  fill: none !important;
+  stroke: var(--cp-primary) !important;
+  stroke-width: 4 !important;
+  stroke-linecap: round !important;
+  stroke-dasharray: 50 145 !important;
+}
+.cp-signout-ico {
+  position: absolute !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--cp-primary) !important;
+}
+.cp-signout-ico svg {
+  width: 28px !important;
+  height: 28px !important;
+  display: block !important;
+}
+.cp-signout-cap {
+  margin: 0 !important;
+  font: 700 17px/1.3 var(--cp-font-sans) !important;
+  color: var(--cp-text) !important;
+}
+.cp-signout-sub {
+  margin: 6px 0 0 !important;
+  font: 400 12.5px/1.4 var(--cp-font-sans) !important;
+  color: var(--cp-text-muted) !important;
+}
+/* The arriving sign-out spinner rendered as a CARD (cloak.js) — matches the
+   console sign-out card. skin.js's cpRevealCloak fades the cloak out / login
+   card in on arrival (the sign-out → login morph was removed). */
+.cp-signout-card {
+  box-sizing: border-box !important;
+  width: 340px !important; max-width: calc(100vw - 48px) !important;
+  padding: 30px 26px !important;
+  background: var(--cp-surface) !important;
+  border: 1px solid var(--cp-box-edge) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45) !important;
 }

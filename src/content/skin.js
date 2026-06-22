@@ -437,6 +437,197 @@ function cpWireHomeButton() {
 }
 
 /*
+ * Logout confirmation — Option A (centered modal).
+ *
+ * The footer "Log out" button is the legacy header logout <a> (moved into
+ * the footer by moveHeaderLinks); its native handler signs the user out the
+ * instant it's clicked. We intercept that click in the CAPTURE phase (the
+ * same proven pattern as cpWireHomeButton) to suppress the immediate logout
+ * and show a styled confirmation modal instead. On confirm we set a one-shot
+ * bypass flag and re-dispatch the click so the legacy handler runs and does
+ * the real logout; Cancel / backdrop / Esc just dismiss.
+ */
+/* Inner markup for the "Signing out…" splash — a spinning lavender ring with
+   the same log-out icon as the confirmation dialog at its centre, plus a
+   caption. Shared shape: cpShowLogoutModal morphs the dialog into this on
+   confirm, and cloak.js paints the identical splash on the following documents
+   (gated on the cp-signing-out flag) so the wait reads as one continuous
+   branded screen until the login card renders. KEEP IN SYNC with cloak.js. */
+function cpSignOutSplashHTML() {
+  return '' +
+    '<div class="cp-signout-body">' +
+      '<div class="cp-signout-ring">' +
+        '<div class="cp-signout-spin">' +
+          '<svg viewBox="0 0 76 76" aria-hidden="true">' +
+            '<circle class="cp-signout-track" cx="38" cy="38" r="31"></circle>' +
+            '<circle class="cp-signout-arc" cx="38" cy="38" r="31"></circle>' +
+          '</svg>' +
+        '</div>' +
+        '<span class="cp-signout-ico" aria-hidden="true">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>' +
+        '</span>' +
+      '</div>' +
+      '<p class="cp-signout-cap">Signing out…</p>' +
+      '<p class="cp-signout-sub">Ending your session</p>' +
+    '</div>';
+}
+
+function cpShowLogoutModal(onConfirm) {
+  try {
+    if (document.querySelector(".cp-logout-overlay")) return;
+    var prevFocus = document.activeElement;
+
+    var overlay = document.createElement("div");
+    overlay.className = "cp-logout-overlay";
+
+    var modal = document.createElement("div");
+    modal.className = "cp-logout-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "cp-logout-title");
+    modal.innerHTML =
+      '<div class="cp-logout-badge" aria-hidden="true">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+          '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>' +
+        '</svg>' +
+      '</div>' +
+      '<p class="cp-logout-title" id="cp-logout-title">Log out?</p>' +
+      '<p class="cp-logout-sub">You’ll be signed out and returned to the CommPilot sign-in screen.</p>' +
+      '<div class="cp-logout-btns">' +
+        '<button type="button" class="cp-logout-btn cp-logout-cancel">Cancel</button>' +
+        '<button type="button" class="cp-logout-btn cp-logout-confirm">Log out</button>' +
+      '</div>';
+
+    /* Personalise with the signed-in name when available (topbar mirror or
+       the legacy welcome cell). Set via textContent so page text can't inject. */
+    var name = "";
+    var welcome = document.querySelector(".cp-welcome") || document.querySelector(".headerBarWelcome");
+    if (welcome) name = (welcome.textContent || "").replace(/welcome/i, "").replace(/[!,]/g, "").trim();
+    if (name) {
+      var who = document.createElement("p");
+      who.className = "cp-logout-who";
+      who.textContent = "Signed in as " + name;
+      modal.insertBefore(who, modal.querySelector(".cp-logout-btns"));
+    }
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    var closed = false;
+    function close() {
+      if (closed) return;
+      closed = true;
+      document.removeEventListener("keydown", onKey, true);
+      try {
+        var a = overlay.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: "ease" });
+        a.onfinish = function () { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); };
+      } catch (e) {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      }
+      if (prevFocus && prevFocus.focus) { try { prevFocus.focus(); } catch (e) {} }
+    }
+    function onKey(e) { if (e.key === "Escape") { e.preventDefault(); close(); } }
+
+    modal.querySelector(".cp-logout-cancel").addEventListener("click", close);
+    modal.querySelector(".cp-logout-confirm").addEventListener("click", function () {
+      // Don't dismiss — MORPH this card in place into the "Signing out…" spinner,
+      // so the loading status lives in the SAME popup as the confirmation (the dim
+      // backdrop + the console behind it stay). The morph is a real scale/fade +
+      // box-height transition (not an instant swap), so the two states ease into
+      // each other. The background sign-out (pjax cpSignOutFetch) runs during it,
+      // holds ~1.4s, then the page goes to login.
+      closed = true;
+      document.removeEventListener("keydown", onKey, true);
+      modal.setAttribute("aria-busy", "true");
+      // Backdrop stays the dim translucent (CSS default) through the "Signing out…"
+      // hold, so the console shows DIMMED behind the card (the popup-over-dimmed-
+      // console look). The flash fix is NOT here: the base console is hidden only at
+      // the very end, just before the navigation (pjax cpSignOutFetch.go), because
+      // the flash is a document-swap TEARDOWN artifact, not the hold.
+      var h1 = modal.offsetHeight;          // confirm-state height
+      modal.style.overflow = "hidden";
+      try { onConfirm(); } catch (e) {}     // start the sign-out now (runs under the morph)
+
+      var swap = function () {
+        modal.style.opacity = "0";          // hide while we swap content + remeasure
+        modal.innerHTML = cpSignOutSplashHTML();
+        modal.style.display = "flex";
+        modal.style.flexDirection = "column";
+        modal.style.justifyContent = "center";
+        var h2 = modal.offsetHeight;        // spinner-state natural height
+        modal.style.height = h1 + "px";
+        var SPRING = "cubic-bezier(0.34,1.3,0.64,1)";
+        if (modal.animate) {
+          try {
+            var hA = modal.animate([{ height: h1 + "px" }, { height: h2 + "px" }], { duration: 320, easing: SPRING });
+            hA.onfinish = function () { modal.style.height = "auto"; modal.style.overflow = ""; };
+          } catch (e) { modal.style.height = "auto"; modal.style.overflow = ""; }
+          try {
+            var inA = modal.animate([{ opacity: 0, transform: "scale(0.92)" }, { opacity: 1, transform: "scale(1)" }], { duration: 300, easing: SPRING });
+            inA.onfinish = function () { modal.style.opacity = ""; };
+          } catch (e) { modal.style.opacity = ""; }
+        } else { modal.style.opacity = ""; modal.style.height = "auto"; modal.style.overflow = ""; }
+      };
+
+      if (modal.animate) {
+        var outA = modal.animate([{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(0.92)" }], { duration: 150, easing: "ease-in" });
+        outA.onfinish = swap;
+      } else { swap(); }
+    });
+    overlay.addEventListener("click", function (e) { if (e.target === overlay) close(); });
+    document.addEventListener("keydown", onKey, true);
+
+    /* Entrance animation — WAAPI, consistent with the project's motion. */
+    try {
+      overlay.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 140, easing: "ease" });
+      modal.animate(
+        [{ opacity: 0, transform: "scale(0.96) translateY(6px)" }, { opacity: 1, transform: "none" }],
+        { duration: 200, easing: "cubic-bezier(0.34,1.4,0.64,1)" }
+      );
+    } catch (e) {}
+
+    var confirmBtn = modal.querySelector(".cp-logout-confirm");
+    if (confirmBtn) { try { confirmBtn.focus(); } catch (e) {} }
+  } catch (e) {
+    console.warn("[CommPilot Skin] logoutModal:", e);
+  }
+}
+
+/*
+ * Intercept the footer Log out button → show cpShowLogoutModal first.
+ * Mirrors cpWireHomeButton: capture-phase suppression of the legacy click.
+ * The one-shot btn._cpLogoutGo flag lets the confirmed re-click fall through
+ * to the legacy handler. Wired alongside cpWireHomeButton in cpSkinDomPass;
+ * the footer persists across pjax swaps (it's a sibling of leftNavForm), so
+ * the binding survives — the dataset guard prevents a double-bind.
+ */
+function cpWireLogoutButton() {
+  try {
+    var btn = document.querySelector('.cp-footer-btn[data-cp-icon="logout"]');
+    if (!btn) return;
+    if (btn.dataset.cpLogoutWired) return;
+    btn.dataset.cpLogoutWired = "1";
+    btn.addEventListener(
+      "click",
+      function (e) {
+        if (btn._cpLogoutGo) { btn._cpLogoutGo = false; return; } // confirmed → let the native logout run
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        cpShowLogoutModal(function () {
+          try { sessionStorage.setItem("cp-signing-out", String(Date.now())); } catch (e) {} // → spinner splash on the next docs
+          btn._cpLogoutGo = true;
+          btn.click();
+        });
+      },
+      true
+    );
+  } catch (e) {
+    console.warn("[CommPilot Skin] wireLogoutButton:", e);
+  }
+}
+
+/*
  * Append a sort-direction icon to the active column header.
  *
  * The sorted column is identified by the presence of a legacy arrow gif
@@ -900,6 +1091,7 @@ function buildLoginCard() {
   try {
     var form = document.querySelector('form[name="loginForm"]');
     if (!form || !form.querySelector('input[name="Password"]')) return; // not login page
+    try { sessionStorage.removeItem("cp-signing-out"); } catch (e) {} // reached login → end the sign-out splash
     if (form.querySelector(".cp-login-card")) return; // idempotent
 
     document.body.classList.add("cp-login-page");
@@ -907,12 +1099,9 @@ function buildLoginCard() {
     var card = document.createElement("div");
     card.className = "cp-login-card";
 
-    var brand = document.createElement("div");
-    brand.className = "cp-login-brand";
-    brand.textContent = "CommPilot";
-    var sub = document.createElement("div");
-    sub.className = "cp-login-sub";
-    sub.textContent = "Sign in to your portal";
+    // LEFT — brand panel (purple gradient): mark + "CommPilot" wordmark + tagline.
+    var brandPanel = document.createElement("div");
+    brandPanel.className = "cp-login-brand-panel";
     var logo = document.createElement("img");
     logo.className = "cp-login-logo";
     logo.src = chrome.runtime.getURL("assets/icons/trifecta-mark.svg");
@@ -924,9 +1113,23 @@ function buildLoginCard() {
       logo.addEventListener("load", _revealLogo, { once: true });
       logo.addEventListener("error", _revealLogo, { once: true });
     }
-    card.appendChild(logo);
-    card.appendChild(brand);
-    card.appendChild(sub);
+    var brand = document.createElement("div");
+    brand.className = "cp-login-brand";
+    brand.appendChild(document.createTextNode("Comm"));
+    var brandAccent = document.createElement("span");
+    brandAccent.className = "cp-login-brand-accent";
+    brandAccent.textContent = "Pilot";
+    brand.appendChild(brandAccent);
+    var tagline = document.createElement("div");
+    tagline.className = "cp-login-tagline";
+    tagline.textContent = "Communications portal";
+    brandPanel.appendChild(logo);
+    brandPanel.appendChild(brand);
+    brandPanel.appendChild(tagline);
+
+    // RIGHT — form panel: optional alert + fields + remember + Sign In.
+    var formPanel = document.createElement("div");
+    formPanel.className = "cp-login-form-panel";
 
     // Session/auth notice -> styled alert (only when present)
     var notice = document.querySelector(".loginerror");
@@ -938,8 +1141,9 @@ function buildLoginCard() {
     if (notice && notice.textContent.trim()) {
       var al = document.createElement("div");
       al.className = "cp-login-alert";
-      al.textContent = notice.textContent.trim();
-      card.appendChild(al);
+      al.innerHTML = '<svg class="cp-login-alert-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg><span class="cp-login-alert-msg"></span>';
+      al.querySelector(".cp-login-alert-msg").textContent = notice.textContent.trim();
+      formPanel.appendChild(al);
     }
 
     // Field groups — MOVE the real inputs so names + handlers survive
@@ -955,7 +1159,7 @@ function buildLoginCard() {
       input.classList.add("cp-login-input");
       field.appendChild(lbl);
       field.appendChild(input);
-      card.appendChild(field);
+      formPanel.appendChild(field);
     });
 
     // Remember password row
@@ -968,17 +1172,20 @@ function buildLoginCard() {
       sp.textContent = "Remember password";
       row.appendChild(cb);
       row.appendChild(sp);
-      card.appendChild(row);
+      formPanel.appendChild(row);
     }
 
     // Login button — reuse the existing <a> (preserves its submit handler)
     var btn = Array.prototype.slice.call(form.querySelectorAll("a"))
-      .find(function (a) { return a.textContent.trim() === "Login"; });
+      .find(function (a) { var t = a.textContent.trim(); return t === "Login" || t === "Sign In"; });
     if (btn) {
       btn.classList.add("cp-login-btn");
       btn.textContent = "Sign In";
-      card.appendChild(btn);
+      formPanel.appendChild(btn);
     }
+
+    card.appendChild(brandPanel);
+    card.appendChild(formPanel);
 
     // Hide legacy presentation inside the form (keep our card + hidden inputs)
     Array.prototype.slice.call(form.children).forEach(function (child) {
@@ -989,11 +1196,12 @@ function buildLoginCard() {
 
     form.appendChild(card);
 
-    // Entrance: if the incoming-page splash (cloak.js) is still covering the
-    // page, defer the entrance until the reveal block starts fading it —
-    // otherwise the whole animation plays invisibly under the splash. Keep
-    // the card hidden meanwhile so it doesn't show at rest mid-fade.
-    if (document.getElementById("cp-cloak")) {
+    // Splash (cloak.js) still covering — whether this is a normal login load or a
+    // sign-out arrival (cloak.js paints the "Signing out…" spinner). Either way,
+    // keep the card hidden and let cpRevealCloak fade the cloak out / card in.
+    // (The sign-out → login morph was removed; the spinner cross-fades to the card.)
+    var cloakEl = document.getElementById("cp-cloak");
+    if (cloakEl) {
       card.style.opacity = "0";
     } else {
       cpLoginEntrance();
@@ -1018,6 +1226,26 @@ function cpLoginEntrance() {
 }
 
 /*
+ * Post-logout handling — go STRAIGHT to the styled login. The raw BroadSoft
+ * /Logout/ landing (a "Logout" heading + two links that both just return to
+ * /Login/) is never shown; we replace it with /Login/, so the experience is
+ * confirm → "Signing out…" splash → login card. The splash (cloak.js, gated on
+ * the cp-signing-out flag) covers this hop, so there's no flash. location.replace
+ * keeps /Logout/ out of history (Back won't return to the dead page). Returns
+ * true when it redirected so cpSkinDomPass can stop the rest of the pass.
+ */
+function cpLogoutToLogin() {
+  try {
+    if (location.pathname.indexOf("/Logout/") === -1) return false;
+    location.replace("/commpilot/Login/");
+    return true;
+  } catch (e) {
+    console.warn("[CommPilot Skin] logoutToLogin:", e);
+    return false;
+  }
+}
+
+/*
  * Login transition — when a login actually submits, dissolve the card into
  * the same dark "CommPilot" splash that cloak.js paints on every incoming
  * page. All login hops are same-origin POSTs, so paint holding carries the
@@ -1026,6 +1254,11 @@ function cpLoginEntrance() {
  */
 function cpLoginSplash() {
   if (document.getElementById("cp-cloak")) return;
+  // Not during a sign-out: this fires on EVERY beforeunload (skin.js end), so the
+  // logout navigation would otherwise spawn a competing #cp-cloak (z above the
+  // logout overlay, fading in) at the exact document-swap moment — a flash source.
+  // The logout flow has its own opaque cover; let it own the transition.
+  try { var _so = parseInt(sessionStorage.getItem("cp-signing-out") || "0", 10); if (_so && (Date.now() - _so < 15000)) return; } catch (e) {}
   // Button feedback
   var btn = document.querySelector(".cp-login-btn");
   if (btn && !btn.classList.contains("cp-login-btn-loading")) {
@@ -1283,6 +1516,11 @@ function cpMoveBreadcrumb() {
 
     titleTable.parentNode.insertBefore(bar, titleTable);
     cell.style.display = "none";
+    /* Destination-focus transition: only the current pill slides + pops in (matches the pjax crumb). */
+    var animPill = bar.querySelector(".cp-bc-cur");
+    if (animPill) requestAnimationFrame(function () {
+      try { animPill.animate([{ opacity: 0, transform: "scale(0.82) translateX(10px)" }, { opacity: 1, transform: "none" }], { duration: 300, easing: "cubic-bezier(0.34,1.4,0.64,1)" }); } catch (e) {}
+    });
   } catch (e) {
     console.warn("[CommPilot Skin] moveBreadcrumb:", e);
   }
@@ -2011,11 +2249,13 @@ function tagSidebarIcons() {
  * The relative call order matches the original top-level execution order.
  */
 function cpSkinDomPass() {
+  if (cpLogoutToLogin()) return; // /Logout/ → straight to the styled login (no card)
   wrapMenuCards();
   tagMenuColumns();
   tagSidebarIcons();
   moveHeaderLinks();
   cpWireHomeButton();
+  cpWireLogoutButton();
   wireSortIcons();
   wirePaginationIcons();
   formatPageIndicator();

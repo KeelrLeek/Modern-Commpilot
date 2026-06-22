@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Modern CommPilot Skin",
-  "version": "0.2.77",
-  "version_name": "0.2.77-alpha",
+  "version": "0.2.97",
+  "version_name": "0.2.97-alpha",
   "description": "Cosmetic overlay that re-skins the CommPilot web app.",
   "icons": {},
   "permissions": ["storage", "declarativeNetRequest"],
@@ -35,12 +35,6 @@
     {
       "matches": ["https://apps01.avpaas.io/commpilot/*"],
       "css": ["src/content/skin.css"],
-      "all_frames": true,
-      "run_at": "document_start"
-    },
-    {
-      "matches": ["https://apps01.avpaas.io/commpilot/*"],
-      "js": ["src/content/vt-optin.js"],
       "all_frames": true,
       "run_at": "document_start"
     },
