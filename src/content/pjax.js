@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.68";
+  var CP_PJAX_VERSION = "0.2.77";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
 
   try { history.replaceState({ cpNav: { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } } }, "", location.href); } catch (e) {}
@@ -51,6 +51,11 @@
   var cpAggReady = null;   // {folder: {promise, resolve}} — per-folder deferred so the reveal can await each
                            // folder PROGRESSIVELY as its (sequential) prefetch resolves, instead of waiting
                            // for the whole prefetch. Removes the upfront dead gap on SP/Group/User entry.
+  // sidebarSig -> { groups:[{label,items:[{name,url,params}]}] } of a level's pages, harvested once its console
+  // is built; powers the breadcrumb current-pill MEGA menu. PERSISTED to sessionStorage so it survives a reload
+  // — otherwise landing on a sub-page after reload/recovery (no console rebuilt) leaves the menu empty.
+  var cpLevelPages = (function () { try { return JSON.parse(sessionStorage.getItem("cp-level-pages")) || {}; } catch (e) { return {}; } })();
+  var cpCrumbDd = null;    // the live breadcrumb dropdown element + its teardown, if open.
   // RESELLER anchor reuse: the open folder cpHook just fetched to land here IS the console's anchor
   // section, so re-fetching it (the old behaviour) fired a SECOND back-to-back folder_contents on the
   // rotating single-use token → the anchor (Profile) intermittently shelled = "Couldn't load — Retry".
@@ -185,15 +190,15 @@
       return (
         typeof u === "string" &&
         (u.indexOf("folder_contents.jsp") !== -1 ||
-          /\/commpilot\/Reseller\/[A-Za-z]+\/(index\.jsp)?$/.test(u) ||
-          // SP- and GROUP-scoped list landings (e.g. SP "Groups" → /ServiceProvider/Members/, SP "Users" →
-          // /ServiceProvider/Users/; GROUP "Users" → /Group/Members/, group Departments/Schedules/etc.).
-          // These serve real content to a plain background fetch (verified: SP Members + Group Members both
-          // return the full list, not a shell), so they ride the SAME fetch path as reseller lists — no iframe
-          // (cpNeedsFrame stays false). Only list LANDINGS match (one section segment + optional index.jsp);
-          // deeper /Modify/ edit pages don't.
-          /\/commpilot\/ServiceProvider\/[A-Za-z]+\/(index\.jsp)?$/.test(u) ||
-          /\/commpilot\/Group\/[A-Za-z]+\/(index\.jsp)?$/.test(u) ||
+          /\/commpilot\/Reseller(?:\/[A-Za-z0-9_]+){1,2}\/(index\.jsp)?$/.test(u) ||
+          // SP- and GROUP-scoped landings (list pages e.g. SP "Groups" → /ServiceProvider/Members/, GROUP
+          // "Users" → /Group/Members/, AND settings-leaf pages e.g. /Group/CallingPlan/DigitStrings/,
+          // /ServiceProvider/CommunicationBarring/<sub>/). These serve real content to a plain background fetch
+          // (verified: list landings + a 2-segment group leaf both return content, not a shell), so they ride
+          // the plain-fetch path — no iframe. One or TWO section segments (+ optional index.jsp); the dedicated
+          // Modify patterns below still route the entity-entry pages to the iframe via cpNeedsFrame.
+          /\/commpilot\/ServiceProvider(?:\/[A-Za-z0-9_]+){1,2}\/(index\.jsp)?$/.test(u) ||
+          /\/commpilot\/Group(?:\/[A-Za-z0-9_]+){1,2}\/(index\.jsp)?$/.test(u) ||
           /\/ServiceProviders\/Modify\//.test(u) ||
           // GROUP entry (clicking a group row). The URL depends on which list you came from: the SP Groups
           // list → /ServiceProvider/Members/Modify/, the reseller Groups list → /Reseller/Groups/Modify/.
@@ -204,7 +209,7 @@
           // (e.g. /User/Addresses/, /User/Profile/). They serve real content to a plain background fetch
           // (verified: /User/Profile/ returns the full form, not a shell), so they ride the plain-fetch path —
           // no iframe (cpNeedsFrame stays false). Content stays raw BroadSoft for now; Phase B skins it.
-          /\/commpilot\/User\/[A-Za-z]+\/(index\.jsp)?$/.test(u) ||
+          /\/commpilot\/User(?:\/[A-Za-z0-9_]+){1,2}\/(index\.jsp)?$/.test(u) ||
           u.indexOf("/commpilot/Common/page.jsp") !== -1 ||
           u.indexOf("/commpilot/Common/sort.jsp") !== -1)
       );
@@ -499,7 +504,7 @@
                   var isIdLast = !!et;
                   if (sn && ctrail[ctrail.length - 1] !== sn) { ctrail.push(sn); isIdLast = false; }   // page name = current pill
                   if (ctrail.length && titleTable && titleTable.parentNode) {
-                    titleTable.parentNode.insertBefore(cpBuildPillCrumb(ctrail, isIdLast), titleTable);
+                    titleTable.parentNode.insertBefore(cpBuildPillCrumb(ctrail, isIdLast, true), titleTable);   // sub-page → mega menu on the current pill
                   }
                 }
               } catch (e) {
@@ -870,10 +875,11 @@
     // the console (cpBuildConsole), pjax swaps (cpHook restore), and list/leaf pages (skin.js) all match.
     var CP_BC_ROUTE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>';
     var CP_BC_ARROW_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
+    var CP_BC_CHEV_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
     // Build the PILL TRAIL breadcrumb (Option B) from an array of segment texts. Shared by cpBuildConsole
     // (console pages) and cpHook's restore (list/leaf pjax swaps). Ancestors are clickable via cpCrumbNav;
     // the current/last level is a static pill.
-    function cpBuildPillCrumb(trail, idLast) {
+    function cpBuildPillCrumb(trail, idLast, withDd) {
       trail = trail.slice();
       // Is the last pill the current ENTITY id (case-preserved)? Trust the caller's idLast, but also treat
       // an id-looking last segment (contains "@", e.g. a user id) as one — the trail source is inconsistent.
@@ -884,6 +890,10 @@
       // into other levels ("Users randomly appears"); both are scrubbed here. The surviving ancestors stay
       // index-aligned for cpCrumbNav. Guard length>2 so a sparse trail can't collapse to just the id.
       if (trail.length > 2) trail = trail.filter(function (s, i) { return !(s === "Users" && i !== trail.length - 1); });
+      // Option B: the current pill gets a dropdown of this level's sibling LIST pages (harvested into
+      // cpLevelPages, keyed by sidebar signature — stable across a level's home + its list pages).
+      var _ddSig = cpSidebarSig(document.querySelector('form[name="leftNavForm"]'));
+      var _ddData = (_ddSig && cpLevelPages[_ddSig]) || null;
       var crumb = document.createElement("div");
       crumb.className = "cp-breadcrumb cp-bc-pill";
       var lead = document.createElement("span");
@@ -911,6 +921,10 @@
         pill.textContent = seg;
         if (isCur) {
           pill.setAttribute("aria-current", "page");
+          // SUB-MENUS only: pages built by cpHook's restore (lists/leaf/settings) open this level's MEGA menu.
+          // The console HOME / base menu (built by cpBuildConsole, withDd=false) stays a plain pill — the menu
+          // is for hopping between a level's pages, not for the base menu itself.
+          if (withDd) cpAttachCrumbDropdown(pill, _ddData);
         } else {
           pill.setAttribute("role", "link");
           pill.setAttribute("tabindex", "0");
@@ -922,6 +936,150 @@
         crumb.appendChild(pill);
       });
       return crumb;
+    }
+    // Harvest a level's object-LIST pages (Groups/Users/Administrators/…) from the freshly-built console, so
+    // the breadcrumb current-pill dropdown can offer them on the list pages (where the console is gone). Keyed
+    // by sidebar signature (stable across a level's home + its list pages). Reads each named candidate's real
+    // redirectPost target via a capture-block (swap redirectPost for a recorder, click, restore) — NO
+    // navigation. Runs once per level (at reveal completion). Only a handful of named candidates are clicked.
+    // Keep ANY /commpilot/<Level>/<Section>… landing page so the mega menu lists EVERY option (incl. deep
+    // settings pages like Calling Plan / Communication Barring); exclude folder menus, entity-entry (Modify),
+    // and pager URLs. Most are pjax (isPjaxUrl) and open in-shell; any that aren't simply full-navigate.
+    function cpHarvestable(u) {
+      return /\/commpilot\/[A-Za-z]+\/[A-Za-z]/.test(u) && u.indexOf("folder_contents") === -1 && u.indexOf("/Modify/") === -1 && u.indexOf("page.jsp") === -1 && u.indexOf("sort.jsp") === -1 && u.indexOf("/Login") === -1;
+    }
+    // Harvest EVERY option of the current level's console, grouped by folder, into
+    // cpLevelPages[sidebarSig] = { groups:[{label, items:[{name,url,params}]}] }. Powers the breadcrumb
+    // current-pill MEGA menu (jump to any page at this level), uniform across reseller/SP/group/user. Targets
+    // are read via a capture-block (swap redirectPost for a recorder, click, restore) — NO navigation. Runs
+    // once per level (at reveal completion); then decorates the home crumb (built before the harvest ran).
+    function cpHarvestLevelPages(force) {
+      try {
+        var sig = cpSidebarSig(document.querySelector('form[name="leftNavForm"]'));
+        if (!sig) return;
+        // Per-section calls skip once cached; the FORCED reveal-completion pass re-harvests (by then every
+        // section's option wiring has run, so the last folder — dropped if harvested the tick its content
+        // landed but before its re-exec'd scripts wired the links — is captured).
+        if (!force && cpLevelPages[sig]) return;
+        var secs = Array.prototype.slice.call(document.querySelectorAll(".cp-console-section"));
+        if (!secs.length) return;
+        // Only harvest once EVERY section has loaded its content — otherwise we'd cache a PARTIAL console (e.g.
+        // just Profile during the reveal) and "once per sig" would lock that incomplete result in. Called per
+        // section-load AND at reveal completion, so it fires exactly when the last section lands.
+        var allLoaded = secs.every(function (s) { var b = s.querySelector(".cp-console-body"); return b && b.getAttribute("data-cp-loaded") === "1"; });
+        if (!allLoaded) return;
+        var groups = [], orig = window.redirectPost, rec = null;
+        window.redirectPost = function (u, p) { rec = { url: u, params: p || {} }; return false; };   // capture, no nav
+        try {
+          secs.forEach(function (sec) {
+            var label = ((sec.querySelector(".cp-console-head-name") || {}).textContent || "").trim();
+            var items = [], seen = {};
+            sec.querySelectorAll(".cp-console-body a.navMenuItem, .cp-console-body a[id^='link_']").forEach(function (a) {
+              var nm = (a.textContent || "").trim(); if (!nm || seen[nm]) return;
+              rec = null; try { a.click(); } catch (e) {}
+              if (rec && rec.url && cpHarvestable(rec.url)) { items.push({ name: nm, url: rec.url, params: rec.params }); seen[nm] = 1; }
+            });
+            if (items.length) groups.push({ label: label, items: items });
+          });
+        } finally { window.redirectPost = orig; }
+        // Cache on first harvest, or when a (forced) pass finds AT LEAST as many groups — so a partial
+        // per-section result is upgraded to the full set, but a momentarily-smaller pass never clobbers it.
+        if (groups.length && (!cpLevelPages[sig] || groups.length >= cpLevelPages[sig].groups.length)) {
+          cpLevelPages[sig] = { groups: groups };   // cached for this level's sub-pages
+          try { sessionStorage.setItem("cp-level-pages", JSON.stringify(cpLevelPages)); } catch (e) {}   // survive reload
+        }
+      } catch (e) {}
+    }
+    // Attach the mega-menu trigger (chevron + handlers) to a sub-page's current breadcrumb pill (cpBuildPillCrumb).
+    function cpAttachCrumbDropdown(pill, data) {
+      if (!data || !data.groups || !data.groups.length || !pill || pill.classList.contains("cp-bc-has-dd")) return;
+      pill.classList.add("cp-bc-has-dd");
+      pill.setAttribute("role", "button");
+      pill.setAttribute("tabindex", "0");
+      pill.setAttribute("aria-haspopup", "menu");
+      var chev = document.createElement("span");
+      chev.className = "cp-bc-dd-chev";
+      chev.setAttribute("aria-hidden", "true");
+      chev.innerHTML = CP_BC_CHEV_SVG;
+      pill.appendChild(chev);
+      pill.addEventListener("click", function (e) { e.preventDefault(); cpToggleCrumbDropdown(pill, data); });
+      pill.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cpToggleCrumbDropdown(pill, data); } });
+    }
+    // Attach the mega menu to a FULL-LOAD sub-page's crumb. On reload/recovery the page is a real navigation,
+    // so skin.js (cpMoveBreadcrumb, ISOLATED world) builds the crumb and can't reach this pjax-world dropdown
+    // — pjax then decorates it here (from cpAutoConsole's list/leaf branch). Idempotent (cpAttachCrumbDropdown
+    // no-ops if already decorated, so pjax-swap pages that already have it are untouched). No-op until the
+    // level is harvested (cache persisted across reloads via sessionStorage).
+    function cpDecorateCurrentCrumbPill() {
+      var sig = cpSidebarSig(document.querySelector('form[name="leftNavForm"]'));
+      var data = sig && cpLevelPages[sig];
+      var crumb = document.querySelector(".cp-breadcrumb.cp-bc-pill");
+      if (data && crumb) cpAttachCrumbDropdown(crumb.querySelector(".cp-bc-cur"), data);
+    }
+    function cpCloseCrumbDropdown() {
+      if (!cpCrumbDd) return;
+      try { if (cpCrumbDd.teardown) cpCrumbDd.teardown(); } catch (e) {}
+      try { if (cpCrumbDd.el && cpCrumbDd.el.parentNode) cpCrumbDd.el.parentNode.removeChild(cpCrumbDd.el); } catch (e) {}
+      if (cpCrumbDd.trigger) cpCrumbDd.trigger.classList.remove("cp-bc-dd-open");
+      cpCrumbDd = null;
+    }
+    // Open (or toggle) the current-pill MEGA menu: this level's pages grouped by folder, two columns. The page
+    // matching the current URL is highlighted (robust vs the pill text). Picks navigate via the normal pjax
+    // redirectPost. Fixed under the pill, clamped to the viewport; closes on outside-click / Esc / OUTSIDE scroll.
+    function cpToggleCrumbDropdown(anchorEl, data) {
+      if (cpCrumbDd && cpCrumbDd.trigger === anchorEl) { cpCloseCrumbDropdown(); return; }
+      cpCloseCrumbDropdown();
+      var norm = function (u) { return (u || "").split("?")[0].replace(/index\.jsp$/, "").replace(/\/+$/, ""); };
+      var curPath = norm(location.pathname);
+      var dd = document.createElement("div");
+      dd.className = "cp-bc-dd cp-bc-dd-mega";
+      dd.setAttribute("role", "menu");
+      data.groups.forEach(function (g) {
+        var gw = document.createElement("div"); gw.className = "cp-bc-dd-grp";
+        if (g.label) { var gh = document.createElement("div"); gh.className = "cp-bc-dd-ghead"; gh.textContent = g.label; gw.appendChild(gh); }
+        dd.appendChild(gw);
+        g.items.forEach(function (pg) {
+          var isCurItem = norm(pg.url) === curPath;
+          var item = document.createElement("a");
+          item.className = "cp-bc-dd-item" + (isCurItem ? " cp-bc-dd-cur" : "");
+          item.setAttribute("role", "menuitem");
+          item.textContent = pg.name;
+          item.addEventListener("click", function (e) {
+            e.preventDefault();
+            cpCloseCrumbDropdown();
+            if (!isCurItem) window.redirectPost(pg.url, pg.params || {});
+          });
+          gw.appendChild(item);
+        });
+      });
+      document.body.appendChild(dd);
+      // Fixed under the trigger. In console mode scrollbar-gutter is auto (no drift), but subtract the html
+      // rect left anyway so it self-corrects if a gutter is ever present (see scrollbar-gutter-fixed-drift).
+      // The current pill is the rightmost, so a wide (mega) menu is clamped to stay within the viewport.
+      var r = anchorEl.getBoundingClientRect();
+      var hx = document.documentElement.getBoundingClientRect().left;
+      var vw = document.documentElement.clientWidth;
+      var left = r.left - hx;
+      if (left + dd.offsetWidth > vw - 12) left = Math.max(12, vw - 12 - dd.offsetWidth);
+      dd.style.top = (r.bottom + 6) + "px";
+      dd.style.left = left + "px";
+      anchorEl.classList.add("cp-bc-dd-open");
+      var onDocClick = function (e) { if (dd.contains(e.target) || anchorEl.contains(e.target)) return; cpCloseCrumbDropdown(); };
+      var onKey = function (e) { if (e.key === "Escape") cpCloseCrumbDropdown(); };
+      var onScroll = function (e) { if (e && e.target && dd.contains(e.target)) return; cpCloseCrumbDropdown(); };   // ignore scrolling WITHIN the menu
+      var cons = document.querySelector(".cp-console");
+      cpCrumbDd = { el: dd, trigger: anchorEl, teardown: function () {
+        document.removeEventListener("click", onDocClick, true);
+        document.removeEventListener("keydown", onKey, true);
+        window.removeEventListener("scroll", onScroll, true);
+        if (cons) cons.removeEventListener("scroll", onScroll, true);
+      } };
+      setTimeout(function () {
+        document.addEventListener("click", onDocClick, true);
+        document.addEventListener("keydown", onKey, true);
+        window.addEventListener("scroll", onScroll, true);
+        if (cons) cons.addEventListener("scroll", onScroll, true);
+      }, 0);
     }
     function cpBuildConsole() {
       if (document.querySelector(".cp-console")) return;
@@ -1037,7 +1195,7 @@
         ? cpCurEntity
         : (function () { var h = document.querySelector("span.headerAuthLevel"); return h ? (h.textContent || "").replace(/^\s*:\s*/, "").trim() : ""; })();
       if (_ent) pushSeg(_ent);
-      var crumb = cpBuildPillCrumb(trail, trail.length > _tl);   // route · clickable ancestors · arrows · current
+      var crumb = cpBuildPillCrumb(trail, trail.length > _tl, false);   // base/home menu → no dropdown (sub-menus only)
       folders.forEach(function (f) {
         var sec = document.createElement("section");
         sec.className = "cp-console-section";
@@ -1324,6 +1482,7 @@
           }
           cpFitConsoleTail();
           cpHeadFade();
+          cpHarvestLevelPages();   // harvests once ALL sections are loaded (guarded) — robust vs reveal timing
         } else {
           cpRevealSection(sec, aboveAnchor);
           bodyEl.innerHTML = "";
@@ -1434,6 +1593,7 @@
         var cdone = document.querySelector(".cp-console");
         if (cdone) cdone.querySelectorAll(".cp-console-section").forEach(function (s) { if (s.style.visibility) s.style.visibility = ""; });
         cpFitConsoleTail();
+        cpHarvestLevelPages(true);   // FORCE a complete re-harvest now that every section's wiring has run
         return;
       }
       var sec = secs[order[i]];
@@ -1508,9 +1668,11 @@
       // destination. Check CONTENT, not location.pathname — pjax fires cp:reskin BEFORE it updates the
       // URL, so location.pathname is stale (still the previous page) at this moment.
       if (!cell || !cell.querySelector('a.navMenuItem')) {
-        // List/leaf page (not a folder menu): collapse any sidebar submenu left open from the
+        // List/leaf SUB-PAGE (not a folder menu): collapse any sidebar submenu left open from the
         // console so the expanded accordion doesn't persist onto the list page.
         document.querySelectorAll('form[name="leftNavForm"] td.cp-grp-open').forEach(function (td) { td.classList.remove("cp-grp-open"); });
+        // On a FULL-LOAD sub-page (reload/recovery) skin.js built the crumb without the mega menu — attach it.
+        cpDecorateCurrentCrumbPill();
         return;
       }
       cpBuildConsole();   // no-ops at non-reseller levels (the reseller-only gate returns early there)

@@ -2239,6 +2239,73 @@ html.cp-console-active .cp-bc-pill .cp-bc-id {
   text-transform: none !important;
   letter-spacing: 0.01em !important;
 }
+/* Breadcrumb current-pill DROPDOWN (Option B: jump between a level's sibling list pages). The trigger pill
+   gains a chevron; the menu is a fixed overlay built in pjax.js and appended to <body>. */
+html.cp-console-active .cp-bc-pill .cp-bc-has-dd {
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+html.cp-console-active .cp-bc-pill .cp-bc-dd-chev {
+  width: 13px !important;
+  height: 13px !important;
+  display: inline-flex !important;
+  opacity: 0.85 !important;
+  transition: transform 0.15s ease !important;
+}
+html.cp-console-active .cp-bc-pill .cp-bc-dd-chev svg { width: 100% !important; height: 100% !important; display: block !important; }
+html.cp-console-active .cp-bc-pill .cp-bc-dd-open .cp-bc-dd-chev { transform: rotate(180deg) !important; }
+.cp-bc-dd {
+  position: fixed !important;
+  z-index: 99999 !important;
+  min-width: 184px !important;
+  background: var(--cp-card, #2a2825) !important;
+  border: 1px solid var(--cp-border, #3c3a37) !important;
+  border-radius: 9px !important;
+  padding: 5px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+  font-family: "Nunito", sans-serif !important;
+}
+.cp-bc-dd-item {
+  display: block !important;
+  padding: 7px 11px !important;
+  border-radius: 6px !important;
+  color: var(--cp-text, #e8e8e8) !important;
+  font: 600 12.5px "Nunito", sans-serif !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+}
+.cp-bc-dd-item:hover { background: rgba(255, 255, 255, 0.06) !important; }
+.cp-bc-dd-cur { background: rgba(110, 76, 150, 0.26) !important; color: var(--cp-primary, #C6A8E8) !important; }
+/* MEGA variant (user sub-page switcher): all sub-pages grouped by folder, two columns, scrollable. */
+.cp-bc-dd-mega {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 2px 18px !important;
+  align-content: start !important;
+  min-width: 430px !important;
+  max-width: 460px !important;
+  max-height: 340px !important;
+  overflow-y: auto !important;
+}
+.cp-bc-dd-grp { margin: 0 0 6px !important; min-width: 0 !important; }
+.cp-bc-dd-ghead {
+  color: var(--cp-primary, #C6A8E8) !important;
+  font: 700 10.5px "Nunito", sans-serif !important;
+  letter-spacing: 0.07em !important;
+  text-transform: uppercase !important;
+  padding: 5px 8px 3px !important;
+  border-bottom: 1px solid var(--cp-border, #3c3a37) !important;
+  margin-bottom: 3px !important;
+}
+.cp-bc-dd-mega .cp-bc-dd-item {
+  font-weight: 400 !important;
+  padding: 5px 8px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
 html.cp-console-active .cp-bc-pill .cp-bc-sep {
   flex: none !important;
   color: #6f6a64 !important;
