@@ -2837,3 +2837,189 @@ html.cp-console-active .menuCategory::after {
   border-radius: 12px !important;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45) !important;
 }
+
+/* ============================================================
+   Redesigned SEARCH GRID  (flagged: localStorage.cpNewSearch="1")
+   Faithful port of Testing HTML Files/groups-redesign-v2.html into the
+   live floating shell. Built by pjax MAIN (cpBuildSearchGrid) inside the
+   content cell, BELOW the breadcrumb band; skin.js skips its in-place list
+   skinning while html.cp-grid-on is set. All-new .cp-srch-* classes, so no
+   collision with the legacy table rules. NOTE: the height calc (matches the
+   .cp-console region) may need a small eyeball-tune pass on the live shell.
+   ============================================================ */
+html.cp-grid-on td[width="82%"] { overflow: hidden !important; }
+.cp-search-redesign {
+  /* Fill the content cell exactly: cellTop 80 + breadcrumb band 44 + 12px bottom frame = 136
+     (verified live — grid bottom meets the cell bottom within 1px). */
+  height: calc(100vh - 136px);
+  box-sizing: border-box;
+  display: flex; flex-direction: column;
+  padding: 0 22px 16px;
+  overflow: hidden;
+  font-family: var(--cp-font-sans);
+  color: var(--cp-text);
+}
+.cp-search-redesign *, .cp-search-redesign *::before, .cp-search-redesign *::after { box-sizing: border-box; }
+.cp-search-redesign svg { display: block; }
+
+/* page head */
+.cp-srch-head { flex: 0 0 auto; display: flex; align-items: flex-end; gap: 14px; padding: 16px 0 2px; }
+.cp-srch-bar { width: 4px; height: 30px; background: var(--cp-primary); border-radius: 2px; align-self: center; }
+.cp-srch-title { font-size: 22px; font-weight: 700; line-height: 1; color: var(--cp-text); }
+.cp-srch-sub { color: var(--cp-text-muted); font-size: 13px; margin-top: 4px; }
+.cp-srch-count { align-self: center; display: flex; align-items: center; gap: 8px; padding: 6px 13px; border-radius: 999px; background: rgba(110, 76, 150, 0.24); color: var(--cp-primary); font-weight: 700; font-size: 12.5px; white-space: nowrap; }
+.cp-srch-dot { width: 7px; height: 7px; border-radius: 50%; background: #98c379; box-shadow: 0 0 0 3px rgba(152, 195, 121, .18); }
+/* right-hand head group: harvested page-action buttons (Add / wizard / …) + the count pill */
+.cp-srch-headright { margin-left: auto; align-self: center; display: flex; align-items: center; gap: 10px; }
+.cp-srch-actions { display: flex; align-items: center; gap: 9px; }
+.cp-srch-actions:empty { display: none; }
+.cp-srch-actbtn { height: 38px !important; padding: 0 16px !important; width: auto !important; border: 0 !important; border-radius: 9px !important; font: inherit !important; font-weight: 700 !important; font-size: 13.5px !important; cursor: pointer; background: var(--cp-primary-strong) !important; color: #fff !important; display: inline-flex; align-items: center; gap: 7px; box-shadow: none !important; white-space: nowrap; }
+.cp-srch-actbtn svg { width: 16px !important; height: 16px !important; }
+.cp-srch-actbtn:hover { background: #5E3F86 !important; }
+.cp-srch-actbtn.sec { background: transparent !important; border: 1px solid var(--cp-outline) !important; color: var(--cp-text) !important; }
+.cp-srch-actbtn.sec:hover { border-color: var(--cp-primary-strong) !important; color: var(--cp-primary) !important; background: transparent !important; }
+
+/* filter bar + expansion */
+.cp-srch-filterbar { flex: 0 0 auto; background: var(--cp-surface); border: 1px solid var(--cp-outline); border-radius: 12px; padding: 12px 14px; margin: 12px 0 0; }
+.cp-srch-frow { display: grid; grid-template-columns: 190px 190px 1fr 176px; gap: 10px; align-items: center; margin-bottom: 9px; }
+/* Yes/No value control for true/false fields (In Trunk Group): two icon chips, the chosen one lights green
+   (Yes ✓) or red (No ✕). Sits left in the value cell. */
+.cp-srch-toggle { display: inline-flex; align-items: center; gap: 8px; height: 42px; justify-self: start; }
+/* !important throughout: the global `button {…!important}` reset (height:auto, padding:6px 16px, surface-high
+   bg) otherwise wins and renders the chips short + misaligned against the 42px Field/Match boxes. */
+.cp-srch-tgl { display: inline-flex !important; align-items: center !important; gap: 7px !important; height: 42px !important; box-sizing: border-box !important; padding: 0 16px !important; border: 1px solid var(--cp-outline) !important; background: var(--cp-bg) !important; border-radius: 9px !important; color: var(--cp-text-muted) !important; font-family: var(--cp-font-sans) !important; font-size: 13px !important; font-weight: 700 !important; cursor: pointer !important; transition: color .15s ease, background .15s ease, border-color .15s ease !important; }
+.cp-srch-tgl svg { width: 16px !important; height: 16px !important; flex: 0 0 auto !important; }
+.cp-srch-tgl-yes.on { background: rgba(152, 195, 121, 0.16) !important; border-color: #98c379 !important; color: #98c379 !important; }
+.cp-srch-tgl-no.on { background: rgba(224, 108, 117, 0.14) !important; border-color: #e06c75 !important; color: #e06c75 !important; }
+.cp-srch-frow:last-child { margin-bottom: 0; }
+.cp-srch-search { display: flex; align-items: center; gap: 9px; background: var(--cp-bg); border: 1px solid var(--cp-outline); border-radius: 9px; padding: 0 13px; height: 42px; }
+.cp-srch-search:focus-within { border-color: var(--cp-primary-strong); }
+.cp-srch-search svg { width: 18px; height: 18px; color: var(--cp-text-muted); flex: 0 0 auto; }
+.cp-srch-search input { flex: 1; min-width: 0; background: none !important; border: 0 !important; outline: 0 !important; color: var(--cp-text) !important; font: inherit !important; height: auto !important; box-shadow: none !important; }
+.cp-srch-search input::placeholder { color: #6b6862; }
+.cp-srch-sel { display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 10px 0 13px; background: var(--cp-bg); border: 1px solid var(--cp-outline); border-radius: 9px; cursor: pointer; }
+.cp-srch-sel:focus-within { border-color: var(--cp-primary-strong); }
+.cp-srch-lab { color: var(--cp-text-muted); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; flex: 0 0 auto; }
+.cp-srch-sel select { flex: 1; min-width: 0; -webkit-appearance: none !important; appearance: none !important; background: none !important; border: 0 !important; outline: 0 !important; color: var(--cp-text) !important; font: inherit !important; font-size: 13px !important; cursor: pointer; padding: 0 14px 0 0 !important; height: auto !important; box-shadow: none !important; }
+.cp-srch-sel select option { background: var(--cp-surface); color: var(--cp-text); }
+.cp-srch-sel svg { width: 15px; height: 15px; color: var(--cp-text-muted); flex: 0 0 auto; margin-left: -14px; pointer-events: none; }
+/* width/height !important: the base `button{height:auto!important;width:auto!important;padding:6px 16px!important}`
+   rule (skin.css ~1188) otherwise collapses these to ~28px (the "too thin" buttons). */
+.cp-srch-minib { width: 42px !important; height: 42px !important; border: 1px solid var(--cp-outline) !important; background: transparent !important; border-radius: 9px !important; color: var(--cp-text-muted) !important; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0 !important; }
+.cp-srch-minib svg { width: 18px; height: 18px; }
+.cp-srch-minib:hover { border-color: var(--cp-primary-strong) !important; color: var(--cp-primary) !important; background: transparent !important; }
+.cp-srch-rm:hover { border-color: #e06c75 !important; color: #e06c75 !important; background: transparent !important; }
+/* row action slot: holds the "+"/Search on row 0, or the "−" on added rows */
+.cp-srch-rowact { display: flex; align-items: center; gap: 10px; }
+.cp-srch-rowact .cp-srch-go { flex: 1 1 auto; justify-content: center; padding: 0 14px !important; }
+.cp-srch-minib.dim { color: #5f5d58 !important; cursor: not-allowed; }
+.cp-srch-minib.dim:hover { border-color: var(--cp-outline) !important; color: #5f5d58 !important; }
+.cp-srch-fbar-foot { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--cp-outline); }
+.cp-srch-link { color: var(--cp-primary) !important; background: none !important; border: 0 !important; font: inherit !important; font-weight: 700 !important; cursor: pointer; display: flex; align-items: center; gap: 7px; padding: 0 !important; box-shadow: none !important; }
+.cp-srch-link svg { width: 16px; height: 16px; }
+.cp-srch-link:hover { color: #d9c2f0 !important; }
+.cp-srch-link.dim { color: #5f5d58 !important; cursor: not-allowed; }
+.cp-srch-ff-space { flex: 1; }
+.cp-srch-btn { height: 42px !important; padding: 0 22px !important; border-radius: 9px !important; border: 0 !important; font: inherit !important; font-weight: 700 !important; font-size: 14px !important; cursor: pointer; background: var(--cp-primary-strong) !important; color: #fff !important; display: inline-flex; align-items: center; gap: 8px; box-shadow: none !important; }
+.cp-srch-btn svg { width: 18px; height: 18px; }
+.cp-srch-btn:hover { background: #5E3F86 !important; }
+
+/* results */
+.cp-srch-results { flex: 1; min-height: 0; margin-top: 12px; display: flex; flex-direction: column; }
+.cp-srch-dtable { flex: 1; min-height: 0; border: 1px solid var(--cp-outline); border-radius: 12px; overflow: hidden; background: var(--cp-surface); display: flex; flex-direction: column; }
+.cp-srch-dhead { flex: 0 0 auto; display: grid; background: var(--cp-surface-low); border-bottom: 1px solid var(--cp-outline); }
+.cp-srch-th { padding: 13px 18px; color: var(--cp-text-muted); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; user-select: none; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+.cp-srch-th.num { justify-content: flex-end; text-align: right; }
+.cp-srch-th:hover { color: var(--cp-text); }
+.cp-srch-arr { color: var(--cp-primary); display: inline-flex; }
+.cp-srch-arr svg { width: 13px; height: 13px; }
+.cp-srch-dbody { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+.cp-srch-dpage { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-start; will-change: transform; }
+/* flex:1 so every page's rows divide the body EXACTLY (no leftover strip at the bottom) and are identical in
+   size. Safe because short pages are always padded to perPage with ghost rows (cpGridGhostRowHTML). */
+.cp-srch-drow { display: grid; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05); cursor: pointer; flex: 1; min-height: 0; }
+.cp-srch-drow:hover { background: rgba(255, 255, 255, 0.06); }
+/* placeholder rows that fill a short page so the table reads as a full, intentional list (non-interactive).
+   Same border + size as real rows; faint per-column "bubble" bars. */
+.cp-srch-ghostrow { display: grid; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05); flex: 1; min-height: 0; pointer-events: none; }
+/* display:block (NOT inline-block) — an inline-block with a % width hits a shrink-to-fit circular dependency
+   and collapses to width 0 (the bars were invisible). block resolves the % against the definite cell width. */
+.cp-srch-gh { display: block; height: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.10); }
+.cp-srch-td.num .cp-srch-gh, .cp-srch-td.num .cp-srch-sk { margin-left: auto; }   /* right-align the placeholder in number columns */
+/* loading header bar cell — block (so the shimmer % width resolves), sized to match the real header height */
+.cp-srch-skhd { display: block; padding: 16px 18px; }
+.cp-srch-skhd.num .cp-srch-sk { margin-left: auto; }
+.cp-srch-td { padding: 0 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.cp-srch-td.num { text-align: right; }
+.cp-srch-gid { color: var(--cp-primary); font-weight: 700; }
+.cp-srch-drow:hover .cp-srch-gid { text-decoration: underline; }
+.cp-srch-mut { color: var(--cp-text-muted); }
+.cp-srch-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--cp-outline); color: var(--cp-text); font-size: 11.5px; font-weight: 600; }
+.cp-srch-badge svg { width: 13px; height: 13px; color: var(--cp-text-muted); }
+.cp-srch-lim { display: inline-block; min-width: 38px; text-align: center; padding: 3px 10px; border-radius: 7px; background: var(--cp-bg); border: 1px solid var(--cp-outline); font-weight: 700; font-size: 12px; }
+.cp-srch-lim.hi { color: var(--cp-primary); border-color: rgba(110, 76, 150, .55); background: rgba(110, 76, 150, 0.24); }
+.cp-srch-loading, .cp-srch-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--cp-text-muted); font-size: 14px; }
+
+/* state screens: initial (click-to-search) + minimal no-match + skeleton loading */
+.cp-srch-state { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px; text-align: center; padding: 20px; }
+.cp-srch-state-ico { width: 54px; height: 54px; border-radius: 50%; background: rgba(110, 76, 150, 0.16); display: flex; align-items: center; justify-content: center; color: var(--cp-primary); }
+.cp-srch-state-ico svg { width: 26px; height: 26px; }
+.cp-srch-state-h { font-size: 16px; font-weight: 700; color: var(--cp-text); }
+.cp-srch-state-s { font-size: 12.5px; color: var(--cp-text-muted); max-width: 320px; line-height: 1.45; }
+.cp-srch-state .cp-srch-showall { margin-top: 4px; }
+.cp-srch-state-min { gap: 10px; }
+.cp-srch-state-ico-min { color: #6b6862; }
+.cp-srch-state-ico-min svg { width: 34px; height: 34px; }
+.cp-srch-state-h-min { font-size: 13px; font-weight: 600; color: var(--cp-text-muted); }
+/* "too many results" state — amber-tinted icon to read distinctly from the neutral no-results face */
+.cp-srch-state-ico-warn { background: rgba(232, 145, 80, 0.16); color: #E89150; }
+.cp-srch-skwrap { position: absolute; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
+.cp-srch-skrow { display: flex; gap: 24px; align-items: center; padding: 0 18px; flex: 1; min-height: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.cp-srch-sk { display: block; height: 10px; border-radius: 5px; background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 25%, rgba(255, 255, 255, 0.14) 50%, rgba(255, 255, 255, 0.05) 75%); background-size: 200% 100%; animation: cpShimmer 1.3s linear infinite; }
+@keyframes cpShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .cp-srch-sk { animation: none; } }
+
+/* footer / pager — centered at the bottom */
+.cp-srch-tfoot { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 14px; padding: 11px 4px 0; color: var(--cp-text-muted); font-size: 12.5px; }
+.cp-srch-hint { display: flex; align-items: center; gap: 7px; color: #7d7a73; }
+.cp-srch-hint svg { width: 15px; height: 15px; }
+.cp-srch-pager { display: flex; align-items: center; gap: 6px; }
+.cp-srch-pg-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--cp-outline); background: var(--cp-surface); color: var(--cp-text); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.cp-srch-pg-btn svg { width: 18px; height: 18px; }
+.cp-srch-pg-btn:hover { border-color: var(--cp-primary-strong); color: var(--cp-primary); }
+.cp-srch-pg-btn.disabled { opacity: .35; pointer-events: none; }
+.cp-srch-pg-cur { padding: 0 14px; height: 34px; display: flex; align-items: center; border-radius: 8px; background: rgba(110, 76, 150, 0.24); color: var(--cp-primary); font-weight: 700; }
+
+/* custom Field/Match dropdowns — native <select> hidden + synced; popup appended to body, fixed-positioned */
+.cp-srch-dd { position: relative; }
+.cp-srch-dd select { display: none !important; }
+.cp-srch-ddval { flex: 1; min-width: 0; color: var(--cp-text); font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-srch-dd > svg { margin-left: 0 !important; transition: transform .18s ease; }
+.cp-srch-dd.open { border-color: var(--cp-primary-strong); }
+.cp-srch-dd.open > svg { transform: rotate(180deg); }
+.cp-srch-ddmenu { z-index: 2147483000; background: var(--cp-surface); border: 1px solid var(--cp-outline); border-radius: 10px; padding: 5px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45); max-height: 60vh; overflow-y: auto; }
+.cp-srch-ddopt { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 11px; border-radius: 7px; font-size: 13px; color: var(--cp-text-muted); cursor: pointer; white-space: nowrap; }
+.cp-srch-ddopt > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cp-srch-ddopt:hover { background: rgba(110, 76, 150, 0.18); color: var(--cp-text); }
+.cp-srch-ddopt.sel { color: var(--cp-primary); font-weight: 700; }
+.cp-srch-ddopt svg { width: 15px; height: 15px; color: var(--cp-primary); flex: 0 0 auto; }
+/* Searchable value dropdown (Department picker — Option C): a filter box pinned above a scrolling list. */
+.cp-srch-ddmenu-s { overflow: visible; max-height: none; }
+.cp-srch-ddsearch { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 11px; margin: 1px 1px 6px; background: var(--cp-bg); border: 1px solid var(--cp-outline); border-radius: 7px; }
+.cp-srch-ddsearch:focus-within { border-color: var(--cp-primary-strong); }
+.cp-srch-ddsearch svg { width: 15px; height: 15px; color: var(--cp-text-muted); flex: 0 0 auto; }
+.cp-srch-ddsearch input { flex: 1; min-width: 0; background: none !important; border: 0 !important; outline: 0 !important; color: var(--cp-text) !important; font: inherit !important; font-size: 12.5px !important; height: auto !important; box-shadow: none !important; }
+.cp-srch-ddsearch input::placeholder { color: #6b6862; }
+.cp-srch-ddmenu-s .cp-srch-ddlist { max-height: 44vh; overflow-y: auto; }
+.cp-srch-ddempty { padding: 12px; font-size: 12.5px; color: var(--cp-text-muted); text-align: center; }
+.cp-srch-ddopt.active { background: rgba(110, 76, 150, 0.18); color: var(--cp-text); }   /* keyboard highlight (arrow keys) */
+/* Thin Trifecta scrollbar — matches the console panel — for the value dropdown list AND the breadcrumb mega menu. */
+.cp-srch-ddmenu::-webkit-scrollbar,
+.cp-srch-ddmenu-s .cp-srch-ddlist::-webkit-scrollbar,
+.cp-bc-dd-mega::-webkit-scrollbar { width: 11px !important; }
+.cp-srch-ddmenu::-webkit-scrollbar-thumb,
+.cp-srch-ddmenu-s .cp-srch-ddlist::-webkit-scrollbar-thumb,
+.cp-bc-dd-mega::-webkit-scrollbar-thumb { background: var(--cp-border, #3c3a37) !important; border-radius: 6px !important; border: 3px solid var(--cp-surface, #2a2825) !important; }
+.cp-srch-ddmenu::-webkit-scrollbar-track,
+.cp-srch-ddmenu-s .cp-srch-ddlist::-webkit-scrollbar-track,
+.cp-bc-dd-mega::-webkit-scrollbar-track { background: transparent !important; }

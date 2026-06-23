@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.97";
+  var CP_PJAX_VERSION = "0.2.132";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
 
   // Single-page sign-out: minimum time (ms) the "Signing out…" spinner stays up
@@ -61,6 +61,14 @@
   // — otherwise landing on a sub-page after reload/recovery (no console rebuilt) leaves the menu empty.
   var cpLevelPages = (function () { try { return JSON.parse(sessionStorage.getItem("cp-level-pages")) || {}; } catch (e) { return {}; } })();
   var cpCrumbDd = null;    // the live breadcrumb dropdown element + its teardown, if open.
+  var cpGridState = null;  // the redesigned search GRID's live state (data/sort/page/cols), if active.
+  // Count of token-bearing POSTs currently in flight (cpFollow / cpFollowFrame). The grid's broad search
+  // rotates the single-use formtokenserial on EVERY page.jsp hop, so while any of these are outstanding the
+  // live token is mid-rotation. A reload/nav that POSTs in that window sends a stale token → the server
+  // bounces to Login ("session timeout"). The reload handler drains this to 0 before replaying. INCLUDES an
+  // aborted-but-still-resolving prior search (abort stops the LOOP, not the in-flight fetch), which the old
+  // single-_searchPromise wait missed.
+  var cpInflightPosts = 0;
   // RESELLER anchor reuse: the open folder cpHook just fetched to land here IS the console's anchor
   // section, so re-fetching it (the old behaviour) fired a SECOND back-to-back folder_contents on the
   // rotating single-use token → the anchor (Profile) intermittently shelled = "Couldn't load — Retry".
@@ -237,6 +245,8 @@
       var body = new URLSearchParams();
       for (var k in p) if (Object.prototype.hasOwnProperty.call(p, k)) body.append(k, p[k]);
       if (token) body.append("formtokenserial", token);
+      cpInflightPosts++;   // mark a token-bearing POST in flight (drained by the reload handler)
+      var _settled = false, _done = function () { if (_settled) return; _settled = true; cpInflightPosts = Math.max(0, cpInflightPosts - 1); };
       return fetch(u, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -248,8 +258,10 @@
           return r.text();
         })
         .then(function (html) {
-          if (html.indexOf("Please login again") !== -1 || html.indexOf("not authorized to access the system") !== -1)
+          if (html.indexOf("Please login again") !== -1 || html.indexOf("not authorized to access the system") !== -1) {
+            console.warn("[pjax] AUTH-FAIL response from", u, "(token …" + (token ? String(token).slice(-6) : "none") + ", hop " + depth + ")");
             return { auth: false };
+          }
           var doc = new DOMParser().parseFromString(html, "text/html");
           if (doc.querySelector('td[width="82%"]')) return { doc: doc, html: html };
           var stub = cpExtractStub(doc);
@@ -258,7 +270,8 @@
             return cpFollow(stub.target, stub.data, stub.token, depth + 1);
           }
           return { doc: doc, html: html };
-        });
+        })
+        .then(function (v) { _done(); return v; }, function (e) { _done(); throw e; });
     }
 
     // Iframe transport. At Service-Provider / Group / User levels, folder_contents.jsp returns a
@@ -275,10 +288,12 @@
         ifr.setAttribute("sandbox", "allow-same-origin");
         ifr.style.cssText = "position:absolute;width:10px;height:10px;border:0;left:-9999px;top:-9999px";
         document.body.appendChild(ifr);
+        cpInflightPosts++;   // a token-bearing navigation POST in flight (drained by the reload handler)
         var settled = false;
         function done(val) {
           if (settled) return;
           settled = true;
+          cpInflightPosts = Math.max(0, cpInflightPosts - 1);
           try { ifr.remove(); } catch (e) {}
           resolve(val);
         }
@@ -404,6 +419,1019 @@
       return Promise.resolve(cpAggCache ? cpAggCache[folder] : null);
     }
 
+    // --- PRELOAD-ALL search data layer (Groups, per-group Users, any BroadWorks search list) ----------
+    // The redesigned search grid harvests EVERY result client-side, then sorts/pages instantly. This is
+    // the generic, level-agnostic transport (proven live in Phase 0 for reseller Groups = 142 rows/8 pages
+    // ~1.65s AND a group's Users list): a single "search" mainForm POST (empty criteria ⇒ ALL rows) returns
+    // page 0 + "Page 1 of M"; the rest come from a Common/page.jsp loop (value = 1..M-1) over the SAME
+    // proven cpFollow PLAIN-FETCH path (reseller/group lists serve real content to a background fetch — no
+    // iframe; only folder_contents/Modify shell at SP/Group/User). The single-use formtokenserial rotates
+    // per request, so the loop is SEQUENTIAL and threads the fresh token out of each response.
+    // The pagination descriptor {returnPage, tableName} is read from the list's OWN doPage() wiring in the
+    // response (doPage passes `var parmsArray={returnPage,tableName,value}` — a variable, not an inline
+    // object), so the same code serves any list without hardcoding. Returns
+    //   { headers:[colName…], rows:[{cells:[txt…], drill:{url,params}}], totalPages, desc }.
+
+    // Pagination descriptor from the results block's doPage()/doSort() scripts.
+    function cpSearchDescriptor(doc) {
+      var ss = doc.querySelectorAll("script"), src = "";
+      for (var i = 0; i < ss.length; i++) src += (ss[i].textContent || "") + "\n";
+      var m = /returnPage:\s*['"]([^'"]+)['"]\s*,\s*tableName:\s*['"]([^'"]+)['"]/.exec(src);
+      return m ? { returnPage: m[1], tableName: m[2] } : null;
+    }
+    function cpSearchPageOf(doc) {
+      var t = (doc.body ? doc.body.textContent : "") || "";
+      var m = /Page\s+(\d+)\s+of\s+(\d+)/i.exec(t);
+      return m ? { cur: +m[1], total: +m[2] } : null;
+    }
+    // The server REFUSES to return very large result sets (e.g. SP/Reseller Users) with
+    // "Failed to read: [Error 4027] Please narrow your search, there are N matching records." — a valid
+    // response, NOT a transport failure, so we surface it as its own state instead of "No results" / fallback.
+    function cpSearchTooMany(doc) {
+      var t = (doc.body ? doc.body.textContent : "") || "";
+      if (!/\[?\s*Error\s*4027\s*\]?/i.test(t) && !/please\s+narrow\s+your\s+search/i.test(t)) return null;
+      var m = /there\s+are\s+([\d,]+)\s+matching\s+records/i.exec(t);
+      return { count: m ? +m[1].replace(/,/g, "") : null };
+    }
+    function cpSearchHeaders(doc) {
+      return [].map.call(doc.querySelectorAll("a.listSortHeader"), function (a) {
+        return (a.textContent || "").replace(/\s+/g, " ").trim();
+      });
+    }
+    // Generic row parse: each tr[id^=Row]; cells = the a.tableLink texts (Col0..ColN); drill = the row's
+    // own redirectPost(url,{params}) (whole row is clickable). In a DOMParser'd fetched doc the
+    // DOMContentLoaded wiring doesn't run, so the drill is read from the inline <script> text (decoding the
+    // > '>' / % '%' the server escapes the composite key with).
+    function cpSearchParseRows(doc) {
+      var rows = [];
+      doc.querySelectorAll('tr[id^="Row"]').forEach(function (tr) {
+        var cells = [].map.call(tr.querySelectorAll("a.tableLink"), function (a) { return (a.textContent || "").trim(); });
+        if (!cells.length) return;
+        var m = /redirectPost\s*\(\s*['"]([^'"]+)['"]\s*,\s*(\{[\s\S]*?\})\s*\)/.exec(tr.innerHTML);
+        var drill = null;
+        if (m) {
+          var params = {}, re = /(\w+)\s*:\s*['"]([^'"]*)['"]/g, mm;
+          while ((mm = re.exec(m[2]))) params[mm[1]] = mm[2]
+            .replace(/\\u003E/g, ">").replace(/\\u0025/g, "%").replace(/\\u002F/g, "/");
+          drill = { url: m[1].replace(/\\u002F/g, "/"), params: params };
+        }
+        rows.push({ cells: cells, drill: drill });
+      });
+      return rows;
+    }
+
+    // Write the freshly-rotated CSRF token back into EVERY live formtokenserial input (mirrors
+    // cpAggPrefetch). The preload's page.jsp loop rotates the single-use token; without writing it back the
+    // page's inputs go stale, so the NEXT real POST (a row drill-in, breadcrumb/sidebar nav, or re-search)
+    // posts a dead token → recovery/Login (the "timeout after browsing pages").
+    function cpWriteToken(val) {
+      if (!val) return;
+      var ts = document.getElementsByName("formtokenserial");
+      for (var i = 0; i < ts.length; i++) ts[i].value = val;
+    }
+
+    // criteria: optional [{key, op, value}] → findKeyN/findOpN/findValueN (empty/omitted ⇒ all rows).
+    // opts.onPage(pageRows, pageIdx, totalPages) fires per page (render page 1 instantly, stream the rest);
+    // opts.signal.aborted short-circuits the loop (a newer search supersedes this one). Rejects on a failed
+    // search/auth so the caller can FALL BACK to the legacy paginated table (never strand the user).
+    function cpListSearch(criteria, opts) {
+      opts = opts || {};
+      var landing = location.origin + location.pathname;   // mainForm posts to the current list URL
+      var form = document.querySelector('form[name="mainForm"]');
+      var params = {};
+      if (form) new URLSearchParams(new FormData(form)).forEach(function (v, k) { params[k] = v; });
+      if (criteria && criteria.length) {
+        Object.keys(params).forEach(function (k) { if (/^find(Key|Op|Value)\d+$/.test(k)) delete params[k]; });
+        criteria.forEach(function (c, i) {
+          params["findKey" + i] = c.key;
+          params["findOp" + i] = c.op || "STARTS_WITH";
+          params["findValue" + i] = c.value == null ? "" : c.value;
+        });
+        params.rowNum = String(criteria.length - 1);
+      }
+      params.buttonClicked = "search";
+      params.search = "Search";
+      var tokEl = document.getElementsByName("formtokenserial")[0];
+      var tok = tokEl ? tokEl.value : null;
+
+      return cpFollow(landing, params, tok, 0).then(function (res) {
+        if (!res || res.auth === false || !res.doc) throw new Error("[search] search POST failed/auth");
+        var desc = cpSearchDescriptor(res.doc);
+        var po = cpSearchPageOf(res.doc);
+        var headers = cpSearchHeaders(res.doc);
+        var totalPages = po ? po.total : 1;
+        var all = cpSearchParseRows(res.doc);
+        var nt = res.doc.getElementsByName("formtokenserial")[0]; if (nt && nt.value) { tok = nt.value; cpWriteToken(tok); }
+        var tooMany = cpSearchTooMany(res.doc);
+        if (tooMany) return { headers: headers, rows: [], totalPages: 1, desc: desc, tooMany: true, matchCount: tooMany.count };
+        if (opts.onPage) { try { opts.onPage(all.slice(), 0, totalPages); } catch (e) {} }
+
+        var seq = Promise.resolve();
+        var cap = Math.min(totalPages, 500);   // safety bound for a pathological set
+        for (var p = 1; p < cap && desc; p++) (function (p) {
+          seq = seq.then(function () {
+            if (opts.signal && opts.signal.aborted) return;
+            return cpFollow(location.origin + "/commpilot/Common/page.jsp",
+              { returnPage: desc.returnPage, tableName: desc.tableName, value: String(p) }, tok, 0)
+              .then(function (r2) {
+                if (!r2 || !r2.doc) { console.warn("[search] page", p, "failed"); return; }
+                var pr = cpSearchParseRows(r2.doc);
+                var nt2 = r2.doc.getElementsByName("formtokenserial")[0]; if (nt2 && nt2.value) { tok = nt2.value; cpWriteToken(tok); }
+                all = all.concat(pr);
+                if (opts.onPage) { try { opts.onPage(pr, p, totalPages); } catch (e) {} }
+              });
+          });
+        })(p);
+        return seq.then(function () { return { headers: headers, rows: all, totalPages: totalPages, desc: desc }; });
+      });
+    }
+    // Expose for the grid builder + live diagnostics.
+    window.cpListSearch = cpListSearch;
+
+    // Feature flag for the redesigned search grid (opt-in until verified): localStorage.cpNewSearch==='1'.
+    function cpNewSearchOn() { try { return localStorage.getItem("cpNewSearch") === "1"; } catch (e) { return false; } }
+
+    // --- THE SEARCH GRID (redesign) — filter bar + preload-all + fit-to-screen + horizontal page-flip ----
+    // Faithful port of the APPROVED mockup (Testing HTML Files/groups-redesign-v2.html) into the live shell.
+    // Built in pjax MAIN (alongside cpListSearch + cpBuildConsole — keeps the data and DOM in one world);
+    // styled by skin.css (.cp-srch-*, privileged). Gated behind localStorage.cpNewSearch==='1' for now so the
+    // committed in-place list skin stays the default until verified. pjax owns html.cp-grid-on (set when the
+    // grid takes over, removed on FALLBACK) and skin.js skips its legacy list skinning while it's set.
+    // Inline SVGs (MAIN world has no chrome.runtime for asset urls — same approach as the breadcrumb icons).
+    var CP_SVG_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>';
+    var CP_SVG_CHEVDOWN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+    var CP_SVG_CHEVLEFT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';
+    var CP_SVG_CHEVRIGHT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+    var CP_SVG_PLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg>';
+    var CP_SVG_MINUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>';
+    var CP_SVG_CHEVLEFT2 = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 18-6-6 6-6M11 18l-6-6 6-6"/></svg>';
+    var CP_SVG_CHEVRIGHT2 = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 18 6-6-6-6M13 18l6-6-6-6"/></svg>';
+    var CP_SVG_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+    var CP_SVG_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+    var CP_SVG_ARRUP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>';
+    var CP_SVG_ARRDOWN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+    var CP_SVG_BUILDING = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01"/></svg>';
+    var CP_SVG_MOUSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="7"/><path d="M12 6v4"/></svg>';
+    var CP_SVG_FACE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>';
+    var CP_SVG_FUNNEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5z"/></svg>';
+
+    // Per-list column treatments, keyed by the descriptor tableName (labels always come from the SERVER
+    // headers, so only the visual TYPE + sort kind are configured here). Unknown lists fall back to an
+    // auto-config: col 0 = id link, all-numeric columns = right-aligned number, the rest = text.
+    var CP_GRID_COLS = {
+      resellerGroupTable: [
+        { type: "id" }, { type: "text" }, { type: "muted" },
+        { type: "badge", icon: CP_SVG_BUILDING }, { type: "numpill", deflt: "25" }
+      ],
+      groupUserList: [
+        { type: "id" }, { type: "text" }, { type: "text" }, { type: "text" },
+        { type: "num" }, { type: "muted" }, { type: "text" }
+      ]
+    };
+    function cpGridColConfig(desc, headers, rows) {
+      var preset = desc && CP_GRID_COLS[desc.tableName];
+      var n = headers.length || (rows[0] ? rows[0].cells.length : 0);
+      var cols = [];
+      for (var i = 0; i < n; i++) {
+        var c = (preset && preset[i]) ? Object.create(preset[i]) : null;
+        if (!c) {
+          // auto: col 0 → id link; a column whose every non-empty value is numeric → number; else text.
+          if (i === 0) c = { type: "id" };
+          else {
+            var allNum = true, any = false;
+            for (var r = 0; r < rows.length; r++) {
+              var v = (rows[r].cells[i] || "").trim();
+              if (!v) continue; any = true;
+              if (!/^[0-9.,+\-]+$/.test(v)) { allNum = false; break; }
+            }
+            c = { type: (any && allNum) ? "num" : "text" };
+          }
+        }
+        c.label = headers[i] || ("Column " + (i + 1));
+        c.idx = i;
+        c.num = (c.type === "num" || c.type === "numpill");
+        cols.push(c);
+      }
+      return cols;
+    }
+
+    // Builder. Replaces the legacy list content cell with the grid scaffold, preloads ALL rows via
+    // cpListSearch, then renders + wires instant sort / horizontal page-flip / wheel-paginate / fit-to-screen.
+    // On a preload FAILURE it removes html.cp-grid-on and re-dispatches cp:reskin so skin.js restores the
+    // legacy paginated table (never strand the user).
+    function cpBuildSearchGrid() {
+      var cell = document.querySelector('td[width="82%"]');
+      if (!cell) return;
+      if (cell.querySelector(".cp-search-redesign")) return;   // already built for this page
+      cpFieldMetaCache = {};   // per-group: the department list differs by page, so don't carry it across builds
+      var root = document.documentElement;
+      root.classList.add("cp-grid-on");
+
+      // Title + criteria options from the live page BEFORE we wipe it.
+      var title = (document.title || "").split(":").pop().trim() || "Search";
+      var fieldOpts = [].map.call(document.querySelectorAll('#findKey0 option'), function (o) {
+        return { value: o.value, label: (o.textContent || "").trim() };
+      });
+      var opOpts = [].map.call(document.querySelectorAll('#findOp0 option'), function (o) {
+        return { value: o.value, label: (o.textContent || "").trim() };
+      });
+      if (!fieldOpts.length) fieldOpts = [{ value: "", label: "All" }];
+      if (!opOpts.length) opOpts = [{ value: "STARTS_WITH", label: "Starts With" }, { value: "CONTAINS", label: "Contains" }, { value: "EQUAL_TO", label: "Equal To" }];
+
+      // Scaffold. PRESERVE the breadcrumb band, and HIDE (do NOT detach) the legacy list markup. The legacy
+      // markup CONTAINS the mainForm (with #searchTable's findKey/findOp/findValue/rowNum + the formtokenserial)
+      // AND the auth links the breadcrumb is built from — detaching them broke the search POST (no criteria
+      // fields → 0 rows) and the crumb. Hiding keeps them in the DOM, so cpListSearch reads the live form and
+      // the breadcrumb still builds; a preload FAILURE just un-hides them.
+      var crumb = cell.querySelector(".cp-breadcrumb");
+      if (crumb && crumb.parentNode !== cell) cell.insertBefore(crumb, cell.firstChild);   // hoist so hiding mainForm can't hide it
+      var hidden = [];
+      [].slice.call(cell.children).forEach(function (ch) { if (ch !== crumb) { ch.style.display = "none"; hidden.push(ch); } });
+      var wrap = document.createElement("div");
+      wrap.className = "cp-search-redesign";
+      wrap.innerHTML =
+        '<div class="cp-srch-head">' +
+          '<span class="cp-srch-bar"></span>' +
+          '<div class="cp-srch-titles"><div class="cp-srch-title"></div><div class="cp-srch-sub"></div></div>' +
+          '<div class="cp-srch-headright">' +
+            '<span class="cp-srch-actions"></span>' +
+            '<span class="cp-srch-count"><span class="cp-srch-dot"></span><span class="cp-srch-count-n">Loading…</span></span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="cp-srch-filterbar">' +
+          '<div class="cp-srch-frows"></div>' +
+        '</div>' +
+        '<div class="cp-srch-results">' +
+          '<div class="cp-srch-dtable">' +
+            '<div class="cp-srch-dhead"></div>' +
+            '<div class="cp-srch-dbody"><div class="cp-srch-loading">Loading all results…</div></div>' +
+          '</div>' +
+          '<div class="cp-srch-tfoot">' +
+            '<div class="cp-srch-pager">' +
+              '<span class="cp-srch-pg-btn cp-srch-first" title="First page">' + CP_SVG_CHEVLEFT2 + '</span>' +
+              '<span class="cp-srch-pg-btn cp-srch-prev" title="Previous">' + CP_SVG_CHEVLEFT + '</span>' +
+              '<span class="cp-srch-pg-cur">1 / 1</span>' +
+              '<span class="cp-srch-pg-btn cp-srch-next" title="Next">' + CP_SVG_CHEVRIGHT + '</span>' +
+              '<span class="cp-srch-pg-btn cp-srch-last" title="Last page">' + CP_SVG_CHEVRIGHT2 + '</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      cell.appendChild(wrap);
+      wrap.querySelector(".cp-srch-title").textContent = title;
+      wrap.querySelector(".cp-srch-sub").textContent = "Search, then sort and page instantly.";
+
+      // Grid state.
+      var state = {
+        wrap: wrap, cell: cell, hidden: hidden, countN: wrap.querySelector(".cp-srch-count-n"),
+        all: [], cur: [], cols: [], desc: null, entity: title, phase: "initial", searched: false,
+        sortK: 0, sortDir: 1, page: 0, perPage: 12,
+        accum: 0, cooling: false, criteriaCount: 1, fieldOpts: fieldOpts, opOpts: opOpts
+      };
+      cpGridState = state;
+      // Column structure read from the live legacy list NOW, so the FIRST loading skeleton can match the result
+      // (same header titles + column layout) before any search has run. cpGridColConfig derives the count from
+      // the real headers, so it matches whatever the result will be.
+      try {
+        var liveHdrs = cpSearchHeaders(document);
+        if (liveHdrs && liveHdrs.length) state.skelCols = cpGridColConfig(cpSearchDescriptor(document), liveHdrs, []);
+      } catch (e) { state.skelCols = null; }
+
+      cpGridRenderFilters(state, 1);
+      cpGridWireStaticHandlers(state);
+      cpGridBuildActions(state);   // surface the legacy page's action buttons (Add / wizard / …) in the header
+
+      // NO auto-load. Show the "click to search" INITIAL state — the user runs an empty "Show all"
+      // (= every row, preload-all) or a criteria search; both go through cpGridLoad → skeleton → results /
+      // no-match. Avoids auto-loading a huge list (esp. Users) on every visit AND the token-rotation exposure.
+      cpGridShowState(state, "initial");
+    }
+
+    // Harvest the legacy page's action buttons (Add, Add Group Wizard, … — whatever this level exposes) so the
+    // grid header can surface them. Generic: read the real <input class="bwbutton"> elements from the page's own
+    // button bar (NOT the search-criteria buttons inside #searchTable), drop the pure-navigation ones (OK/Cancel
+    // — the breadcrumb is the back action), and dedupe the top/bottom-bar duplicates by name. Returns the LIVE
+    // element so a click can be forwarded to it (preserves whatever handler BroadWorks attached — proven to fire
+    // and navigate in-shell even while the legacy markup is display:none).
+    function cpGridHarvestActions(cell) {
+      var out = [], seen = {};
+      var btns = cell.querySelectorAll("input.bwbutton, input.bwbuttonNoWidth");
+      [].forEach.call(btns, function (b) {
+        if (b.closest && b.closest("#searchTable")) return;          // search-criteria button, not a page action
+        var nm = (b.name || "").toLowerCase();
+        var label = (b.value || "").trim();
+        if (!label) return;
+        if (/^(ok|cancel|apply)$/.test(nm) || /^(ok|cancel|apply)$/i.test(label)) return;   // nav — breadcrumb covers it
+        if (/^(search)$/.test(nm) || /^(add|del|delete|remove)\d+$/.test(nm)) return;        // search submit + the +/− criterion rows (add0, del1…)
+        if (/^[+\-−]$/.test(label) || /^search$/i.test(label)) return;                  // belt-and-suspenders by label
+        var key = nm || label.toLowerCase();
+        if (seen[key]) return;                                       // dedupe top/bottom bar duplicates
+        seen[key] = 1;
+        out.push({ label: label, el: b });
+      });
+      return out;
+    }
+    function cpGridBuildActions(state) {
+      var host = state.wrap.querySelector(".cp-srch-actions");
+      if (!host) return;
+      host.innerHTML = "";
+      cpGridHarvestActions(state.cell).forEach(function (a, i) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "cp-srch-actbtn" + (i === 0 ? "" : " sec");   // first action = primary, rest = secondary
+        if (i === 0) btn.innerHTML = CP_SVG_PLUS + "<span>" + cpEsc(a.label) + "</span>";
+        else btn.textContent = a.label;
+        btn.addEventListener("click", function () { try { a.el.click(); } catch (e) {} });
+        host.appendChild(btn);
+      });
+    }
+
+    // State machine for the results area: "initial" (click-to-search) | "loading" (skeleton) | "nomatch"
+    // (minimal) | (results render through cpGridRenderHead/Static). The dhead is cleared for non-results phases.
+    function cpGridShowState(state, phase, extra) {
+      state.phase = phase;
+      var head = state.wrap.querySelector(".cp-srch-dhead");
+      var dbody = state.wrap.querySelector(".cp-srch-dbody");
+      var countPill = state.wrap.querySelector(".cp-srch-count");
+      head.innerHTML = ""; head.style.gridTemplateColumns = "";
+      if (phase === "loading") {
+        if (countPill) countPill.style.display = "";
+        var n = Math.max(8, state.perPage || 12), rows = "", i, ci;
+        // Mirror the RESULTS layout so the skeleton matches what loads in: the SAME header bar (titles + its
+        // surface-low background) and the SAME column layout for the shimmer rows. Columns come from a prior
+        // search (state.cols) or, on the first load, from the live headers captured at mount (state.skelCols).
+        var skc = (state.cols && state.cols.length) ? state.cols : state.skelCols;
+        if (skc && skc.length) {
+          var tmpl = cpGridTemplate(skc);
+          // Header bar: dark (surface-low) with shimmer PLACEHOLDERS, not the real titles — the extension is
+          // shared across users, so nothing user-specific renders during loading. (skhd cells are block so the
+          // % width resolves; CSP blocks inline style attrs so widths go through cpGridApplyBarWidths.)
+          head.style.gridTemplateColumns = tmpl;
+          head.innerHTML = skc.map(function (c) {
+            var num = (c.type === "num" || c.type === "numpill");
+            return '<div class="cp-srch-skhd' + (num ? " num" : "") + '"><span class="cp-srch-sk" data-w="' + (num ? 52 : 40) + '"></span></div>';
+          }).join("");
+          for (i = 0; i < n; i++) {
+            var cells = "";
+            for (ci = 0; ci < skc.length; ci++) {
+              var col = skc[ci], num = (col.type === "num" || col.type === "numpill");
+              var w = num ? (30 + (i * 7) % 16) : (48 + (i * 13 + ci * 29) % 42);
+              cells += '<div class="cp-srch-td' + (num ? " num" : "") + '"><span class="cp-srch-sk" data-w="' + w + '"></span></div>';
+            }
+            rows += '<div class="cp-srch-ghostrow cp-srch-skg">' + cells + "</div>";
+          }
+          dbody.innerHTML = '<div class="cp-srch-skwrap">' + rows + "</div>";
+          [].forEach.call(dbody.querySelectorAll(".cp-srch-skg"), function (r) { r.style.gridTemplateColumns = tmpl; });
+          cpGridApplyBarWidths(head);
+          cpGridApplyBarWidths(dbody);
+          return;
+        }
+        // Fallback (no column info yet): a generic shimmer header bar + generic shimmer rows.
+        head.style.gridTemplateColumns = "1fr";
+        head.innerHTML = '<div class="cp-srch-skhd"><span class="cp-srch-sk" data-w="26"></span></div>';
+        for (i = 0; i < n; i++) {
+          var a = (2.4 + (i * 7) % 10 / 10).toFixed(2), b = (1.6 + (i * 13) % 9 / 10).toFixed(2),
+              c = (1.0 + (i * 5) % 7 / 10).toFixed(2), d = (2.0 + (i * 11) % 8 / 10).toFixed(2),
+              sp = (1.1 + (i * 3) % 13 / 10).toFixed(2);
+          rows += '<div class="cp-srch-skrow">' +
+            '<div class="cp-srch-sk" data-g="' + a + '"></div>' +
+            '<div class="cp-srch-sk" data-g="' + b + '"></div>' +
+            '<div class="cp-srch-sk" data-g="' + c + '"></div>' +
+            '<div class="cp-srch-sk" data-g="' + d + '"></div>' +
+            '<div data-g="' + sp + '"></div>' +
+          '</div>';
+        }
+        dbody.innerHTML = '<div class="cp-srch-skwrap">' + rows + '</div>';
+        cpGridApplyBarWidths(head);
+        cpGridApplyBarWidths(dbody);
+        return;
+      }
+      if (phase === "initial") {
+        if (countPill) countPill.style.display = "none";
+        dbody.innerHTML = '<div class="cp-srch-state">' +
+          '<div class="cp-srch-state-ico">' + CP_SVG_SEARCH + '</div>' +
+          '<div class="cp-srch-state-h">Search to see ' + cpEsc((state.entity || "results").toLowerCase()) + '</div>' +
+          '<div class="cp-srch-state-s">Enter a value and choose a field, then Search — or show everything.</div>' +
+          '<button type="button" class="cp-srch-btn cp-srch-showall">' + CP_SVG_SEARCH + '<span>Show all</span></button>' +
+        '</div>';
+        var sa = dbody.querySelector(".cp-srch-showall");
+        if (sa) sa.addEventListener("click", function () { cpGridLoad(state, null); });
+        state.wrap.querySelector(".cp-srch-pg-cur").textContent = "—";
+        return;
+      }
+      if (phase === "nomatch") {
+        if (countPill) countPill.style.display = "";
+        dbody.innerHTML = '<div class="cp-srch-state cp-srch-state-min">' +
+          '<div class="cp-srch-state-ico-min">' + CP_SVG_FACE + '</div>' +
+          '<div class="cp-srch-state-h-min">No results found</div>' +
+        '</div>';
+        state.wrap.querySelector(".cp-srch-pg-cur").textContent = "0 / 0";
+        return;
+      }
+      if (phase === "toomany") {
+        // Distinct from "no results": the server has matches but too many to preload — guide to narrowing.
+        if (countPill) countPill.style.display = "";
+        var cnt = extra != null ? extra : null;
+        dbody.innerHTML = '<div class="cp-srch-state cp-srch-state-warn">' +
+          '<div class="cp-srch-state-ico cp-srch-state-ico-warn">' + CP_SVG_FUNNEL + '</div>' +
+          '<div class="cp-srch-state-h">Too many results to preload</div>' +
+          '<div class="cp-srch-state-s">' +
+            (cnt != null ? 'There are ' + cnt.toLocaleString() + ' matching records — ' : 'There are too many matching records — ') +
+            'add a value or filter above and search again.</div>' +
+        '</div>';
+        state.wrap.querySelector(".cp-srch-pg-cur").textContent = "—";
+        return;
+      }
+    }
+
+    // Unified load: skeleton → preload-all (criteria or null=all) → render grid, or the minimal no-match
+    // state, or fall back to the legacy table on a transport failure (never strand the user).
+    function cpGridLoad(state, criteria) {
+      if (state._riffle) { clearInterval(state._riffle); state._riffle = null; }   // stop any first/last riffle
+      if (state._searchAbort) { try { state._searchAbort.abort(); } catch (e) {} }   // cancel a prior in-flight search
+      var ac = (typeof AbortController !== "undefined") ? new AbortController() : null;
+      state._searchAbort = ac;   // so a navigation/reload can stop the token-rotating background fetches
+      var hasCriteria = !!(criteria && criteria.some(function (c) { return c.value; }));
+      cpGridShowState(state, "loading");
+      if (state.countN) state.countN.textContent = "Loading…";
+      var streamed = 0;
+      var _searchP = cpListSearch(criteria, {
+        signal: ac ? ac.signal : null,
+        onPage: function (pageRows) { streamed += pageRows.length; if (state.countN) state.countN.textContent = "Loading… " + streamed; }
+      });
+      state._searchPromise = _searchP;   // so a reload can wait for in-flight fetches to settle before navigating
+      _searchP.then(function (data) {
+        if (!document.contains(state.wrap)) return;   // superseded by a newer nav
+        if (data.tooMany) {
+          // Server refused the (too-broad) search — show the narrow-your-search state, NOT "no results".
+          state.all = []; state.cur = []; state.page = 0; state.searched = true;
+          cpGridShowState(state, "toomany", data.matchCount);
+          if (state.countN) state.countN.textContent = (data.matchCount != null ? data.matchCount.toLocaleString() + " matches" : "Too many");
+          return;
+        }
+        state.all = data.rows.slice();
+        state.desc = data.desc;
+        state.cols = cpGridColConfig(data.desc, data.headers, data.rows);
+        state.cur = state.all.slice();
+        state.page = 0;
+        state.searched = true;
+        if (!state.all.length) {
+          cpGridShowState(state, "nomatch");
+          if (state.countN) state.countN.textContent = "0 results";
+          return;
+        }
+        cpGridSortBy(state, state.sortK, state.sortDir, true);
+        cpGridRenderResultsFillIn(state);   // fill the loading boxes in place, top-to-bottom, real content dropping from above
+        if (state.countN) state.countN.textContent = state.all.length + (hasCriteria ? " matched" : " preloaded");
+      }).catch(function (e) {
+        console.warn("[search] load failed — falling back to legacy table", e);
+        cpGridFallback(state);
+      });
+    }
+
+    function cpGridFallback(state) {
+      document.documentElement.classList.remove("cp-grid-on");
+      // Un-hide the original list, then ask skin.js to skin it. A DEDICATED event (not cp:reskin) so
+      // cpAutoConsole doesn't re-enter the grid builder → no loop.
+      try { if (state.wrap.parentNode) state.wrap.remove(); state.hidden.forEach(function (ch) { ch.style.display = ""; }); } catch (e2) {}
+      cpGridState = null;
+      document.dispatchEvent(new Event("cp:skinlegacy"));
+    }
+
+    function cpGridRenderHead(state) {
+      var head = state.wrap.querySelector(".cp-srch-dhead");
+      head.style.gridTemplateColumns = cpGridTemplate(state.cols);
+      head.innerHTML = state.cols.map(function (c) {
+        var arrow = (c.idx === state.sortK)
+          ? '<span class="cp-srch-arr">' + (state.sortDir > 0 ? CP_SVG_ARRUP : CP_SVG_ARRDOWN) + '</span>' : "";
+        return '<div class="cp-srch-th' + (c.num ? " num" : "") + '" data-k="' + c.idx + '">' +
+          cpEsc(c.label) + arrow + '</div>';
+      }).join("");
+      [].forEach.call(head.querySelectorAll(".cp-srch-th"), function (th) {
+        th.addEventListener("click", function () {
+          var k = +th.getAttribute("data-k");
+          if (k === state.sortK) state.sortDir = -state.sortDir; else { state.sortK = k; state.sortDir = 1; }
+          cpGridSortBy(state, state.sortK, state.sortDir, false);
+          state.page = 0;
+          cpGridRenderHead(state);
+          cpGridRenderStatic(state);   // sort/page changes don't re-cascade — the stagger is for fresh searches only
+        });
+      });
+    }
+    function cpGridTemplate(cols) {
+      // Mirrors the mockup's proportional widths: id/name wider, a fixed last column for numbers.
+      return cols.map(function (c, i) {
+        if (c.type === "numpill" || c.type === "num") return "120px";
+        if (i <= 1) return "1.5fr";
+        return "1.1fr";
+      }).join(" ");
+    }
+    function cpGridSortBy(state, k, dir, initial) {
+      var col = state.cols[k] || { num: false };
+      state.cur.sort(function (a, b) {
+        var x = a.cells[k] || "", y = b.cells[k] || "";
+        if (col.num) return (parseFloat(x.replace(/[^0-9.\-]/g, "")) - parseFloat(y.replace(/[^0-9.\-]/g, ""))) * dir;
+        return String(x).localeCompare(String(y)) * dir;
+      });
+      if (!initial) { state.sortK = k; state.sortDir = dir; }
+    }
+    function cpGridTotalPages(state) { return Math.max(1, Math.ceil(state.cur.length / state.perPage)); }
+    function cpGridCellHTML(state, row, c) {
+      var v = row.cells[c.idx] == null ? "" : row.cells[c.idx];
+      if (c.type === "id") return '<div class="cp-srch-td"><span class="cp-srch-gid">' + cpEsc(v) + "</span></div>";
+      if (c.type === "muted") return '<div class="cp-srch-td cp-srch-mut">' + cpEsc(v) + "</div>";
+      if (c.type === "badge") return '<div class="cp-srch-td"><span class="cp-srch-badge">' + (c.icon || "") + cpEsc(v) + "</span></div>";
+      if (c.type === "numpill") { var hi = (c.deflt != null && v !== c.deflt) ? " hi" : ""; return '<div class="cp-srch-td num"><span class="cp-srch-lim' + hi + '">' + cpEsc(v) + "</span></div>"; }
+      if (c.type === "num") return '<div class="cp-srch-td num">' + cpEsc(v) + "</div>";
+      return '<div class="cp-srch-td">' + cpEsc(v) + "</div>";
+    }
+    function cpGridRowHTML(state, row) {
+      return '<div class="cp-srch-drow">' + state.cols.map(function (c) { return cpGridCellHTML(state, row, c); }).join("") + "</div>";
+    }
+    // Faint placeholder row (non-interactive) — fills the rest of a short page so the table reads as a full,
+    // intentional list instead of leaving empty space below the real rows. Deterministic per-column widths.
+    function cpGridGhostRowHTML(state, rowIdx) {
+      var cells = state.cols.map(function (c, ci) {
+        var num = (c.type === "num" || c.type === "numpill");
+        // Varied per (row, column) so the placeholders look random. Width is carried in data-w and applied via
+        // CSSOM in cpGridApplyBarWidths — inline style="" ATTRIBUTES are blocked by the page CSP (style-src-attr).
+        var w = num ? (24 + (rowIdx * 7) % 12) : (40 + (rowIdx * 17 + ci * 31) % 36);
+        return '<div class="cp-srch-td' + (num ? " num" : "") + '"><span class="cp-srch-gh" data-w="' + w + '"></span></div>';
+      }).join("");
+      return '<div class="cp-srch-ghostrow">' + cells + "</div>";
+    }
+    // Apply bar sizes via CSSOM. Inline style="" attributes set through innerHTML are CSP-blocked on this page
+    // (only el.style.x = … applies), so ghost/skeleton bar widths are carried in data-* and set here.
+    function cpGridApplyBarWidths(root) {
+      [].forEach.call(root.querySelectorAll("[data-w]"), function (b) { b.style.width = b.getAttribute("data-w") + "%"; });
+      [].forEach.call(root.querySelectorAll("[data-g]"), function (b) { b.style.flex = b.getAttribute("data-g") + " 0 0"; });
+    }
+    function cpGridPageHTML(state, p) {
+      var slice = state.cur.slice(p * state.perPage, p * state.perPage + state.perPage);
+      var html = slice.map(function (row) { return cpGridRowHTML(state, row); }).join("");
+      for (var i = slice.length; i < state.perPage; i++) html += cpGridGhostRowHTML(state, i);   // i = absolute row idx → varied widths
+      return html;
+    }
+    function cpGridSyncFoot(state) {
+      var w = state.wrap, tp = cpGridTotalPages(state);
+      w.querySelector(".cp-srch-pg-cur").textContent = (state.page + 1) + " / " + tp;
+      var atFirst = state.page === 0, atLast = state.page >= tp - 1;
+      w.querySelector(".cp-srch-first").classList.toggle("disabled", atFirst);
+      w.querySelector(".cp-srch-prev").classList.toggle("disabled", atFirst);
+      w.querySelector(".cp-srch-next").classList.toggle("disabled", atLast);
+      w.querySelector(".cp-srch-last").classList.toggle("disabled", atLast);
+    }
+    function cpGridRenderStatic(state, animate) {
+      var dbody = state.wrap.querySelector(".cp-srch-dbody");
+      if (!state.cur.length) {
+        dbody.innerHTML = '<div class="cp-srch-empty">No results match your search.</div>';
+        cpGridSyncFoot(state); cpGridApplyRowTemplate(state); return;
+      }
+      var pg = document.createElement("div"); pg.className = "cp-srch-dpage";
+      pg.innerHTML = cpGridPageHTML(state, state.page);
+      dbody.innerHTML = ""; dbody.appendChild(pg);
+      state.pageEl = pg;
+      cpGridApplyRowTemplate(state);
+      cpGridApplyBarWidths(pg);
+      cpGridSyncFoot(state);
+    }
+    function cpGridApplyRowTemplate(state) {
+      var tmpl = cpGridTemplate(state.cols);
+      [].forEach.call(state.wrap.querySelectorAll(".cp-srch-drow, .cp-srch-ghostrow"), function (r) { r.style.gridTemplateColumns = tmpl; });
+    }
+    // Loading → results transition: FILL IN the loading boxes in place, one row at a time top-to-bottom, with the
+    // real content DROPPING DOWN from above (like a waterfall) as the shimmer fades out. The real grid is overlaid
+    // on the skeleton (both .dpage/.skwrap are absolute inset:0 → aligned), each real row animates in on its turn
+    // while the matching skeleton row fades, then the skeleton is removed. WAAPI; skipped under reduced-motion.
+    function cpGridRenderResultsFillIn(state) {
+      var dbody = state.wrap.querySelector(".cp-srch-dbody");
+      var skwrap = dbody.querySelector(".cp-srch-skwrap");
+      var h = dbody.clientHeight || 400;
+      state.perPage = Math.max(4, Math.floor(h / 46));
+      state.page = 0;
+      if (state.page > cpGridTotalPages(state) - 1) state.page = cpGridTotalPages(state) - 1;
+      cpGridRenderHead(state);                       // swap the shimmer header for the real titles
+      // The first-search skeleton uses GUESSED columns (state.skelCols from mount) which can differ from the
+      // real result columns (e.g. the last numeric column's width) → its bubbles wouldn't sit under the real
+      // cells. Re-render the skeleton to the RESULT columns so the overlay aligns. Skipped (no-op) when it
+      // already matches, i.e. every search after the first.
+      if (skwrap) {
+        var resTmpl = cpGridTemplate(state.cols);
+        var firstSk = skwrap.querySelector(".cp-srch-skg, .cp-srch-skrow");
+        if (!firstSk || firstSk.classList.contains("cp-srch-skrow") || firstSk.children.length !== state.cols.length || firstSk.style.gridTemplateColumns !== resTmpl) {
+          var nsk = Math.max(8, state.perPage), shtml = "", si, sci;
+          for (si = 0; si < nsk; si++) {
+            var scells = "";
+            for (sci = 0; sci < state.cols.length; sci++) {
+              var scol = state.cols[sci], snum = (scol.type === "num" || scol.type === "numpill");
+              scells += '<div class="cp-srch-td' + (snum ? " num" : "") + '"><span class="cp-srch-sk" data-w="' + (snum ? (30 + (si * 7) % 16) : (48 + (si * 13 + sci * 29) % 42)) + '"></span></div>';
+            }
+            shtml += '<div class="cp-srch-ghostrow cp-srch-skg">' + scells + "</div>";
+          }
+          skwrap.innerHTML = shtml;
+          [].forEach.call(skwrap.querySelectorAll(".cp-srch-skg"), function (r) { r.style.gridTemplateColumns = resTmpl; });
+          cpGridApplyBarWidths(skwrap);
+        }
+      }
+      var pg = document.createElement("div"); pg.className = "cp-srch-dpage";
+      pg.innerHTML = cpGridPageHTML(state, state.page);
+      dbody.appendChild(pg);                         // OVERLAY the real page on top of the skeleton
+      state.pageEl = pg;
+      cpGridApplyRowTemplate(state);
+      cpGridApplyBarWidths(pg);
+      cpGridSyncFoot(state);
+      var head = state.wrap.querySelector(".cp-srch-dhead");
+      var realRows = pg.querySelectorAll(".cp-srch-drow, .cp-srch-ghostrow");
+      var skRows = skwrap ? skwrap.querySelectorAll(".cp-srch-skg, .cp-srch-skrow") : [];
+      // During the overlap the skeleton row borders sit exactly on the real row borders (both rgba .05) and STACK
+      // → the lines between rows look ~2× thicker. Drop the (fading) skeleton borders so only the real ones show.
+      [].forEach.call(skRows, function (sk) { sk.style.borderBottomColor = "transparent"; });
+      var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduce) { if (skwrap && skwrap.parentNode) skwrap.remove(); return; }
+      var step = 85, dur = 300, ease = "cubic-bezier(.22,.7,.3,1)", drop = [{ opacity: 0, transform: "translateY(-10px)" }, { opacity: 1, transform: "none" }];
+      [].forEach.call(head.children, function (th) { th.animate(drop, { duration: dur, easing: ease, fill: "backwards" }); });
+      for (var i = 0; i < realRows.length; i++) {
+        (function (i) {
+          var rr = realRows[i], sk = skRows[i], delay = 80 + i * step;
+          // Animate only the CELL CONTENT (the tds), not the row frame — the row stays put and aligned with the
+          // skeleton bubble beneath, so the text drops INTO place instead of the whole box sliding (misaligned).
+          [].forEach.call(rr.children, function (td) { td.animate(drop, { duration: dur, delay: delay, easing: ease, fill: "backwards" }); });
+          // Pill fades out FAST (~90ms) the instant its text starts dropping in — a quick hand-off, no lingering crossfade.
+          if (sk) sk.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 90, delay: delay, easing: "linear", fill: "forwards" });
+        })(i);
+      }
+      setTimeout(function () { if (skwrap && skwrap.parentNode) skwrap.remove(); }, 80 + Math.max(0, realRows.length - 1) * step + dur + 80);
+    }
+    // Horizontal page-flip (WAAPI translateX), like turning a page. Robust against accumulation: under a
+    // continuous scroll the next flip can fire before the previous out-animation's onfinish removes its layer,
+    // so stale `.cp-srch-dpage` layers used to pile up and overlap (visible as superimposed rows). Now we track
+    // the CURRENT layer (state.pageEl), kill any straggler that isn't it at the start of each flip, and run a
+    // debounced backstop GC after flipping settles — so at most the outgoing + incoming layer ever coexist.
+    function cpGridGoto(state, p, dir, dur) {
+      var tp = cpGridTotalPages(state);
+      p = Math.max(0, Math.min(tp - 1, p));
+      if (p === state.page) return;
+      dur = dur || 300;
+      var dbody = state.wrap.querySelector(".cp-srch-dbody");
+      // Kill any leftover layers from a prior interrupted flip (keep only the current one = oldEl).
+      var oldEl = state.pageEl;
+      [].slice.call(dbody.querySelectorAll(".cp-srch-dpage")).forEach(function (d) { if (d !== oldEl) d.remove(); });
+      var np = document.createElement("div"); np.className = "cp-srch-dpage";
+      np.innerHTML = cpGridPageHTML(state, p);
+      var inFrom = dir > 0 ? "100%" : "-100%", outTo = dir > 0 ? "-100%" : "100%";
+      np.style.transform = "translateX(" + inFrom + ")";
+      dbody.appendChild(np);
+      state.pageEl = np;
+      state.page = p;
+      cpGridApplyRowTemplate(state);
+      cpGridApplyBarWidths(np);
+      cpGridSyncFoot(state);
+      var ease = "cubic-bezier(.45,0,.15,1)";
+      np.animate([{ transform: "translateX(" + inFrom + ")" }, { transform: "translateX(0)" }], { duration: dur, easing: ease, fill: "forwards" });
+      if (oldEl && oldEl !== np && oldEl.parentNode) {
+        oldEl.animate([{ transform: "translateX(0)" }, { transform: "translateX(" + outTo + ")" }], { duration: dur, easing: ease, fill: "forwards" })
+          .onfinish = function () { if (oldEl.parentNode) oldEl.remove(); };
+      }
+      clearTimeout(state._flipGc);
+      state._flipGc = setTimeout(function () {
+        [].slice.call(dbody.querySelectorAll(".cp-srch-dpage")).forEach(function (d) { if (d !== state.pageEl) d.remove(); });
+      }, dur + 90);
+    }
+    // First/Last page = riffle through EVERY page like flipping a book (fast slides stepped one page at a time)
+    // instead of a single jump. Whole riffle stays snappy (~520ms total), speeding up for long runs.
+    function cpGridFlipThrough(state, target) {
+      var tp = cpGridTotalPages(state);
+      target = Math.max(0, Math.min(tp - 1, target));
+      if (state._riffle) { clearInterval(state._riffle); state._riffle = null; }
+      if (target === state.page) return;
+      var dir = target > state.page ? 1 : -1;
+      var steps = Math.abs(target - state.page);
+      var interval = Math.max(24, Math.min(64, Math.round(520 / steps)));
+      state._riffle = setInterval(function () {
+        var t = Math.max(0, Math.min(cpGridTotalPages(state) - 1, target));   // re-clamp (page count may have changed)
+        if (!document.contains(state.wrap) || state.page === t) { clearInterval(state._riffle); state._riffle = null; return; }
+        cpGridGoto(state, state.page + dir, dir, 150);   // quick flip per page
+      }, interval);
+    }
+    // perPage from the body height (fit-to-screen — the body is the only flexing region).
+    function cpGridRecompute(state, force) {
+      var dbody = state.wrap.querySelector(".cp-srch-dbody");
+      var h = dbody.clientHeight || 400;
+      var pp = Math.max(4, Math.floor(h / 46));
+      // perPage targets ~46px rows; the rows themselves are flex:1 and short pages are padded to perPage with
+      // ghost rows, so every row divides the body exactly (same size, no leftover strip at the bottom).
+      if (pp !== state.perPage || force) {
+        state.perPage = pp;
+        if (state.page > cpGridTotalPages(state) - 1) state.page = cpGridTotalPages(state) - 1;
+        // Only repaint the grid when results are actually showing. Otherwise a deferred recompute
+        // (cpGridRenderFilters' mount rAF, or a resize) would clobber the initial / loading / no-match
+        // state with the empty render path — which is why a fresh search page landed on a misleading
+        // "No results match your search." instead of the "Search to see <entity>" initial state.
+        // `force` is set on the fresh post-load render (cpGridLoad) and NOT on resizes → animate only fresh.
+        if (state.cur.length) cpGridRenderStatic(state, force);
+      }
+    }
+    function cpGridWireStaticHandlers(state) {
+      var w = state.wrap;
+      w.querySelector(".cp-srch-first").addEventListener("click", function () { cpGridFlipThrough(state, 0); });
+      w.querySelector(".cp-srch-prev").addEventListener("click", function () { cpGridGoto(state, state.page - 1, -1); });
+      w.querySelector(".cp-srch-next").addEventListener("click", function () { cpGridGoto(state, state.page + 1, 1); });
+      w.querySelector(".cp-srch-last").addEventListener("click", function () { cpGridFlipThrough(state, cpGridTotalPages(state) - 1); });
+      // Scroll-to-paginate (wheel flips pages; 60px threshold + 300ms cooldown; pager remains a fallback).
+      w.querySelector(".cp-srch-dtable").addEventListener("wheel", function (e) {
+        e.preventDefault();
+        if (state.cooling) return;
+        state.accum += e.deltaY;
+        if (Math.abs(state.accum) > 60) {
+          var dir = state.accum > 0 ? 1 : -1; state.accum = 0;
+          var t = state.page + dir;
+          if (t < 0 || t > cpGridTotalPages(state) - 1) return;
+          cpGridGoto(state, t, dir);
+          state.cooling = true; setTimeout(function () { state.cooling = false; }, 300);
+        }
+      }, { passive: false });
+      // Row click → drill into the entity (reuse the legacy redirectPost target captured per row).
+      w.querySelector(".cp-srch-dbody").addEventListener("click", function (e) {
+        var rowEl = e.target.closest && e.target.closest(".cp-srch-drow");
+        if (!rowEl) return;
+        var idx = [].indexOf.call(rowEl.parentNode.children, rowEl) + state.page * state.perPage;
+        var row = state.cur[idx];
+        if (row && row.drill && typeof redirectPost === "function") redirectPost(row.drill.url, row.drill.params);
+      });
+      // The +/− (Add/remove filter) and Search controls live INSIDE the criterion rows now (right of each row),
+      // so they're wired per-render in cpGridRenderFilters — not here.
+      window.addEventListener("resize", function () { if (document.contains(state.wrap)) cpGridRecompute(state); });
+    }
+    function cpGridRenderFilters(state, n) {
+      state.criteriaCount = n;
+      var frows = state.wrap.querySelector(".cp-srch-frows");
+      var fieldSel = state.fieldOpts.map(function (o, i) { return '<option value="' + cpEsc(o.value) + '"' + (i === 0 ? " selected" : "") + ">" + cpEsc(o.label) + "</option>"; }).join("");
+      var opSel = state.opOpts.map(function (o, i) { return '<option value="' + cpEsc(o.value) + '"' + (i === 0 ? " selected" : "") + ">" + cpEsc(o.label) + "</option>"; }).join("");
+      var html = "";
+      for (var i = 0; i < n; i++) {
+        // Row action slot: the FIRST row carries the compact "+" box + Search button (the + adds a criterion
+        // row, like the legacy page's inline +); every added row carries a "−" box. The slot is a fixed width
+        // so Field/Match/value stay aligned across rows and the "−" sits directly under the "+".
+        var act = (i === 0)
+          ? '<button type="button" class="cp-srch-minib cp-srch-addb" title="Add filter">' + CP_SVG_PLUS + '</button>' +
+            '<button type="button" class="cp-srch-btn cp-srch-go">' + CP_SVG_SEARCH + '<span>Search</span></button>'
+          : '<button type="button" class="cp-srch-minib cp-srch-rm" title="Remove filter">' + CP_SVG_MINUS + '</button>';
+        // Order: Field, Match, then VALUE (cp-srch-vslot — swapped in place for text / department dropdown /
+        // Yes-No toggle by cpGridRenderRowValue), then the row actions. Mirrors the legacy page's layout.
+        html += '<div class="cp-srch-frow">' +
+          '<div class="cp-srch-sel cp-srch-dd"><span class="cp-srch-lab">Field</span><span class="cp-srch-ddval"></span>' + CP_SVG_CHEVDOWN + '<select class="cp-srch-field">' + fieldSel + '</select></div>' +
+          '<div class="cp-srch-sel cp-srch-dd"><span class="cp-srch-lab">Match</span><span class="cp-srch-ddval"></span>' + CP_SVG_CHEVDOWN + '<select class="cp-srch-op">' + opSel + '</select></div>' +
+          '<div class="cp-srch-search cp-srch-vslot">' + CP_SVG_SEARCH + '<input type="text" placeholder="Enter a value…"></div>' +
+          '<div class="cp-srch-rowact">' + act + '</div>' +
+        '</div>';
+      }
+      frows.innerHTML = html;
+      // "+" box → add a criterion row (cap 5; dim at the cap).
+      var addb = frows.querySelector(".cp-srch-addb");
+      if (addb) {
+        addb.classList.toggle("dim", n >= 5);
+        addb.addEventListener("click", function () { if (state.criteriaCount < 5) cpGridRenderFilters(state, state.criteriaCount + 1); });
+      }
+      // "−" boxes → remove a criterion row.
+      [].forEach.call(frows.querySelectorAll(".cp-srch-rm"), function (b) {
+        b.addEventListener("click", function () { if (state.criteriaCount > 1) cpGridRenderFilters(state, state.criteriaCount - 1); });
+      });
+      // Search → run the preload.
+      var go = frows.querySelector(".cp-srch-go");
+      if (go) go.addEventListener("click", function () { cpGridRunSearch(state); });
+      // Enter in a value field runs the search (matches the native site).
+      [].forEach.call(frows.querySelectorAll(".cp-srch-search input"), function (inp) {
+        inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); cpGridRunSearch(state); } });
+      });
+      // Custom Field/Match dropdowns (replace the native selects).
+      cpGridWireDropdowns(frows);
+      // When a row's FIELD changes, mirror the legacy page: swap the value box to/from a searchable dropdown
+      // (Department → the group's departments) and refresh its Match operators. (cpGridOpenDDFor fires `change`
+      // on the hidden .cp-srch-field select when a Field option is picked.)
+      [].forEach.call(frows.querySelectorAll(".cp-srch-frow"), function (fr) {
+        var fsel = fr.querySelector(".cp-srch-field");
+        if (fsel) fsel.addEventListener("change", function () { cpGridApplyFieldMeta(state, fr); });
+      });
+      if (document.contains(state.wrap)) requestAnimationFrame(function () { cpGridRecompute(state); });
+    }
+    // Custom dropdown for the Field/Match selects (native <select> kept hidden + synced so cpGridRunSearch reads
+    // .value; CSSOM for the fixed-position popup — inline style attrs are CSP-blocked, see
+    // [[gotcha-csp-inline-style-attr-blocked]]). Style 1 (user-picked): hover rows tint lavender, selected = lavender + check.
+    var cpGridDD = null, cpGridDDInit = false;
+    // Per-field criteria metadata, sourced by driving the hidden legacy search form (see cpResolveFieldMeta).
+    // Keyed by findKey value; RESET per grid build (cpBuildSearchGrid) because the department list is per-group.
+    var cpFieldMetaCache = {};
+    function cpGridWireOneDD(dd) {
+      if (dd._cpWired) return; dd._cpWired = true;   // guard so re-wiring a row (dynamic value dd) doesn't double-bind Field/Match
+      var sel = dd.querySelector("select"), valEl = dd.querySelector(".cp-srch-ddval");
+      if (sel && valEl) valEl.textContent = (sel.options[sel.selectedIndex] || {}).text || "";
+      dd.addEventListener("mousedown", function (e) {
+        e.preventDefault();
+        if (cpGridDD && cpGridDD.dd === dd) { cpGridCloseDD(); return; }   // toggle
+        cpGridOpenDDFor(dd);
+      });
+    }
+    function cpGridWireDropdowns(scope) {
+      [].forEach.call(scope.querySelectorAll(".cp-srch-dd"), cpGridWireOneDD);
+      if (!cpGridDDInit) {
+        cpGridDDInit = true;
+        document.addEventListener("mousedown", function (e) {
+          if (cpGridDD && !cpGridDD.dd.contains(e.target) && !cpGridDD.menu.contains(e.target)) cpGridCloseDD();
+        }, true);
+        // Close on PAGE scroll (the popup is position:fixed), but NOT when the user scrolls the menu's OWN list —
+        // the department picker has 100s of rows, so an inner scroll must not slam the menu shut.
+        window.addEventListener("scroll", function (e) {
+          if (cpGridDD && (e.target === cpGridDD.menu || (cpGridDD.menu.contains && cpGridDD.menu.contains(e.target)))) return;
+          cpGridCloseDD();
+        }, true);
+        document.addEventListener("keydown", function (e) { if (e.key === "Escape") cpGridCloseDD(); });
+      }
+    }
+    function cpGridOpenDDFor(dd) {
+      cpGridCloseDD();
+      var sel = dd.querySelector("select"), valEl = dd.querySelector(".cp-srch-ddval");
+      // Searchable when flagged (the Department/value dropdown) or simply long — a filter box pins to the top.
+      var searchable = dd.classList.contains("cp-srch-searchable") || sel.options.length > 12;
+      var menu = document.createElement("div");
+      menu.className = "cp-srch-ddmenu" + (searchable ? " cp-srch-ddmenu-s" : "");
+      var optsHtml = [].map.call(sel.options, function (o, i) {
+        var s = i === sel.selectedIndex;
+        return '<div class="cp-srch-ddopt' + (s ? " sel" : "") + '" data-i="' + i + '"><span>' + cpEsc(o.text) + "</span>" + (s ? CP_SVG_CHECK : "") + "</div>";
+      }).join("");
+      menu.innerHTML = (searchable ? '<div class="cp-srch-ddsearch">' + CP_SVG_SEARCH + '<input type="text" placeholder="Filter…" autocomplete="off"></div>' : "") +
+        '<div class="cp-srch-ddlist">' + optsHtml + "</div>";
+      document.body.appendChild(menu);
+      var r = dd.getBoundingClientRect();
+      menu.style.position = "fixed";
+      menu.style.top = (r.bottom + 6) + "px";
+      menu.style.left = r.left + "px";
+      menu.style.minWidth = r.width + "px";
+      // measure-and-subtract the scrollbar-gutter fixed-popup drift (see gotcha-scrollbar-gutter-fixed-drift).
+      var mr = menu.getBoundingClientRect(), dx = mr.left - r.left, dy = mr.top - (r.bottom + 6);
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) { menu.style.left = (r.left - dx) + "px"; menu.style.top = (r.bottom + 6 - dy) + "px"; }
+      dd.classList.add("open");
+      cpGridDD = { dd: dd, menu: menu };
+      function selectIndex(i) {
+        if (i == null || i < 0) return;
+        sel.selectedIndex = i;
+        valEl.textContent = (sel.options[i] || {}).text || "";
+        try { sel.dispatchEvent(new Event("change", { bubbles: true })); } catch (e2) {}
+        cpGridCloseDD();
+      }
+      menu.addEventListener("mousedown", function (e) {
+        var opt = e.target.closest && e.target.closest(".cp-srch-ddopt");
+        if (!opt) return;
+        e.preventDefault();
+        selectIndex(+opt.getAttribute("data-i"));
+      });
+      if (searchable) {
+        var sin = menu.querySelector(".cp-srch-ddsearch input");
+        var listEl = menu.querySelector(".cp-srch-ddlist");
+        // KEYBOARD NAV: arrows move the highlighted (.active) option among the VISIBLE rows, Enter picks it.
+        function visOpts() { return [].filter.call(listEl.querySelectorAll(".cp-srch-ddopt"), function (o) { return o.style.display !== "none"; }); }
+        function setActive(idx) {
+          var os = visOpts();
+          [].forEach.call(listEl.querySelectorAll(".cp-srch-ddopt.active"), function (o) { o.classList.remove("active"); });
+          if (!os.length) return -1;
+          if (idx < 0) idx = 0; else if (idx > os.length - 1) idx = os.length - 1;
+          os[idx].classList.add("active");
+          if (os[idx].scrollIntoView) os[idx].scrollIntoView({ block: "nearest" });
+          return idx;
+        }
+        function activeIdx() { var os = visOpts(); for (var i = 0; i < os.length; i++) if (os[i].classList.contains("active")) return i; return -1; }
+        sin.addEventListener("input", function () {
+          var q = sin.value.toLowerCase(), any = false;
+          [].forEach.call(listEl.querySelectorAll(".cp-srch-ddopt"), function (o) {
+            var m = o.textContent.toLowerCase().indexOf(q) !== -1;
+            o.style.display = m ? "" : "none"; if (m) any = true;
+          });
+          var emp = listEl.querySelector(".cp-srch-ddempty");
+          if (!any) { if (!emp) { emp = document.createElement("div"); emp.className = "cp-srch-ddempty"; emp.textContent = "No matches"; listEl.appendChild(emp); } emp.style.display = ""; }
+          else if (emp) { emp.style.display = "none"; }
+          setActive(0);   // highlight the top match so Enter picks it
+        });
+        sin.addEventListener("keydown", function (e) {
+          if (e.key === "ArrowDown") { e.preventDefault(); setActive(activeIdx() + 1); }
+          else if (e.key === "ArrowUp") { e.preventDefault(); var a = activeIdx(); setActive(a < 0 ? 0 : a - 1); }
+          else if (e.key === "Enter") { e.preventDefault(); var os = visOpts(), a = activeIdx(); var pick = os[a < 0 ? 0 : a]; if (pick) selectIndex(+pick.getAttribute("data-i")); }
+          else if (e.key === "Escape") { e.preventDefault(); cpGridCloseDD(); }
+        });
+        setTimeout(function () { try { sin.focus(); } catch (e2) {} setActive(0); }, 0);
+      }
+      menu.animate([{ opacity: 0, transform: "translateY(-4px)" }, { opacity: 1, transform: "none" }], { duration: 130, easing: "ease-out" });
+    }
+    function cpGridCloseDD() {
+      if (!cpGridDD) return;
+      if (cpGridDD.menu.parentNode) cpGridDD.menu.remove();
+      cpGridDD.dd.classList.remove("open");
+      cpGridDD = null;
+    }
+
+    // Resolve a criteria FIELD's metadata by briefly driving the hidden legacy search form: set #findKey0 to the
+    // field and fire `change`, then read what the page rebuilds. BroadWorks swaps findValue0 between a text input
+    // and a <select> (e.g. Department → the group's 171 departments, In Trunk Group → the trunk groups). We MIRROR
+    // that: text field → our text box; select field → our searchable value dropdown (Option C). The option VALUE
+    // is a composite key (not the label), so we post .value. These enumerated "Exact*" fields are equality-only —
+    // the legacy narrows findOp0 to EQUAL_TO (it does so ASYNC, so we don't read it; we set EQUAL_TO directly,
+    // which is what the validated department search posts). Text fields keep the default operators (caller
+    // falls back to state.opOpts). Restores #findKey0 after reading. Cached per build (per group).
+    function cpResolveFieldMeta(fieldValue) {
+      if (cpFieldMetaCache[fieldValue]) return cpFieldMetaCache[fieldValue];
+      var meta = { ops: null, valueType: "text", options: [] };
+      try {
+        var lk = document.getElementById("findKey0");
+        if (lk) {
+          var prev = lk.value;
+          lk.value = fieldValue;
+          try { lk.dispatchEvent(new Event("change", { bubbles: true })); } catch (e) {}
+          var lv = document.getElementsByName("findValue0")[0];
+          if (lv && lv.tagName === "SELECT") {
+            meta.options = [].map.call(lv.options, function (o) { return { value: o.value, label: (o.textContent || "").trim() }; });
+            // A 2-option true/false select (In Trunk Group → Yes/No) renders as a segmented toggle; any other
+            // select (Department → 171 options) renders as the searchable dropdown.
+            var vals = meta.options.map(function (o) { return String(o.value).toLowerCase(); });
+            meta.valueType = (meta.options.length === 2 && vals.indexOf("true") !== -1 && vals.indexOf("false") !== -1) ? "toggle" : "select";
+            meta.ops = [{ value: "EQUAL_TO", label: "Equal To" }];
+          }
+          if (prev !== fieldValue) { lk.value = prev; try { lk.dispatchEvent(new Event("change", { bubbles: true })); } catch (e2) {} }
+        }
+      } catch (e) { console.warn("[pjax] field meta resolve", e); }
+      cpFieldMetaCache[fieldValue] = meta;
+      return meta;
+    }
+    // Rebuild a row's Match (op) dropdown options to mirror the field's legal operators.
+    function cpGridSetRowOps(fr, ops) {
+      if (!ops || !ops.length) return;
+      var opSel = fr.querySelector(".cp-srch-op");
+      if (!opSel) return;
+      opSel.innerHTML = ops.map(function (o, i) { return '<option value="' + cpEsc(o.value) + '"' + (i === 0 ? " selected" : "") + ">" + cpEsc(o.label) + "</option>"; }).join("");
+      opSel.selectedIndex = 0;
+      var valEl = opSel.closest(".cp-srch-dd") && opSel.closest(".cp-srch-dd").querySelector(".cp-srch-ddval");
+      if (valEl) valEl.textContent = (opSel.options[0] || {}).text || "";
+    }
+    // Swap a row's VALUE control (the .cp-srch-vslot cell) to mirror the field type: a searchable dropdown
+    // (Department), a segmented Yes/No toggle (In Trunk Group — a true/false field), or the text box (default).
+    function cpGridRenderRowValue(fr, meta) {
+      var slot = fr.querySelector(".cp-srch-vslot") || fr.firstElementChild;
+      var type = (meta && meta.options && meta.options.length && (meta.valueType === "select" || meta.valueType === "toggle")) ? meta.valueType : "text";
+      if (type === "select") {
+        if (slot.classList.contains("cp-srch-valdd")) return;   // already a value dropdown
+        var optsHtml = meta.options.map(function (o, i) { return '<option value="' + cpEsc(o.value) + '"' + (i === 0 ? " selected" : "") + ">" + cpEsc(o.label) + "</option>"; }).join("");
+        var dd = document.createElement("div");
+        dd.className = "cp-srch-sel cp-srch-dd cp-srch-valdd cp-srch-searchable cp-srch-vslot";
+        dd.innerHTML = '<span class="cp-srch-ddval"></span>' + CP_SVG_CHEVDOWN + "<select>" + optsHtml + "</select>";
+        fr.replaceChild(dd, slot);
+        cpGridWireOneDD(dd);
+      } else if (type === "toggle") {
+        if (slot.classList.contains("cp-srch-toggle")) return;   // already a toggle
+        var tg = document.createElement("div");
+        tg.className = "cp-srch-toggle cp-srch-vslot";
+        tg.innerHTML = meta.options.map(function (o, i) {
+          var yes = String(o.value).toLowerCase() === "true";   // true → Yes (✓, green) · false → No (✕, red)
+          return '<button type="button" class="cp-srch-tgl ' + (yes ? "cp-srch-tgl-yes" : "cp-srch-tgl-no") + (i === 0 ? " on" : "") + '" data-v="' + cpEsc(o.value) + '">' + (yes ? CP_SVG_CHECK : CP_SVG_X) + "<span>" + cpEsc(o.label) + "</span></button>";
+        }).join("");
+        fr.replaceChild(tg, slot);
+        [].forEach.call(tg.querySelectorAll(".cp-srch-tgl"), function (b) {
+          b.addEventListener("click", function () { [].forEach.call(tg.querySelectorAll(".cp-srch-tgl"), function (x) { x.classList.toggle("on", x === b); }); });
+        });
+      } else {
+        if (slot.classList.contains("cp-srch-search")) return;   // already a text box
+        var box = document.createElement("div");
+        box.className = "cp-srch-search cp-srch-vslot";
+        box.innerHTML = CP_SVG_SEARCH + '<input type="text" placeholder="Enter a value…">';
+        fr.replaceChild(box, slot);
+        box.querySelector("input").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); if (cpGridState) cpGridRunSearch(cpGridState); } });
+      }
+    }
+    // On a row's FIELD change, mirror the legacy page: update its Match operators + value control.
+    function cpGridApplyFieldMeta(state, fr) {
+      var fieldSel = fr.querySelector(".cp-srch-field");
+      if (!fieldSel) return;
+      var meta = cpResolveFieldMeta(fieldSel.value);
+      cpGridSetRowOps(fr, (meta.ops && meta.ops.length) ? meta.ops : state.opOpts);
+      cpGridRenderRowValue(fr, meta);
+    }
+    // Read a row's value generically: the Yes/No toggle's active value, or the dropdown's option VALUE, or the text.
+    function cpGridRowValue(fr) {
+      var tgl = fr.querySelector(".cp-srch-toggle .cp-srch-tgl.on");
+      if (tgl) return tgl.getAttribute("data-v");
+      var vsel = fr.querySelector(".cp-srch-valdd select");
+      if (vsel) return vsel.value;
+      var inp = fr.querySelector(".cp-srch-search input");
+      return inp ? (inp.value || "").trim() : "";
+    }
+    function cpGridRunSearch(state) {
+      var criteria = [];
+      [].forEach.call(state.wrap.querySelectorAll(".cp-srch-frow"), function (fr) {
+        criteria.push({
+          key: fr.querySelector(".cp-srch-field").value,
+          op: fr.querySelector(".cp-srch-op").value,
+          value: cpGridRowValue(fr)
+        });
+      });
+      cpGridLoad(state, criteria);
+    }
+    function cpEsc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+
     // Single-page sign-out. The footer Log out (confirmed in skin.js's modal,
     // which sets the cp-signing-out flag) calls redirectPost(logoutUrl, {}).
     // Rather than navigate to the raw /Logout/ landing and then bounce to
@@ -465,7 +1493,7 @@
       } catch (e) { fallback(); }
     }
 
-    cpHook = function (url, params) {
+    cpHook = function (url, params, _retry) {
       try {
         // Sign-out interception (must precede isPjaxUrl): when skin.js's logout
         // confirmation has armed cp-signing-out, this redirectPost IS the logout.
@@ -473,20 +1501,38 @@
         if (_so && (Date.now() - _so < 15000)) { cpSignOutFetch(url, params || {}); return; }
         if (isPjaxUrl(url)) {
           var mySeq = ++cpSeq;
+          // A real navigation (drill-in, reload replay, sidebar click) supersedes any in-flight grid search —
+          // abort it so its background fetches stop rotating the single-use token and racing with THIS POST.
+          try { if (cpGridState && cpGridState._searchAbort) cpGridState._searchAbort.abort(); } catch (e) {}
           try { cpLastNav = { url: url, params: params || {} }; } catch (e) {}
           // Remember the SP entry (Modify nav) — recorded for reload/replay + future Group/User work.
           try { if (/\/ServiceProviders\/Modify\//.test(url)) cpSpEntry = { url: url, params: params || {} }; } catch (e) {}
           try { if (url.indexOf("/Common/page.jsp") === -1 && url.indexOf("/Common/sort.jsp") === -1) { var _nav = { url: url, params: params || {} }; sessionStorage.setItem("cp-last-nav", JSON.stringify(_nav)); window.postMessage({ __cpRecoverNav: _nav }, location.origin); } } catch (e) {}
           var liveTokEl = document.getElementsByName("formtokenserial")[0];
+          var firstTok = liveTokEl ? liveTokEl.value : null;
           var cpLoader = cpNeedsFrame(url, params) ? cpFollowFrame : cpFollow;
           console.log("[pjax]", cpLoader === cpFollowFrame ? "iframe-loading" : "fetching", url);
-          cpLoader(url, params, liveTokEl ? liveTokEl.value : null, 0)
+          cpLoader(url, params, firstTok, 0)
             .then(function (res) {
               if (mySeq !== cpSeq) {
                 console.log("[pjax] superseded — dropping stale swap");
                 return;
               }
-              if (!res || res.auth === false || !res.doc.querySelector('td[width="82%"]')) {
+              if (!res || res.auth === false || !res.doc || !res.doc.querySelector('td[width="82%"]')) {
+                // The follow came back unusable — EITHER the login page (auth:false) OR a non-content/error doc.
+                // A grid search rotating the single-use formtokenserial under us produces the SECOND case (no
+                // AUTH-FAIL is logged), and that path used to fall straight through to the real navigation below.
+                // In BOTH cases the live token has since been refreshed, so re-attempt ONCE with it before the
+                // real navigation — which with a stale token dumps the user on the Login screen ("session
+                // timeout"). This is the confirmed reload-bounce mechanism (no AUTH-FAIL → _orig fallback).
+                if (!_retry) {
+                  var freshTok = (document.getElementsByName("formtokenserial")[0] || {}).value;
+                  if (freshTok && freshTok !== firstTok) {
+                    console.warn("[pjax] follow unusable + token rotated under us — re-attempting nav with refreshed token");
+                    cpHook(url, params, true);
+                    return;
+                  }
+                }
                 console.warn("[pjax] no content cell after follow — real navigation fallback");
                 _orig.call(window, url, params);
                 return;
@@ -688,6 +1734,29 @@
       if (e.shiftKey) return;
       e.preventDefault();
       e.stopImmediatePropagation();
+      // DEDUPE: pjax is injected into every frame (all_frames) AND key-repeat fires this handler several times in
+      // a row → multiple concurrent replays that race on the single-use formtokenserial and log the user out
+      // (esp. after a token-rotating broad search). sessionStorage is shared across frames, so only the FIRST
+      // reload within the window actually replays; the rest are swallowed.
+      try {
+        var _rNow = Date.now(), _rLast = parseInt(sessionStorage.getItem("cp-reload-at") || "0", 10);
+        if (_rNow - _rLast < 1500) return;
+        sessionStorage.setItem("cp-reload-at", String(_rNow));
+      } catch (eD) {}
+      var _gs = cpGridState;
+      // Abort any active grid search FIRST so it stops launching new token-rotating page.jsp hops.
+      if (_gs && _gs._searchAbort) { try { _gs._searchAbort.abort(); } catch (e2) {} }
+      // THE FIX for the "rapid 2 broad searches + reload → logout" bug: when the search GRID is active we are on
+      // a real, GET-loadable list URL (Reseller/Groups), so a NATIVE reload lands on the same authenticated page
+      // with NO formtokenserial POST at all — completely sidestepping the single-use-token race that bounced the
+      // user to Login. (The in-flight search fetches are cancelled by the unload.) The redirectPost-replay path
+      // below is only needed for DEEP, POST-only pages whose address-bar URL would otherwise reload to the wrong
+      // place; the grid is never one of those.
+      if (_gs) {
+        console.log("[pjax] reload intercepted → native reload (grid active, GET-safe)");
+        try { location.reload(); } catch (e3) { try { location.href = location.href; } catch (e4) {} }
+        return;
+      }
       // Fall back to the persisted cp-last-nav (sessionStorage) before the reseller-home default: after a
       // reload-button recovery the page is fresh, so the in-memory cpLastNav is null even though we ARE deep
       // in an SP/group/user — without this, F5 right after the reload button jumps all the way to reseller.
@@ -695,7 +1764,16 @@
       if (!nav) { try { nav = JSON.parse(sessionStorage.getItem("cp-last-nav") || "null"); } catch (e) {} }
       if (!nav || !nav.url) nav = { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
       console.log("[pjax] reload intercepted → replay", nav.url);
-      try { window.redirectPost(nav.url, nav.params || {}); } catch (err) { console.warn("[pjax] reload replay failed", err); }
+      // Even off the grid, a token-bearing POST may be mid-rotation (a console/aggregation fetch). DRAIN all
+      // in-flight token-POSTs to 0 (max ~1.6s) before replaying, so the reload's POST can't race a fetch over the
+      // single-use token. This counts an aborted-but-still-resolving prior search too — which the old
+      // single-_searchPromise wait missed (abort stops the loop, not the in-flight fetch).
+      var _navGo = function () { try { window.redirectPost(nav.url, nav.params || {}); } catch (err) { console.warn("[pjax] reload replay failed", err); } };
+      var _t0 = Date.now();
+      (function _drain() {
+        if (cpInflightPosts <= 0 || Date.now() - _t0 > 1600) { _navGo(); return; }
+        setTimeout(_drain, 40);
+      })();
     }, true);
 
     window.addEventListener("popstate", function (e) {
@@ -1750,8 +2828,13 @@
         document.querySelectorAll('form[name="leftNavForm"] td.cp-grp-open').forEach(function (td) { td.classList.remove("cp-grp-open"); });
         // On a FULL-LOAD sub-page (reload/recovery) skin.js built the crumb without the mega menu — attach it.
         cpDecorateCurrentCrumbPill();
+        // REDESIGNED SEARCH GRID (flagged): a page.jsp-paginated search LIST (has #searchTable) → preload-all
+        // grid instead of the in-place legacy table. skin.js skips its list skinning while html.cp-grid-on is set.
+        if (cpNewSearchOn() && document.getElementById("searchTable")) { cpBuildSearchGrid(); return; }
+        document.documentElement.classList.remove("cp-grid-on");
         return;
       }
+      document.documentElement.classList.remove("cp-grid-on");
       cpBuildConsole();   // no-ops at non-reseller levels (the reseller-only gate returns early there)
     }
 

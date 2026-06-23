@@ -1,5 +1,11 @@
 console.log("[Modern CommPilot Skin] content script loaded");
 
+// When the redesigned search grid (pjax MAIN) has taken over a list page it sets html.cp-grid-on; skin.js
+// then SKIPS its in-place legacy list skinning (search box / results box / pagination / row-click) so the two
+// don't fight over the same content cell. On a grid preload FAILURE pjax removes the class, restores the
+// legacy markup, and fires cp:skinlegacy → the list functions run (gate open) so the user is never stranded.
+function cpGridOn() { try { return document.documentElement.classList.contains("cp-grid-on"); } catch (e) { return false; } }
+
 function cpSaveRecoverToken(resetTries) {
   try {
     if (location.pathname.indexOf("/Login/") !== -1 || document.querySelector('input[type=password]')) return;
@@ -965,6 +971,7 @@ function staggerCards() {
  */
 var cpResultsWasVisible = false;
 function revealResultsBox() {
+  if (cpGridOn()) return;
   try {
     var box = document.querySelector(".cp-results-box");
     var wasVisible = cpResultsWasVisible;
@@ -1003,6 +1010,7 @@ function revealResultsBox() {
  * Idempotent — safe to call multiple times.
  */
 function wrapResultsBox() {
+  if (cpGridOn()) return;
   try {
     var bodyTd = document.querySelector("td.enduserbody");
     if (!bodyTd) return;
@@ -1053,6 +1061,7 @@ function wrapResultsBox() {
  * Idempotent — safe to call multiple times.
  */
 function wrapSearchBox() {
+  if (cpGridOn()) return;
   try {
     var searchTable = document.getElementById("searchTable");
     if (!searchTable) return;
@@ -1546,6 +1555,7 @@ function cpMoveBreadcrumb() {
  * (no .cp-results-box) or pages without a bottom button bar.
  */
 function moveButtonBar() {
+  if (cpGridOn()) return;
   try {
     var box = document.querySelector(".cp-results-box") || document.querySelector(".cp-search-box");
     if (!box) return;
@@ -1581,6 +1591,7 @@ function moveButtonBar() {
 }
 
 function wrapResultsScroll() {
+  if (cpGridOn()) return;
   try {
     var table = document.querySelector('table:has(> tbody > tr > td.listHeader > a.listSortHeader)');
     if (!table || !table.parentNode) return;
@@ -1593,6 +1604,7 @@ function wrapResultsScroll() {
 }
 
 function trimEditColumn() {
+  if (cpGridOn()) return;
   try {
     var table = document.querySelector('table:has(> tbody > tr > td.listHeader > a.listSortHeader)');
     if (!table || table.dataset.cpEditTrimmed) return;
@@ -1610,6 +1622,7 @@ function trimEditColumn() {
 }
 
 function makeRowsClickable() {
+  if (cpGridOn()) return;
   try {
     document.querySelectorAll("tr.unselected").forEach(function (row) {
       if (row.dataset.cpRowClick) return; // idempotent
@@ -1812,6 +1825,7 @@ function restyleAlerts() {
  * reset the reveal-state flag, and show a "No results" info alert card.
  */
 function suppressEmptyResults() {
+  if (cpGridOn()) return;
   try {
     /* Clean up any stale [data-cp-empty] alert from a previous empty search. */
     var stale = document.querySelector('.cp-alert[data-cp-empty]');
@@ -2281,6 +2295,15 @@ function cpSkinDomPass() {
 /* Re-skin on body morph (zero-navigation login — future phase). */
 document.addEventListener("cp:morphed", function () { cpSkinDomPass(); });
 document.addEventListener("cp:loginsplash", function () { cpLoginSplash(); });
+
+/* FALLBACK: the redesigned search grid (pjax MAIN) failed to preload and restored the legacy list markup
+ * (html.cp-grid-on already removed). Skin that legacy list in place so the user is never stranded. A dedicated
+ * event — NOT cp:reskin — so pjax's cpAutoConsole doesn't re-enter the grid builder (no fallback loop). */
+document.addEventListener("cp:skinlegacy", function () {
+  [wrapSearchBox, wrapResultsBox, moveButtonBar, wrapResultsScroll, trimEditColumn, makeRowsClickable,
+   wirePaginationIcons, formatPageIndicator, wireSortIcons, enhanceSelects, suppressEmptyResults, revealResultsBox]
+    .forEach(function (fn) { try { fn(); } catch (e) { console.warn("[CommPilot Skin] skinlegacy", e); } });
+});
 
 /* Initial skin pass on this document. */
 cpSkinDomPass();
