@@ -170,7 +170,10 @@ var CP_ITEM_ICONS = {
   "groups": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M8 21v-1a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v1"/><path d="M15 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M17 10h2a2 2 0 0 1 2 2v1"/><path d="M5 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M3 13v-1a2 2 0 0 1 2 -2h2"/></svg>',
   "service providers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l18 0"/><path d="M5 21v-14l8 -4v18"/><path d="M19 21v-10l-6 -4"/><path d="M9 9l0 .01"/><path d="M9 12l0 .01"/><path d="M9 15l0 .01"/><path d="M9 18l0 .01"/></svg>',
   "enterprises": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l5 5v7h-5v-4m0 4h-5v-7l5 -5m1 1v-6a1 1 0 0 1 1 -1h10a1 1 0 0 1 1 1v17h-8"/><path d="M13 7l0 .01"/><path d="M17 7l0 .01"/><path d="M17 11l0 .01"/><path d="M17 15l0 .01"/></svg>',
-  "service instances": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 7a2 2 0 0 1 2 -2h6a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-6a2 2 0 0 1 -2 -2l0 -10"/><path d="M7 7l0 10"/><path d="M4 8l0 8"/></svg>'
+  "service instances": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 7a2 2 0 0 1 2 -2h6a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-6a2 2 0 0 1 -2 -2l0 -10"/><path d="M7 7l0 10"/><path d="M4 8l0 8"/></svg>',
+  "profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0"/><path d="M6 21v-2a4 4 0 0 1 4 -4h2.5"/><path d="M17.001 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M19.001 15.5v1.5"/><path d="M19.001 21v1.5"/><path d="M22.032 17.25l-1.299 .75"/><path d="M17.27 20l-1.3 .75"/><path d="M15.97 17.25l1.3 .75"/><path d="M20.733 20l1.3 .75"/></svg>',
+  "activation code device onboarding policies": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21h-4a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v6"/><path d="M11 4h2"/><path d="M15.5 18m-1.8 0a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0"/><path d="M17.3 18h4"/><path d="M20 18v2"/><path d="M21.5 18v1.5"/></svg>',
+  "stir-shaken": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3"/><path d="M11 11a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 12l0 2.5"/></svg>'
 };
 function cpMenuItemIcon(title) {
   return CP_ITEM_ICONS[(title || "").trim().toLowerCase()] || "";
@@ -332,6 +335,11 @@ document.addEventListener("cp:reskin", function () {
     revealResultsBox();
   } catch (e) {
     console.warn("[CommPilot Skin] reskin revealResultsBox", e);
+  }
+  try {
+    cpProfileForm();
+  } catch (e) {
+    console.warn("[CommPilot Skin] reskin cpProfileForm", e);
   }
   try {
     restyleAlerts();
@@ -2292,6 +2300,472 @@ function tagSidebarIcons() {
   });
 }
 
+/* ============================================================
+ * Reseller Profile settings form (Phase B — raw settings forms)
+ * ============================================================
+ * Transforms the legacy label:value <table> inside td.enduserbody into the
+ * Trifecta "settings rows" card (Testing HTML Files/profile-redesign.html):
+ * each row = label + description on the left, control on the right; the
+ * read-only Reseller ID gets a copy button; OK/Apply/Cancel become a styled
+ * action bar (Save primary / Apply secondary / Cancel ghost) that FORWARDS
+ * clicks to the real hidden legacy buttons so submit semantics are unchanged.
+ * The real Name <input> is MOVED (not recreated) so it stays inside the form
+ * and submits normally. Shape-detected + idempotent — silently skips the
+ * aggregated console, list pages, and any non-Profile page.
+ */
+var CP_PROF_COPY_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z"/><path d="M16 8v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2"/></svg>';
+var CP_PROF_CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5l10 -10"/></svg>';
+var CP_PROF_USER_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0"/><path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/></svg>';
+var CP_PROF_QR_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4"/><path d="M7 17l0 .01"/><path d="M14 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4"/><path d="M7 7l0 .01"/><path d="M4 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4"/><path d="M17 7l0 .01"/><path d="M14 14l3 0"/><path d="M20 14l0 .01"/><path d="M14 14l0 3"/><path d="M14 20l3 0"/><path d="M17 17l3 0"/><path d="M20 17l0 3"/></svg>';
+var CP_PROF_ADJ_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M6 4v4"/><path d="M6 12v8"/><path d="M10 16a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M12 4v10"/><path d="M12 18v2"/><path d="M16 7a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M18 4v1"/><path d="M18 9v11"/></svg>';
+var CP_PROF_SIGN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17c3.333 -3.333 5 -6 5 -8c0 -3 -1 -3 -2 -3s-2.032 1.085 -2 3c.034 2.048 1.658 4.877 2.5 6c1.5 2 2.5 2.5 3.5 1l2 -3c.333 2.667 1.333 4 3 4c.53 0 2.639 -2 3 -2c.517 0 1.517 .667 3 2"/></svg>';
+var CP_PROF_TAG_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 7.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M3 6v5.172a2 2 0 0 0 .586 1.414l7.71 7.71a2.41 2.41 0 0 0 3.408 0l5.592 -5.592a2.41 2.41 0 0 0 0 -3.408l-7.71 -7.71a2 2 0 0 0 -1.414 -.586h-5.172a3 3 0 0 0 -3 3"/></svg>';
+var CP_PROF_VERIFY_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3a12 12 0 0 1 -.09 7.06"/><path d="M15 19l2 2l4 -4"/></svg>';
+var CP_PROF_INFO_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 9h.01"/><path d="M11 12h1v4h1"/></svg>';
+var CP_PROF_CHEV_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg>';
+var CP_PROF_DESC = {
+  "Reseller ID": "Unique identifier for this reseller. Read-only.",
+  "Name": "Display name shown across the console."
+};
+
+function cpProfCopy(btn, text) {
+  try { if (navigator.clipboard && text) navigator.clipboard.writeText(text); } catch (e) {}
+  btn.classList.add("cp-prof-copied");
+  btn.innerHTML = CP_PROF_CHECK_SVG;
+  setTimeout(function () {
+    btn.classList.remove("cp-prof-copied");
+    btn.innerHTML = CP_PROF_COPY_SVG;
+  }, 1300);
+}
+
+/* Per-page row builders. Each fills the card's rowsWrap and returns
+ * { controls: [realEditableEls], sync?: fn } — `controls` drive the dirty
+ * state; the optional `sync` re-mirrors real control state into the visuals.
+ * Return null to abort (never leave a partial skin). */
+
+/* Profile: label:value rows — read-only mono value + copy / moved styled input. */
+function cpBuildProfileRows(rowsWrap, cell) {
+  var rows = [];
+  var trs = cell.querySelectorAll("tr");
+  for (var i = 0; i < trs.length; i++) {
+    var tds = [];
+    for (var c = 0; c < trs[i].children.length; c++) {
+      if (trs[i].children[c].tagName === "TD") tds.push(trs[i].children[c]);
+    }
+    if (tds.length < 2) continue;
+    var label = (tds[0].textContent || "").trim();
+    if (!label || label.length > 40 || !/:\s*$/.test(label)) continue;
+    var ctrl = tds[1].querySelector("input, select, textarea");
+    rows.push({ label: label.replace(/:\s*$/, ""), ctrl: ctrl, text: ctrl ? null : (tds[1].textContent || "").trim() });
+  }
+  if (!rows.length) return null;
+  var editable = [];
+  rows.forEach(function (r) {
+    var row = document.createElement("div"); row.className = "cp-prof-row";
+    var left = document.createElement("div"); left.className = "cp-prof-rowl";
+    var k = document.createElement("div"); k.className = "cp-prof-k"; k.textContent = r.label;
+    left.appendChild(k);
+    var desc = CP_PROF_DESC[r.label];
+    if (desc) { var d = document.createElement("div"); d.className = "cp-prof-d"; d.textContent = desc; left.appendChild(d); }
+
+    var slot = document.createElement("div"); slot.className = "cp-prof-rowc";
+    if (r.ctrl) {
+      r.ctrl.classList.add("cp-prof-input");
+      slot.appendChild(r.ctrl);                 // MOVE the real control (stays inside the form)
+      editable.push(r.ctrl);
+    } else {
+      var rv = document.createElement("div"); rv.className = "cp-prof-roval";
+      var txt = document.createElement("span"); txt.className = "cp-prof-rovaltxt"; txt.textContent = r.text;
+      rv.appendChild(txt);
+      var cp = document.createElement("button");
+      cp.type = "button"; cp.className = "cp-prof-copy"; cp.setAttribute("aria-label", "Copy " + r.label);
+      cp.innerHTML = CP_PROF_COPY_SVG;
+      (function (val) { cp.addEventListener("click", function () { cpProfCopy(cp, val); }); })(r.text);
+      rv.appendChild(cp);
+      slot.appendChild(rv);
+    }
+    row.appendChild(left); row.appendChild(slot);
+    rowsWrap.appendChild(row);
+  });
+  return { controls: editable };
+}
+
+/* Activation Code Device Onboarding Policies: useSystemSettings radio → two
+ * choice cards; the two checkboxes → purple toggle switches. The choice cards
+ * and toggles FORWARD-CLICK the real (hidden) legacy controls so submit + the
+ * legacy enable/disable behaviour are unchanged; sync() MIRRORS the real state
+ * (checked + disabled) back into the visuals, and dims the toggles under
+ * "System" (the custom options only apply under "Reseller"). */
+function cpBuildDapRows(rowsWrap, cell) {
+  var sysR = cell.querySelector('input[name="useSystemSettings"][value="true"]');
+  var resR = cell.querySelector('input[name="useSystemSettings"][value="false"]');
+  var allowC = cell.querySelector('input[name="allowActivationRequestByUser"]');
+  var emailC = cell.querySelector('input[name="sendActivationCodeInEmail"]');
+  if (!sysR || !resR || !allowC || !emailC) return null;
+
+  function sync() {
+    cSys.classList.toggle("cp-prof-choice-on", sysR.checked);
+    cRes.classList.toggle("cp-prof-choice-on", resR.checked);
+    var custom = resR.checked;   // "Use reseller settings" = the options apply
+    depRows.forEach(function (rec) {
+      rec.tg.classList.toggle("cp-prof-toggle-on", rec.cb.checked);
+      var dis = !custom || rec.cb.disabled;
+      rec.tg.classList.toggle("cp-prof-toggle-dis", dis);
+      rec.tg.setAttribute("aria-checked", rec.cb.checked ? "true" : "false");
+      rec.row.classList.toggle("cp-prof-dim", dis);
+    });
+  }
+
+  // settings-source row: two choice cards driving the real radios.
+  var srcRow = document.createElement("div"); srcRow.className = "cp-prof-row cp-prof-srcrow";
+  var srcK = document.createElement("div"); srcK.className = "cp-prof-k"; srcK.textContent = "Settings source"; srcRow.appendChild(srcK);
+  var srcD = document.createElement("div"); srcD.className = "cp-prof-d";
+  srcD.textContent = "Choose where this reseller's activation-code onboarding policy comes from."; srcRow.appendChild(srcD);
+  var choices = document.createElement("div"); choices.className = "cp-prof-choices"; srcRow.appendChild(choices);
+  function mkChoice(t, d, radio) {
+    var c = document.createElement("div"); c.className = "cp-prof-choice";
+    var ct = document.createElement("div"); ct.className = "cp-prof-choice-t";
+    var dot = document.createElement("span"); dot.className = "cp-prof-choice-dot";
+    ct.appendChild(dot); ct.appendChild(document.createTextNode(t));
+    var cd = document.createElement("div"); cd.className = "cp-prof-choice-d"; cd.textContent = d;
+    c.appendChild(ct); c.appendChild(cd);
+    c.addEventListener("click", function () { radio.click(); sync(); });
+    return c;
+  }
+  var cSys = mkChoice("Use system settings", "Inherit the platform default onboarding policy.", sysR);
+  var cRes = mkChoice("Use reseller settings", "Define a custom policy with the options below.", resR);
+  choices.appendChild(cSys); choices.appendChild(cRes);
+  rowsWrap.appendChild(srcRow);
+
+  // two toggle rows driving the real checkboxes.
+  var depRows = [];
+  function mkToggleRow(k, d, cb) {
+    var row = document.createElement("div"); row.className = "cp-prof-row cp-prof-deprow";
+    var left = document.createElement("div"); left.className = "cp-prof-rowl";
+    var kk = document.createElement("div"); kk.className = "cp-prof-k"; kk.textContent = k; left.appendChild(kk);
+    var dd = document.createElement("div"); dd.className = "cp-prof-d"; dd.textContent = d; left.appendChild(dd);
+    var slot = document.createElement("div"); slot.className = "cp-prof-rowc cp-prof-togslot";
+    var tg = document.createElement("span"); tg.className = "cp-prof-toggle";
+    tg.setAttribute("role", "switch"); tg.setAttribute("tabindex", "0"); tg.setAttribute("aria-label", k);
+    tg.addEventListener("click", function () { if (!tg.classList.contains("cp-prof-toggle-dis")) { cb.click(); sync(); } });
+    tg.addEventListener("keydown", function (e) {
+      if ((e.key === " " || e.key === "Enter") && !tg.classList.contains("cp-prof-toggle-dis")) { e.preventDefault(); cb.click(); sync(); }
+    });
+    slot.appendChild(tg);
+    row.appendChild(left); row.appendChild(slot);
+    rowsWrap.appendChild(row);
+    depRows.push({ row: row, tg: tg, cb: cb });
+  }
+  mkToggleRow("Allow users to request an activation code", "Users can generate their own onboarding code instead of an admin issuing it.", allowC);
+  mkToggleRow("Send activation code in email to user", "Email the activation code to the user automatically when it's generated.", emailC);
+
+  return { controls: [sysR, allowC, emailC], sync: sync };
+}
+
+/* ---- shared widget helpers (used by multi-card builders like STIR-SHAKEN) ---- */
+function cpProfCard(label, icon) {
+  var card = document.createElement("div"); card.className = "cp-prof-card";
+  var head = document.createElement("div"); head.className = "cp-prof-cardhead";
+  head.innerHTML = (icon || "") + "<span>" + label + "</span>";
+  card.appendChild(head);
+  var rows = document.createElement("div"); rows.className = "cp-prof-rows";
+  card.appendChild(rows);
+  return { card: card, rows: rows };
+}
+function cpProfRow(rows, k, d, ctrl, opts) {
+  opts = opts || {};
+  var row = document.createElement("div");
+  row.className = "cp-prof-row cp-prof-ctrlrow" + (opts.sub ? " cp-prof-subrow" : "");
+  var left = document.createElement("div"); left.className = "cp-prof-rowl";
+  var kk = document.createElement("div"); kk.className = "cp-prof-k"; kk.textContent = k; left.appendChild(kk);
+  if (d) { var dd = document.createElement("div"); dd.className = "cp-prof-d"; dd.textContent = d; left.appendChild(dd); }
+  var slot = document.createElement("div"); slot.className = "cp-prof-rowc";
+  if (ctrl) slot.appendChild(ctrl);
+  row.appendChild(left); row.appendChild(slot);
+  rows.appendChild(row);
+  return row;
+}
+function cpProfInput(inputEl) { if (inputEl) inputEl.classList.add("cp-prof-input"); return inputEl; }
+function cpProfToggleEl(cbEl, onChange) {
+  var tg = document.createElement("span"); tg.className = "cp-prof-toggle";
+  tg.setAttribute("role", "switch"); tg.setAttribute("tabindex", "0");
+  if (!cbEl) return tg;
+  function fire() { if (tg.classList.contains("cp-prof-toggle-dis")) return; cbEl.click(); if (onChange) onChange(); }
+  tg.addEventListener("click", fire);
+  tg.addEventListener("keydown", function (e) { if (e.key === " " || e.key === "Enter") { e.preventDefault(); fire(); } });
+  tg._sync = function () { tg.classList.toggle("cp-prof-toggle-on", cbEl.checked); };
+  return tg;
+}
+function cpProfSeg(radioEls, labels, hints, onChange) {
+  var s = document.createElement("div"); s.className = "cp-prof-seg";
+  radioEls.forEach(function (r, i) {
+    var b = document.createElement("button"); b.type = "button"; b.className = "cp-prof-segbtn";
+    b.innerHTML = labels[i] + (hints && hints[i] ? ' <span class="cp-prof-seghint">' + hints[i] + '</span>' : '');
+    b._radio = r;
+    b.addEventListener("click", function () { if (s.classList.contains("cp-prof-seg-dis")) return; r.click(); if (onChange) onChange(); });
+    s.appendChild(b);
+  });
+  s._sync = function () { Array.prototype.forEach.call(s.children, function (b) { b.classList.toggle("cp-prof-segbtn-on", b._radio.checked); }); };
+  return s;
+}
+function cpProfCloseDd() { document.querySelectorAll(".cp-prof-dd.cp-prof-dd-open").forEach(function (d) { d.classList.remove("cp-prof-dd-open"); }); }
+var cpProfDdWired = false;
+function cpProfDdEnsure() { if (cpProfDdWired) return; cpProfDdWired = true; document.addEventListener("click", cpProfCloseDd); window.addEventListener("scroll", cpProfCloseDd, true); }
+function cpProfDropdown(radioEls, labels, onChange) {
+  var d = document.createElement("div"); d.className = "cp-prof-dd";
+  var t = document.createElement("button"); t.type = "button"; t.className = "cp-prof-dd-trigger";
+  var v = document.createElement("span"); v.className = "cp-prof-dd-v";
+  var chev = document.createElement("span"); chev.className = "cp-prof-dd-chev"; chev.innerHTML = CP_PROF_CHEV_SVG;
+  t.appendChild(v); t.appendChild(chev);
+  var m = document.createElement("div"); m.className = "cp-prof-dd-menu";
+  radioEls.forEach(function (r, i) {
+    var op = document.createElement("div"); op.className = "cp-prof-dd-opt";
+    op.innerHTML = CP_PROF_CHECK_SVG + "<span>" + labels[i] + "</span>";
+    op._radio = r;
+    op.addEventListener("click", function (e) { e.stopPropagation(); r.click(); d.classList.remove("cp-prof-dd-open"); if (onChange) onChange(); });
+    m.appendChild(op);
+  });
+  t.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (d.classList.contains("cp-prof-dd-dis")) return;
+    var wasOpen = d.classList.contains("cp-prof-dd-open");
+    cpProfCloseDd();
+    if (!wasOpen) {
+      var r = t.getBoundingClientRect();
+      m.style.top = (r.bottom + 4) + "px"; m.style.left = r.left + "px"; m.style.minWidth = r.width + "px";
+      d.classList.add("cp-prof-dd-open");
+    }
+  });
+  d.appendChild(t); d.appendChild(m);
+  d._sync = function () {
+    var sel = -1;
+    Array.prototype.forEach.call(m.children, function (op, i) { var on = op._radio.checked; op.classList.toggle("cp-prof-dd-opt-on", on); if (on) sel = i; });
+    v.textContent = sel >= 0 ? labels[sel] : (labels[0] || "");
+  };
+  return d;
+}
+
+/* STIR-SHAKEN: a big multi-card form — Configuration (System/Reseller choice cards) +
+ * Signing / Tagging / Verification cards. Radio groups → pills (short) or dropdowns
+ * (long labels); checkboxes → toggles; URL/UUID text → moved styled inputs. Controls
+ * FORWARD-CLICK / MIRROR the real hidden legacy controls; sync() reflects real state +
+ * applies the System dim + the nested dependencies. Returns multiple cards + a GLOBAL
+ * action bar (the page submits as one form). */
+function cpBuildStirRows(cell) {
+  function R(name) { return Array.prototype.slice.call(cell.querySelectorAll('input[name="' + name + '"]')); }
+  function C(name) { return cell.querySelector('input[name="' + name + '"]'); }
+  var sysR = cell.querySelector('input[name="useSystemSettings"][value="true"]');
+  var resR = cell.querySelector('input[name="useSystemSettings"][value="false"]');
+  var signingPolicy = R("signingPolicy"), taggingPolicy = R("taggingPolicy"), verstat = R("verstatTag");
+  var attest = R("attestationLevel"), tagFrom = R("tagFromOrPAI"), origid = R("origid");
+  var verErr = R("verificationErrorHandling"), unsLvl = R("unscreenedTrunkGroupOriginationAttestationLevel");
+  if (!sysR || !resR || signingPolicy.length < 2 || taggingPolicy.length < 2) return null;
+  cpProfDdEnsure();
+
+  var widgets = [], dimRules = [], controls = [];
+  function reg(w) { if (w && w._sync) widgets.push(w); return w; }
+  function ctl(el) { if (el && controls.indexOf(el) < 0) controls.push(el); return el; }
+  function ctlAll(arr) { arr.forEach(ctl); }
+  function crow(rows, k, d, w, opts) { var r = cpProfRow(rows, k, d, w, opts); reg(w); return r; }
+
+  function sync() {
+    var cu = resR.checked;
+    cSys.classList.toggle("cp-prof-choice-on", sysR.checked);
+    cRes.classList.toggle("cp-prof-choice-on", resR.checked);
+    inh.classList.toggle("cp-prof-inherit-show", !cu);
+    sectionCards.forEach(function (c) { c.classList.toggle("cp-prof-carddim", !cu); });
+    widgets.forEach(function (w) { w._sync(); });
+    dimRules.forEach(function (r) { r.row.classList.toggle("cp-prof-dim", r.fn(cu)); });
+  }
+
+  // --- Configuration card (System / Reseller choice cards) ---
+  var cfgC = cpProfCard("Configuration", CP_PROF_ADJ_SVG);
+  var srcRow = document.createElement("div"); srcRow.className = "cp-prof-row cp-prof-srcrow";
+  var sK = document.createElement("div"); sK.className = "cp-prof-k"; sK.textContent = "Settings source"; srcRow.appendChild(sK);
+  var sD = document.createElement("div"); sD.className = "cp-prof-d"; sD.textContent = "Inherit the system STIR-SHAKEN policy, or define reseller-level settings below."; srcRow.appendChild(sD);
+  var choices = document.createElement("div"); choices.className = "cp-prof-choices"; srcRow.appendChild(choices);
+  function mkChoice(t, dsc, radio) {
+    var c = document.createElement("div"); c.className = "cp-prof-choice";
+    var ct = document.createElement("div"); ct.className = "cp-prof-choice-t";
+    var dot = document.createElement("span"); dot.className = "cp-prof-choice-dot";
+    ct.appendChild(dot); ct.appendChild(document.createTextNode(t));
+    var cd = document.createElement("div"); cd.className = "cp-prof-choice-d"; cd.textContent = dsc;
+    c.appendChild(ct); c.appendChild(cd);
+    c.addEventListener("click", function () { radio.click(); sync(); });
+    return c;
+  }
+  var cSys = mkChoice("Use system settings", "Inherit the platform default policy.", sysR);
+  var cRes = mkChoice("Use reseller settings", "Configure signing, tagging and verification.", resR);
+  choices.appendChild(cSys); choices.appendChild(cRes);
+  var inh = document.createElement("div"); inh.className = "cp-prof-inherit";
+  inh.innerHTML = CP_PROF_INFO_SVG + '<span>The sections below follow the system policy. Switch to "Use reseller settings" to edit them.</span>';
+  srcRow.appendChild(inh);
+  cfgC.rows.appendChild(srcRow);
+  ctl(sysR); ctl(resR);
+
+  // --- Signing ---
+  var sg = cpProfCard("Signing", CP_PROF_SIGN_SVG);
+  crow(sg.rows, "Signing policy", "Which outbound calls get a signed Identity header.", cpProfDropdown(signingPolicy, ["Off", "All Eligible Calls", "Eligible Inter-Network Calls"], sync)); ctlAll(signingPolicy);
+  var sgEmg = ctl(C("signEmergencyCalls")); crow(sg.rows, "Sign emergency calls", "Apply signing to 911/emergency calls.", cpProfToggleEl(sgEmg, sync));
+  var sgURL = ctl(C("signingServiceURL")); crow(sg.rows, "Signing service URL", "Endpoint that signs the calls.", cpProfInput(sgURL));
+  crow(sg.rows, "Attestation level", "How strongly the caller is vouched for.", cpProfSeg(attest, ["Full", "Partial", "Gateway"], ["A", "B", "C"], sync)); ctlAll(attest);
+  var chkDir = ctl(C("checkDirectoryNumbersForAttestation")); crow(sg.rows, "Check directory numbers for attestation", "Validate the calling number before attesting.", cpProfToggleEl(chkDir, sync));
+  var matchCb = ctl(C("matchUnassignedNumbersOnly"));
+  var matchRow = crow(sg.rows, "Match unassigned numbers only", "Only attest numbers not assigned to a user.", cpProfToggleEl(matchCb, sync), { sub: true });
+  dimRules.push({ row: matchRow, fn: function (cu) { return !cu || !(chkDir && chkDir.checked); } });
+  crow(sg.rows, "Origination ID source", "Where the origid for signing comes from.", cpProfSeg(origid, ["OS Value", "UUID"], null, sync)); ctlAll(origid);
+  var uuidIn = ctl(C("origUUID"));
+  var uuidRow = crow(sg.rows, "Origination ID (UUID)", "The UUID used as the origination identifier.", cpProfInput(uuidIn), { sub: true });
+  dimRules.push({ row: uuidRow, fn: function (cu) { return !cu || !(origid[1] && origid[1].checked); } });
+  var unsSign = ctl(C("enableSigningForUnscreenedTrunkGroupOriginations")); crow(sg.rows, "Sign unscreened trunk-group originations", "Sign calls from unscreened trunk groups.", cpProfToggleEl(unsSign, sync));
+  var unsLvlRow = crow(sg.rows, "Unscreened attestation level", "Attestation for unscreened trunk-group calls.", cpProfSeg(unsLvl, ["Full", "Partial", "Gateway"], ["A", "B", "C"], sync), { sub: true }); ctlAll(unsLvl);
+  dimRules.push({ row: unsLvlRow, fn: function (cu) { return !cu || !(unsSign && unsSign.checked); } });
+
+  // --- Tagging ---
+  var tg = cpProfCard("Tagging", CP_PROF_TAG_SVG);
+  crow(tg.rows, "Tagging policy", "Which inbound calls get a verstat tag.", cpProfDropdown(taggingPolicy, ["Off", "All Eligible Calls", "Eligible Intra-Network Calls"], sync)); ctlAll(taggingPolicy);
+  var tgEmg = ctl(C("tagEmergencyCalls")); crow(tg.rows, "Tag emergency calls", "Apply tagging to 911/emergency calls.", cpProfToggleEl(tgEmg, sync));
+  crow(tg.rows, "Tag from", "Which header to read the calling number from.", cpProfSeg(tagFrom, ["PAI", "From", "Both"], null, sync)); ctlAll(tagFrom);
+  crow(tg.rows, "Verstat tag", "Which verification result to tag.", cpProfDropdown(verstat, ["TN-Validation-Passed", "TN-Validation-Failed", "No-TN-Validation"], sync)); ctlAll(verstat);
+  var unsTag = ctl(C("enableTaggingForUnscreenedTrunkGroupOriginations")); crow(tg.rows, "Tag unscreened trunk-group originations", "Tag calls from unscreened trunk groups.", cpProfToggleEl(unsTag, sync));
+
+  // --- Verification ---
+  var vf = cpProfCard("Verification", CP_PROF_VERIFY_SVG);
+  var enVer = ctl(C("enableVerification")); crow(vf.rows, "Enable verification", "Verify the Identity header on inbound calls.", cpProfToggleEl(enVer, sync));
+  var verURLin = ctl(C("verificationServiceURL"));
+  var verURLrow = crow(vf.rows, "Verification service URL", "Endpoint that verifies the calls.", cpProfInput(verURLin), { sub: true });
+  var verErrRow = crow(vf.rows, "On verification error", "What to do when verification fails.", cpProfSeg(verErr, ["Abort", "Proceed"], null, sync), { sub: true }); ctlAll(verErr);
+  var verSubs = [verURLrow, verErrRow];
+  [["proxyVerstatToCNAMSubscribe", "Proxy verstat to CNAM subscribe"], ["useUnknownHeadersFromCNAMNotify", "Use unknown headers from CNAM notify"], ["verifyGETSCalls", "Verify GETS calls"]].forEach(function (p) {
+    var c = ctl(C(p[0]));
+    verSubs.push(crow(vf.rows, p[1], "", cpProfToggleEl(c, sync), { sub: true }));
+  });
+  verSubs.forEach(function (rw) { dimRules.push({ row: rw, fn: function (cu) { return !cu || !(enVer && enVer.checked); } }); });
+  var incTag = ctl(C("includeTaggedHeadersToAccessSide")); crow(vf.rows, "Include tagged headers to access side", "Forward verstat headers toward the subscriber.", cpProfToggleEl(incTag, sync));
+  var proxyId = ctl(C("proxyIdentityHeaderToAccessSide")); crow(vf.rows, "Proxy identity header to access side", "Forward the Identity header toward the subscriber.", cpProfToggleEl(proxyId, sync));
+
+  var sectionCards = [sg.card, tg.card, vf.card];
+  return { cards: [cfgC.card, sg.card, tg.card, vf.card], controls: controls, sync: sync, globalActions: true };
+}
+
+/* Page config — picks the row builder (+ card-header label/icon for single-card pages).
+ * Returns null for any page that isn't a configured settings form. */
+function cpSettingsFormConfig(title, cell) {
+  if (/^Profile$/.test(title)) {
+    return { label: "Reseller information", icon: CP_PROF_USER_SVG, build: cpBuildProfileRows };
+  }
+  if (/Activation Code Device Onboarding/i.test(title) || cell.querySelector('input[name="allowActivationRequestByUser"]')) {
+    return { label: "Onboarding policy", icon: CP_PROF_QR_SVG, build: cpBuildDapRows };
+  }
+  if (/STIR.?SHAKEN/i.test(title) || cell.querySelector('input[name="signingPolicy"]')) {
+    return { multiCard: true, build: cpBuildStirRows };
+  }
+  return null;
+}
+
+/* Settings/edit FORM-page skinner (generic dispatcher — see
+ * [[project-settings-form-skin]]). Shape-detected + idempotent; runs in
+ * cpSkinDomPass + cp:reskin. The header + padding + action bar + mount below
+ * are SHARED across every form page and are the LOCKED spec (glyph/bar + title,
+ * NO subtitle; 22px cell inset; forward-click real ok/apply/cancel) — do not
+ * special-case them per page. (Name kept as cpProfileForm for the call sites.) */
+function cpProfileForm() {
+  try {
+    if (document.querySelector(".cp-console")) return;                    // aggregated console
+    if (document.querySelector(".cp-results-box, #searchTable")) return;  // a list/search page
+    var cell = document.querySelector("td.enduserbody");
+    if (!cell) return;
+    if (cell.querySelector(".cp-prof-card")) return;                      // already skinned
+    var snEl = document.querySelector("td.screenName");
+    var headTitle = snEl ? (snEl.textContent || "").trim() : "";
+    var cfg = cpSettingsFormConfig(headTitle, cell);
+    if (!cfg) return;                                                     // not a configured settings form
+
+    // --- action bar (SHARED) — forwards to the real legacy ok/apply/cancel (last = bottom bar) ---
+    function lastBtn(name) { var l = document.querySelectorAll('input[name="' + name + '"]'); return l.length ? l[l.length - 1] : null; }
+    var realOk = lastBtn("ok"), realApply = lastBtn("apply"), realCancel = lastBtn("cancel");
+    var actions = document.createElement("div"); actions.className = "cp-prof-actions";
+    var unsaved = document.createElement("span"); unsaved.className = "cp-prof-unsaved";
+    unsaved.innerHTML = '<span class="cp-prof-dot"></span><span>Unsaved changes</span>';
+    actions.appendChild(unsaved);
+    var spacer = document.createElement("span"); spacer.className = "cp-prof-actspace"; actions.appendChild(spacer);
+
+    // --- dirty state (SHARED) — controls supplied by the row builder ---
+    var controls = [];
+    function ctrlState(el) { return (el.type === "checkbox" || el.type === "radio") ? (el.checked ? "1" : "0") : el.value; }
+    function refresh() { actions.classList.toggle("cp-prof-dirty", controls.some(function (el) { return ctrlState(el) !== el.getAttribute("data-cp-orig"); })); }
+
+    // --- content (page-specific): a SINGLE card (Profile/DAP) or MULTIPLE cards (STIR) ---
+    var cards, sync, card = null;
+    if (cfg.multiCard) {
+      var resM = cfg.build(cell);
+      if (!resM || !resM.cards || !resM.cards.length) return;            // builder bailed — no partial skin
+      cards = resM.cards; controls = resM.controls || []; sync = resM.sync;
+      actions.className = "cp-prof-actions cp-prof-actions-global";       // standalone bar after the cards
+    } else {
+      card = document.createElement("div"); card.className = "cp-prof-card";
+      var head = document.createElement("div"); head.className = "cp-prof-cardhead";
+      head.innerHTML = cfg.icon + "<span>" + cfg.label + "</span>";
+      card.appendChild(head);
+      var rowsWrap = document.createElement("div"); rowsWrap.className = "cp-prof-rows";
+      card.appendChild(rowsWrap);
+      var resS = cfg.build(rowsWrap, cell);
+      if (!resS) return;
+      controls = resS.controls || []; sync = resS.sync;
+      cards = [card];
+    }
+
+    controls.forEach(function (el) { el.setAttribute("data-cp-orig", ctrlState(el)); el.addEventListener("input", refresh); el.addEventListener("change", refresh); });
+
+    function addBtn(real, label, cls, svg, needDirty) {
+      if (!real) return;
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "cp-prof-btn " + cls + (needDirty ? " cp-prof-needdirty" : "");
+      b.innerHTML = (svg || "") + "<span>" + label + "</span>";
+      b.addEventListener("click", function () { real.click(); });
+      actions.appendChild(b);
+    }
+    addBtn(realOk, "Save", "cp-prof-primary", CP_PROF_CHECK_SVG, true);
+    addBtn(realApply, "Apply", "cp-prof-secondary", "", true);
+    addBtn(realCancel, "Cancel", "cp-prof-ghost", "", false);
+    if (!cfg.multiCard && card) card.appendChild(actions);               // single-card: footer inside the card
+
+    // --- page header (LOCKED spec — matches .cp-srch-head: glyph/bar + title, NO subtitle) ---
+    var pg = document.createElement("div"); pg.className = "cp-prof-head";
+    var lead = document.createElement("span");
+    var headIcon = cpMenuItemIcon(headTitle);
+    if (headIcon) { lead.className = "cp-prof-headglyph"; lead.innerHTML = headIcon; }
+    else { lead.className = "cp-prof-headbar"; }
+    var txt = document.createElement("div"); txt.className = "cp-prof-headtxt";
+    var ti = document.createElement("div"); ti.className = "cp-prof-title"; ti.textContent = headTitle;
+    txt.appendChild(ti);
+    pg.appendChild(lead); pg.appendChild(txt);
+
+    // --- mount (SHARED) — content goes in a .cp-prof-scroll container so tall forms
+    // (e.g. STIR-SHAKEN) scroll WITHIN the panel; it owns the LOCKED 22px inset too. ---
+    Array.prototype.forEach.call(cell.children, function (ch) { ch.style.display = "none"; });
+    var scroller = document.createElement("div"); scroller.className = "cp-prof-scroll";
+    scroller.appendChild(pg);
+    cards.forEach(function (c) { scroller.appendChild(c); });
+    if (cfg.multiCard) scroller.appendChild(actions);                    // global action bar after the cards
+    cell.appendChild(scroller);
+    // Hide every legacy row ABOVE the enduserbody row — screenName, tip, spacers,
+    // and the top OK button bar (whose bottom border was the stray divider).
+    var ebTr = cell.closest("tr");
+    if (ebTr) { for (var sib = ebTr.previousElementSibling; sib; sib = sib.previousElementSibling) sib.style.display = "none"; }
+    // Hide the legacy bottom button-bar row(s).
+    var bb = document.getElementById("buttonbarbottom"); if (bb) bb.style.display = "none";
+    [realOk, realApply, realCancel].forEach(function (b) {
+      if (!b) return; var tr = b.closest("tr"); if (tr) tr.style.display = "none"; else b.style.display = "none";
+    });
+
+    // Initial mirror — reflect real control state into the page's visuals.
+    if (sync) sync();
+  } catch (e) {
+    console.warn("[CommPilot Skin] cpProfileForm:", e);
+  }
+}
+
 /*
  * Full-skin DOM pass — re-applies every DOM transformation to the current
  * document body. Called on initial page load and on "cp:morphed" when
@@ -2322,6 +2796,7 @@ function cpSkinDomPass() {
   makeRowsClickable();
   suppressEmptyResults();
   revealResultsBox();
+  cpProfileForm();
   restyleAlerts();
   cpRevealCloak();
   if (cpWireHelpBodyFn) cpWireHelpBodyFn();
