@@ -158,6 +158,23 @@ input.bwbutton[value="-"] { background-image: url("${url("assets/icons/minus.svg
  * Each item is wrapped in try/catch so a single surprise can't blank
  * the page.
  */
+/* Per-item menu icons, keyed by the item's (lowercased) title. An entry is added as each page's
+ * redesign is completed; items WITHOUT an entry render a dashed placeholder badge — so the icon's
+ * presence doubles as the "this page is done" tracker. Mirrored onto the sidebar sub-items by
+ * cpPopulateSubmenu (pjax) reading the card's .cp-card-ico, so this map is the single source of truth. */
+/* SVGs below are the VERBATIM official Tabler "outline" icon paths (fetched from the @tabler/icons source, NOT
+ * hand-transcribed — redrawing them from memory produced a wrong building-community). To add an icon: fetch the
+ * real SVG (e.g. cdn.jsdelivr.net/npm/@tabler/icons/icons/outline/<name>.svg) and paste its <path> elements as-is. */
+var CP_ITEM_ICONS = {
+  "users": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0 -3 -3.85"/></svg>',
+  "groups": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M8 21v-1a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v1"/><path d="M15 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M17 10h2a2 2 0 0 1 2 2v1"/><path d="M5 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M3 13v-1a2 2 0 0 1 2 -2h2"/></svg>',
+  "service providers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l18 0"/><path d="M5 21v-14l8 -4v18"/><path d="M19 21v-10l-6 -4"/><path d="M9 9l0 .01"/><path d="M9 12l0 .01"/><path d="M9 15l0 .01"/><path d="M9 18l0 .01"/></svg>',
+  "enterprises": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l5 5v7h-5v-4m0 4h-5v-7l5 -5m1 1v-6a1 1 0 0 1 1 -1h10a1 1 0 0 1 1 1v17h-8"/><path d="M13 7l0 .01"/><path d="M17 7l0 .01"/><path d="M17 11l0 .01"/><path d="M17 15l0 .01"/></svg>'
+};
+function cpMenuItemIcon(title) {
+  return CP_ITEM_ICONS[(title || "").trim().toLowerCase()] || "";
+}
+
 function wrapMenuCards() {
   const anchors = document.querySelectorAll("a.navMenuItem");
 
@@ -180,6 +197,20 @@ function wrapMenuCards() {
       const card = document.createElement("div");
       card.className = "cp-menu-card";
 
+      // Card HEAD = icon badge + (title/desc) on one row. The leaf summary (cpSummarizeLeaves) appends BELOW the
+      // head as an in-card footer, so the card is a column: [head][summary].
+      const head = document.createElement("div");
+      head.className = "cp-card-head";
+
+      // Icon badge (left): the item's assigned icon, or a dashed placeholder when not yet done.
+      const svg = cpMenuItemIcon(anchor.textContent);
+      const icoWrap = document.createElement("div");
+      icoWrap.className = "cp-card-ico" + (svg ? "" : " cp-card-ico-todo");
+      if (svg) icoWrap.innerHTML = svg;
+
+      const main = document.createElement("div");
+      main.className = "cp-card-main";
+
       const titleWrap = document.createElement("div");
       titleWrap.className = "cp-card-title";
       titleWrap.appendChild(anchor);
@@ -188,8 +219,12 @@ function wrapMenuCards() {
       descWrap.className = "cp-card-desc";
       descWrap.textContent = descTd.textContent;
 
-      card.appendChild(titleWrap);
-      card.appendChild(descWrap);
+      main.appendChild(titleWrap);
+      main.appendChild(descWrap);
+
+      head.appendChild(icoWrap);
+      head.appendChild(main);
+      card.appendChild(head);
 
       linkTd.appendChild(card);
 

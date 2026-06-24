@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.144";
+  var CP_PJAX_VERSION = "0.2.174";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
 
   // Single-page sign-out: minimum time (ms) the "Signing out…" spinner stays up
@@ -465,7 +465,10 @@
     function cpSearchParseRows(doc) {
       var rows = [];
       doc.querySelectorAll('tr[id^="Row"]').forEach(function (tr) {
-        var cells = [].map.call(tr.querySelectorAll("a.tableLink"), function (a) { return (a.textContent || "").trim(); });
+        var cells = [].map.call(tr.querySelectorAll("a.tableLink"), function (a) {
+          var t = (a.textContent || "").trim();
+          return (!t && a.querySelector("img")) ? "✓" : t;   // boolean columns (e.g. In Trunk Group) render a checkmark IMAGE with no text → keep it as a ✓ marker
+        });
         if (!cells.length) return;
         var m = /redirectPost\s*\(\s*['"]([^'"]+)['"]\s*,\s*(\{[\s\S]*?\})\s*\)/.exec(tr.innerHTML);
         var drill = null;
@@ -574,6 +577,18 @@
     var CP_SVG_MOUSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="7"/><path d="M12 6v4"/></svg>';
     var CP_SVG_FACE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>';
     var CP_SVG_FUNNEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5z"/></svg>';
+    var CP_SVG_ID = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.8"/><path d="M5.4 16c.5-1.7 5.7-1.7 6.2 0M14 9.5h4M14 13h4"/></svg>';
+    var CP_SVG_SEARCHOFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M4 4 18 18"/></svg>';
+    // List-page header glyphs — MIRRORS skin.js CP_ITEM_ICONS (the menu-card/sidebar registry). pjax is MAIN
+    // world and can't read skin.js's copy, so the same item SVGs live here for the search-page header. Keep both
+    // in sync (see [[project-submenu-icons]]). Title-keyed (lowercased); no entry ⇒ header keeps the accent bar.
+    var CP_HDR_ICONS = {
+      "users": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0 -3 -3.85"/></svg>',
+      "groups": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M8 21v-1a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v1"/><path d="M15 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M17 10h2a2 2 0 0 1 2 2v1"/><path d="M5 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M3 13v-1a2 2 0 0 1 2 -2h2"/></svg>',
+      "service providers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l18 0"/><path d="M5 21v-14l8 -4v18"/><path d="M19 21v-10l-6 -4"/><path d="M9 9l0 .01"/><path d="M9 12l0 .01"/><path d="M9 15l0 .01"/><path d="M9 18l0 .01"/></svg>',
+      "enterprises": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l5 5v7h-5v-4m0 4h-5v-7l5 -5m1 1v-6a1 1 0 0 1 1 -1h10a1 1 0 0 1 1 1v17h-8"/><path d="M13 7l0 .01"/><path d="M17 7l0 .01"/><path d="M17 11l0 .01"/><path d="M17 15l0 .01"/></svg>'
+    };
+    function cpHeaderIcon(title) { return CP_HDR_ICONS[(title || "").trim().toLowerCase()] || ""; }
 
     // Per-list column treatments, keyed by the descriptor tableName (labels always come from the SERVER
     // headers, so only the visual TYPE + sort kind are configured here). Unknown lists fall back to an
@@ -609,7 +624,16 @@
         }
         c.label = headers[i] || ("Column " + (i + 1));
         c.idx = i;
-        c.num = (c.type === "num" || c.type === "numpill");
+        // Semantic overrides for well-known columns, applied by LABEL so they hold at every level regardless of the
+        // table name (reseller / SP / per-group): never clip the phone, centre the extension, render In Trunk Group
+        // as a checkmark, and give the Groups "User Limit" the centred highlight pill at the SP level too (the SP
+        // Groups table isn't the resellerGroupTable preset, so it would otherwise fall to a plain right-aligned num).
+        var lbl = c.label.toLowerCase();
+        if (lbl === "phone number") c.type = "phone";
+        else if (lbl === "extension") { c.type = "numc"; c.align = "center"; }
+        else if (lbl === "in trunk group") { c.type = "check"; c.align = "center"; }
+        else if (lbl === "user limit") { c.type = "numpill"; if (c.deflt == null) c.deflt = "25"; c.align = "center"; }
+        c.num = (c.type === "num" || c.type === "numpill" || c.type === "numc");
         cols.push(c);
       }
       return cols;
@@ -652,7 +676,7 @@
       wrap.innerHTML =
         '<div class="cp-srch-head">' +
           '<span class="cp-srch-bar"></span>' +
-          '<div class="cp-srch-titles"><div class="cp-srch-title"></div><div class="cp-srch-sub"></div></div>' +
+          '<div class="cp-srch-titles"><div class="cp-srch-title"></div></div>' +
           '<div class="cp-srch-headright">' +
             '<span class="cp-srch-actions"></span>' +
             '<span class="cp-srch-count"><span class="cp-srch-dot"></span><span class="cp-srch-count-n">Loading…</span></span>' +
@@ -673,12 +697,20 @@
               '<span class="cp-srch-pg-cur">1 / 1</span>' +
               '<span class="cp-srch-pg-btn cp-srch-next" title="Next">' + CP_SVG_CHEVRIGHT + '</span>' +
               '<span class="cp-srch-pg-btn cp-srch-last" title="Last page">' + CP_SVG_CHEVRIGHT2 + '</span>' +
+              '<span class="cp-srch-goto">' +
+                '<label class="cp-srch-goto-lbl">Go to</label>' +
+                '<input class="cp-srch-goto-input" type="text" inputmode="numeric" maxlength="6" placeholder="#" aria-label="Go to page" />' +
+                '<button type="button" class="cp-srch-goto-go">Go</button>' +
+              '</span>' +
             '</div>' +
           '</div>' +
         '</div>';
       cell.appendChild(wrap);
       wrap.querySelector(".cp-srch-title").textContent = title;
-      wrap.querySelector(".cp-srch-sub").textContent = "Search, then sort and page instantly.";
+      // Console-style header: swap the accent bar for the page's lavender icon glyph (registry); pages without an
+      // assigned icon keep the bar as a graceful fallback.
+      var hsvg = cpHeaderIcon(title);
+      if (hsvg) { var hbar = wrap.querySelector(".cp-srch-bar"); if (hbar && hbar.parentNode) { var hg = document.createElement("span"); hg.className = "cp-srch-glyph"; hg.innerHTML = hsvg; hbar.parentNode.replaceChild(hg, hbar); } }
 
       // Grid state.
       var state = {
@@ -852,16 +884,32 @@
         if (countPill) countPill.style.display = "";
         var tot = (extra && extra.total != null) ? extra.total : null;
         var idMode = !!(extra && extra.mode === "id");
-        var trackHtml = CP_SWEEP_FULL_NOSP.map(function (c) {   // no standalone space chip — space is only searched MID-name (m s), never leading
-          var spec = CP_SWEEP_SPECIALS.indexOf(c) >= 0;
-          return '<span class="cp-srch-tk' + (spec ? ' cp-srch-tk-spec' : '') + '">' + cpSweepDisp(c) + '</span>';
+        var gap = (extra && extra.gap != null) ? extra.gap : null;   // id pass: how many stragglers we're hunting (drives the title + gap-anchored counter/bar)
+        // A scoped name search (one "starts with" criterion) tiles its OWN field — M → Ma, Mb, … The opt-in
+        // User-ID remainder pass tiles digit-first IDs — 0-9 chips behind an "ID ›" pin. Both use the pinned
+        // sub-bucket layout (vs. the whole-system alphabet) so the tracker shows what's actually being scanned.
+        // extra.seed = the name query prefix; extra.crit = the human-labelled criteria chips; extra.gap = id gap.
+        var seed = (extra && extra.seed) || null;
+        var crit = (extra && extra.crit) || null;
+        var scoped = !!(seed || idMode);
+        var trackChars = idMode ? CP_SWEEP_DIGITS : (seed ? CP_SWEEP_BASE : CP_SWEEP_FULL_NOSP);   // id pass = the digit dial (IDs are phone-number-first); names use the alphabet; scoped drops the rare specials
+        var trackHtml = trackChars.map(function (c) {
+          var spec = !idMode && CP_SWEEP_SPECIALS.indexOf(c) >= 0;
+          return '<span class="cp-srch-tk' + (spec ? ' cp-srch-tk-spec' : '') + (seed ? ' cp-srch-tk-two' : '') + '">' + (seed ? cpSweepDisp(seed) : '') + cpSweepDisp(c) + '</span>';
         }).join("");
-        dbody.innerHTML = '<div class="cp-srch-state cp-srch-sweep">' +
-          '<div class="cp-srch-state-ico cp-srch-state-ico-search">' + CP_SVG_SEARCH + '</div>' +
-          '<div class="cp-srch-state-h">' + (idMode ? 'Catching the last few by User&nbsp;ID…' : 'Loading all ' + (tot != null ? tot.toLocaleString() + ' ' : '') + 'results…') + '</div>' +
+        var critHtml = (crit && crit.length) ? '<div class="cp-srch-sweep-crit">' + crit.map(function (q) {
+          return '<span class="cp-srch-sweep-critchip"><b>' + cpEsc(q.field) + '</b><i>' + cpEsc(String(q.op || "").toLowerCase()) + '</i><span>' + cpSweepDisp(q.value) + '</span></span>';
+        }).join("") + '</div>' : "";
+        var pinHtml = seed ? '<span class="cp-srch-sweep-pin">' + cpSweepDisp(seed) + ' ›</span>'
+                           : (idMode ? '<span class="cp-srch-sweep-pin">ID ›</span>' : "");
+        var idGap = (gap != null ? gap.toLocaleString() : null);
+        dbody.innerHTML = '<div class="cp-srch-state cp-srch-sweep' + (scoped ? ' cp-srch-sweep-scoped' : '') + '">' +
+          '<div class="cp-srch-state-ico cp-srch-state-ico-search">' + (idMode ? CP_SVG_ID : CP_SVG_SEARCH) + '</div>' +
+          '<div class="cp-srch-state-h">' + (idMode ? ('Recovering the last ' + (idGap ? idGap + ' ' : '') + 'by User&nbsp;ID') : ('Loading all ' + (tot != null ? tot.toLocaleString() + ' ' : '') + 'results…')) + '</div>' +
+          critHtml +
           '<div class="cp-srch-sweep-barwrap"><div class="cp-srch-sweep-fill"></div></div>' +
-          '<div class="cp-srch-sweep-n">' + (idMode ? ((extra.priorCount != null ? extra.priorCount.toLocaleString() : '0') + ' + 0 found') : ('0' + (tot != null ? ' / ' + tot.toLocaleString() : ''))) + '</div>' +
-          '<div class="cp-srch-sweep-track">' + trackHtml + '</div>' +
+          '<div class="cp-srch-sweep-n">' + (idMode ? ('0 <i>of ' + (idGap || '?') + ' recovered</i>') : ('0' + (tot != null ? ' / ' + tot.toLocaleString() : ''))) + '</div>' +
+          '<div class="cp-srch-sweep-trackwrap">' + pinHtml + '<div class="cp-srch-sweep-track">' + trackHtml + '</div></div>' +
           '<div class="cp-srch-sweep-sub"></div>' +
           '<div class="cp-srch-state-s">Keep this tab open and don’t reload while it loads.</div>' +
           '<button type="button" class="cp-srch-btn cp-srch-sweep-cancel">' + CP_SVG_X + '<span>Cancel</span></button>' +
@@ -878,7 +926,7 @@
     // Unified load: skeleton → preload-all (criteria or null=all) → render grid, or the minimal no-match
     // state, or fall back to the legacy table on a transport failure (never strand the user).
     function cpGridLoad(state, criteria) {
-      if (state._riffle) { clearInterval(state._riffle); state._riffle = null; }   // stop any first/last riffle
+      cpGridStopRiffle(state);   // stop any in-flight riffle / decelerating scroll
       if (state._searchAbort) { try { state._searchAbort.abort(); } catch (e) {} }   // cancel a prior in-flight search
       if (state._sweepAbort) { try { state._sweepAbort.abort(); } catch (e) {} state._sweepAbort = null; }   // and any deep sweep
       var ac = (typeof AbortController !== "undefined") ? new AbortController() : null;
@@ -965,6 +1013,14 @@
       if (r.drill && r.drill.params) { var p = r.drill.params; if (p.userId) return "u:" + p.userId; if (p.id) return "i:" + p.id; }
       return "c:" + ((r.cells && r.cells[0]) || "") + "|" + ((r.cells && r.cells[1]) || "");
     }
+    // Human-labelled criteria for the sweep card's "echo" chips: map each {key,op} to its Field/Match dropdown label
+    // (falling back to the raw value) so the loader names the search back to the user.
+    function cpSweepCritChips(state, valued) {
+      function lbl(opts, v) { for (var i = 0; i < (opts || []).length; i++) if (opts[i].value === v) return opts[i].label; return v; }
+      return (valued || []).map(function (c) {
+        return { field: lbl(state.fieldOpts, c.key), op: lbl(state.opOpts, c.op), value: c.value };
+      });
+    }
     function cpDeepSweep(state, baseCriteria, partKey, opts) {
       opts = opts || {};
       var all = [], seen = Object.create(null);
@@ -1013,8 +1069,14 @@
           if (opts.onProgress) opts.onProgress(all.length);   // reconcile (rows already deduped in onPage)
         }, function (err) { console.warn("[sweep] bucket '" + prefix + "' failed — skipping", err); });   // one bad twig doesn't strand the sweep
       }
-      return CP_SWEEP_FULL_NOSP.reduce(function (pr, ch) {   // top level excludes a LEADING space (it trims → re-sweeps everything)
-        return pr.then(function () { return halt() ? null : bucket(ch, 1, null); });
+      // Top level: whole-system starts each bucket at a single char (excluding a LEADING space — it trims → re-sweeps
+      // everything); a scoped sweep seeds every bucket with the query prefix (M → Ma, Mb, …) so it tiles only the
+      // query's own sub-buckets.
+      var topList = opts.seedPrefix
+        ? kids(opts.seedPrefix).map(function (ch) { return opts.seedPrefix + ch; })
+        : CP_SWEEP_FULL_NOSP;
+      return topList.reduce(function (pr, item) {
+        return pr.then(function () { return halt() ? null : bucket(item, 1, null); });
       }, Promise.resolve()).then(function () { return { rows: all, aborted: aborting() }; });
     }
     // Friendly ETA for the offer card. ~count/20 page pulls + bucket-search overhead, sequential — fold both into
@@ -1034,12 +1096,22 @@
       state._sweepAbort = ac;
       state.all = []; state.cur = []; state.cols = []; state.page = 0; state.searched = true; state._sweepHeaders = null;
       cpGridRemoveGapBar(state);
-      var partKey = cpDeepPartitionKey(state, baseCriteria);
-      state._sweepMode = "name"; state._sweepPrior = 0; state._sweepPartKey = partKey;
-      cpGridShowState(state, "sweeping", { total: total });
-      var sweepP = cpDeepSweep(state, baseCriteria, partKey, {
+      // SCOPED single-field "starts with" (e.g. First Name → M): tile the SAME field by lengthening its prefix
+      // (M → Ma, Mb, …) so the loader honestly scans the query's own sub-buckets, and the seed prefix REPLACES the
+      // base criterion (so it isn't double-applied). Whole-system / CONTAINS / multi-field falls back to the
+      // partition-by-other-field sweep. Either way echo the typed criteria so the card names the search back.
+      var valued = (baseCriteria || []).filter(function (c) { return c && c.value; });
+      var seedC = (valued.length === 1 && /^STARTS_WITH$/i.test(valued[0].op || "STARTS_WITH")) ? valued[0] : null;
+      var partKey, sweepBase, seedPrefix = null;
+      if (seedC) { partKey = seedC.key; seedPrefix = seedC.value; sweepBase = []; }
+      else { partKey = cpDeepPartitionKey(state, baseCriteria); sweepBase = baseCriteria; }
+      var critChips = cpSweepCritChips(state, valued);
+      state._sweepSeed = seedPrefix; state._sweepMode = "name"; state._sweepPrior = 0; state._sweepPartKey = partKey;
+      cpGridShowState(state, "sweeping", { total: total, seed: seedPrefix, crit: critChips });
+      var sweepP = cpDeepSweep(state, sweepBase, partKey, {
         signal: ac ? ac.signal : null,
         target: total,   // EARLY EXIT: stop the moment all `total` are loaded (e.g. specials complete the set before z)
+        seedPrefix: seedPrefix,   // scoped: start the top-level buckets at <seed>+char instead of a bare char
         onStatus: function (prefix) { if (myGen === state._sweepGen) cpGridSweepStatus(state, prefix); },
         onProgress: function (loaded) { if (myGen === state._sweepGen) cpGridSweepProgress(state, loaded, total); }
       });
@@ -1074,9 +1146,10 @@
       var ac = (typeof AbortController !== "undefined") ? new AbortController() : null;
       state._sweepAbort = ac;
       var prior = state.all.slice();
-      state._sweepMode = "id"; state._sweepPrior = prior.length; state._sweepPartKey = "UserID";
+      var idGap = (total != null) ? Math.max(0, total - prior.length) : null;   // the stragglers we're hunting → title + gap-anchored counter/bar
+      state._sweepSeed = null; state._sweepMode = "id"; state._sweepPrior = prior.length; state._sweepGap = idGap; state._sweepPartKey = "UserID";
       var seedIds = prior.map(cpDeepRowId);
-      cpGridShowState(state, "sweeping", { total: total, mode: "id", priorCount: prior.length });
+      cpGridShowState(state, "sweeping", { total: total, mode: "id", priorCount: prior.length, gap: idGap });
       var sweepP = cpDeepSweep(state, baseCriteria, "UserID", {
         signal: ac ? ac.signal : null, seedIds: seedIds, maxDepth: 2, numericIds: true,   // 2-digit (area-code) prefixes, digits-only after a number
         target: (total != null ? Math.max(0, total - prior.length) : null),   // EARLY EXIT once the gap is filled
@@ -1093,8 +1166,11 @@
         state.cur = state.all.slice(); state.page = 0;
         var covered = state.all.length, stillGap = (total != null) ? (total - covered) : 0;
         if (state.countN) state.countN.textContent = covered.toLocaleString() + " loaded" + (added.length ? " · +" + added.length.toLocaleString() + " by ID" : "") + (stillGap > 0 ? " · " + stillGap.toLocaleString() + " missing" : "");
-        // Name the recovered users before dropping into the grid — only when some were actually found.
+        // Name the recovered users before dropping into the grid — only when some were actually found. When the
+        // pass ran to completion and recovered NONE, show a distinct "no matches by User ID" end-state (don't just
+        // silently drop into the grid). A cancelled pass falls straight through to the grid (no verdict to show).
         if (added.length && !out.aborted) { cpGridShowRecovered(state, added, covered, stillGap); }
+        else if (!added.length && !out.aborted) { cpGridShowNoneRecovered(state, covered, stillGap); }
         else { cpGridShowState(state, "loading"); cpGridSortBy(state, state.sortK, state.sortDir, true); cpGridRenderResultsFillIn(state); }
       }).catch(function (e) { console.warn("[sweep] ID remainder failed", e); });
     }
@@ -1122,12 +1198,31 @@
       if (go) go.addEventListener("click", function () { cpGridShowState(state, "loading"); cpGridSortBy(state, state.sortK, state.sortDir, true); cpGridRenderResultsFillIn(state); });
       state.wrap.querySelector(".cp-srch-pg-cur").textContent = "—";
     }
+    // The User-ID pass ran to completion and recovered NOBODY. Give the search a clear verdict (amber, honest —
+    // the stragglers are genuinely still missing) with a single button into the list, mirroring cpGridShowRecovered.
+    function cpGridShowNoneRecovered(state, covered, stillGap) {
+      var dbody = state.wrap.querySelector(".cp-srch-dbody");
+      var head = state.wrap.querySelector(".cp-srch-dhead");
+      if (head) { head.innerHTML = ""; head.style.gridTemplateColumns = ""; }
+      var miss = (stillGap != null && stillGap > 0)
+        ? ('these ' + stillGap.toLocaleString() + ' user' + (stillGap === 1 ? '' : 's') + ' couldn’t be recovered')
+        : 'no extra users could be recovered';
+      dbody.innerHTML = '<div class="cp-srch-state cp-srch-state-warn">' +
+        '<div class="cp-srch-state-ico cp-srch-state-ico-warn">' + CP_SVG_SEARCHOFF + '</div>' +
+        '<div class="cp-srch-state-h">No matches by User&nbsp;ID</div>' +
+        '<div class="cp-srch-state-s">Searched every ID prefix — ' + miss + '.</div>' +
+        '<button type="button" class="cp-srch-btn cp-srch-rec-go">' + CP_SVG_CHEVRIGHT + '<span>View all ' + covered.toLocaleString() + ' loaded</span></button>' +
+      '</div>';
+      var go = dbody.querySelector(".cp-srch-rec-go");
+      if (go) go.addEventListener("click", function () { cpGridShowState(state, "loading"); cpGridSortBy(state, state.sortK, state.sortDir, true); cpGridRenderResultsFillIn(state); });
+      state.wrap.querySelector(".cp-srch-pg-cur").textContent = "—";
+    }
     function cpGridRemoveGapBar(state) { var b = state.wrap && state.wrap.querySelector(".cp-srch-gapbar"); if (b) b.remove(); }
     function cpGridShowGapBar(state, baseCriteria, total, gap) {
       cpGridRemoveGapBar(state);
       var bar = document.createElement("div");
       bar.className = "cp-srch-gapbar";
-      bar.innerHTML = '<span class="cp-srch-gapbar-txt">' + CP_SVG_FUNNEL + "<span>" + gap.toLocaleString() + " user" + (gap === 1 ? "" : "s") + " weren’t found by name.</span></span>" +
+      bar.innerHTML = '<span class="cp-srch-gapbar-txt">' + CP_SVG_FUNNEL + "<span>" + gap.toLocaleString() + " user" + (gap === 1 ? " wasn’t" : "s weren’t") + " found by name.</span></span>" +
         '<button type="button" class="cp-srch-gapbar-go">' + CP_SVG_SEARCH + "<span>Search by User ID</span></button>" +
         '<button type="button" class="cp-srch-gapbar-x" title="Dismiss">' + CP_SVG_X + "</button>";
       var results = state.wrap.querySelector(".cp-srch-results");
@@ -1138,18 +1233,24 @@
     // Cheap progress update during the sweep (counter + bar), no grid re-render. In "id" mode `loaded` is the
     // count of NEW rows found (the prior set is seeded as already-seen), shown as "prior + N found".
     function cpGridSweepProgress(state, loaded, total) {
-      var idMode = (state._sweepMode === "id"), prior = state._sweepPrior || 0;
+      // id pass is GAP-anchored: `loaded` = NEW rows recovered so far, shown/filled against the gap we're hunting
+      // (state._sweepGap) rather than the full total (which barely moves when prior ≈ total → looked frozen).
+      var idMode = (state._sweepMode === "id"), gap = state._sweepGap;
       var card = state.wrap.querySelector(".cp-srch-sweep");
       if (card) {
         var cn = card.querySelector(".cp-srch-sweep-n");
-        if (cn) cn.textContent = idMode
-          ? (prior.toLocaleString() + " + " + loaded.toLocaleString() + " found")
-          : (loaded.toLocaleString() + (total ? " / " + total.toLocaleString() : ""));
+        if (cn) {
+          if (idMode) cn.innerHTML = loaded.toLocaleString() + ' <i>of ' + (gap != null ? gap.toLocaleString() : '?') + ' recovered</i>';
+          else cn.textContent = loaded.toLocaleString() + (total ? " / " + total.toLocaleString() : "");
+        }
         var fill = card.querySelector(".cp-srch-sweep-fill");
-        if (fill && total) fill.style.width = Math.min(100, Math.round((idMode ? prior + loaded : loaded) / total * 100)) + "%";
+        if (fill) {
+          if (idMode) { if (gap) fill.style.width = Math.min(100, Math.round(loaded / gap * 100)) + "%"; }
+          else if (total) fill.style.width = Math.min(100, Math.round(loaded / total * 100)) + "%";
+        }
       }
       if (state.countN) state.countN.textContent = idMode
-        ? ("Finding by ID… +" + loaded.toLocaleString())
+        ? ("Recovering by ID… " + loaded.toLocaleString() + (gap != null ? " of " + gap.toLocaleString() : ""))
         : ("Loading… " + loaded.toLocaleString() + (total ? " / " + total.toLocaleString() : ""));
     }
     // Display a prefix char/string for the tracker + sub-line: spaces as ␣, HTML-escaped (specials incl. < > & ).
@@ -1158,12 +1259,15 @@
     function cpGridSweepStatus(state, prefix) {
       var card = state.wrap.querySelector(".cp-srch-sweep");
       if (!card || !prefix) return;
-      var top = prefix.charAt(0), idx = CP_SWEEP_FULL_NOSP.indexOf(top);   // tracker is the no-space set; the top-level char is never a space
+      var seed = state._sweepSeed || "";
+      var rel = (seed && prefix.indexOf(seed) === 0) ? prefix.slice(seed.length) : prefix;   // scoped: track by the char AFTER the seed (Mk → k)
+      var top = rel.charAt(0), idx = CP_SWEEP_FULL_NOSP.indexOf(top);   // tracker is the no-space set; the top-level char is never a space
       var track = card.querySelector(".cp-srch-sweep-track");
       if (track) [].forEach.call(track.children, function (ch, i) { ch.classList.toggle("done", i < idx); ch.classList.toggle("cur", i === idx); });
+      var group = seed ? cpSweepDisp(seed) : cpSweepDisp(top);   // the "M ›" / "m ›" anchor before the live sub-prefix
       var sub = card.querySelector(".cp-srch-sweep-sub");
       if (sub) sub.innerHTML = (prefix.length > 1)
-        ? 'Scanning <span class="cp-srch-sweep-pp">' + cpSweepDisp(top) + '</span> › <span class="cp-srch-sweep-pill">' + cpSweepDisp(prefix) + '</span>'
+        ? 'Scanning <span class="cp-srch-sweep-pp">' + group + '</span> › <span class="cp-srch-sweep-pill">' + cpSweepDisp(prefix) + '</span>'
         : 'Scanning <span class="cp-srch-sweep-pill">' + cpSweepDisp(prefix) + '</span>';
     }
 
@@ -1173,11 +1277,12 @@
       head.innerHTML = state.cols.map(function (c) {
         var arrow = (c.idx === state.sortK)
           ? '<span class="cp-srch-arr">' + (state.sortDir > 0 ? CP_SVG_ARRUP : CP_SVG_ARRDOWN) + '</span>' : "";
-        return '<div class="cp-srch-th' + (c.num ? " num" : "") + '" data-k="' + c.idx + '">' +
+        return '<div class="cp-srch-th' + (c.align === "center" ? " cen" : (c.num ? " num" : "")) + '" data-k="' + c.idx + '">' +
           cpEsc(c.label) + arrow + '</div>';
       }).join("");
       [].forEach.call(head.querySelectorAll(".cp-srch-th"), function (th) {
         th.addEventListener("click", function () {
+          cpGridStopRiffle(state);   // cancel any in-flight decel scroll before re-sorting
           var k = +th.getAttribute("data-k");
           if (k === state.sortK) state.sortDir = -state.sortDir; else { state.sortK = k; state.sortDir = 1; }
           cpGridSortBy(state, state.sortK, state.sortDir, false);
@@ -1189,7 +1294,22 @@
     }
     function cpGridTemplate(cols) {
       // Mirrors the mockup's proportional widths: id/name wider, a fixed last column for numbers.
+      // SERVICE INSTANCES ONLY (detected by its distinctive "Service Type" column): rebalance the 7 columns so the
+      // long User-ID emails get the room they need and the narrow ones don't hog width — fits without scroll. Pure
+      // fr ratios (no hard mins) so it never overflows. Every OTHER grid falls through to the unchanged default.
+      var isSI = cols.some(function (c) { return (c.label || "").toLowerCase() === "service type"; });
       return cols.map(function (c, i) {
+        if (isSI) {
+          var lbl = (c.label || "").toLowerCase();
+          if (lbl === "extension") return "100px";
+          if (lbl === "user id") return "2.2fr";       // longest content (name@phonenetwork.net)
+          if (lbl === "service type") return "1.4fr";
+          if (lbl === "group id") return "1.2fr";
+          return "1fr";                                // Organization ID, Name, Phone Number
+        }
+        if (c.type === "check") return "minmax(140px, 0.9fr)";   // room for the "In trunk group" header; content is just a centred ✓ / –
+        if (c.type === "numc") return "120px";                   // centred extension
+        if (c.type === "phone") return "minmax(150px, 1.1fr)";   // wide enough for the full number — no "…" clip
         if (c.type === "numpill" || c.type === "num") return "120px";
         if (i <= 1) return "1.5fr";
         return "1.1fr";
@@ -1210,8 +1330,11 @@
       if (c.type === "id") return '<div class="cp-srch-td"><span class="cp-srch-gid">' + cpEsc(v) + "</span></div>";
       if (c.type === "muted") return '<div class="cp-srch-td cp-srch-mut">' + cpEsc(v) + "</div>";
       if (c.type === "badge") return '<div class="cp-srch-td"><span class="cp-srch-badge">' + (c.icon || "") + cpEsc(v) + "</span></div>";
-      if (c.type === "numpill") { var hi = (c.deflt != null && v !== c.deflt) ? " hi" : ""; return '<div class="cp-srch-td num"><span class="cp-srch-lim' + hi + '">' + cpEsc(v) + "</span></div>"; }
+      if (c.type === "numpill") { var hi = (c.deflt != null && v !== c.deflt) ? " hi" : ""; return '<div class="cp-srch-td ' + (c.align === "center" ? "cen" : "num") + '"><span class="cp-srch-lim' + hi + '">' + cpEsc(v) + "</span></div>"; }
       if (c.type === "num") return '<div class="cp-srch-td num">' + cpEsc(v) + "</div>";
+      if (c.type === "numc") return '<div class="cp-srch-td cen">' + cpEsc(v) + "</div>";
+      if (c.type === "phone") return '<div class="cp-srch-td cp-srch-phone">' + cpEsc(v) + "</div>";
+      if (c.type === "check") return '<div class="cp-srch-td cen">' + (v ? '<span class="cp-srch-trunk-yes">' + CP_SVG_CHECK + '</span>' : '<span class="cp-srch-trunk-no">–</span>') + "</div>";
       return '<div class="cp-srch-td">' + cpEsc(v) + "</div>";
     }
     function cpGridRowHTML(state, row) {
@@ -1221,11 +1344,12 @@
     // intentional list instead of leaving empty space below the real rows. Deterministic per-column widths.
     function cpGridGhostRowHTML(state, rowIdx) {
       var cells = state.cols.map(function (c, ci) {
-        var num = (c.type === "num" || c.type === "numpill");
+        var num = (c.type === "num" || c.type === "numpill" || c.type === "numc");
+        var cen = (c.align === "center");
         // Varied per (row, column) so the placeholders look random. Width is carried in data-w and applied via
         // CSSOM in cpGridApplyBarWidths — inline style="" ATTRIBUTES are blocked by the page CSP (style-src-attr).
         var w = num ? (24 + (rowIdx * 7) % 12) : (40 + (rowIdx * 17 + ci * 31) % 36);
-        return '<div class="cp-srch-td' + (num ? " num" : "") + '"><span class="cp-srch-gh" data-w="' + w + '"></span></div>';
+        return '<div class="cp-srch-td' + (cen ? " cen" : (num ? " num" : "")) + '"><span class="cp-srch-gh" data-w="' + w + '"></span></div>';
       }).join("");
       return '<div class="cp-srch-ghostrow">' + cells + "</div>";
     }
@@ -1366,21 +1490,114 @@
         [].slice.call(dbody.querySelectorAll(".cp-srch-dpage")).forEach(function (d) { if (d !== state.pageEl) d.remove(); });
       }, dur + 90);
     }
-    // First/Last page = riffle through EVERY page like flipping a book (fast slides stepped one page at a time)
-    // instead of a single jump. Whole riffle stays snappy (~520ms total), speeding up for long runs.
+    // First/Last and "go to page" navigation. SHORT hops (≤ CP_RIFFLE_MAX pages) flip page-by-page like a book.
+    // BIG jumps do a single CONTINUOUS decelerating scroll (cpGridSpinTo): a strip of the intermediate pages slid
+    // under one rAF-driven ease-out, so the real velocity ramps from a fast blur down to a slow crawl onto the
+    // target — like a wheel of fortune coasting to a stop. Tunables below.
+    var CP_RIFFLE_MAX = 8;          // ≤ this many pages away → snappy page-by-page; more → the decelerating flip flourish
+    var CP_SPIN_FLIPS = 10;         // FIXED number of flips for a big jump (NOT proportional to distance)
+    var CP_SPIN_DMIN = 50;          // first flip's slide duration (fast — snappy spin up front)
+    var CP_SPIN_DMAX = 250;         // the spin flips decelerate DMIN→DMAX across the throwaway frames
+    var CP_SPIN_DLAST = 330;        // the FINAL flip (landing on the target) — longer + eased for a slow glide-in settle
+    var CP_SPIN_BLURMAX = 10;       // horizontal motion-blur sigma at the start; held high then ramped off only in the last flips
+    function cpGridStopRiffle(state) {
+      if (state._riffle) { clearTimeout(state._riffle); state._riffle = null; }
+      if (state._pillRaf) { try { cancelAnimationFrame(state._pillRaf); } catch (e) {} state._pillRaf = 0; }
+      var _db = state.wrap && state.wrap.querySelector(".cp-srch-dbody"); if (_db) _db.style.filter = "";   // clear any motion-blur left mid-flourish
+      // a big-jump flourish commits its destination up front (state.page = target), so just drop the in-flight
+      // flourish layers and render the committed target cleanly (cpGridRenderStatic → cpGridSyncFoot snaps the pager).
+      if (state._spinning) { state._spinning = false; cpGridRenderStatic(state); }
+    }
+    // Lazy-built SVG filter for DIRECTIONAL (horizontal-only) motion blur on the big-jump flourish — feGaussianBlur
+    // with stdDeviation "X 0" smears along the scroll axis only (vertical edges stay crisp). Built once, reused.
+    function cpEnsureMblur() {
+      var fe = document.getElementById("cp-mblur-fe");
+      if (fe) return fe;
+      var NS = "http://www.w3.org/2000/svg";
+      var svg = document.createElementNS(NS, "svg");
+      svg.setAttribute("width", "0"); svg.setAttribute("height", "0");
+      svg.style.cssText = "position:absolute;width:0;height:0;overflow:hidden";
+      var defs = document.createElementNS(NS, "defs"), filter = document.createElementNS(NS, "filter");
+      filter.setAttribute("id", "cp-mblur");
+      filter.setAttribute("x", "-30%"); filter.setAttribute("y", "0%"); filter.setAttribute("width", "160%"); filter.setAttribute("height", "100%");
+      fe = document.createElementNS(NS, "feGaussianBlur");
+      fe.setAttribute("id", "cp-mblur-fe"); fe.setAttribute("in", "SourceGraphic"); fe.setAttribute("stdDeviation", "0 0");
+      filter.appendChild(fe); defs.appendChild(filter); svg.appendChild(defs);
+      document.body.appendChild(svg);
+      return fe;
+    }
     function cpGridFlipThrough(state, target) {
+      cpGridStopRiffle(state);
       var tp = cpGridTotalPages(state);
       target = Math.max(0, Math.min(tp - 1, target));
-      if (state._riffle) { clearInterval(state._riffle); state._riffle = null; }
       if (target === state.page) return;
       var dir = target > state.page ? 1 : -1;
       var steps = Math.abs(target - state.page);
-      var interval = Math.max(24, Math.min(64, Math.round(520 / steps)));
-      state._riffle = setInterval(function () {
-        var t = Math.max(0, Math.min(cpGridTotalPages(state) - 1, target));   // re-clamp (page count may have changed)
-        if (!document.contains(state.wrap) || state.page === t) { clearInterval(state._riffle); state._riffle = null; return; }
-        cpGridGoto(state, state.page + dir, dir, 150);   // quick flip per page
-      }, interval);
+      if (steps > CP_RIFFLE_MAX) { cpGridSpinTo(state, target, steps); return; }
+      // page-by-page book-flip for short hops (snappy, ~520ms whole run)
+      var iv = Math.max(24, Math.min(64, Math.round(520 / steps))), stops = [], p;
+      for (p = state.page + dir; (dir > 0) ? (p <= target) : (p >= target); p += dir) stops.push(p);
+      var i = 0;
+      (function step() {
+        if (!document.contains(state.wrap) || i >= stops.length) { state._riffle = null; return; }
+        var next = Math.max(0, Math.min(cpGridTotalPages(state) - 1, stops[i])); i++;
+        cpGridGoto(state, next, next >= state.page ? 1 : -1, 150);
+        state._riffle = setTimeout(step, iv);
+      })();
+    }
+    // Big-jump flourish: a FIXED number of horizontal page-flips that DECELERATE (each slide slower than the last),
+    // flipping past throwaway RANDOM preloaded pages (pure motion — we already have every page) and ALWAYS landing
+    // the final flip on the real target. The destination is committed up front (state.page = target, pager shows it)
+    // so the count doesn't tick through every page and the state stays consistent if interrupted. Each flip ends
+    // fully aligned (no fractional dwell → no column shear), and the last frame IS the target → no settle swap.
+    function cpGridSpinTo(state, target, steps) {
+      var dbody = state.wrap.querySelector(".cp-srch-dbody"), total = cpGridTotalPages(state);
+      var feBlur = cpEnsureMblur(), blurUrl = 'url("' + location.href.split("#")[0] + '#cp-mblur")';   // absolute ref dodges the <base href> + url(#id) bug
+      var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduce || !dbody) { state.page = target; cpGridRenderStatic(state); cpGridSyncFoot(state); return; }
+      var from = state.page, dir = target > state.page ? 1 : -1, N = Math.max(2, CP_SPIN_FLIPS), i;
+      var frames = [], rndMax = Math.max(1, total - 1);      // EXCLUDE the last page from random picks — it's short / ghost-padded, so it flashes empty space mid-flourish
+      for (i = 0; i < N - 1; i++) frames.push(Math.floor(Math.random() * rndMax));
+      frames.push(target);
+      var durs = [], totalDur = 0, dd;                       // slide durations grow fast → slow; the FINAL flip is a longer slow glide
+      for (i = 0; i < N; i++) { dd = (i === N - 1) ? CP_SPIN_DLAST : Math.round(CP_SPIN_DMIN + (CP_SPIN_DMAX - CP_SPIN_DMIN) * Math.pow(i / (N - 1), 1.8)); durs.push(dd); totalDur += dd; }
+      state.page = target; state._spinning = true;           // commit destination up front (state stays consistent if interrupted)
+      // Simulated page counter: ease the number from the start page toward the target over the flourish (fast →
+      // slow), instead of instantly snapping to the destination.
+      var pill = state.wrap.querySelector(".cp-srch-pg-cur"), pt0 = null;
+      function pillTick(now) {
+        if (!state._spinning) { state._pillRaf = 0; return; }
+        if (pt0 === null) pt0 = now;
+        var p = Math.min(1, (now - pt0) / totalDur), e = 1 - Math.pow(1 - p, 2.2);
+        if (pill) pill.textContent = (Math.round(from + (target - from) * e) + 1) + " / " + total;
+        state._pillRaf = (p < 1) ? requestAnimationFrame(pillTick) : 0;
+      }
+      state._pillRaf = requestAnimationFrame(pillTick);
+      var inFrom = dir > 0 ? "100%" : "-100%", outTo = dir > 0 ? "-100%" : "100%", idx = 0;
+      (function flip() {
+        if (!state._spinning || !document.contains(state.wrap)) return;
+        var fi = idx, pg = frames[fi], d = durs[fi], last = (fi === N - 1); idx++;
+        // LINEAR per flip so the travel SPEED itself ramps down (width/duration): early flips genuinely whip across,
+        // late flips visibly crawl — a continuous wheel-style deceleration, not a per-flip snap-and-hold. The final
+        // landing uses a gentle decelerate curve (starts near the flourish's slowed speed, eases to a soft stop) so
+        // the target glides in slowly instead of speeding up and snapping.
+        var ease = last ? "cubic-bezier(.25,.45,.4,1)" : "linear";
+        // Directional (horizontal) motion blur ramped by flip INDEX (not speed) so it stays strong through the
+        // spin and only ramps off over the last couple of flips before the crisp landing (last flip = 0) — instead
+        // of thinning out early as the flips slow.
+        var blurAmt = last ? 0 : Math.round(CP_SPIN_BLURMAX * (1 - Math.pow(fi / (N - 1), 2.5)));
+        feBlur.setAttribute("stdDeviation", blurAmt + " 0");
+        dbody.style.filter = blurAmt ? blurUrl : "";
+        var np = document.createElement("div"); np.className = "cp-srch-dpage";
+        np.innerHTML = cpGridPageHTML(state, pg);
+        dbody.appendChild(np);
+        cpGridApplyRowTemplate(state); cpGridApplyBarWidths(np);
+        var prev = state.pageEl; state.pageEl = np;
+        np.animate([{ transform: "translateX(" + inFrom + ")" }, { transform: "translateX(0)" }], { duration: d, easing: ease, fill: "forwards" });
+        if (prev && prev.parentNode) prev.animate([{ transform: "translateX(0)" }, { transform: "translateX(" + outTo + ")" }], { duration: d, easing: ease, fill: "forwards" }).onfinish = function () { if (prev.parentNode) prev.remove(); };
+        if (last) state._riffle = setTimeout(function () { if (state._spinning && document.contains(state.wrap)) { state._spinning = false; cpGridRenderStatic(state); cpGridSyncFoot(state); } }, d + 20);
+        else state._riffle = setTimeout(flip, d);
+      })();
     }
     // perPage from the body height (fit-to-screen — the body is the only flexing region).
     function cpGridRecompute(state, force) {
@@ -1392,23 +1609,38 @@
       if (pp !== state.perPage || force) {
         state.perPage = pp;
         if (state.page > cpGridTotalPages(state) - 1) state.page = cpGridTotalPages(state) - 1;
-        // Only repaint the grid when results are actually showing. Otherwise a deferred recompute
-        // (cpGridRenderFilters' mount rAF, or a resize) would clobber the initial / loading / no-match
-        // state with the empty render path — which is why a fresh search page landed on a misleading
-        // "No results match your search." instead of the "Search to see <entity>" initial state.
-        // `force` is set on the fresh post-load render (cpGridLoad) and NOT on resizes → animate only fresh.
-        if (state.cur.length) cpGridRenderStatic(state, force);
+        // Only repaint the grid when the GRID (a .cp-srch-dpage) is what's actually showing. A deferred recompute
+        // (cpGridRenderFilters' mount rAF, or a resize) must never clobber a STATE CARD with the grid render path.
+        // The `state.cur.length` guard alone caught the empty states (initial/loading/no-match — landing on a
+        // misleading "No results match your search." instead of "Search to see <entity>"), but the terminal
+        // RECOVERED and "no matches by User ID" cards sit on a FULL state.cur, so a stray recompute could paint the
+        // grid over them (observed intermittently). Requiring a live .cp-srch-dpage covers both.
+        if (state.cur.length && state.wrap.querySelector(".cp-srch-dbody > .cp-srch-dpage")) cpGridRenderStatic(state, force);
       }
     }
     function cpGridWireStaticHandlers(state) {
       var w = state.wrap;
       w.querySelector(".cp-srch-first").addEventListener("click", function () { cpGridFlipThrough(state, 0); });
-      w.querySelector(".cp-srch-prev").addEventListener("click", function () { cpGridGoto(state, state.page - 1, -1); });
-      w.querySelector(".cp-srch-next").addEventListener("click", function () { cpGridGoto(state, state.page + 1, 1); });
+      w.querySelector(".cp-srch-prev").addEventListener("click", function () { cpGridStopRiffle(state); cpGridGoto(state, state.page - 1, -1); });
+      w.querySelector(".cp-srch-next").addEventListener("click", function () { cpGridStopRiffle(state); cpGridGoto(state, state.page + 1, 1); });
       w.querySelector(".cp-srch-last").addEventListener("click", function () { cpGridFlipThrough(state, cpGridTotalPages(state) - 1); });
+      // Go to page: type a 1-based page → jump there (clamped 1..M), via the capped riffle. Enter or the Go button.
+      var gotoInput = w.querySelector(".cp-srch-goto-input");
+      var gotoBtn = w.querySelector(".cp-srch-goto-go");
+      function cpGridDoGoto() {
+        if (!gotoInput) return;
+        var n = parseInt(gotoInput.value, 10);
+        gotoInput.value = "";
+        if (isNaN(n)) return;
+        var target = Math.max(0, Math.min(cpGridTotalPages(state) - 1, n - 1));
+        if (target !== state.page) cpGridFlipThrough(state, target);
+      }
+      if (gotoBtn) gotoBtn.addEventListener("click", cpGridDoGoto);
+      if (gotoInput) gotoInput.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); cpGridDoGoto(); } });
       // Scroll-to-paginate (wheel flips pages; 60px threshold + 300ms cooldown; pager remains a fallback).
       w.querySelector(".cp-srch-dtable").addEventListener("wheel", function (e) {
         e.preventDefault();
+        if (state._spinning) cpGridStopRiffle(state);   // a wheel tick during a big-jump flourish cancels it
         if (state.cooling) return;
         state.accum += e.deltaY;
         if (Math.abs(state.accum) > 60) {
@@ -2744,7 +2976,17 @@
         if (!title) return;
         var item = document.createElement("a");
         item.className = "cp-subitem";
-        item.textContent = title;
+        // Mirror the card's per-item icon (single source of truth) — lit if assigned, dashed placeholder if not.
+        var cico = card.querySelector(".cp-card-ico");
+        var lit = cico && !cico.classList.contains("cp-card-ico-todo");
+        var si = document.createElement("span");
+        si.className = "cp-subitem-ico" + (lit ? "" : " cp-subitem-ico-todo");
+        if (lit) si.innerHTML = cico.innerHTML;
+        var lbl = document.createElement("span");
+        lbl.className = "cp-subitem-lbl";
+        lbl.textContent = title;
+        item.appendChild(si);
+        item.appendChild(lbl);
         item.title = title;
         item.addEventListener("click", function (e) {
           e.preventDefault();
