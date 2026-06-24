@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.132";
+  var CP_PJAX_VERSION = "0.2.144";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
 
   // Single-page sign-out: minimum time (ms) the "Signing out…" spinner stays up
@@ -828,16 +828,48 @@
         return;
       }
       if (phase === "toomany") {
-        // Distinct from "no results": the server has matches but too many to preload — guide to narrowing.
+        // The server has matches but too many to preload in one query. Offer the deep sweep (Load all) as the
+        // primary action; narrowing the filter above stays available as the alternative.
         if (countPill) countPill.style.display = "";
         var cnt = extra != null ? extra : null;
+        var eta = cnt != null ? cpSweepEta(cnt) : null;
         dbody.innerHTML = '<div class="cp-srch-state cp-srch-state-warn">' +
           '<div class="cp-srch-state-ico cp-srch-state-ico-warn">' + CP_SVG_FUNNEL + '</div>' +
           '<div class="cp-srch-state-h">Too many results to preload</div>' +
           '<div class="cp-srch-state-s">' +
-            (cnt != null ? 'There are ' + cnt.toLocaleString() + ' matching records — ' : 'There are too many matching records — ') +
-            'add a value or filter above and search again.</div>' +
+            (cnt != null ? 'There are <b>' + cnt.toLocaleString() + '</b> matching records. ' : 'There are too many matching records. ') +
+            'Narrow the filter above, or load them all' + (eta ? ' — ' + eta : '') + '.</div>' +
+          '<button type="button" class="cp-srch-btn cp-srch-loadall">' + CP_SVG_SEARCH + '<span>Load all' + (cnt != null ? ' ' + cnt.toLocaleString() : '') + '</span></button>' +
         '</div>';
+        var la = dbody.querySelector(".cp-srch-loadall");
+        if (la) la.addEventListener("click", function () { cpGridDeepLoad(state, state._tooManyCriteria || [], state._tooManyTotal); });
+        state.wrap.querySelector(".cp-srch-pg-cur").textContent = "—";
+        return;
+      }
+      if (phase === "sweeping") {
+        // Deep sweep in progress — bar + counter + an alphabet TRACKER (current prefix char) + a live sub-prefix
+        // line climb as buckets land; Cancel aborts between buckets. mode:"id" = the opt-in User-ID remainder pass.
+        if (countPill) countPill.style.display = "";
+        var tot = (extra && extra.total != null) ? extra.total : null;
+        var idMode = !!(extra && extra.mode === "id");
+        var trackHtml = CP_SWEEP_FULL_NOSP.map(function (c) {   // no standalone space chip — space is only searched MID-name (m s), never leading
+          var spec = CP_SWEEP_SPECIALS.indexOf(c) >= 0;
+          return '<span class="cp-srch-tk' + (spec ? ' cp-srch-tk-spec' : '') + '">' + cpSweepDisp(c) + '</span>';
+        }).join("");
+        dbody.innerHTML = '<div class="cp-srch-state cp-srch-sweep">' +
+          '<div class="cp-srch-state-ico cp-srch-state-ico-search">' + CP_SVG_SEARCH + '</div>' +
+          '<div class="cp-srch-state-h">' + (idMode ? 'Catching the last few by User&nbsp;ID…' : 'Loading all ' + (tot != null ? tot.toLocaleString() + ' ' : '') + 'results…') + '</div>' +
+          '<div class="cp-srch-sweep-barwrap"><div class="cp-srch-sweep-fill"></div></div>' +
+          '<div class="cp-srch-sweep-n">' + (idMode ? ((extra.priorCount != null ? extra.priorCount.toLocaleString() : '0') + ' + 0 found') : ('0' + (tot != null ? ' / ' + tot.toLocaleString() : ''))) + '</div>' +
+          '<div class="cp-srch-sweep-track">' + trackHtml + '</div>' +
+          '<div class="cp-srch-sweep-sub"></div>' +
+          '<div class="cp-srch-state-s">Keep this tab open and don’t reload while it loads.</div>' +
+          '<button type="button" class="cp-srch-btn cp-srch-sweep-cancel">' + CP_SVG_X + '<span>Cancel</span></button>' +
+        '</div>';
+        var cb = dbody.querySelector(".cp-srch-sweep-cancel");
+        if (cb) cb.addEventListener("click", function () { if (state._sweepAbort) { try { state._sweepAbort.abort(); } catch (e) {} } });
+        // Gentle pulse on the lens (WAAPI — CSS @keyframes don't resolve for content-script elements).
+        try { var _ic = dbody.querySelector(".cp-srch-state-ico-search"); if (_ic && _ic.animate) _ic.animate([{ transform: "scale(1)" }, { transform: "scale(1.09)" }, { transform: "scale(1)" }], { duration: 1700, iterations: Infinity, easing: "ease-in-out" }); } catch (e) {}
         state.wrap.querySelector(".cp-srch-pg-cur").textContent = "—";
         return;
       }
@@ -848,6 +880,7 @@
     function cpGridLoad(state, criteria) {
       if (state._riffle) { clearInterval(state._riffle); state._riffle = null; }   // stop any first/last riffle
       if (state._searchAbort) { try { state._searchAbort.abort(); } catch (e) {} }   // cancel a prior in-flight search
+      if (state._sweepAbort) { try { state._sweepAbort.abort(); } catch (e) {} state._sweepAbort = null; }   // and any deep sweep
       var ac = (typeof AbortController !== "undefined") ? new AbortController() : null;
       state._searchAbort = ac;   // so a navigation/reload can stop the token-rotating background fetches
       var hasCriteria = !!(criteria && criteria.some(function (c) { return c.value; }));
@@ -862,8 +895,12 @@
       _searchP.then(function (data) {
         if (!document.contains(state.wrap)) return;   // superseded by a newer nav
         if (data.tooMany) {
-          // Server refused the (too-broad) search — show the narrow-your-search state, NOT "no results".
+          // Server refused the (too-broad) search — offer the deep sweep (preload-all via prefix bucketing)
+          // instead of just "narrow your search". Stash the base criteria + total so the card's "Load all" can
+          // launch cpGridDeepLoad.
           state.all = []; state.cur = []; state.page = 0; state.searched = true;
+          state._tooManyCriteria = criteria || [];
+          state._tooManyTotal = (data.matchCount != null ? data.matchCount : null);
           cpGridShowState(state, "toomany", data.matchCount);
           if (state.countN) state.countN.textContent = (data.matchCount != null ? data.matchCount.toLocaleString() + " matches" : "Too many");
           return;
@@ -895,6 +932,239 @@
       try { if (state.wrap.parentNode) state.wrap.remove(); state.hidden.forEach(function (ch) { ch.style.display = ""; }); } catch (e2) {}
       cpGridState = null;
       document.dispatchEvent(new Event("cp:skinlegacy"));
+    }
+
+    // ---- DEEP SWEEP — preload a result set larger than the server's per-search cap (≈1000) by tiling it with
+    // recursive prefix buckets, each under the cap, then concatenating. STRICTLY SEQUENTIAL & token-safe: each
+    // bucket is a cpListSearch that threads the rotating single-use token; opts.signal aborts between buckets
+    // (concurrency would race the token → logout, the same hazard as the reload bug). Opt-in only (the 4027 card).
+    var CP_SWEEP_DIGITS = "0123456789".split("");
+    var CP_SWEEP_BASE = "0123456789abcdefghijklmnopqrstuvwxyz".split("");
+    // Special-character fallback, tried LAST — catches names whose 1st/2nd char is punctuation/space (the
+    // stragglers the alphanumeric sweep skips, e.g. "M Sandeep"). Full ASCII punctuation + SPACE, ordered common
+    // name-chars first so early-exit fires before the rare ones. URLSearchParams encodes them in the POST body.
+    // SPACE is special-cased in the sweep: a trailing space trims to the parent (so "m " ≡ "m"), but "m s" DOES
+    // narrow — so kids() forbids two spaces in a row (the spiral) and the no-progress guard exempts a trailing
+    // space so it can still reach the next char. Other server-ignored chars (% _ …) the guard abandons.
+    var CP_SWEEP_SPECIALS = (" '-.,&()@#$!%^*+=<>?/:;_~" + "`{}[]|" + "\\" + "\"").split("");
+    var CP_SWEEP_FULL = CP_SWEEP_BASE.concat(CP_SWEEP_SPECIALS);   // tracker + traversal order: 0-9, a-z, then specials
+    var CP_SWEEP_FULL_NOSP = CP_SWEEP_FULL.filter(function (c) { return c !== " "; });
+    var CP_SWEEP_MAXDEPTH = 6;   // prefix-length guard; even a huge set bottoms out under the cap long before this.
+
+    // Prefix field: prefer First Name (hand-typed → clean 0-9/a-z spread), then Last Name, then the id column —
+    // whichever this list offers and the base criteria isn't already constraining.
+    function cpDeepPartitionKey(state, baseCriteria) {
+      var used = {}; (baseCriteria || []).forEach(function (c) { if (c && c.value) used[c.key] = 1; });
+      var have = {}; (state.fieldOpts || []).forEach(function (o) { have[o.value] = 1; });
+      var pref = ["UserFirstName", "UserLastName", "UserID"];
+      for (var i = 0; i < pref.length; i++) if (have[pref[i]] && !used[pref[i]]) return pref[i];
+      for (var j = 0; j < (state.fieldOpts || []).length; j++) { var v = state.fieldOpts[j].value; if (v && !used[v]) return v; }
+      return (state.fieldOpts && state.fieldOpts[0] && state.fieldOpts[0].value) || "UserID";
+    }
+    function cpDeepRowId(r) {
+      if (r.drill && r.drill.params) { var p = r.drill.params; if (p.userId) return "u:" + p.userId; if (p.id) return "i:" + p.id; }
+      return "c:" + ((r.cells && r.cells[0]) || "") + "|" + ((r.cells && r.cells[1]) || "");
+    }
+    function cpDeepSweep(state, baseCriteria, partKey, opts) {
+      opts = opts || {};
+      var all = [], seen = Object.create(null);
+      var maxDepth = opts.maxDepth || CP_SWEEP_MAXDEPTH;   // remainder (User-ID) pass caps at 2 chars; name sweep goes deeper
+      if (opts.seedIds) for (var s = 0; s < opts.seedIds.length; s++) seen[opts.seedIds[s]] = 1;   // remainder pass: skip already-loaded rows, collect only NEW ones
+      function aborting() { return !!(opts.signal && opts.signal.aborted); }
+      function reached() { return opts.target != null && all.length >= opts.target; }   // EARLY EXIT: got everyone → stop
+      function halt() { return aborting() || reached(); }
+      // Children of a prefix to recurse into. For numeric User-ID prefixes (phone numbers) only digits follow — a
+      // letter/special after a digit (5d, 4h) never matches, so skip them. After a SPACE, drop space from the
+      // children (two spaces in a row would just re-trim → spiral). Top level + word prefixes use the full set.
+      function kids(prefix) {
+        if (opts.numericIds && /^[0-9]+$/.test(prefix)) return CP_SWEEP_DIGITS;
+        if (prefix.charAt(prefix.length - 1) === " ") return CP_SWEEP_BASE;   // after a space, only a name char follows (0-9/a-z) — never punctuation or a second space
+        return CP_SWEEP_FULL;
+      }
+      function bucket(prefix, depth, parentCount) {
+        if (halt()) return Promise.resolve();
+        if (opts.onStatus) opts.onStatus(prefix);   // report the bucket we're about to search (drives the tracker)
+        var crit = (baseCriteria || []).filter(function (c) { return c && c.value; })
+          .concat([{ key: partKey, op: "STARTS_WITH", value: prefix }]);
+        return cpListSearch(crit, {
+          signal: opts.signal,
+          // Dedup INCREMENTALLY (per page) so the counter is always the true unique-so-far count — never the raw
+          // streamed total (which on the remainder pass is mostly already-loaded dupes → the bogus "120 found").
+          onPage: function (pageRows) {
+            for (var i = 0; i < pageRows.length; i++) { var k = cpDeepRowId(pageRows[i]); if (!seen[k]) { seen[k] = 1; all.push(pageRows[i]); } }
+            if (opts.onProgress) opts.onProgress(all.length);
+          }
+        }).then(function (data) {
+          if (halt() || !data) return;
+          if (data.tooMany) {   // still over the cap → descend one more character
+            // NO-PROGRESS GUARD: if appending this char didn't SHRINK the match count vs the parent, the server is
+            // ignoring it (an SQL wildcard % _, etc.) — recursing would spiral, so abandon this twig. A real
+            // narrowing char always cuts the count (its matches are a strict subset of the parent's). EXCEPTION: a
+            // trailing space also doesn't narrow (it trims), but "m s" does — so let a space-ending prefix recurse
+            // (kids() already blocks a second space, bounding it).
+            if (parentCount != null && data.matchCount != null && data.matchCount >= parentCount && prefix.charAt(prefix.length - 1) !== " ") return;
+            if (depth >= maxDepth) return;
+            return kids(prefix).reduce(function (pr, ch) {
+              return pr.then(function () { return halt() ? null : bucket(prefix + ch, depth + 1, data.matchCount); });
+            }, Promise.resolve());
+          }
+          if (data.desc && !state.desc) state.desc = data.desc;
+          if (data.headers && data.headers.length && !state._sweepHeaders) state._sweepHeaders = data.headers;
+          if (opts.onProgress) opts.onProgress(all.length);   // reconcile (rows already deduped in onPage)
+        }, function (err) { console.warn("[sweep] bucket '" + prefix + "' failed — skipping", err); });   // one bad twig doesn't strand the sweep
+      }
+      return CP_SWEEP_FULL_NOSP.reduce(function (pr, ch) {   // top level excludes a LEADING space (it trims → re-sweeps everything)
+        return pr.then(function () { return halt() ? null : bucket(ch, 1, null); });
+      }, Promise.resolve()).then(function () { return { rows: all, aborted: aborting() }; });
+    }
+    // Friendly ETA for the offer card. ~count/20 page pulls + bucket-search overhead, sequential — fold both into
+    // ~0.25s/page and round UP so the wait never feels worse than promised.
+    function cpSweepEta(count) {
+      var secs = Math.ceil(count / 20 * 0.25);
+      if (secs < 45) return "~" + Math.max(5, Math.round(secs / 5) * 5) + " seconds";
+      var mins = Math.ceil(secs / 60);
+      return "about " + (mins <= 1 ? "a minute" : mins + " minutes");
+    }
+    // Launch the deep sweep from the "Load all" CTA: progress card → tile-and-stream → final grid + checksum.
+    function cpGridDeepLoad(state, baseCriteria, total) {
+      if (state._sweepAbort) { try { state._sweepAbort.abort(); } catch (e) {} }   // supersede any running sweep
+      if (state._searchAbort) { try { state._searchAbort.abort(); } catch (e) {} }
+      var myGen = state._sweepGen = (state._sweepGen || 0) + 1;   // generation guard: only the latest sweep touches the UI
+      var ac = (typeof AbortController !== "undefined") ? new AbortController() : null;
+      state._sweepAbort = ac;
+      state.all = []; state.cur = []; state.cols = []; state.page = 0; state.searched = true; state._sweepHeaders = null;
+      cpGridRemoveGapBar(state);
+      var partKey = cpDeepPartitionKey(state, baseCriteria);
+      state._sweepMode = "name"; state._sweepPrior = 0; state._sweepPartKey = partKey;
+      cpGridShowState(state, "sweeping", { total: total });
+      var sweepP = cpDeepSweep(state, baseCriteria, partKey, {
+        signal: ac ? ac.signal : null,
+        target: total,   // EARLY EXIT: stop the moment all `total` are loaded (e.g. specials complete the set before z)
+        onStatus: function (prefix) { if (myGen === state._sweepGen) cpGridSweepStatus(state, prefix); },
+        onProgress: function (loaded) { if (myGen === state._sweepGen) cpGridSweepProgress(state, loaded, total); }
+      });
+      state._searchPromise = sweepP;
+      sweepP.then(function (out) {
+        if (myGen !== state._sweepGen || !document.contains(state.wrap)) return;   // superseded → ignore
+        state._sweepAbort = null;
+        state.all = (out && out.rows) || [];   // hand the swept rows to the grid (cpDeepSweep accumulates locally)
+        if (state._sweepHeaders) state.cols = cpGridColConfig(state.desc, state._sweepHeaders, state.all);
+        state.cur = state.all.slice(); state.page = 0;
+        if (!state.all.length) { cpGridShowState(state, "nomatch"); if (state.countN) state.countN.textContent = "0 results"; return; }
+        // Re-lay the loading skeleton (the sweep's progress card had replaced it), THEN run the normal fill-in
+        // CASCADE into it — restores the "content drops from the top" reveal and clears the card in one move.
+        cpGridShowState(state, "loading");
+        cpGridSortBy(state, state.sortK, state.sortDir, true);
+        cpGridRenderResultsFillIn(state);
+        var covered = state.all.length, gap = (total != null) ? (total - covered) : 0;
+        if (state.countN) state.countN.textContent = covered.toLocaleString() + (out.aborted ? " loaded (stopped)" : " loaded") + (gap > 0 ? " · " + gap.toLocaleString() + " skipped" : "");
+        // A gap (names with characters the prefix charset skips) → offer the opt-in User-ID remainder pass. Not
+        // when this WAS the User-ID pass (partKey UserID), nor when the user cancelled.
+        if (gap > 0 && partKey !== "UserID" && !out.aborted) cpGridShowGapBar(state, baseCriteria, total, gap);
+      }).catch(function (e) { console.warn("[sweep] failed — falling back", e); cpGridFallback(state); });
+    }
+    // Opt-in REMAINDER pass: re-tile by User ID (digits first → phone-number IDs), deduped against the rows already
+    // loaded, to catch the first-name stragglers. A full second sweep (no "everyone except X" query exists), so it
+    // only runs when the user asks. Adds just the new rows to the existing set.
+    function cpGridDeepRemainder(state, baseCriteria, total) {
+      cpGridRemoveGapBar(state);
+      if (state._sweepAbort) { try { state._sweepAbort.abort(); } catch (e) {} }   // supersede any running sweep
+      if (state._searchAbort) { try { state._searchAbort.abort(); } catch (e) {} }
+      var myGen = state._sweepGen = (state._sweepGen || 0) + 1;
+      var ac = (typeof AbortController !== "undefined") ? new AbortController() : null;
+      state._sweepAbort = ac;
+      var prior = state.all.slice();
+      state._sweepMode = "id"; state._sweepPrior = prior.length; state._sweepPartKey = "UserID";
+      var seedIds = prior.map(cpDeepRowId);
+      cpGridShowState(state, "sweeping", { total: total, mode: "id", priorCount: prior.length });
+      var sweepP = cpDeepSweep(state, baseCriteria, "UserID", {
+        signal: ac ? ac.signal : null, seedIds: seedIds, maxDepth: 2, numericIds: true,   // 2-digit (area-code) prefixes, digits-only after a number
+        target: (total != null ? Math.max(0, total - prior.length) : null),   // EARLY EXIT once the gap is filled
+        onStatus: function (prefix) { if (myGen === state._sweepGen) cpGridSweepStatus(state, prefix); },
+        onProgress: function (found) { if (myGen === state._sweepGen) cpGridSweepProgress(state, found, total); }
+      });
+      state._searchPromise = sweepP;
+      sweepP.then(function (out) {
+        if (myGen !== state._sweepGen || !document.contains(state.wrap)) return;   // superseded → ignore
+        state._sweepAbort = null;
+        var added = (out && out.rows) || [];
+        state.all = prior.concat(added);
+        if ((!state.cols || !state.cols.length) && state._sweepHeaders) state.cols = cpGridColConfig(state.desc, state._sweepHeaders, state.all);
+        state.cur = state.all.slice(); state.page = 0;
+        var covered = state.all.length, stillGap = (total != null) ? (total - covered) : 0;
+        if (state.countN) state.countN.textContent = covered.toLocaleString() + " loaded" + (added.length ? " · +" + added.length.toLocaleString() + " by ID" : "") + (stillGap > 0 ? " · " + stillGap.toLocaleString() + " missing" : "");
+        // Name the recovered users before dropping into the grid — only when some were actually found.
+        if (added.length && !out.aborted) { cpGridShowRecovered(state, added, covered, stillGap); }
+        else { cpGridShowState(state, "loading"); cpGridSortBy(state, state.sortK, state.sortDir, true); cpGridRenderResultsFillIn(state); }
+      }).catch(function (e) { console.warn("[sweep] ID remainder failed", e); });
+    }
+    // Name the users the User-ID pass recovered (their punctuation first names tripped the name scan), with a
+    // button to continue into the grid. Rendered in dbody like the other state cards.
+    function cpGridShowRecovered(state, added, covered, stillGap) {
+      var dbody = state.wrap.querySelector(".cp-srch-dbody");
+      var head = state.wrap.querySelector(".cp-srch-dhead");
+      if (head) { head.innerHTML = ""; head.style.gridTemplateColumns = ""; }
+      var cols = state.cols || [], deflt = ["User ID", "Last name", "First name"];
+      var labels = [0, 1, 2].map(function (i) { return (cols[i] && cols[i].label) || deflt[i]; });
+      var rowsHtml = added.slice(0, 200).map(function (r) {
+        var c = r.cells || [];
+        return '<div class="cp-srch-rec-row"><span class="cp-srch-rec-id">' + cpEsc(c[0] || "") + '</span><span>' + cpEsc(c[1] || "") + '</span><span class="cp-srch-rec-fn">' + cpEsc(c[2] || "") + '</span></div>';
+      }).join("");
+      var more = added.length > 200 ? '<div class="cp-srch-rec-more">…and ' + (added.length - 200).toLocaleString() + ' more</div>' : "";
+      dbody.innerHTML = '<div class="cp-srch-state cp-srch-rec">' +
+        '<div class="cp-srch-state-ico cp-srch-rec-ico">' + CP_SVG_CHECK + '</div>' +
+        '<div class="cp-srch-state-h">Recovered ' + added.length.toLocaleString() + ' user' + (added.length === 1 ? '' : 's') + ' by ID</div>' +
+        '<div class="cp-srch-state-s">Found by User ID — their first names use characters the name scan skips.' + (stillGap > 0 ? ' ' + stillGap.toLocaleString() + ' still couldn’t be matched.' : '') + '</div>' +
+        '<div class="cp-srch-rec-list"><div class="cp-srch-rec-row cp-srch-rec-head"><span>' + cpEsc(labels[0]) + '</span><span>' + cpEsc(labels[1]) + '</span><span>' + cpEsc(labels[2]) + '</span></div>' + rowsHtml + more + '</div>' +
+        '<button type="button" class="cp-srch-btn cp-srch-rec-go">' + CP_SVG_CHEVRIGHT + '<span>View all ' + covered.toLocaleString() + ' in the list</span></button>' +
+      '</div>';
+      var go = dbody.querySelector(".cp-srch-rec-go");
+      if (go) go.addEventListener("click", function () { cpGridShowState(state, "loading"); cpGridSortBy(state, state.sortK, state.sortDir, true); cpGridRenderResultsFillIn(state); });
+      state.wrap.querySelector(".cp-srch-pg-cur").textContent = "—";
+    }
+    function cpGridRemoveGapBar(state) { var b = state.wrap && state.wrap.querySelector(".cp-srch-gapbar"); if (b) b.remove(); }
+    function cpGridShowGapBar(state, baseCriteria, total, gap) {
+      cpGridRemoveGapBar(state);
+      var bar = document.createElement("div");
+      bar.className = "cp-srch-gapbar";
+      bar.innerHTML = '<span class="cp-srch-gapbar-txt">' + CP_SVG_FUNNEL + "<span>" + gap.toLocaleString() + " user" + (gap === 1 ? "" : "s") + " weren’t found by name.</span></span>" +
+        '<button type="button" class="cp-srch-gapbar-go">' + CP_SVG_SEARCH + "<span>Search by User ID</span></button>" +
+        '<button type="button" class="cp-srch-gapbar-x" title="Dismiss">' + CP_SVG_X + "</button>";
+      var results = state.wrap.querySelector(".cp-srch-results");
+      if (results && results.parentNode) results.parentNode.insertBefore(bar, results);
+      bar.querySelector(".cp-srch-gapbar-go").addEventListener("click", function () { cpGridDeepRemainder(state, baseCriteria, total); });
+      bar.querySelector(".cp-srch-gapbar-x").addEventListener("click", function () { cpGridRemoveGapBar(state); });
+    }
+    // Cheap progress update during the sweep (counter + bar), no grid re-render. In "id" mode `loaded` is the
+    // count of NEW rows found (the prior set is seeded as already-seen), shown as "prior + N found".
+    function cpGridSweepProgress(state, loaded, total) {
+      var idMode = (state._sweepMode === "id"), prior = state._sweepPrior || 0;
+      var card = state.wrap.querySelector(".cp-srch-sweep");
+      if (card) {
+        var cn = card.querySelector(".cp-srch-sweep-n");
+        if (cn) cn.textContent = idMode
+          ? (prior.toLocaleString() + " + " + loaded.toLocaleString() + " found")
+          : (loaded.toLocaleString() + (total ? " / " + total.toLocaleString() : ""));
+        var fill = card.querySelector(".cp-srch-sweep-fill");
+        if (fill && total) fill.style.width = Math.min(100, Math.round((idMode ? prior + loaded : loaded) / total * 100)) + "%";
+      }
+      if (state.countN) state.countN.textContent = idMode
+        ? ("Finding by ID… +" + loaded.toLocaleString())
+        : ("Loading… " + loaded.toLocaleString() + (total ? " / " + total.toLocaleString() : ""));
+    }
+    // Display a prefix char/string for the tracker + sub-line: spaces as ␣, HTML-escaped (specials incl. < > & ).
+    function cpSweepDisp(s) { return cpEsc(String(s).replace(/ /g, "␣")); }
+    // Update the alphabet tracker (current top-level char) + the live sub-prefix line for the bucket being searched.
+    function cpGridSweepStatus(state, prefix) {
+      var card = state.wrap.querySelector(".cp-srch-sweep");
+      if (!card || !prefix) return;
+      var top = prefix.charAt(0), idx = CP_SWEEP_FULL_NOSP.indexOf(top);   // tracker is the no-space set; the top-level char is never a space
+      var track = card.querySelector(".cp-srch-sweep-track");
+      if (track) [].forEach.call(track.children, function (ch, i) { ch.classList.toggle("done", i < idx); ch.classList.toggle("cur", i === idx); });
+      var sub = card.querySelector(".cp-srch-sweep-sub");
+      if (sub) sub.innerHTML = (prefix.length > 1)
+        ? 'Scanning <span class="cp-srch-sweep-pp">' + cpSweepDisp(top) + '</span> › <span class="cp-srch-sweep-pill">' + cpSweepDisp(prefix) + '</span>'
+        : 'Scanning <span class="cp-srch-sweep-pill">' + cpSweepDisp(prefix) + '</span>';
     }
 
     function cpGridRenderHead(state) {
@@ -1501,9 +1771,11 @@
         if (_so && (Date.now() - _so < 15000)) { cpSignOutFetch(url, params || {}); return; }
         if (isPjaxUrl(url)) {
           var mySeq = ++cpSeq;
-          // A real navigation (drill-in, reload replay, sidebar click) supersedes any in-flight grid search —
-          // abort it so its background fetches stop rotating the single-use token and racing with THIS POST.
+          // A real navigation (drill-in, reload replay, sidebar click) supersedes any in-flight grid search OR
+          // deep sweep — abort both so their background fetches stop rotating the single-use token and racing
+          // with THIS POST.
           try { if (cpGridState && cpGridState._searchAbort) cpGridState._searchAbort.abort(); } catch (e) {}
+          try { if (cpGridState && cpGridState._sweepAbort) cpGridState._sweepAbort.abort(); } catch (e) {}
           try { cpLastNav = { url: url, params: params || {} }; } catch (e) {}
           // Remember the SP entry (Modify nav) — recorded for reload/replay + future Group/User work.
           try { if (/\/ServiceProviders\/Modify\//.test(url)) cpSpEntry = { url: url, params: params || {} }; } catch (e) {}
@@ -1744,8 +2016,9 @@
         sessionStorage.setItem("cp-reload-at", String(_rNow));
       } catch (eD) {}
       var _gs = cpGridState;
-      // Abort any active grid search FIRST so it stops launching new token-rotating page.jsp hops.
+      // Abort any active grid search OR deep sweep FIRST so it stops launching token-rotating page.jsp hops.
       if (_gs && _gs._searchAbort) { try { _gs._searchAbort.abort(); } catch (e2) {} }
+      if (_gs && _gs._sweepAbort) { try { _gs._sweepAbort.abort(); } catch (e2) {} }
       // THE FIX for the "rapid 2 broad searches + reload → logout" bug: when the search GRID is active we are on
       // a real, GET-loadable list URL (Reseller/Groups), so a NATIVE reload lands on the same authenticated page
       // with NO formtokenserial POST at all — completely sidestepping the single-use-token race that bounced the

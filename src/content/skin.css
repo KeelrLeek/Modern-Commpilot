@@ -2971,6 +2971,46 @@ html.cp-grid-on td[width="82%"] { overflow: hidden !important; }
 .cp-srch-state-ico-min { color: #6b6862; }
 .cp-srch-state-ico-min svg { width: 34px; height: 34px; }
 .cp-srch-state-h-min { font-size: 13px; font-weight: 600; color: var(--cp-text-muted); }
+/* deep-sweep: "Load all" CTA + live progress card (bar + counter + Cancel) */
+.cp-srch-state .cp-srch-loadall, .cp-srch-state .cp-srch-sweep-cancel { margin-top: 4px; }
+.cp-srch-sweep-barwrap { width: 280px; max-width: 72%; height: 8px; background: var(--cp-bg); border: 1px solid var(--cp-outline); border-radius: 5px; overflow: hidden; margin: 2px 0; }
+.cp-srch-sweep-fill { height: 100%; width: 0; background: var(--cp-primary-strong); border-radius: 5px; transition: width .3s ease; }
+.cp-srch-sweep-n { font-size: 15px; font-weight: 700; color: var(--cp-text); font-variant-numeric: tabular-nums; }
+.cp-srch-sweep-cancel { background: transparent !important; border: 1px solid var(--cp-outline) !important; color: var(--cp-text-muted) !important; }
+.cp-srch-sweep-cancel:hover { border-color: var(--cp-primary-strong) !important; color: var(--cp-text) !important; }
+/* sweep status: purple search lens + alphabet tracker + live sub-prefix */
+.cp-srch-state-ico-search { background: rgba(110, 76, 150, 0.18); color: var(--cp-primary); }
+.cp-srch-sweep-track { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; max-width: 340px; margin: 2px auto 0; }
+.cp-srch-tk { width: 17px; height: 19px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 700; background: var(--cp-bg); color: #55524d; border: 1px solid transparent; transition: background .15s ease, color .15s ease, transform .15s ease; }
+.cp-srch-tk.done { background: rgba(110, 76, 150, 0.16); color: var(--cp-primary); }
+.cp-srch-tk.cur { background: var(--cp-primary-strong); color: #fff; border-color: var(--cp-primary-strong); transform: scale(1.2); }
+.cp-srch-tk-spec { color: #8a7fa6; border: 1px dashed #4a4654; background: transparent; }   /* special-char fallback chips */
+.cp-srch-tk-spec.done { background: rgba(110, 76, 150, 0.12); border-style: solid; }
+.cp-srch-sweep-sub { font-size: 12.5px; color: var(--cp-text-muted); min-height: 18px; }
+.cp-srch-sweep-pill { font-weight: 700; color: #fff; background: var(--cp-primary-strong); border-radius: 5px; padding: 1px 8px; font-variant-numeric: tabular-nums; }
+.cp-srch-sweep-pp { font-weight: 700; color: var(--cp-text); background: var(--cp-bg); border: 1px solid var(--cp-outline); border-radius: 5px; padding: 1px 7px; }
+/* gap bar — offer the opt-in User-ID remainder pass above the results */
+.cp-srch-gapbar { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; margin: 12px 0 0; padding: 9px 12px; background: rgba(232, 145, 80, 0.10); border: 1px solid rgba(232, 145, 80, 0.4); border-radius: 9px; }
+.cp-srch-gapbar-txt { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--cp-text); }
+.cp-srch-gapbar-txt > svg { width: 15px; height: 15px; color: #E89150; flex: 0 0 auto; }
+.cp-srch-gapbar-go { display: inline-flex !important; align-items: center; gap: 7px; height: 34px !important; padding: 0 14px !important; background: var(--cp-primary-strong) !important; border: 0 !important; border-radius: 6px !important; color: #fff !important; font-family: var(--cp-font-sans) !important; font-size: 12.5px !important; font-weight: 700 !important; cursor: pointer; }
+.cp-srch-gapbar-go svg { width: 15px !important; height: 15px !important; }
+.cp-srch-gapbar-x { display: inline-flex !important; align-items: center; justify-content: center; width: 30px !important; height: 30px !important; padding: 0 !important; background: transparent !important; border: 0 !important; border-radius: 6px !important; color: var(--cp-text-muted) !important; cursor: pointer; }
+.cp-srch-gapbar-x:hover { color: var(--cp-text) !important; background: rgba(255, 255, 255, 0.06) !important; }
+.cp-srch-gapbar-x svg { width: 15px !important; height: 15px !important; }
+/* recovered-users summary — names the stragglers the User-ID pass found, before continuing to the grid */
+.cp-srch-rec-ico { background: rgba(152, 195, 121, 0.16); color: #98c379; }
+.cp-srch-rec-list { width: 100%; max-width: 470px; margin: 4px 0 2px; border: 1px solid var(--cp-outline); border-radius: 9px; overflow-y: auto; max-height: 42vh; text-align: left; }
+.cp-srch-rec-list::-webkit-scrollbar { width: 11px; }
+.cp-srch-rec-list::-webkit-scrollbar-thumb { background: var(--cp-border, #3c3a37); border-radius: 6px; border: 3px solid var(--cp-surface, #2a2825); }
+.cp-srch-rec-list::-webkit-scrollbar-track { background: transparent; }
+.cp-srch-rec-row { display: grid; grid-template-columns: 124px 1fr 1fr; gap: 10px; padding: 7px 12px; font-size: 12.5px; border-bottom: 1px solid var(--cp-outline); align-items: center; }
+.cp-srch-rec-row:last-child { border-bottom: 0; }
+.cp-srch-rec-head { position: sticky; top: 0; background: var(--cp-bg); color: var(--cp-text-muted); font-weight: 700; font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; }
+.cp-srch-rec-id { font-variant-numeric: tabular-nums; color: var(--cp-text-muted); }
+.cp-srch-rec-fn { color: var(--cp-primary); font-weight: 700; }
+.cp-srch-rec-more { padding: 8px 12px; font-size: 12px; color: var(--cp-text-muted); text-align: center; }
+.cp-srch-state .cp-srch-rec-go { margin-top: 6px; }
 /* "too many results" state — amber-tinted icon to read distinctly from the neutral no-results face */
 .cp-srch-state-ico-warn { background: rgba(232, 145, 80, 0.16); color: #E89150; }
 .cp-srch-skwrap { position: absolute; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
