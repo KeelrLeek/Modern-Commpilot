@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CommPilot — Reseller Profile (settings-row redesign)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.11.0/tabler-icons.min.css">
+<style>
+:root{
+  --bg:#1c1b19; --card:#2a2825; --panel:#232220; --topbar:#2a2825;
+  --border:#3c3a37; --text:#e8e8e8; --muted:#a4a29c; --input:#322f2c;
+  --lav:#C6A8E8; --purple:#6E4C96; --purple-dark:#5E3F86; --orange:#E89150;
+  --hover:rgba(255,255,255,0.06); --pill:rgba(110,76,150,0.24);
+  --ok:#98c379;
+  --rad-panel:16px; --rad-card:12px;
+  --shadow:0 6px 22px rgba(0,0,0,0.28);
+  --maxw:1440px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font-family:"Nunito",-apple-system,Segoe UI,sans-serif;font-size:14px}
+.app{height:100vh;display:flex;flex-direction:column;gap:12px;padding:12px;overflow:hidden}
+
+/* ---- top bar ---- */
+.topbar{flex:0 0 56px;background:var(--topbar);border:1px solid var(--border);border-radius:var(--rad-panel);box-shadow:var(--shadow);display:flex;align-items:center;gap:16px;padding:0 22px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
+.brand .wm b{color:var(--lav)}
+.spacer{flex:1}
+.welcome{color:var(--muted);font-size:13px}
+.iconbtn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;color:var(--muted);cursor:pointer}
+.iconbtn:hover{background:var(--hover);color:var(--lav)}
+
+/* ---- shell ---- */
+.shell{flex:1;display:flex;gap:12px;min-height:0;max-width:var(--maxw);width:100%;margin:0 auto}
+.sidebar{flex:0 0 220px;width:220px;background:var(--panel);border:1px solid var(--border);border-radius:var(--rad-panel);box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden;padding:8px}
+.side-label{color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.08em;padding:10px 12px 8px}
+.fold{display:flex;align-items:center;gap:11px;padding:10px 12px;margin:2px 0;border-radius:10px;color:var(--muted);cursor:pointer;font-size:13.5px}
+.fold i{font-size:18px}
+.fold:hover{background:var(--hover);color:var(--text)}
+.fold.on{background:rgba(110,76,150,0.22);color:var(--text)}
+.side-foot{margin-top:auto;display:flex;gap:4px;padding:8px 6px 4px;border-top:1px solid var(--border)}
+
+.console-panel{flex:1;min-width:0;background:var(--panel);border:1px solid var(--border);border-radius:var(--rad-panel);box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+.crumb{flex:0 0 auto;display:flex;align-items:center;gap:9px;padding:13px 22px;border-bottom:1px solid var(--border)}
+.crumb .ic{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;background:var(--pill);color:var(--lav)}
+.crumb .seg{color:var(--muted);font-size:11.5px;font-weight:700;letter-spacing:.07em;padding:3px 9px;border-radius:7px}
+.crumb .seg.cur{color:var(--lav);background:var(--pill);display:flex;align-items:center;gap:6px;cursor:pointer}
+.crumb .sep{color:#5f5d58;font-size:14px}
+.console{flex:1;overflow-y:auto;min-height:0;padding:0 22px 28px}
+.console::-webkit-scrollbar{width:11px}
+.console::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px;border:3px solid var(--panel)}
+.console::-webkit-scrollbar-track{background:transparent}
+
+/* ---- page header ---- */
+.pg-head{display:flex;align-items:flex-end;gap:14px;padding:18px 0 2px}
+.pg-head .bar{width:4px;height:30px;background:var(--lav);border-radius:2px}
+.pg-title{font-size:22px;font-weight:700;line-height:1}
+.pg-sub{color:var(--muted);font-size:13px;margin-top:5px}
+
+/* ---- settings form ---- */
+.form{margin-top:18px}
+.formcard{background:var(--card);border:1px solid var(--border);border-radius:var(--rad-card);overflow:hidden}
+.card-h{display:flex;align-items:center;gap:9px;padding:14px 20px;border-bottom:1px solid var(--border)}
+.card-h i{color:var(--lav);font-size:18px}
+.card-h .ht{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.rows{padding:2px 20px}
+.stg{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:center;padding:17px 0;border-bottom:1px solid var(--border)}
+.stg:last-child{border-bottom:0}
+.stg .k{font-size:14px;font-weight:700;color:var(--text)}
+.stg .d{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.4}
+.stg .ctrl{justify-self:stretch}
+.sinput{width:100%;height:40px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:0 12px;font:inherit;font-size:14px;outline:none;transition:border-color .12s ease,box-shadow .12s ease}
+.sinput:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(110,76,150,.18)}
+.roval{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:8px;height:40px;padding:0 6px 0 12px;color:var(--text);font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace}
+.copy{width:30px;height:30px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;flex:0 0 auto}
+.copy:hover{border-color:var(--purple);color:var(--lav)}
+.copy.done{border-color:var(--ok);color:var(--ok)}
+
+/* ---- action bar ---- */
+.actbar{display:flex;align-items:center;gap:10px;padding:14px 20px;border-top:1px solid var(--border);background:rgba(0,0,0,0.12)}
+.dirty{display:none;align-items:center;gap:7px;color:var(--orange);font-size:12.5px;font-weight:700}
+.dirty.show{display:flex}
+.dirty .dot{width:7px;height:7px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 3px rgba(232,145,80,.18)}
+.act-space{flex:1}
+.btn{height:40px;padding:0 18px;border-radius:8px;font:inherit;font-weight:700;font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;border:1px solid transparent;transition:background .12s ease,border-color .12s ease,color .12s ease,opacity .12s ease}
+.btn-primary{background:var(--purple);color:#fff}
+.btn-primary:hover{background:var(--purple-dark)}
+.btn-secondary{background:transparent;border-color:var(--border);color:var(--text)}
+.btn-secondary:hover{border-color:var(--purple);color:var(--lav)}
+.btn-ghost{background:transparent;color:var(--muted)}
+.btn-ghost:hover{color:var(--text)}
+.btn.off{opacity:.4;pointer-events:none}
+
+/* ---- saved toast ---- */
+.toast{position:absolute;left:50%;bottom:22px;transform:translateX(-50%) translateY(14px);opacity:0;display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--ok);border-radius:10px;padding:10px 16px;color:var(--text);font-weight:700;font-size:13px;box-shadow:var(--shadow);pointer-events:none;transition:opacity .2s ease,transform .2s ease}
+.toast i{color:var(--ok);font-size:18px}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,6 94,86 6,86" fill="#6E4C96"/><polygon points="50,40 72,84 28,84" fill="#E89150"/></svg>
+      <span class="wm">Comm<b>Pilot</b></span>
+    </div>
+    <div class="spacer"></div>
+    <span class="welcome">Welcome Kyle Kolozsi</span>
+    <span class="iconbtn" title="Help"><i class="ti ti-help-circle"></i></span>
+    <span class="iconbtn" title="Sign out"><i class="ti ti-logout"></i></span>
+  </header>
+
+  <div class="shell">
+
+    <aside class="sidebar">
+      <div class="side-label">OPTIONS</div>
+      <div class="fold on"><i class="ti ti-user"></i> Profile</div>
+      <div class="fold"><i class="ti ti-folder"></i> Resources</div>
+      <div class="fold"><i class="ti ti-stack-2"></i> Services</div>
+      <div class="fold"><i class="ti ti-phone"></i> Call Center</div>
+      <div class="fold"><i class="ti ti-video"></i> Meet-Me Conferencing</div>
+      <div class="fold"><i class="ti ti-tool"></i> Utilities</div>
+      <div class="side-foot">
+        <span class="iconbtn" title="Help"><i class="ti ti-help-circle"></i></span>
+        <span class="iconbtn" title="Home"><i class="ti ti-home"></i></span>
+        <span class="iconbtn" title="Sign out"><i class="ti ti-logout"></i></span>
+      </div>
+    </aside>
+
+    <section class="console-panel">
+      <div class="crumb">
+        <span class="ic"><i class="ti ti-arrows-split-2"></i></span>
+        <span class="seg">RESELLER</span>
+        <i class="ti ti-chevron-right sep"></i>
+        <span class="seg cur"><i class="ti ti-user" style="font-size:14px"></i> PROFILE</span>
+      </div>
+
+      <div class="console">
+
+        <div class="pg-head">
+          <span class="bar"></span>
+          <div>
+            <div class="pg-title">Profile</div>
+            <div class="pg-sub">View or modify reseller information.</div>
+          </div>
+        </div>
+
+        <div class="form">
+          <div class="formcard">
+            <div class="card-h"><i class="ti ti-user-cog"></i><span class="ht">Reseller information</span></div>
+            <div class="rows">
+              <div class="stg">
+                <div>
+                  <div class="k">Reseller ID</div>
+                  <div class="d">Unique identifier for this reseller. Read-only.</div>
+                </div>
+                <div class="ctrl">
+                  <div class="roval"><span id="rid">trifecta-c14823</span><button class="copy" id="copy" aria-label="Copy reseller ID"><i class="ti ti-copy"></i></button></div>
+                </div>
+              </div>
+              <div class="stg">
+                <div>
+                  <div class="k">Name</div>
+                  <div class="d">Display name shown across the console.</div>
+                </div>
+                <div class="ctrl">
+                  <input class="sinput" id="name" value="Trifecta" autocomplete="off">
+                </div>
+              </div>
+            </div>
+            <div class="actbar">
+              <span class="dirty" id="dirty"><span class="dot"></span> Unsaved changes</span>
+              <span class="act-space"></span>
+              <button class="btn btn-primary off" id="save"><i class="ti ti-check"></i> Save</button>
+              <button class="btn btn-secondary off" id="apply">Apply</button>
+              <button class="btn btn-ghost" id="cancel">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="toast" id="toast"><i class="ti ti-circle-check"></i> Changes saved</div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+var orig="Trifecta";
+var name=document.getElementById('name');
+var dirtyEl=document.getElementById('dirty');
+var saveB=document.getElementById('save');
+var applyB=document.getElementById('apply');
+var toast=document.getElementById('toast');
+
+function setDirty(d){
+  dirtyEl.classList.toggle('show',d);
+  saveB.classList.toggle('off',!d);
+  applyB.classList.toggle('off',!d);
+}
+function check(){ setDirty(name.value.trim()!==orig); }
+name.addEventListener('input',check);
+
+function flash(){
+  toast.classList.add('show');
+  setTimeout(function(){toast.classList.remove('show');},1600);
+}
+saveB.addEventListener('click',function(){ orig=name.value.trim(); setDirty(false); flash(); });
+applyB.addEventListener('click',function(){ orig=name.value.trim(); setDirty(false); flash(); });
+document.getElementById('cancel').addEventListener('click',function(){ name.value=orig; setDirty(false); });
+
+var copy=document.getElementById('copy');
+copy.addEventListener('click',function(){
+  var t=document.getElementById('rid').textContent;
+  if(navigator.clipboard) navigator.clipboard.writeText(t).catch(function(){});
+  copy.classList.add('done');
+  copy.innerHTML='<i class="ti ti-check"></i>';
+  setTimeout(function(){copy.classList.remove('done');copy.innerHTML='<i class="ti ti-copy"></i>';},1300);
+});
+
+document.querySelectorAll('.fold').forEach(function(f){
+  f.addEventListener('click',function(){
+    document.querySelectorAll('.fold').forEach(function(o){o.classList.remove('on');});
+    f.classList.add('on');
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CommPilot — STIR-SHAKEN (redesign)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.11.0/tabler-icons.min.css">
+<style>
+:root{
+  --bg:#1c1b19; --card:#2a2825; --panel:#232220; --topbar:#2a2825;
+  --border:#3c3a37; --text:#e8e8e8; --muted:#a4a29c; --input:#322f2c;
+  --lav:#C6A8E8; --purple:#6E4C96; --purple-dark:#5E3F86; --orange:#E89150; --green:#98c379;
+  --hover:rgba(255,255,255,0.06); --pill:rgba(110,76,150,0.24);
+  --rad-panel:16px; --shadow:0 6px 22px rgba(0,0,0,0.28); --maxw:1440px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font-family:"Nunito",-apple-system,Segoe UI,sans-serif;font-size:14px}
+.app{height:100vh;display:flex;flex-direction:column;gap:12px;padding:12px;overflow:hidden}
+.topbar{flex:0 0 56px;background:var(--topbar);border:1px solid var(--border);border-radius:var(--rad-panel);box-shadow:var(--shadow);display:flex;align-items:center;gap:16px;padding:0 22px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
+.brand .wm b{color:var(--lav)}
+.spacer{flex:1}
+.welcome{color:var(--muted);font-size:13px}
+.iconbtn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;color:var(--muted);cursor:pointer}
+.iconbtn:hover{background:var(--hover);color:var(--lav)}
+.shell{flex:1;display:flex;gap:12px;min-height:0;max-width:var(--maxw);width:100%;margin:0 auto}
+.sidebar{flex:0 0 220px;width:220px;background:var(--panel);border:1px solid var(--border);border-radius:var(--rad-panel);box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden;padding:8px}
+.side-label{color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.08em;padding:10px 12px 8px}
+.fold{display:flex;align-items:center;gap:11px;padding:10px 12px;margin:2px 0;border-radius:10px;color:var(--muted);cursor:pointer;font-size:13.5px}
+.fold i{font-size:18px}
+.fold.on{background:rgba(110,76,150,0.22);color:var(--text)}
+.side-foot{margin-top:auto;display:flex;gap:4px;padding:8px 6px 4px;border-top:1px solid var(--border)}
+.console-panel{flex:1;min-width:0;background:var(--panel);border:1px solid var(--border);border-radius:var(--rad-panel);box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+.crumb{flex:0 0 auto;display:flex;align-items:center;gap:9px;padding:13px 22px;border-bottom:1px solid var(--border)}
+.crumb .ic{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;background:var(--pill);color:var(--lav)}
+.crumb .seg{color:var(--muted);font-size:11.5px;font-weight:700;letter-spacing:.07em;padding:3px 9px;border-radius:7px}
+.crumb .seg.cur{color:var(--lav);background:var(--pill);display:flex;align-items:center;gap:6px}
+.crumb .sep{color:#5f5d58;font-size:14px}
+.console{flex:1;overflow-y:auto;min-height:0;padding:0 22px 18px}
+.console::-webkit-scrollbar{width:11px}
+.console::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px;border:3px solid var(--panel)}
+
+.pg-head{display:flex;align-items:center;gap:13px;padding:16px 0 2px}
+.pg-head .bar{width:4px;height:30px;background:var(--lav);border-radius:2px;flex:0 0 auto}
+.pg-title{font-size:22px;font-weight:700;line-height:1.1}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:12px}
+.card-h{display:flex;align-items:center;gap:9px;padding:13px 20px;border-bottom:1px solid var(--border)}
+.card-h i{color:var(--lav);font-size:18px}
+.card-h .ht{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.rows{padding:2px 20px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center;padding:14px 0;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:0}
+.row.sub{padding-left:26px;border-left:2px solid var(--border);margin-left:2px}
+.k{font-size:13.5px;font-weight:700;color:var(--text)}
+.d{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4}
+.row.dim{opacity:.45;pointer-events:none}
+.ctrl{justify-self:end;display:flex;align-items:center;gap:10px}
+
+/* segmented pills */
+.seg{display:inline-flex;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:3px}
+.seg button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:700;font-size:12.5px;padding:6px 13px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.seg button.on{background:var(--purple);color:#fff}
+.seg .hint{font-weight:400;opacity:.7;font-size:11px}
+
+/* dropdown */
+.dd{position:relative}
+.dd-trigger{display:flex;align-items:center;gap:10px;min-width:210px;height:38px;padding:0 12px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font:inherit;font-size:13px;cursor:pointer}
+.dd-trigger .v{flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dd-trigger i{color:var(--muted);font-size:16px;transition:transform .15s}
+.dd.open .dd-trigger{border-color:var(--purple)}
+.dd.open .dd-trigger i{transform:rotate(180deg)}
+.dd-menu{position:absolute;top:42px;right:0;min-width:100%;background:var(--card);border:1px solid var(--border);border-radius:9px;box-shadow:var(--shadow);padding:5px;z-index:20;display:none}
+.dd.open .dd-menu{display:block}
+.dd-opt{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;font-size:13px;color:var(--text);cursor:pointer;white-space:nowrap}
+.dd-opt:hover{background:rgba(110,76,150,.18)}
+.dd-opt.on{color:var(--lav)}
+.dd-opt i{font-size:15px;opacity:0}
+.dd-opt.on i{opacity:1}
+
+/* toggle */
+.tgl{width:44px;height:24px;border-radius:999px;background:var(--border);position:relative;cursor:pointer;transition:background .15s;flex:0 0 auto}
+.tgl.on{background:var(--purple)}
+.tgl::after{content:"";position:absolute;top:2.5px;left:2.5px;width:19px;height:19px;border-radius:50%;background:var(--text);transition:left .15s}
+.tgl.on::after{left:22px}
+
+/* text input */
+.sinput{width:300px;height:38px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:0 12px;font:inherit;font-size:13px;outline:none}
+.sinput:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(110,76,150,.18)}
+
+/* config choice cards */
+.choices{display:flex;gap:10px;margin-top:12px}
+.choice{flex:1;min-width:160px;border:1px solid var(--border);border-radius:9px;padding:12px 14px;cursor:pointer;background:var(--card)}
+.choice.on{border-color:var(--purple);background:rgba(110,76,150,.14)}
+.choice .ct{font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:9px}
+.choice.on .ct{color:var(--lav)}
+.choice .cd{font-size:12px;color:var(--muted);margin-top:4px;padding-left:24px}
+.dot{width:15px;height:15px;border-radius:50%;border:2px solid #5f5d58;flex:0 0 auto;box-sizing:border-box}
+.choice.on .dot{border-color:var(--purple);background:radial-gradient(circle,var(--purple) 0 4px,transparent 5px)}
+
+/* action bar (global, one set for the whole form) */
+.actbar{position:sticky;bottom:0;display:flex;align-items:center;gap:10px;margin-top:12px;padding:14px 18px;background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow)}
+.dirty{display:none;align-items:center;gap:7px;color:var(--orange);font-size:12.5px;font-weight:700}
+.dirty.show{display:flex}
+.dirty .ddot{width:7px;height:7px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 3px rgba(232,145,80,.18)}
+.act-space{flex:1}
+.btn{height:40px;padding:0 18px;border-radius:8px;font:inherit;font-weight:700;font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;border:1px solid transparent}
+.btn-primary{background:var(--purple);color:#fff}
+.btn-primary:hover{background:var(--purple-dark)}
+.btn-secondary{background:transparent;border-color:var(--border);color:var(--text)}
+.btn-ghost{background:transparent;color:var(--muted)}
+.btn.off{opacity:.4;pointer-events:none}
+#sections.dim-all{opacity:.5}
+#sections.dim-all .card{pointer-events:none}
+.inheriting{display:none;align-items:center;gap:7px;color:var(--muted);font-size:12px;padding:10px 2px 0}
+.inheriting.show{display:flex}
+.inheriting i{font-size:15px;color:#7d7a73}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><svg width="22" height="22" viewBox="0 0 100 100"><polygon points="50,6 94,86 6,86" fill="#6E4C96"/><polygon points="50,40 72,84 28,84" fill="#E89150"/></svg><span class="wm">Comm<b>Pilot</b></span></div>
+    <div class="spacer"></div><span class="welcome">Welcome Kyle Kolozsi</span>
+    <span class="iconbtn"><i class="ti ti-help-circle"></i></span><span class="iconbtn"><i class="ti ti-logout"></i></span>
+  </header>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="side-label">OPTIONS</div>
+      <div class="fold on"><i class="ti ti-user"></i> Profile</div>
+      <div class="fold"><i class="ti ti-folder"></i> Resources</div>
+      <div class="fold"><i class="ti ti-stack-2"></i> Services</div>
+      <div class="fold"><i class="ti ti-phone"></i> Call Center</div>
+      <div class="fold"><i class="ti ti-video"></i> Meet-Me Conferencing</div>
+      <div class="fold"><i class="ti ti-tool"></i> Utilities</div>
+      <div class="side-foot"><span class="iconbtn"><i class="ti ti-help-circle"></i></span><span class="iconbtn"><i class="ti ti-home"></i></span><span class="iconbtn"><i class="ti ti-logout"></i></span></div>
+    </aside>
+    <section class="console-panel">
+      <div class="crumb"><span class="ic"><i class="ti ti-arrows-split-2"></i></span><span class="seg">RESELLER</span><i class="ti ti-chevron-right sep"></i><span class="seg cur"><i class="ti ti-shield-check" style="font-size:14px"></i> STIR-SHAKEN</span></div>
+      <div class="console">
+        <div class="pg-head"><span class="bar"></span><div class="pg-title">STIR-SHAKEN</div></div>
+
+        <div class="card">
+          <div class="card-h"><i class="ti ti-adjustments"></i><span class="ht">Configuration</span></div>
+          <div class="rows">
+            <div class="row" style="grid-template-columns:1fr">
+              <div><div class="k">Settings source</div><div class="d" style="margin-bottom:2px">Inherit the system STIR-SHAKEN policy, or define reseller-level settings below.</div>
+                <div class="choices" id="src">
+                  <div class="choice on" data-v="system"><div class="ct"><span class="dot"></span> Use system settings</div><div class="cd">Inherit the platform default policy.</div></div>
+                  <div class="choice" data-v="reseller"><div class="ct"><span class="dot"></span> Use reseller settings</div><div class="cd">Configure signing, tagging &amp; verification.</div></div>
+                </div>
+                <div class="inheriting" id="inheriting"><i class="ti ti-info-circle"></i> The sections below follow the system policy. Switch to "Use reseller settings" to edit them.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="sections" class="dim-all">
+
+          <div class="card">
+            <div class="card-h"><i class="ti ti-signature"></i><span class="ht">Signing</span></div>
+            <div class="rows" id="signing"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><i class="ti ti-tag"></i><span class="ht">Tagging</span></div>
+            <div class="rows" id="tagging"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><i class="ti ti-discount-check"></i><span class="ht">Verification</span></div>
+            <div class="rows" id="verification"></div>
+          </div>
+
+        </div>
+
+        <div class="actbar">
+          <span class="dirty" id="dirty"><span class="ddot"></span> Unsaved changes</span>
+          <span class="act-space"></span>
+          <button class="btn btn-primary off" id="save"><i class="ti ti-check"></i> Save</button>
+          <button class="btn btn-secondary off" id="apply">Apply</button>
+          <button class="btn btn-ghost" id="cancel">Cancel</button>
+        </div>
+
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+var dirtyEl=document.getElementById('dirty'),saveB=document.getElementById('save'),applyB=document.getElementById('apply');
+function markDirty(){dirtyEl.classList.add('show');saveB.classList.remove('off');applyB.classList.remove('off');}
+
+/* ---- row builders ---- */
+function el(tag,cls,html){var e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;}
+function row(k,d,ctrl,opts){opts=opts||{};var r=el('div','row'+(opts.sub?' sub':''));var l=el('div');l.appendChild(el('div','k',k));if(d)l.appendChild(el('div','d',d));var c=el('div','ctrl');c.appendChild(ctrl);r.appendChild(l);r.appendChild(c);if(opts.id)r.id=opts.id;return r;}
+
+function toggle(on){var t=el('span','tgl'+(on?' on':''));t.addEventListener('click',function(){if(t.closest('.row').classList.contains('dim'))return;t.classList.toggle('on');markDirty();if(t._on)t._on();});return t;}
+function seg(options,cur,hints){var s=el('div','seg');options.forEach(function(o,i){var b=el('button',o===cur?'on':'',o+(hints&&hints[i]?' <span class="hint">'+hints[i]+'</span>':''));b.addEventListener('click',function(){s.querySelectorAll('button').forEach(function(x){x.classList.remove('on');});b.classList.add('on');markDirty();if(s._on)s._on(b.dataset.v||o);});b.dataset.v=o;s.appendChild(b);});return s;}
+function dropdown(options,cur){var d=el('div','dd');var t=el('button','dd-trigger','<span class="v">'+cur+'</span><i class="ti ti-chevron-down"></i>');var m=el('div','dd-menu');options.forEach(function(o){var op=el('div','dd-opt'+(o===cur?' on':''),'<i class="ti ti-check"></i><span>'+o+'</span>');op.addEventListener('click',function(e){e.stopPropagation();m.querySelectorAll('.dd-opt').forEach(function(x){x.classList.remove('on');});op.classList.add('on');t.querySelector('.v').textContent=o;d.classList.remove('open');markDirty();if(d._on)d._on(o);});m.appendChild(op);});t.addEventListener('click',function(e){e.stopPropagation();document.querySelectorAll('.dd.open').forEach(function(x){if(x!==d)x.classList.remove('open');});d.classList.toggle('open');});d.appendChild(t);d.appendChild(m);return d;}
+function textin(ph){var i=el('input','sinput');i.placeholder=ph||'';i.addEventListener('input',markDirty);return i;}
+document.addEventListener('click',function(){document.querySelectorAll('.dd.open').forEach(function(x){x.classList.remove('open');});});
+
+/* ---- Signing ---- */
+var sg=document.getElementById('signing');
+sg.appendChild(row('Signing policy','Which outbound calls get a signed Identity header.',dropdown(['Off','All Eligible Calls','Eligible Inter-Network Calls'],'Off')));
+sg.appendChild(row('Sign emergency calls','Apply signing to 911/emergency calls.',toggle(false)));
+sg.appendChild(row('Signing service URL','Endpoint that signs the calls.',textin('https://…')));
+sg.appendChild(row('Attestation level','How strongly the caller is vouched for.',seg(['Full','Partial','Gateway'],'Full',['A','B','C'])));
+var chkDir=toggle(false);var matchRow=row('Match unassigned numbers only','Only attest numbers not assigned to a user.',toggle(false),{sub:true,id:'matchRow'});
+chkDir._on=function(){matchRow.classList.toggle('dim',!chkDir.classList.contains('on'));};
+sg.appendChild(row('Check directory numbers for attestation','Validate the calling number before attesting.',chkDir));
+sg.appendChild(matchRow);
+var origSeg=seg(['OS Value','UUID'],'OS Value');var uuidRow=row('Origination ID (UUID)','The UUID used as the origination identifier.',textin('00000000-0000-…'),{sub:true,id:'uuidRow'});uuidRow.classList.add('dim');
+origSeg._on=function(v){uuidRow.classList.toggle('dim',v!=='UUID');};
+sg.appendChild(row('Origination ID source','Where the origid for signing comes from.',origSeg));
+sg.appendChild(uuidRow);
+var unsSign=toggle(false);var unsSignLvl=row('Unscreened attestation level','Attestation for unscreened trunk-group calls.',seg(['Full','Partial','Gateway'],'Full',['A','B','C']),{sub:true,id:'unsSignLvl'});unsSignLvl.classList.add('dim');
+unsSign._on=function(){unsSignLvl.classList.toggle('dim',!unsSign.classList.contains('on'));};
+sg.appendChild(row('Sign unscreened trunk-group originations','Sign calls from unscreened trunk groups.',unsSign));
+sg.appendChild(unsSignLvl);
+
+/* ---- Tagging ---- */
+var tg=document.getElementById('tagging');
+tg.appendChild(row('Tagging policy','Which inbound calls get a verstat tag.',dropdown(['Off','All Eligible Calls','Eligible Intra-Network Calls'],'Off')));
+tg.appendChild(row('Tag emergency calls','Apply tagging to 911/emergency calls.',toggle(false)));
+tg.appendChild(row('Tag from','Which header to read the calling number from.',seg(['PAI','From','Both'],'PAI')));
+tg.appendChild(row('Verstat tag','Which verification result to tag.',dropdown(['TN-Validation-Passed','TN-Validation-Failed','No-TN-Validation'],'TN-Validation-Passed')));
+tg.appendChild(row('Tag unscreened trunk-group originations','Tag calls from unscreened trunk groups.',toggle(false)));
+
+/* ---- Verification ---- */
+var vf=document.getElementById('verification');
+var enVer=toggle(false);
+vf.appendChild(row('Enable verification','Verify the Identity header on inbound calls.',enVer));
+var verURL=row('Verification service URL','Endpoint that verifies the calls.',textin('https://…'),{sub:true,id:'verURL'});
+var verErr=row('On verification error','What to do when verification fails.',seg(['Abort','Proceed'],'Proceed'),{sub:true,id:'verErr'});
+var verSubs=[verURL,verErr];
+[ ['Proxy verstat to CNAM subscribe',false],['Use unknown headers from CNAM notify',false],['Verify GETS calls',false] ].forEach(function(p){var r=row(p[0],'',toggle(p[1]),{sub:true});verSubs.push(r);});
+verSubs.forEach(function(r){vf.appendChild(r);r.classList.add('dim');});
+enVer._on=function(){var on=enVer.classList.contains('on');verSubs.forEach(function(r){r.classList.toggle('dim',!on);});};
+vf.appendChild(row('Include tagged headers to access side','Forward verstat headers toward the subscriber.',toggle(true)));
+vf.appendChild(row('Proxy identity header to access side','Forward the Identity header toward the subscriber.',toggle(true)));
+
+/* ---- config dim ---- */
+var srcWrap=document.getElementById('src'),sections=document.getElementById('sections'),inh=document.getElementById('inheriting');
+srcWrap.querySelectorAll('.choice').forEach(function(c){c.addEventListener('click',function(){srcWrap.querySelectorAll('.choice').forEach(function(x){x.classList.remove('on');});c.classList.add('on');var custom=c.dataset.v==='reseller';sections.classList.toggle('dim-all',!custom);inh.classList.toggle('show',!custom);markDirty();});});
+
+document.getElementById('cancel').addEventListener('click',function(){location.reload();});
+saveB.addEventListener('click',function(){dirtyEl.classList.remove('show');saveB.classList.add('off');applyB.classList.add('off');});
+</script>
+</body>
+</html>
