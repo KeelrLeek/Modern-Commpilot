@@ -3305,7 +3305,11 @@ td.enduserbody:has(.cp-prof-card) {
 }
 
 /* ---- Activation-policy field treatments: choice cards (radio) + toggle switches (checkbox) ---- */
-.cp-prof-srcrow { grid-template-columns: 1fr !important; align-items: start !important; }
+/* Settings-source row stacks k/d/choices/inherit as direct grid items in ONE column;
+   the base .cp-prof-row gap:24px would wedge 24px between EACH (the loose look). Zero it
+   so spacing comes from the elements' own margins (.cp-prof-d 3px, .cp-prof-choices 12px,
+   .cp-prof-inherit 12px) — matching the mockup's single-div block flow. */
+.cp-prof-srcrow { grid-template-columns: 1fr !important; align-items: start !important; gap: 0 !important; }
 .cp-prof-choices { display: flex; gap: 10px; margin-top: 12px; }
 .cp-prof-choice {
   flex: 1; min-width: 160px; cursor: pointer;
@@ -3381,8 +3385,13 @@ td.enduserbody:has(.cp-prof-card) {
 .cp-prof-dd-opt svg { width: 15px; height: 15px; opacity: 0; flex: 0 0 auto; }
 .cp-prof-dd-opt.cp-prof-dd-opt-on svg { opacity: 1; }
 
-/* global action bar (multi-card forms): a standalone card-like bar after the cards */
+/* global action bar (multi-card forms): a standalone card-like bar after the cards.
+   STICKY to the bottom of .cp-prof-scroll so Save/Apply/Cancel stays in view on tall
+   forms (e.g. STIR-SHAKEN); the cards scroll behind it (solid surface bg + border keep
+   it opaque). z-index sits above the cards' opacity stacking contexts (.cp-prof-carddim).
+   margin-bottom is 0 so it pins flush to the scroll viewport's bottom edge. */
 .cp-prof-actions.cp-prof-actions-global {
+  position: sticky; bottom: 0; z-index: 5;
   background: var(--cp-surface) !important; border: var(--cp-box-edge-width) solid var(--cp-box-edge) !important;
-  border-radius: 12px !important; margin: 12px 0 4px 0 !important; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+  border-radius: 12px !important; margin: 12px 0 0 0 !important; box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.32) !important;
 }

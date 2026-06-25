@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.187";
+  var CP_PJAX_VERSION = "0.2.191";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
 
   // Single-page sign-out: minimum time (ms) the "Signing out…" spinner stays up
@@ -590,7 +590,8 @@
       "service instances": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 7a2 2 0 0 1 2 -2h6a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-6a2 2 0 0 1 -2 -2l0 -10"/><path d="M7 7l0 10"/><path d="M4 8l0 8"/></svg>',
       "profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0"/><path d="M6 21v-2a4 4 0 0 1 4 -4h2.5"/><path d="M17.001 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M19.001 15.5v1.5"/><path d="M19.001 21v1.5"/><path d="M22.032 17.25l-1.299 .75"/><path d="M17.27 20l-1.3 .75"/><path d="M15.97 17.25l1.3 .75"/><path d="M20.733 20l1.3 .75"/></svg>',
       "activation code device onboarding policies": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21h-4a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v6"/><path d="M11 4h2"/><path d="M15.5 18m-1.8 0a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0"/><path d="M17.3 18h4"/><path d="M20 18v2"/><path d="M21.5 18v1.5"/></svg>',
-      "stir-shaken": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3"/><path d="M11 11a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 12l0 2.5"/></svg>'
+      "stir-shaken": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3"/><path d="M11 11a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 12l0 2.5"/></svg>',
+      "alternate user ids": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M16 12v1.5a2.5 2.5 0 0 0 5 0v-1.5a9 9 0 1 0 -5.5 8.28"/></svg>'
     };
     function cpHeaderIcon(title) { return CP_HDR_ICONS[(title || "").trim().toLowerCase()] || ""; }
 
@@ -640,6 +641,13 @@
         c.num = (c.type === "num" || c.type === "numpill" || c.type === "numc");
         cols.push(c);
       }
+      // Service Instances: the User-ID column (long name@phonenetwork.net emails) is what forces every other
+      // column to clip with "…". The Name column carries the same identifying info, so DROP User ID here to give
+      // the rest room. Detected by the distinctive "Service Type" column (same signal as cpGridTemplate). The
+      // surviving columns keep their original .idx → cells mapping; sort resolves columns by .idx so the now
+      // non-contiguous indices are fine.
+      var isSI = cols.some(function (c) { return (c.label || "").toLowerCase() === "service type"; });
+      if (isSI) cols = cols.filter(function (c) { return (c.label || "").toLowerCase() !== "user id"; });
       return cols;
     }
 
@@ -1320,13 +1328,19 @@
       }).join(" ");
     }
     function cpGridSortBy(state, k, dir, initial) {
-      var col = state.cols[k] || { num: false };
+      // Resolve the column by its .idx (cell index), NOT array position — a grid may drop a column (Service
+      // Instances hides User ID) so position ≠ idx. Fall back to the first visible column if k no longer maps
+      // to one (e.g. the default sortK:0 pointed at a removed column).
+      var col = null, ci;
+      for (ci = 0; ci < state.cols.length; ci++) { if (state.cols[ci].idx === k) { col = state.cols[ci]; break; } }
+      if (!col && state.cols.length) { col = state.cols[0]; k = col.idx; }
+      if (!col) col = { num: false };
       state.cur.sort(function (a, b) {
         var x = a.cells[k] || "", y = b.cells[k] || "";
         if (col.num) return (parseFloat(x.replace(/[^0-9.\-]/g, "")) - parseFloat(y.replace(/[^0-9.\-]/g, ""))) * dir;
         return String(x).localeCompare(String(y)) * dir;
       });
-      if (!initial) { state.sortK = k; state.sortDir = dir; }
+      state.sortK = k; state.sortDir = dir;
     }
     function cpGridTotalPages(state) { return Math.max(1, Math.ceil(state.cur.length / state.perPage)); }
     function cpGridCellHTML(state, row, c) {
