@@ -71,10 +71,13 @@
   window.addEventListener("message", function (e) {
     if (e.source !== window || !e.data || !e.data.__cpStubNavQuery) return;
     try {
-      chrome.storage.local.get(["cpRecoverNav", "cpRecoverToken"], function (d) {
+      // PER-ORIGIN keys — chrome.storage.local is shared across hosts, so a bare key let one host recover
+      // another host's nav/token (apps01 replayed the sandbox's URL → cross-host /Login/). Read only THIS host's.
+      var navKey = "cpRecoverNav:" + location.origin, tokKey = "cpRecoverToken:" + location.origin;
+      chrome.storage.local.get([navKey, tokKey], function (d) {
         try {
           window.postMessage(
-            { __cpStubNavReply: { nav: (d && d.cpRecoverNav) || null, token: (d && d.cpRecoverToken) || null } },
+            { __cpStubNavReply: { nav: (d && d[navKey]) || null, token: (d && d[tokKey]) || null } },
             location.origin
           );
         } catch (err) {}

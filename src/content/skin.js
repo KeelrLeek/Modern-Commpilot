@@ -6,6 +6,13 @@ console.log("[Modern CommPilot Skin] content script loaded");
 // legacy markup, and fires cp:skinlegacy → the list functions run (gate open) so the user is never stranded.
 function cpGridOn() { try { return document.documentElement.classList.contains("cp-grid-on"); } catch (e) { return false; } }
 
+// The reload-recovery store (cpRecoverNav + cpRecoverToken) is read back by cloak.js to re-POST the last page
+// after a DNR reload-redirect. chrome.storage.local is GLOBAL across origins, so a single shared key let one
+// host's nav/token bleed into another's recovery — visiting apps01 replayed the SANDBOX's absolute URL
+// (apps-sbx.../Admins/Add) with a cross-host token → /Login/. Key the store PER-ORIGIN so each host only ever
+// recovers its own page, and store the nav PATH-ONLY so a replay can never target another host.
+function cpRecoverKey(base) { try { return base + ":" + location.origin; } catch (e) { return base; } }
+
 function cpSaveRecoverToken(resetTries) {
   try {
     if (location.pathname.indexOf("/Login/") !== -1 || document.querySelector('input[type=password]')) return;
@@ -14,8 +21,8 @@ function cpSaveRecoverToken(resetTries) {
     if (!document.querySelector('td[width="82%"], a.navMenuItem, .navOptions')) return;
     var t = document.getElementsByName("formtokenserial")[0];
     if (t && t.value && chrome.storage) {
-      var o = { cpRecoverToken: t.value };
-      if (resetTries) o.cpRecoverTries = 0;
+      var o = {}; o[cpRecoverKey("cpRecoverToken")] = t.value;
+      if (resetTries) o[cpRecoverKey("cpRecoverTries")] = 0;
       chrome.storage.local.set(o);
     }
   } catch (e) {}
@@ -23,11 +30,17 @@ function cpSaveRecoverToken(resetTries) {
 cpSaveRecoverToken(true);
 document.addEventListener("cp:reskin", function () { cpSaveRecoverToken(false); });
 setInterval(function () { cpSaveRecoverToken(false); }, 15000);
+// Drop the legacy GLOBAL (non-namespaced) recovery keys that caused the apps01 <-> sandbox cross-host bleed.
+try { if (chrome.storage && chrome.storage.local) chrome.storage.local.remove(["cpRecoverNav", "cpRecoverToken", "cpRecoverTries"]); } catch (e) {}
 
 window.addEventListener("message", function (e) {
   try {
     if (e.source === window && e.data && e.data.__cpRecoverNav && chrome.storage) {
-      chrome.storage.local.set({ cpRecoverNav: e.data.__cpRecoverNav });
+      var nav = e.data.__cpRecoverNav;
+      // Strip any origin so the stored nav is a same-host PATH (defence against cross-host replay).
+      try { if (nav && typeof nav.url === "string") nav = { url: nav.url.replace(/^https?:\/\/[^\/]+/, ""), params: nav.params }; } catch (e2) {}
+      var o = {}; o[cpRecoverKey("cpRecoverNav")] = nav;
+      chrome.storage.local.set(o);
     }
   } catch (err) {}
 });
@@ -2768,6 +2781,43 @@ function cpProfileForm() {
 }
 
 /*
+ * BroadWorks "temporarily unavailable" ERROR page → give OK a real escape (no loop).
+ * On a transient token desync the server returns this page; its OK button calls redirectPost (a POST) which
+ * re-fails on the now-dead token → the page just reloads into the same error. Our DNR redirect compounds it:
+ * every /commpilot/ GET reload becomes a recovery that REPLAYS the failing nav → error again, trapping the
+ * user (their intuition: "the redirect is messing things up"). Fix: clear the stored failing-nav recovery
+ * state, and point OK at a CLEAN GET to /Login/ — DNR-ALLOWED (no redirect), so it re-establishes the session
+ * and bounces to home when the session cookie is still valid. Validated live (the dead-token state escaped via
+ * this exact path). Fires ONLY on the exact error text, so normal pages are untouched.
+ */
+function cpHandleErrorPage() {
+  try {
+    var body = document.body;
+    if (!body) return false;
+    var txt = body.textContent || "";
+    if (!/temporarily unavailable/i.test(txt) || !/page you have selected/i.test(txt)) return false;
+    // Stop the recovery loop: the stored last-nav / recover-nav here IS the failing page.
+    try { sessionStorage.removeItem("cp-last-nav"); } catch (e) {}
+    try { if (window.chrome && chrome.storage && chrome.storage.local) chrome.storage.local.remove(["cpRecoverNav"]); } catch (e) {}
+    // Rewire OK → clean GET to /Login/. cloneNode strips the page's native redirectPost click handler (it's
+    // addEventListener-wired on this build), so only our escape listener remains.
+    var btns = document.querySelectorAll('input.bwbutton, input[type="button"], input[type="submit"], button'), ok = null;
+    for (var i = 0; i < btns.length; i++) {
+      if (/^ok$/i.test((btns[i].value || btns[i].textContent || "").trim())) { ok = btns[i]; break; }
+    }
+    if (ok && ok.parentNode) {
+      var clone = ok.cloneNode(true);
+      ok.parentNode.replaceChild(clone, ok);
+      clone.addEventListener("click", function (e) {
+        if (e && e.preventDefault) e.preventDefault();
+        try { location.assign("/commpilot/Login/"); } catch (er) { location.href = "/commpilot/Login/"; }
+      });
+    }
+    return true;
+  } catch (e) { try { console.warn("[CommPilot Skin] cpHandleErrorPage:", e); } catch (e2) {} return false; }
+}
+
+/*
  * Full-skin DOM pass — re-applies every DOM transformation to the current
  * document body. Called on initial page load and on "cp:morphed" when
  * stubguard swaps in a fresh body (zero-navigation login morph).
@@ -2775,6 +2825,7 @@ function cpProfileForm() {
  */
 function cpSkinDomPass() {
   if (cpLogoutToLogin()) return; // /Logout/ → straight to the styled login (no card)
+  cpHandleErrorPage();           // BroadWorks "temporarily unavailable" → OK escapes to /Login/ (no loop)
   wrapMenuCards();
   tagMenuColumns();
   tagSidebarIcons();

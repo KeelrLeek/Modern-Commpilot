@@ -50,6 +50,9 @@
   }
 
   function replay(nav, token) {
+    // Never replay across origins. The recovery store is per-host + path-only now, but guard against any absolute
+    // foreign URL (e.g. stale legacy global-store data) so apps01 can't be POSTed to the sandbox host.
+    try { if (/^https?:\/\//i.test(nav.url) && nav.url.indexOf(location.origin + "/") !== 0) { location.replace("/commpilot/Login/"); return; } } catch (e) {}
     var f = document.createElement("form");
     f.method = "POST";
     f.action = nav.url;
