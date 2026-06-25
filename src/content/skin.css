@@ -2856,7 +2856,7 @@ html.cp-console-active .menuCategory::after {
 }
 
 /* ============================================================
-   Redesigned SEARCH GRID  (flagged: localStorage.cpNewSearch="1")
+   Redesigned SEARCH GRID  (default-on; opt-out localStorage.cpNewSearch="0")
    Faithful port of Testing HTML Files/groups-redesign-v2.html into the
    live floating shell. Built by pjax MAIN (cpBuildSearchGrid) inside the
    content cell, BELOW the breadcrumb band; skin.js skips its in-place list
@@ -2875,6 +2875,13 @@ html.cp-grid-on td[width="82%"] { overflow: hidden !important; }
   overflow: hidden;
   font-family: var(--cp-font-sans);
   color: var(--cp-text);
+  /* Establish an explicit base font-size + line-height for the whole grid. Some list pages (e.g. reseller
+     Administrators) carry font-size:0 AND line-height:0 on the legacy content <td> — the grid renders INSIDE
+     that cell and otherwise inherits both, collapsing every cell's text to an invisible 0px line box (the data
+     and color are correct; it's purely unrenderable). Setting these here makes the grid immune to whatever the
+     legacy cell sets. Verified live: cells go from a 0px line box to readable text. */
+  font-size: 14px;
+  line-height: normal;
 }
 .cp-search-redesign *, .cp-search-redesign *::before, .cp-search-redesign *::after { box-sizing: border-box; }
 .cp-search-redesign svg { display: block; }
@@ -2942,6 +2949,12 @@ html.cp-grid-on td[width="82%"] { overflow: hidden !important; }
 .cp-srch-btn { height: 42px !important; padding: 0 22px !important; border-radius: 9px !important; border: 0 !important; font: inherit !important; font-weight: 700 !important; font-size: 14px !important; cursor: pointer; background: var(--cp-primary-strong) !important; color: #fff !important; display: inline-flex; align-items: center; gap: 8px; box-shadow: none !important; }
 .cp-srch-btn svg { width: 18px; height: 18px; }
 .cp-srch-btn:hover { background: #5E3F86 !important; }
+/* Legacy-search (Admins-style) filter row: a wider action slot to hold Find All + Find (no "+"); Find All is a
+   lavender-tinted secondary next to the purple Find. */
+.cp-srch-frow-legacy { grid-template-columns: 190px 190px 1fr auto; }
+.cp-srch-frow-legacy .cp-srch-rowact .cp-srch-go { flex: 0 0 auto; }
+.cp-srch-btn.cp-srch-findall { background: rgba(110, 76, 150, 0.22) !important; color: var(--cp-primary, #C6A8E8) !important; }
+.cp-srch-btn.cp-srch-findall:hover { background: rgba(110, 76, 150, 0.34) !important; }
 
 /* results */
 .cp-srch-results { flex: 1; min-height: 0; margin-top: 12px; display: flex; flex-direction: column; }
@@ -3395,3 +3408,70 @@ td.enduserbody:has(.cp-prof-card) {
   background: var(--cp-surface) !important; border: var(--cp-box-edge-width) solid var(--cp-box-edge) !important;
   border-radius: 12px !important; margin: 12px 0 0 0 !important; box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.32) !important;
 }
+
+/* ---- Administrator Modify: read-only value, password meter, danger buttons, confirm modal ---- */
+.cp-prof-mval { color: var(--cp-text-muted); font-size: 13.5px; }
+.cp-prof-req { color: var(--cp-warn, #E89150); }
+
+/* Password rows stack the input + live meter / match line (override the right-aligned ctrl flex). */
+.cp-prof-pwrow { align-items: start !important; }
+.cp-prof-pwrow .cp-prof-rowc { display: block !important; }
+.cp-prof-pwwrap { position: relative; }
+.cp-prof-pwinput { padding-right: 38px !important; }
+/* Bare eye — NO box. The global `button {…!important}` reset (line ~1189) forces a bg + border +
+   radius + padding on every button, so every reset here needs !important to win, hover included. */
+.cp-prof-pweye {
+  position: absolute !important; right: 11px; top: 50%; transform: translateY(-50%);
+  width: auto !important; height: auto !important; padding: 0 !important;
+  display: flex; align-items: center; line-height: 1;
+  background: transparent !important; background-color: transparent !important;
+  border: 0 !important; border-radius: 0 !important; box-shadow: none !important; outline: none !important;
+  -webkit-appearance: none; appearance: none;
+  color: var(--cp-text-muted) !important; cursor: pointer !important;
+}
+.cp-prof-pweye:hover { background: transparent !important; background-color: transparent !important; border-color: transparent !important; color: var(--cp-primary) !important; }
+.cp-prof-pweye svg { width: 18px; height: 18px; display: block; }
+.cp-prof-treat { margin-top: 11px; }
+.cp-prof-str { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.cp-prof-bars { display: flex; gap: 4px; flex: 1; }
+.cp-prof-bar { height: 5px; flex: 1; border-radius: 3px; background: var(--cp-surface-high); }
+.cp-prof-slab { font-size: 11.5px; font-weight: 700; min-width: 46px; text-align: right; }
+.cp-prof-ck { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 3px 0; color: var(--cp-text-muted); }
+.cp-prof-ci {
+  width: 16px; height: 16px; border-radius: 50%; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--cp-surface-high); color: transparent;
+}
+.cp-prof-ci svg { width: 11px; height: 11px; }
+.cp-prof-ck-met { color: var(--cp-text); }
+.cp-prof-ck-met .cp-prof-ci { background: rgba(152, 195, 121, 0.18); color: #98c379; }
+.cp-prof-mat { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; margin-top: 8px; color: var(--cp-text-muted); }
+.cp-prof-mat svg { width: 14px; height: 14px; }
+.cp-prof-mat-ok { color: #98c379; }
+.cp-prof-mat-no { color: #e06c75; }
+
+/* Danger buttons + delete confirm modal. */
+.cp-prof-danger { background: transparent !important; border-color: rgba(224, 108, 117, 0.5) !important; color: #e06c75 !important; }
+.cp-prof-danger:hover { background: rgba(224, 108, 117, 0.12) !important; }
+.cp-prof-dangersolid { background: #e06c75 !important; color: #231012 !important; border-color: #e06c75 !important; }
+.cp-prof-dangersolid:hover { background: #d4565f !important; }
+.cp-prof-modalov {
+  position: fixed; inset: 0; z-index: 100000;
+  background: rgba(15, 14, 13, 0.62);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.cp-prof-modal {
+  width: 400px; max-width: 100%; padding: 24px; text-align: center;
+  background: var(--cp-surface); border: 1px solid var(--cp-outline); border-radius: 12px;
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.52);
+}
+.cp-prof-modalic {
+  width: 50px; height: 50px; border-radius: 50%; margin: 0 auto 14px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(224, 108, 117, 0.15); color: #e06c75;
+}
+.cp-prof-modalic svg { width: 26px; height: 26px; }
+.cp-prof-modaltt { font-size: 18px; font-weight: 700; color: var(--cp-text); margin-bottom: 8px; }
+.cp-prof-modalmsg { font-size: 13px; color: var(--cp-text-muted); line-height: 1.55; margin-bottom: 22px; }
+.cp-prof-modalmsg b { color: var(--cp-text); }
+.cp-prof-modalacts { display: flex; gap: 10px; justify-content: center; }

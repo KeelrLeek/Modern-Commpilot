@@ -14,7 +14,12 @@
 
   var onLogin =
     location.pathname.indexOf("/Login/") !== -1 ||
-    !!document.querySelector('input[name="password"]');
+    // A password field ALONE is not a login page — the admin Modify page has Reset-Password fields but is a real
+    // in-app page (it carries the app content cell / nav). Only treat a password field as "login" when the app
+    // chrome is ABSENT (a true login page has no content cell or nav menu). Otherwise the Modify page falsely set
+    // onLogin → cp-pending-return → a spurious full-load + auto-return on its own form navigations.
+    (!!document.querySelector('input[name="password"]') &&
+     !document.querySelector('td[width="82%"], a.navMenuItem, .navOptions'));
   try {
     if (onLogin && sessionStorage.getItem("cp-last-nav"))
       sessionStorage.setItem("cp-pending-return", "1");
@@ -224,7 +229,19 @@
           // no iframe (cpNeedsFrame stays false). Content stays raw BroadSoft for now; Phase B skins it.
           /\/commpilot\/User(?:\/[A-Za-z0-9_]+){1,2}\/(index\.jsp)?$/.test(u) ||
           u.indexOf("/commpilot/Common/page.jsp") !== -1 ||
-          u.indexOf("/commpilot/Common/sort.jsp") !== -1)
+          u.indexOf("/commpilot/Common/sort.jsp") !== -1 ||
+          // Admins-style SERVER SEARCH: the page's doFind/doFindAll redirectPost to these. Pjax-handle them so the
+          // search threads the rotating formtokenserial and swaps IN PLACE. Previously unlisted → cpHook native-
+          // submitted → a FULL page reload per search (flicker + slower), and a full POST on a degraded token
+          // bounced to /Login/. With them here, the grid rebuilds on cp:reskin and the harvest poll re-runs the
+          // page's fill (find.jsp/findAll.jsp render their cells client-side, like the list landing).
+          u.indexOf("/commpilot/Common/find.jsp") !== -1 ||
+          u.indexOf("/commpilot/Common/findAll.jsp") !== -1 ||
+          // Admin row DRILL-IN: the Administrators list row navigates via /Reseller/Admins/modify.jsp (a "set the
+          // modify context, then redirect to .../Admins/Modify/" endpoint). Unlisted → cpHook native-submitted it
+          // → a FULL page load on drill-in AND a native POST that degraded the single-use token → /Login/.
+          // Pjax-handle it so cpFollow threads the rotating token and follows the stub to Modify/ in-shell.
+          u.indexOf("/Admins/modify.jsp") !== -1)
       );
     }
 
@@ -499,6 +516,53 @@
     // search/auth so the caller can FALL BACK to the legacy paginated table (never strand the user).
     function cpListSearch(criteria, opts) {
       opts = opts || {};
+      var tokEl = document.getElementsByName("formtokenserial")[0];
+      var tok = tokEl ? tokEl.value : null;
+
+      var descLive = cpSearchDescriptor(document);
+
+      // Admins-style (no #searchTable): the list is rendered CLIENT-SIDE from encoded data in the page scripts by
+      // a fill gated on DOMContentLoaded. A pjax body-swap never re-fires DOMContentLoaded, and pjax's DCL shim
+      // misses this late registration, so on IN-APP nav the rows are NEVER rendered — nothing to harvest, and a
+      // background fetch is equally empty (the fill never runs in a DOMParser'd doc). Fix (validated live):
+      // re-dispatch DOMContentLoaded to run the page's OWN fill, then POLL the (hidden) markup until the rows are
+      // populated, harvest, and filter CLIENT-SIDE. criteria[0].key = column index ("0"/"1"/"2" = legacy findKey
+      // option values); op "1"/"2"/"4" = Starts With / Contains / Equal To (findOp option values).
+      if (!document.getElementById("searchTable") && descLive) {
+        var aFilter = function (all) {
+          if (!(criteria && criteria.length && criteria[0].value != null && criteria[0].value !== "")) return all;
+          var colIdx = parseInt(criteria[0].key, 10); if (isNaN(colIdx)) colIdx = 0;
+          var op = String(criteria[0].op || "1"), needle = String(criteria[0].value).toLowerCase();
+          return all.filter(function (r) {
+            var cell = String(r.cells[colIdx] == null ? "" : r.cells[colIdx]).toLowerCase();
+            if (op === "2") return cell.indexOf(needle) !== -1;   // Contains
+            if (op === "4") return cell === needle;                // Equal To
+            return cell.indexOf(needle) === 0;                     // Starts With (default)
+          });
+        };
+        return new Promise(function (resolve) {
+          var tries = 0;
+          (function harvest() {
+            if (opts.signal && opts.signal.aborted) { resolve({ headers: cpSearchHeaders(document), rows: [], totalPages: 1, desc: descLive }); return; }
+            var all = cpSearchParseRows(document);
+            var ready = all.length && all.some(function (r) { return r.cells.some(function (c) { return c && c.trim(); }); });
+            if (!ready) {
+              // The fill's data loads async, so the swap-time call rendered empty; re-run the fill until the rows
+              // populate. TWO mechanisms for robustness, each tick: (1) re-call the handlers CAPTURED by the
+              // re-exec shim (works on a pure in-app nav, where the fill is never on the real document); (2)
+              // re-dispatch DOMContentLoaded (fires any fill that registered late on the real document).
+              (window.__cpDclFns || []).forEach(function (fn) { try { fn.call(document, new Event("DOMContentLoaded")); } catch (e) {} });
+              try { document.dispatchEvent(new Event("DOMContentLoaded")); } catch (e) {}
+              if (++tries <= 60) { setTimeout(harvest, 50); return; }   // up to ~3s for the (async) fill data
+            }
+            var rows = aFilter(all);
+            if (opts.onPage) { try { opts.onPage(rows.slice(), 0, 1); } catch (e) {} }
+            resolve({ headers: cpSearchHeaders(document), rows: rows, totalPages: 1, desc: descLive });
+          })();
+        });
+      }
+
+      // mainForm transport (Groups/Users) — empty criteria ⇒ ALL rows; pagination loop via page.jsp below.
       var landing = location.origin + location.pathname;   // mainForm posts to the current list URL
       var form = document.querySelector('form[name="mainForm"]');
       var params = {};
@@ -514,8 +578,6 @@
       }
       params.buttonClicked = "search";
       params.search = "Search";
-      var tokEl = document.getElementsByName("formtokenserial")[0];
-      var tok = tokEl ? tokEl.value : null;
 
       return cpFollow(landing, params, tok, 0).then(function (res) {
         if (!res || res.auth === false || !res.doc) throw new Error("[search] search POST failed/auth");
@@ -551,14 +613,29 @@
     // Expose for the grid builder + live diagnostics.
     window.cpListSearch = cpListSearch;
 
-    // Feature flag for the redesigned search grid (opt-in until verified): localStorage.cpNewSearch==='1'.
-    function cpNewSearchOn() { try { return localStorage.getItem("cpNewSearch") === "1"; } catch (e) { return false; } }
+    // Redesigned search grid is now the DEFAULT on every host (0.2.193). localStorage is per-origin, so an
+    // opt-in flag meant each new host showed the OLD menus until set — friction for the multi-host rollout.
+    // Now default-ON with an opt-OUT escape hatch: set localStorage.cpNewSearch="0" to fall back to the legacy
+    // in-place list skin.
+    function cpNewSearchOn() { try { return localStorage.getItem("cpNewSearch") !== "0"; } catch (e) { return true; } }
+
+    // A page eligible for the redesigned grid: the legacy #searchTable search pages (Groups/Users/Service
+    // Instances) OR an Admins-style list — a readable {returnPage,tableName} descriptor + a find form (indexed
+    // findKey0 or non-indexed findKey) + a sortable result list. Generic, so any descriptor-backed BroadWorks
+    // list page lights up; a transport failure falls back to the legacy table (cpGridFallback), so untested
+    // pages degrade gracefully rather than strand the user.
+    function cpIsGridListPage() {
+      if (document.getElementById("searchTable")) return true;
+      if (!cpSearchDescriptor(document)) return false;
+      return !!(document.querySelector('#findKey0, select[name="findKey"]') &&
+                document.querySelector('a.listSortHeader, tr[id^="Row"]'));
+    }
 
     // --- THE SEARCH GRID (redesign) — filter bar + preload-all + fit-to-screen + horizontal page-flip ----
     // Faithful port of the APPROVED mockup (Testing HTML Files/groups-redesign-v2.html) into the live shell.
     // Built in pjax MAIN (alongside cpListSearch + cpBuildConsole — keeps the data and DOM in one world);
-    // styled by skin.css (.cp-srch-*, privileged). Gated behind localStorage.cpNewSearch==='1' for now so the
-    // committed in-place list skin stays the default until verified. pjax owns html.cp-grid-on (set when the
+    // styled by skin.css (.cp-srch-*, privileged). Default-ON (opt-out localStorage.cpNewSearch="0" → legacy
+    // in-place list skin). pjax owns html.cp-grid-on (set when the
     // grid takes over, removed on FALLBACK) and skin.js skips its legacy list skinning while it's set.
     // Inline SVGs (MAIN world has no chrome.runtime for asset urls — same approach as the breadcrumb icons).
     var CP_SVG_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>';
@@ -591,7 +668,8 @@
       "profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0"/><path d="M6 21v-2a4 4 0 0 1 4 -4h2.5"/><path d="M17.001 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M19.001 15.5v1.5"/><path d="M19.001 21v1.5"/><path d="M22.032 17.25l-1.299 .75"/><path d="M17.27 20l-1.3 .75"/><path d="M15.97 17.25l1.3 .75"/><path d="M20.733 20l1.3 .75"/></svg>',
       "activation code device onboarding policies": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21h-4a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v6"/><path d="M11 4h2"/><path d="M15.5 18m-1.8 0a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0"/><path d="M17.3 18h4"/><path d="M20 18v2"/><path d="M21.5 18v1.5"/></svg>',
       "stir-shaken": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3"/><path d="M11 11a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 12l0 2.5"/></svg>',
-      "alternate user ids": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M16 12v1.5a2.5 2.5 0 0 0 5 0v-1.5a9 9 0 1 0 -5.5 8.28"/></svg>'
+      "alternate user ids": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M16 12v1.5a2.5 2.5 0 0 0 5 0v-1.5a9 9 0 1 0 -5.5 8.28"/></svg>',
+      "administrators": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5 -3.5 7.5 -7.66 8.95a1 1 0 0 1 -.67 -.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1 -1c2 0 4.5 -1.2 6.24 -2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M6.376 18.91a6 6 0 0 1 11.249 .003"/><circle cx="12" cy="11" r="4"/></svg>'
     };
     function cpHeaderIcon(title) { return CP_HDR_ICONS[(title || "").trim().toLowerCase()] || ""; }
 
@@ -606,6 +684,10 @@
       groupUserList: [
         { type: "id" }, { type: "text" }, { type: "text" }, { type: "text" },
         { type: "num" }, { type: "muted" }, { type: "text" }
+      ],
+      // Reseller Administrators (findAll.jsp-style): Administrator ID (id link/drill), Last Name, First Name.
+      resellerAdmins: [
+        { type: "id" }, { type: "text" }, { type: "text" }
       ]
     };
     function cpGridColConfig(desc, headers, rows) {
@@ -665,12 +747,12 @@
 
       // Title + criteria options from the live page BEFORE we wipe it.
       var title = (document.title || "").split(":").pop().trim() || "Search";
-      var fieldOpts = [].map.call(document.querySelectorAll('#findKey0 option'), function (o) {
-        return { value: o.value, label: (o.textContent || "").trim() };
-      });
-      var opOpts = [].map.call(document.querySelectorAll('#findOp0 option'), function (o) {
-        return { value: o.value, label: (o.textContent || "").trim() };
-      });
+      // Read from the live search form: #findKey0/#findOp0 (Groups/Users, indexed) OR the non-indexed
+      // findKey/findOp (Admins-style findAll pages).
+      var keySel = document.querySelector('#findKey0') || document.querySelector('select[name="findKey"]');
+      var opSel = document.querySelector('#findOp0') || document.querySelector('select[name="findOp"]');
+      var fieldOpts = keySel ? [].map.call(keySel.options, function (o) { return { value: o.value, label: (o.textContent || "").trim() }; }) : [];
+      var opOpts = opSel ? [].map.call(opSel.options, function (o) { return { value: o.value, label: (o.textContent || "").trim() }; }) : [];
       if (!fieldOpts.length) fieldOpts = [{ value: "", label: "All" }];
       if (!opOpts.length) opOpts = [{ value: "STARTS_WITH", label: "Starts With" }, { value: "CONTAINS", label: "Contains" }, { value: "EQUAL_TO", label: "Equal To" }];
 
@@ -729,7 +811,11 @@
         wrap: wrap, cell: cell, hidden: hidden, countN: wrap.querySelector(".cp-srch-count-n"),
         all: [], cur: [], cols: [], desc: null, entity: title, phase: "initial", searched: false,
         sortK: 0, sortDir: 1, page: 0, perPage: 12,
-        accum: 0, cooling: false, criteriaCount: 1, fieldOpts: fieldOpts, opOpts: opOpts
+        accum: 0, cooling: false, criteriaCount: 1, fieldOpts: fieldOpts, opOpts: opOpts,
+        // Admins-style list: no #searchTable, and the page exposes its own doFind/doFindAll (redirectPost →
+        // find.jsp/findAll.jsp). Such pages SEARCH server-side — drive their own functions (scales to
+        // server-paginated lists; the grid re-skins whatever the page renders) rather than filtering locally.
+        legacySearch: (!document.getElementById("searchTable") && typeof window.doFind === "function")
       };
       cpGridState = state;
       // Column structure read from the live legacy list NOW, so the FIRST loading skeleton can match the result
@@ -744,10 +830,12 @@
       cpGridWireStaticHandlers(state);
       cpGridBuildActions(state);   // surface the legacy page's action buttons (Add / wizard / …) in the header
 
-      // NO auto-load. Show the "click to search" INITIAL state — the user runs an empty "Show all"
-      // (= every row, preload-all) or a criteria search; both go through cpGridLoad → skeleton → results /
-      // no-match. Avoids auto-loading a huge list (esp. Users) on every visit AND the token-rotation exposure.
-      cpGridShowState(state, "initial");
+      // Groups/Users: NO auto-load — show the "click to search" INITIAL state (their lists are huge; auto-load
+      // would hammer a big preload + the token-rotating fetches on every visit). Admins-style pages already have
+      // their FULL list rendered in the page, and the harvest is a local DOM read (instant, no fetch), so
+      // auto-show it — matching the legacy page, which lands with the list already populated.
+      if (!document.getElementById("searchTable")) cpGridLoad(state, null);
+      else cpGridShowState(state, "initial");
     }
 
     // Harvest the legacy page's action buttons (Add, Add Group Wizard, … — whatever this level exposes) so the
@@ -799,11 +887,23 @@
       head.innerHTML = ""; head.style.gridTemplateColumns = "";
       if (phase === "loading") {
         if (countPill) countPill.style.display = "";
-        var n = Math.max(8, state.perPage || 12), rows = "", i, ci;
         // Mirror the RESULTS layout so the skeleton matches what loads in: the SAME header bar (titles + its
         // surface-low background) and the SAME column layout for the shimmer rows. Columns come from a prior
         // search (state.cols) or, on the first load, from the live headers captured at mount (state.skelCols).
+        var rows = "", i, ci, n;
         var skc = (state.cols && state.cols.length) ? state.cols : state.skelCols;
+        // Size the skeleton to the body with the SAME floor(h/46) the results render uses — but ONLY after the
+        // skeleton HEADER is in the dhead. The dhead was just cleared (head.innerHTML = "" above); measuring the
+        // body while it's empty leaves the body ~one header-height TALLER, over-counting perPage by a row → a
+        // denser skeleton (e.g. 19 rows) than the 18 it fills into. The loaded grid measures with the header
+        // present, so measuring here the same way makes the skeleton's row count + height match the result
+        // EXACTLY (and thus identical across Groups/Users/Admins). (The Admins-style auto-load also reaches here
+        // synchronously at mount, before the rAF fit runs, so state.perPage would otherwise still be the 12 default.)
+        var fitN = function () {
+          var bh = dbody.clientHeight;
+          if (bh > 0) state.perPage = Math.max(4, Math.floor(bh / 46));
+          return Math.max(8, state.perPage || 12);
+        };
         if (skc && skc.length) {
           var tmpl = cpGridTemplate(skc);
           // Header bar: dark (surface-low) with shimmer PLACEHOLDERS, not the real titles — the extension is
@@ -814,6 +914,7 @@
             var num = (c.type === "num" || c.type === "numpill");
             return '<div class="cp-srch-skhd' + (num ? " num" : "") + '"><span class="cp-srch-sk" data-w="' + (num ? 52 : 40) + '"></span></div>';
           }).join("");
+          n = fitN();   // header now present → body at its real height → row count matches the loaded grid exactly
           for (i = 0; i < n; i++) {
             var cells = "";
             for (ci = 0; ci < skc.length; ci++) {
@@ -832,6 +933,7 @@
         // Fallback (no column info yet): a generic shimmer header bar + generic shimmer rows.
         head.style.gridTemplateColumns = "1fr";
         head.innerHTML = '<div class="cp-srch-skhd"><span class="cp-srch-sk" data-w="26"></span></div>';
+        n = fitN();
         for (i = 0; i < n; i++) {
           var a = (2.4 + (i * 7) % 10 / 10).toFixed(2), b = (1.6 + (i * 13) % 9 / 10).toFixed(2),
               c = (1.0 + (i * 5) % 7 / 10).toFixed(2), d = (2.0 + (i * 11) % 8 / 10).toFixed(2),
@@ -978,6 +1080,10 @@
         }
         cpGridSortBy(state, state.sortK, state.sortDir, true);
         cpGridRenderResultsFillIn(state);   // fill the loading boxes in place, top-to-bottom, real content dropping from above
+        // Re-fit AFTER the rows render. The build-time rAF fit (cpGridWireStaticHandlers) can run before an ASYNC
+        // auto-load (Admins-style) has laid the body out, locking in a stale perPage → too-tall rows / sparse
+        // ghost-fill. Recompute from the settled layout (no-op when perPage is already right — Groups/Users).
+        requestAnimationFrame(function () { if (document.contains(state.wrap)) cpGridRecompute(state, false); });
         if (state.countN) state.countN.textContent = state.all.length + (hasCriteria ? " matched" : " preloaded");
       }).catch(function (e) {
         console.warn("[search] load failed — falling back to legacy table", e);
@@ -1686,18 +1792,26 @@
       var frows = state.wrap.querySelector(".cp-srch-frows");
       var fieldSel = state.fieldOpts.map(function (o, i) { return '<option value="' + cpEsc(o.value) + '"' + (i === 0 ? " selected" : "") + ">" + cpEsc(o.label) + "</option>"; }).join("");
       var opSel = state.opOpts.map(function (o, i) { return '<option value="' + cpEsc(o.value) + '"' + (i === 0 ? " selected" : "") + ">" + cpEsc(o.label) + "</option>"; }).join("");
+      var legacy = state.legacySearch;
+      var listSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>';
       var html = "";
       for (var i = 0; i < n; i++) {
-        // Row action slot: the FIRST row carries the compact "+" box + Search button (the + adds a criterion
-        // row, like the legacy page's inline +); every added row carries a "−" box. The slot is a fixed width
-        // so Field/Match/value stay aligned across rows and the "−" sits directly under the "+".
-        var act = (i === 0)
-          ? '<button type="button" class="cp-srch-minib cp-srch-addb" title="Add filter">' + CP_SVG_PLUS + '</button>' +
-            '<button type="button" class="cp-srch-btn cp-srch-go">' + CP_SVG_SEARCH + '<span>Search</span></button>'
-          : '<button type="button" class="cp-srch-minib cp-srch-rm" title="Remove filter">' + CP_SVG_MINUS + '</button>';
+        // Row action slot. Admins-style (server search): Find All (doFindAll: clear → all) + Find (doFind:
+        // field/match/value) — single criterion, no "+". Preload-style (Groups/Users): the FIRST row carries
+        // the "+" box (add a criterion) + the Search button; every added row carries a "−" box.
+        var act;
+        if (legacy) {
+          act = '<button type="button" class="cp-srch-btn cp-srch-findall">' + listSvg + '<span>Find All</span></button>' +
+            '<button type="button" class="cp-srch-btn cp-srch-go">' + CP_SVG_SEARCH + '<span>Find</span></button>';
+        } else {
+          act = (i === 0)
+            ? '<button type="button" class="cp-srch-minib cp-srch-addb" title="Add filter">' + CP_SVG_PLUS + '</button>' +
+              '<button type="button" class="cp-srch-btn cp-srch-go">' + CP_SVG_SEARCH + '<span>Search</span></button>'
+            : '<button type="button" class="cp-srch-minib cp-srch-rm" title="Remove filter">' + CP_SVG_MINUS + '</button>';
+        }
         // Order: Field, Match, then VALUE (cp-srch-vslot — swapped in place for text / department dropdown /
         // Yes-No toggle by cpGridRenderRowValue), then the row actions. Mirrors the legacy page's layout.
-        html += '<div class="cp-srch-frow">' +
+        html += '<div class="cp-srch-frow' + (legacy ? ' cp-srch-frow-legacy' : '') + '">' +
           '<div class="cp-srch-sel cp-srch-dd"><span class="cp-srch-lab">Field</span><span class="cp-srch-ddval"></span>' + CP_SVG_CHEVDOWN + '<select class="cp-srch-field">' + fieldSel + '</select></div>' +
           '<div class="cp-srch-sel cp-srch-dd"><span class="cp-srch-lab">Match</span><span class="cp-srch-ddval"></span>' + CP_SVG_CHEVDOWN + '<select class="cp-srch-op">' + opSel + '</select></div>' +
           '<div class="cp-srch-search cp-srch-vslot">' + CP_SVG_SEARCH + '<input type="text" placeholder="Enter a value…"></div>' +
@@ -1715,9 +1829,12 @@
       [].forEach.call(frows.querySelectorAll(".cp-srch-rm"), function (b) {
         b.addEventListener("click", function () { if (state.criteriaCount > 1) cpGridRenderFilters(state, state.criteriaCount - 1); });
       });
-      // Search → run the preload.
+      // Search / Find → run the search (cpGridRunSearch routes to the page's doFind for legacy-search pages).
       var go = frows.querySelector(".cp-srch-go");
       if (go) go.addEventListener("click", function () { cpGridRunSearch(state); });
+      // Find All (legacy-search pages) → drive the page's own doFindAll (clears criteria → every row).
+      var fa = frows.querySelector(".cp-srch-findall");
+      if (fa) fa.addEventListener("click", function () { cpGridDriveFind(state, true); });
       // Enter in a value field runs the search (matches the native site).
       [].forEach.call(frows.querySelectorAll(".cp-srch-search input"), function (inp) {
         inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); cpGridRunSearch(state); } });
@@ -1939,7 +2056,31 @@
       var inp = fr.querySelector(".cp-srch-search input");
       return inp ? (inp.value || "").trim() : "";
     }
+    // Drive the legacy page's OWN search (Admins-style server search). Find: copy the grid's first filter row
+    // into the hidden findKey/findOp/findValue, then call the page's doFind (→ redirectPost find.jsp). Find All:
+    // call doFindAll (→ findAll.jsp, every row). The page re-renders via pjax and the grid rebuilds on cp:reskin,
+    // re-skinning the REAL server result — generic, and scales to server-paginated lists.
+    function cpGridDriveFind(state, findAll) {
+      try {
+        if (findAll) {
+          if (typeof window.doFindAll === "function") { window.doFindAll(); return; }
+        } else {
+          var fr = state.wrap.querySelector(".cp-srch-frow");
+          if (fr) {
+            var fk = document.querySelector('select[name="findKey"]'),
+                fo = document.querySelector('select[name="findOp"]'),
+                fv = document.querySelector('[name="findValue"]');
+            if (fk) fk.value = fr.querySelector(".cp-srch-field").value;
+            if (fo) fo.value = fr.querySelector(".cp-srch-op").value;
+            if (fv) fv.value = cpGridRowValue(fr);
+          }
+          if (typeof window.doFind === "function") { window.doFind(); return; }
+        }
+      } catch (e) { console.warn("[search] legacy-search drive failed", e); }
+    }
     function cpGridRunSearch(state) {
+      // Admins-style: drive the page's OWN server search instead of a local filter (scales to paginated lists).
+      if (state.legacySearch) { cpGridDriveFind(state, false); return; }
       var criteria = [];
       [].forEach.call(state.wrap.querySelectorAll(".cp-srch-frow"), function (fr) {
         criteria.push({
@@ -2015,6 +2156,12 @@
 
     cpHook = function (url, params, _retry) {
       try {
+        // Resolve a RELATIVE redirectPost target (e.g. the admin Add button's "Add/index.jsp") to an absolute
+        // /commpilot path so isPjaxUrl can match it — otherwise cpHook native-navigates → a full page load.
+        // (Only relative targets are touched; absolute "/commpilot/..." urls pass through unchanged.)
+        if (typeof url === "string" && url && url.charAt(0) !== "/" && !/^https?:/i.test(url)) {
+          try { url = new URL(url, location.href).pathname; } catch (e) {}
+        }
         // Sign-out interception (must precede isPjaxUrl): when skin.js's logout
         // confirmation has armed cp-signing-out, this redirectPost IS the logout.
         var _so = 0; try { _so = parseInt(sessionStorage.getItem("cp-signing-out") || "0", 10); } catch (e) {}
@@ -2173,10 +2320,17 @@
                 console.warn("[pjax] sidebar sync", e);
               }
 
-              // Re-execute swapped scripts under nonce-CSP
+              // Re-execute swapped scripts under nonce-CSP. CAPTURE each page DOMContentLoaded handler (e.g. the
+              // Admins row-fill) into a fresh per-nav list so a consumer that needs the page to (re)render can
+              // re-invoke it. A pjax swap fires no real DCL, and the one-shot microtask call below can run BEFORE
+              // the handler's (async) data exists — the Admins fill renders empty then, and is never re-run.
+              // The grid re-invokes window.__cpDclFns until its rows populate. (NOT registered on the real doc —
+              // that would accumulate stale handlers across navs.)
+              window.__cpDclFns = [];
               var origAdd = document.addEventListener;
               document.addEventListener = function (type, fn, opts) {
                 if (type === "DOMContentLoaded" && typeof fn === "function") {
+                  try { window.__cpDclFns.push(fn); } catch (e) {}
                   Promise.resolve().then(function () {
                     try {
                       fn.call(document, new Event("DOMContentLoaded"));
@@ -2211,6 +2365,15 @@
                 var rp = String(params.returnPage);
                 canonical = rp.indexOf("/commpilot") === 0 ? rp : ("/commpilot" + (rp.charAt(0) === "/" ? rp : "/" + rp));
               }
+              // An admin form action (Add/Modify OK/Cancel/Delete) POSTs to the form endpoint but RETURNS the
+              // list — leaving the URL at the form endpoint breaks the next relative nav (the Add button's
+              // "Add/index.jsp" would resolve to .../Add/Add/index.jsp → ERROR). When the swapped content is the
+              // LIST (the admin form's password field is absent), canonicalize the URL to the list directory.
+              try {
+                if (/\/Admins\/(Add\/|Modify\/|modify\.jsp)/i.test(url) && liveCell && liveCell.querySelector && !liveCell.querySelector('input[name="password"]')) {
+                  canonical = url.replace(/\/(Add|Modify)\/(index\.jsp)?$/i, "/").replace(/\/modify\.jsp$/i, "/");
+                }
+              } catch (e) {}
               try {
                 var cpState = { cpNav: { url: url, params: params || {} } };
                 if (cpPopReplaying) { history.replaceState(cpState, "", canonical); cpPopReplaying = false; }
@@ -2233,7 +2396,18 @@
       try {
         var form = e.target;
         if (!form || form.tagName !== "FORM") return;
-        if (!isPjaxUrl(form.action || "")) return;
+        // Resolve the POST target from the ATTRIBUTE, not the form.action DOM property. Legacy forms (e.g. the
+        // admin Modify mainForm) carry a hidden <input name="action">, which SHADOWS form.action → reading it
+        // returns that ELEMENT, not a URL string, so isPjaxUrl(form.action) was always false and the submit fell
+        // through to a NATIVE full POST (rotated single-use token → "page temporarily unavailable" → /Login/).
+        // An empty action attribute means "post to self" → fall back to the current path.
+        var act = form.getAttribute("action"); if (!act) act = location.pathname;
+        // The admin drill-in lands the URL on modify.jsp (the set-context endpoint); the form's REAL save endpoint
+        // is .../Admins/Modify/. An empty action posts to self = modify.jsp, which only RE-RENDERS (no save — the
+        // "OK does nothing, breadcrumb just refreshes" symptom). Verified live that posting the same fields to
+        // Modify/ saves and returns to the list. Redirect the self-post there (covers OK and Delete).
+        if (/\/Reseller\/Admins\/modify\.jsp$/i.test(act)) act = "/commpilot/Reseller/Admins/Modify/";
+        if (!isPjaxUrl(act)) return;
         e.preventDefault();
         e.stopImmediatePropagation();
         var params = {}, els = form.elements;
@@ -2245,8 +2419,27 @@
           params[el.name] = el.value;
         }
         if (e.submitter && e.submitter.name) params[e.submitter.name] = e.submitter.value;
-        window.redirectPost(form.action, params);
+        window.redirectPost(act, params);
       } catch (err) { console.warn("[pjax] submit intercept", err); }
+    }, true);
+
+    // The legacy "Cancel" on the admin Modify page returns via a server-side context our pjax nav doesn't
+    // preserve, so it lands on the WRONG list (observed: -> /Reseller/Enterprises/ -> 404, then a logout on the
+    // error page's recovery). Override it: on the admin Modify page, Cancel goes straight back to the
+    // Administrators list via pjax (clean swap). Capturing + stopImmediatePropagation pre-empts the legacy handler
+    // whatever it does. (The redesign wires its own Cancel the same way — this is the real navigate-out wiring.)
+    document.addEventListener("click", function (e) {
+      try {
+        // Match the admin Modify (Modify/ or modify.jsp) AND Add (Add/index.jsp) pages — both legacy Cancels
+        // return via a server-side context our pjax nav doesn't preserve, so route them straight to the list.
+        if (!/\/Reseller\/Admins\/(Add|[Mm]odify)/.test(location.pathname)) return;
+        var tt = e.target;
+        var btn = tt && (tt.name === "cancel" ? tt : (tt.closest ? tt.closest('input[name="cancel"], button[name="cancel"]') : null));
+        if (!btn) return;
+        e.preventDefault(); e.stopImmediatePropagation();
+        console.log("[pjax] admin Modify Cancel -> Admins list");
+        window.redirectPost("/commpilot/Reseller/Admins/", {});
+      } catch (err) {}
     }, true);
 
     window.addEventListener("keydown", function (e) {
@@ -3383,7 +3576,7 @@
         cpDecorateCurrentCrumbPill();
         // REDESIGNED SEARCH GRID (flagged): a page.jsp-paginated search LIST (has #searchTable) → preload-all
         // grid instead of the in-place legacy table. skin.js skips its list skinning while html.cp-grid-on is set.
-        if (cpNewSearchOn() && document.getElementById("searchTable")) { cpBuildSearchGrid(); return; }
+        if (cpNewSearchOn() && cpIsGridListPage()) { cpBuildSearchGrid(); return; }
         document.documentElement.classList.remove("cp-grid-on");
         return;
       }

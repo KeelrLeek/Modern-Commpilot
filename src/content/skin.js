@@ -187,10 +187,13 @@ var CP_ITEM_ICONS = {
   "profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0"/><path d="M6 21v-2a4 4 0 0 1 4 -4h2.5"/><path d="M17.001 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M19.001 15.5v1.5"/><path d="M19.001 21v1.5"/><path d="M22.032 17.25l-1.299 .75"/><path d="M17.27 20l-1.3 .75"/><path d="M15.97 17.25l1.3 .75"/><path d="M20.733 20l1.3 .75"/></svg>',
   "activation code device onboarding policies": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21h-4a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v6"/><path d="M11 4h2"/><path d="M15.5 18m-1.8 0a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0"/><path d="M17.3 18h4"/><path d="M20 18v2"/><path d="M21.5 18v1.5"/></svg>',
   "stir-shaken": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3"/><path d="M11 11a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 12l0 2.5"/></svg>',
-  "alternate user ids": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M16 12v1.5a2.5 2.5 0 0 0 5 0v-1.5a9 9 0 1 0 -5.5 8.28"/></svg>'
+  "alternate user ids": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M16 12v1.5a2.5 2.5 0 0 0 5 0v-1.5a9 9 0 1 0 -5.5 8.28"/></svg>',
+  "administrators": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5 -3.5 7.5 -7.66 8.95a1 1 0 0 1 -.67 -.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1 -1c2 0 4.5 -1.2 6.24 -2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M6.376 18.91a6 6 0 0 1 11.249 .003"/><circle cx="12" cy="11" r="4"/></svg>'
 };
 function cpMenuItemIcon(title) {
-  return CP_ITEM_ICONS[(title || "").trim().toLowerCase()] || "";
+  var t = (title || "").trim().toLowerCase();
+  if (/^administrator (modify|add)$/.test(t)) t = "administrators";   // the edit/create form pages share the list icon
+  return CP_ITEM_ICONS[t] || "";
 }
 
 function wrapMenuCards() {
@@ -873,6 +876,7 @@ function enhanceSelects() {
     }
     document.querySelectorAll("#searchTable select").forEach(processSelect);
     document.querySelectorAll(".cp-console-body select").forEach(processSelect);
+    document.querySelectorAll(".cp-prof-rowc select").forEach(processSelect);
   } catch (e) { console.warn("[CommPilot Skin] enhanceSelects:", e); }
 }
 (function cpDropdownGlobalInit() {
@@ -2337,6 +2341,11 @@ var CP_PROF_TAG_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor
 var CP_PROF_VERIFY_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3a12 12 0 0 1 -.09 7.06"/><path d="M15 19l2 2l4 -4"/></svg>';
 var CP_PROF_INFO_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 9h.01"/><path d="M11 12h1v4h1"/></svg>';
 var CP_PROF_CHEV_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg>';
+var CP_PROF_EYE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg>';
+var CP_PROF_EYEOFF_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.585 10.587a2 2 0 0 0 2.829 2.828"/><path d="M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87"/><path d="M3 3l18 18"/></svg>';
+var CP_PROF_X_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg>';
+var CP_PROF_TRASH_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7l16 0"/><path d="M10 11l0 6"/><path d="M14 11l0 6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg>';
+var CP_PROF_ALERT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z"/><path d="M12 16h.01"/></svg>';
 var CP_PROF_DESC = {
   "Reseller ID": "Unique identifier for this reseller. Read-only.",
   "Name": "Display name shown across the console."
@@ -2476,6 +2485,154 @@ function cpBuildDapRows(rowsWrap, cell) {
   return { controls: [sysR, allowC, emailC], sync: sync };
 }
 
+/* Administrator Modify: move the real legacy inputs (lastName / firstName / password /
+ * echoPassword / language / disableAccount) into settings rows; surface the read-only
+ * Administrator ID + Last Authentication; and add a LIVE password-requirements meter that
+ * mirrors the server's Error-4813 rules (6–60 chars, 1 number/upper/lower/symbol, can't
+ * contain the login ID) + a re-type match check, so admins don't round-trip the server to
+ * find a weak password. Language reuses the site dropdown (enhanceSelects → .cp-dd). */
+function cpBuildAdminRows(rowsWrap, cell) {
+  var lastN = cell.querySelector('input[name="lastName"]');
+  var firstN = cell.querySelector('input[name="firstName"]');
+  var pw = cell.querySelector('input[name="password"]');
+  var pw2 = cell.querySelector('input[name="echoPassword"]');
+  var lang = cell.querySelector('select[name="language"]');
+  var disable = cell.querySelector('input[name="disableAccount"]');
+  if (!lastN || !firstN || !pw || !pw2) return null;
+  // Add form: the Administrator ID is an EDITABLE input (userId); Modify has it as a read-only label.
+  var userIdInput = cell.querySelector('input[name="userId"]');
+  var isAdd = !!userIdInput;
+
+  // Read-only text values from the legacy label rows (no input in the value cell).
+  function legacyVal(re) {
+    var trs = cell.querySelectorAll("tr");
+    for (var i = 0; i < trs.length; i++) {
+      var tds = trs[i].querySelectorAll("td");
+      if (tds.length >= 2 && re.test((tds[0].textContent || "").trim()) && !tds[1].querySelector("input,select,textarea")) {
+        return (tds[1].textContent || "").trim();
+      }
+    }
+    return "";
+  }
+  var adminId = legacyVal(/administrator\s*id/i);
+  var lastAuth = legacyVal(/last\s*authentication/i);
+
+  // 1. Administrator ID — editable input (Add) OR read-only mono value + copy (Modify).
+  if (isAdd) {
+    cpProfInput(userIdInput);
+    var idRow = cpProfRow(rowsWrap, "Administrator ID", "Login ID for this administrator.", userIdInput);
+    idRow.querySelector(".cp-prof-k").innerHTML = '<span class="cp-prof-req">*</span> Administrator ID';
+  } else if (adminId) {
+    var idv = document.createElement("div"); idv.className = "cp-prof-roval";
+    var idt = document.createElement("span"); idt.className = "cp-prof-rovaltxt"; idt.textContent = adminId; idv.appendChild(idt);
+    var idc = document.createElement("button"); idc.type = "button"; idc.className = "cp-prof-copy"; idc.setAttribute("aria-label", "Copy administrator ID"); idc.innerHTML = CP_PROF_COPY_SVG;
+    (function (val) { idc.addEventListener("click", function () { cpProfCopy(idc, val); }); })(adminId);
+    idv.appendChild(idc);
+    cpProfRow(rowsWrap, "Administrator ID", "Login ID for this administrator. Read-only.", idv);
+  }
+  // 2 + 3. Names
+  cpProfRow(rowsWrap, "Last name", "", cpProfInput(lastN));
+  cpProfRow(rowsWrap, "First name", "", cpProfInput(firstN));
+
+  // 4. Reset password (+ show toggle + live requirements meter)
+  var pwslot = document.createElement("div");
+  var pwwrap = document.createElement("div"); pwwrap.className = "cp-prof-pwwrap";
+  cpProfInput(pw); pw.classList.add("cp-prof-pwinput");
+  pwwrap.appendChild(pw);
+  var eye = document.createElement("button"); eye.type = "button"; eye.className = "cp-prof-pweye"; eye.setAttribute("aria-label", "Show password"); eye.innerHTML = CP_PROF_EYE_SVG;
+  eye.addEventListener("click", function () { var s = pw.type === "password"; pw.type = s ? "text" : "password"; eye.innerHTML = s ? CP_PROF_EYEOFF_SVG : CP_PROF_EYE_SVG; });
+  pwwrap.appendChild(eye); pwslot.appendChild(pwwrap);
+  var treat = document.createElement("div"); treat.className = "cp-prof-treat"; pwslot.appendChild(treat);
+  var pwLabel = isAdd ? "Initial password" : "Reset password";
+  var pwRow = cpProfRow(rowsWrap, pwLabel, isAdd ? "" : "Leave blank to keep the current password.", pwslot);
+  pwRow.classList.add("cp-prof-pwrow");
+  pwRow.querySelector(".cp-prof-k").innerHTML = '<span class="cp-prof-req">*</span> ' + pwLabel;
+
+  // 5. Re-type new password (+ match)
+  var p2slot = document.createElement("div");
+  cpProfInput(pw2); p2slot.appendChild(pw2);
+  var mat = document.createElement("div"); mat.className = "cp-prof-mat"; mat.style.display = "none"; p2slot.appendChild(mat);
+  var rtLabel = isAdd ? "Re-type initial password" : "Re-type new password";
+  var p2Row = cpProfRow(rowsWrap, rtLabel, "", p2slot);
+  p2Row.classList.add("cp-prof-pwrow");
+  p2Row.querySelector(".cp-prof-k").innerHTML = '<span class="cp-prof-req">*</span> ' + rtLabel;
+
+  // 6. Language (real select → site dropdown via enhanceSelects)
+  if (lang) { cpProfInput(lang); cpProfRow(rowsWrap, "Language", "", lang); }
+
+  // 7. Last authentication (read-only)
+  if (lastAuth) { var lav = document.createElement("div"); lav.className = "cp-prof-mval"; lav.textContent = lastAuth; cpProfRow(rowsWrap, "Last authentication", "", lav); }
+
+  // 8. Disable account (toggle)
+  var tg = null;
+  if (disable) { tg = cpProfToggleEl(disable); cpProfRow(rowsWrap, "Disable account", "Block this administrator from signing in.", tg).classList.add("cp-prof-deprow"); }
+
+  // --- live password requirements ---
+  // login ID for the "can't contain the ID" rule: the live userId input on Add, the fixed ID on Modify.
+  function getLoginId() { return isAdd ? (userIdInput.value || "") : (adminId || ""); }
+  function evalPw(v) {
+    var lid = getLoginId();
+    return { len: v.length >= 6 && v.length <= 60, num: /[0-9]/.test(v), up: /[A-Z]/.test(v), lo: /[a-z]/.test(v), sp: /[^A-Za-z0-9]/.test(v),
+             id: v.length === 0 || !lid || v.toLowerCase().indexOf(lid.toLowerCase()) === -1 };
+  }
+  function ckItem(label, met) { return '<div class="cp-prof-ck' + (met ? " cp-prof-ck-met" : "") + '"><span class="cp-prof-ci">' + (met ? CP_PROF_CHECK_SVG : "") + "</span>" + label + "</div>"; }
+  function renderPw() {
+    var v = pw.value, e = evalPw(v);
+    var rs = [["6–60 characters", e.len], ["1 number", e.num], ["1 uppercase letter", e.up], ["1 lowercase letter", e.lo], ["1 symbol", e.sp], ["Doesn’t contain the ID", e.id]];
+    var met = 0; rs.forEach(function (r) { if (r[1]) met++; });
+    var col = met <= 2 ? "#e06c75" : (met < 5 ? "#d19a66" : "#98c379");
+    var lab = v.length === 0 ? "—" : (met <= 2 ? "Weak" : (met < 5 ? "Fair" : "Strong"));
+    var fill = Math.round(met / 6 * 4), bars = "", i;
+    for (i = 0; i < 4; i++) bars += '<span class="cp-prof-bar"' + ((i < fill && v.length) ? ' style="background:' + col + '"' : "") + "></span>";
+    var html = '<div class="cp-prof-str"><div class="cp-prof-bars">' + bars + '</div><span class="cp-prof-slab" style="color:' + (v.length ? col : "var(--cp-text-muted)") + '">' + lab + "</span></div>";
+    html += rs.map(function (r) { return ckItem(r[0], r[1]); }).join("");
+    treat.innerHTML = html;
+    if (pw2.value.length) { mat.style.display = "flex"; var ok = pw2.value === v; mat.className = "cp-prof-mat " + (ok ? "cp-prof-mat-ok" : "cp-prof-mat-no"); mat.innerHTML = (ok ? CP_PROF_CHECK_SVG : CP_PROF_X_SVG) + "<span>" + (ok ? "Passwords match" : "Passwords don’t match") + "</span>"; }
+    else { mat.style.display = "none"; }
+  }
+  pw.addEventListener("input", renderPw); pw2.addEventListener("input", renderPw);
+  if (isAdd) userIdInput.addEventListener("input", renderPw);   // re-check "can't contain the ID" as the ID is typed
+  renderPw();
+
+  // Language → site dropdown (enhanceSelects now also scans .cp-prof-rowc selects).
+  try { enhanceSelects(); } catch (e) {}
+
+  return {
+    controls: [userIdInput, lastN, firstN, pw, pw2, lang, disable].filter(Boolean),
+    subject: adminId,
+    sync: function () { if (tg && tg._sync) tg._sync(); }
+  };
+}
+
+/* Destructive-action confirm modal — a fixed overlay with a danger card. Forwards the real legacy delete
+ * click ONLY when the user confirms (the double-ask). Esc / backdrop / Cancel all dismiss. */
+function cpProfConfirmDelete(entity, subject, realDelete) {
+  try {
+    document.querySelectorAll(".cp-prof-modalov").forEach(function (o) { o.remove(); });
+    function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+    var subj = subject ? "<b>" + esc(subject) + "</b>" : ("this " + esc(entity));
+    var ov = document.createElement("div"); ov.className = "cp-prof-modalov";
+    ov.innerHTML =
+      '<div class="cp-prof-modal" role="dialog" aria-modal="true" aria-label="Confirm delete">' +
+        '<div class="cp-prof-modalic">' + CP_PROF_ALERT_SVG + "</div>" +
+        '<div class="cp-prof-modaltt">Delete this ' + esc(entity) + "?</div>" +
+        '<div class="cp-prof-modalmsg">This permanently removes ' + subj + " and revokes their access to the console. This can’t be undone.</div>" +
+        '<div class="cp-prof-modalacts">' +
+          '<button type="button" class="cp-prof-btn cp-prof-ghost" data-cp="cancel">Cancel</button>' +
+          '<button type="button" class="cp-prof-btn cp-prof-dangersolid" data-cp="confirm">' + CP_PROF_TRASH_SVG + "<span>Delete " + esc(entity) + "</span></button>" +
+        "</div>" +
+      "</div>";
+    function close() { try { ov.remove(); } catch (e) {} document.removeEventListener("keydown", onKey); }
+    function onKey(e) { if (e.key === "Escape") close(); }
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    ov.querySelector('[data-cp="cancel"]').addEventListener("click", close);
+    ov.querySelector('[data-cp="confirm"]').addEventListener("click", function () { close(); try { realDelete.click(); } catch (e) {} });
+    document.addEventListener("keydown", onKey);
+    document.body.appendChild(ov);
+    var conf = ov.querySelector('[data-cp="confirm"]'); if (conf) conf.focus();
+  } catch (e) { console.warn("[CommPilot Skin] confirm-delete:", e); }
+}
+
 /* ---- shared widget helpers (used by multi-card builders like STIR-SHAKEN) ---- */
 function cpProfCard(label, icon) {
   var card = document.createElement("div"); card.className = "cp-prof-card";
@@ -2504,7 +2661,7 @@ function cpProfToggleEl(cbEl, onChange) {
   var tg = document.createElement("span"); tg.className = "cp-prof-toggle";
   tg.setAttribute("role", "switch"); tg.setAttribute("tabindex", "0");
   if (!cbEl) return tg;
-  function fire() { if (tg.classList.contains("cp-prof-toggle-dis")) return; cbEl.click(); if (onChange) onChange(); }
+  function fire() { if (tg.classList.contains("cp-prof-toggle-dis")) return; cbEl.click(); if (tg._sync) tg._sync(); if (onChange) onChange(); }
   tg.addEventListener("click", fire);
   tg.addEventListener("keydown", function (e) { if (e.key === " " || e.key === "Enter") { e.preventDefault(); fire(); } });
   tg._sync = function () { tg.classList.toggle("cp-prof-toggle-on", cbEl.checked); };
@@ -2668,6 +2825,9 @@ function cpSettingsFormConfig(title, cell) {
   if (/^Profile$/.test(title)) {
     return { label: "Reseller information", icon: CP_PROF_USER_SVG, build: cpBuildProfileRows };
   }
+  if (/^Administrator (Modify|Add)/i.test(title) && cell.querySelector('input[name="echoPassword"]')) {
+    return { label: "Administrator", icon: CP_ITEM_ICONS["administrators"], build: cpBuildAdminRows };
+  }
   if (/Activation Code Device Onboarding/i.test(title) || cell.querySelector('input[name="allowActivationRequestByUser"]')) {
     return { label: "Onboarding policy", icon: CP_PROF_QR_SVG, build: cpBuildDapRows };
   }
@@ -2710,7 +2870,7 @@ function cpProfileForm() {
     function refresh() { actions.classList.toggle("cp-prof-dirty", controls.some(function (el) { return ctrlState(el) !== el.getAttribute("data-cp-orig"); })); }
 
     // --- content (page-specific): a SINGLE card (Profile/DAP) or MULTIPLE cards (STIR) ---
-    var cards, sync, card = null;
+    var cards, sync, card = null, cardSubject = "";
     if (cfg.multiCard) {
       var resM = cfg.build(cell);
       if (!resM || !resM.cards || !resM.cards.length) return;            // builder bailed — no partial skin
@@ -2725,7 +2885,7 @@ function cpProfileForm() {
       card.appendChild(rowsWrap);
       var resS = cfg.build(rowsWrap, cell);
       if (!resS) return;
-      controls = resS.controls || []; sync = resS.sync;
+      controls = resS.controls || []; sync = resS.sync; cardSubject = resS.subject || "";
       cards = [card];
     }
 
@@ -2742,6 +2902,18 @@ function cpProfileForm() {
     addBtn(realOk, "Save", "cp-prof-primary", CP_PROF_CHECK_SVG, true);
     addBtn(realApply, "Apply", "cp-prof-secondary", "", true);
     addBtn(realCancel, "Cancel", "cp-prof-ghost", "", false);
+    // Destructive Delete (e.g. admin Modify) → a danger button on the LEFT, gated behind a confirm modal that
+    // forwards the real legacy `delete` click ONLY on confirm (the "double ask"). Generic: any form exposing a
+    // `delete` button gets it.
+    var realDelete = lastBtn("delete");
+    if (realDelete) {
+      var delBtn = document.createElement("button");
+      delBtn.type = "button"; delBtn.className = "cp-prof-btn cp-prof-danger";
+      delBtn.innerHTML = CP_PROF_TRASH_SVG + "<span>Delete</span>";
+      var entity = (headTitle.replace(/\s*(Modify|Add)\s*$/i, "").trim() || "item").toLowerCase();
+      delBtn.addEventListener("click", function () { cpProfConfirmDelete(entity, cardSubject, realDelete); });
+      actions.insertBefore(delBtn, actions.firstChild);
+    }
     if (!cfg.multiCard && card) card.appendChild(actions);               // single-card: footer inside the card
 
     // --- page header (LOCKED spec — matches .cp-srch-head: glyph/bar + title, NO subtitle) ---
