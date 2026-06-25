@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Modern CommPilot Skin",
-  "version": "0.2.191",
-  "version_name": "0.2.191-alpha",
+  "version": "0.2.219",
+  "version_name": "0.2.219-alpha",
   "description": "Cosmetic overlay that re-skins the CommPilot web app.",
   "icons": {},
   "permissions": ["storage", "declarativeNetRequest"],
-  "host_permissions": ["https://apps01.avpaas.io/*"],
+  "host_permissions": ["https://*/commpilot/*"],
 
   "browser_specific_settings": {
     "gecko": {
@@ -16,36 +16,36 @@
 
   "content_scripts": [
     {
-      "matches": ["https://apps01.avpaas.io/commpilot/*"],
+      "matches": ["https://*/commpilot/*"],
       "js": ["src/content/fonts.js"],
       "all_frames": true,
       "run_at": "document_start"
     },
     {
-      "matches": ["https://apps01.avpaas.io/commpilot/*"],
+      "matches": ["https://*/commpilot/*"],
       "js": ["src/content/cloak.js"],
       "run_at": "document_start"
     },
     {
-      "matches": ["https://apps01.avpaas.io/commpilot/*"],
+      "matches": ["https://*/commpilot/*"],
       "js": ["src/content/stubguard.js"],
       "run_at": "document_start",
       "world": "MAIN"
     },
     {
-      "matches": ["https://apps01.avpaas.io/commpilot/*"],
+      "matches": ["https://*/commpilot/*"],
       "css": ["src/content/skin.css"],
       "all_frames": true,
       "run_at": "document_start"
     },
     {
-      "matches": ["https://apps01.avpaas.io/commpilot/*"],
+      "matches": ["https://*/commpilot/*"],
       "js": ["src/content/skin.js"],
       "all_frames": true,
       "run_at": "document_end"
     },
     {
-      "matches": ["https://apps01.avpaas.io/commpilot/*"],
+      "matches": ["https://*/commpilot/*"],
       "js": ["src/content/pjax.js"],
       "all_frames": true,
       "run_at": "document_idle",
@@ -66,7 +66,7 @@
   "web_accessible_resources": [
     {
       "resources": ["assets/fonts/*", "assets/icons/*", "assets/help/*"],
-      "matches": ["https://apps01.avpaas.io/*"]
+      "matches": ["https://*/*"]
     }
   ]
 }

@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.191";
+  var CP_PJAX_VERSION = "0.2.219";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
 
   // Single-page sign-out: minimum time (ms) the "Signing out…" spinner stays up
@@ -2689,10 +2689,30 @@
     // no-ops if already decorated, so pjax-swap pages that already have it are untouched). No-op until the
     // level is harvested (cache persisted across reloads via sessionStorage).
     function cpDecorateCurrentCrumbPill() {
+      var crumb = document.querySelector(".cp-breadcrumb.cp-bc-pill");
+      if (!crumb) return;
+      // Wire the ancestor pills the FULL-LOAD crumb (skin.js cpMoveBreadcrumb, ISOLATED world) built by MOVING
+      // the legacy headerAuthLevelLink anchors. On some CommPilot builds (e.g. the apps-sbx sandbox) those
+      // anchors carry NO inline onclick/href — the app JS-wires nav to their original header slot — so once
+      // moved they are DEAD. pjax is MAIN world and CAN reach redirectPost, so wire the dead pills via
+      // cpCrumbNav (same nav the pjax-swap crumb uses). Skip any pill that still has a native handler (builds
+      // where the inline onclick survives the move) so we never double-navigate. Idempotent via __cpCrumbWired.
+      var trail = [].map.call(crumb.querySelectorAll(".cp-bc-seg, .cp-bc-cur"), function (p) { return (p.textContent || "").trim(); });
+      [].forEach.call(crumb.querySelectorAll(".cp-bc-seg"), function (seg, i) {
+        if (seg.__cpCrumbWired || seg.getAttribute("href") || seg.onclick || seg.getAttribute("onclick")) return;
+        seg.__cpCrumbWired = true;
+        seg.setAttribute("role", "link");
+        seg.setAttribute("tabindex", "0");
+        seg.style.cursor = "pointer";
+        (function (idx) {
+          seg.addEventListener("click", function (e) { e.preventDefault(); cpCrumbNav(idx, trail); });
+          seg.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cpCrumbNav(idx, trail); } });
+        })(i);
+      });
+      // Mega-menu dropdown on the current pill (needs the level's harvested pages).
       var sig = cpSidebarSig(document.querySelector('form[name="leftNavForm"]'));
       var data = sig && cpLevelPages[sig];
-      var crumb = document.querySelector(".cp-breadcrumb.cp-bc-pill");
-      if (data && crumb) cpAttachCrumbDropdown(crumb.querySelector(".cp-bc-cur"), data);
+      if (data) cpAttachCrumbDropdown(crumb.querySelector(".cp-bc-cur"), data);
     }
     function cpCloseCrumbDropdown() {
       if (!cpCrumbDd) return;
