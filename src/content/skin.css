@@ -1035,6 +1035,9 @@ A.tab {
    ============================================================ */
 /* Hide legacy banner cells — the alert card renders via cpInsertTopAlert */
 .cp-alert-host { display: none !important; }
+/* Inside a settings FORM (cpProfileForm): align the message banner with the cards (full width of the
+   scroller's 22px inset) and sit it between the page header and the first card. */
+.cp-prof-scroll > .cp-alert { margin: 12px 0 12px 0 !important; }
 /* Card container — flat Trifecta, matches box style */
 .cp-alert {
   display: flex !important;
@@ -1042,15 +1045,15 @@ A.tab {
   align-items: center !important;
   padding: 12px 16px !important;
   margin: 0 16px 12px 16px !important;
-  border-radius: var(--cp-radius-ctl, 6px) !important;
+  border-radius: 10px !important;
   border: 1px solid !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
   box-sizing: border-box !important;
 }
 .cp-alert-error {
-  color: #ffb4ab !important;
-  background: rgba(147, 0, 10, 0.2) !important;
-  border-color: rgba(255, 180, 171, 0.3) !important;
+  color: #ef9aa1 !important;
+  background: rgba(224, 108, 117, 0.13) !important;
+  border-color: rgba(224, 108, 117, 0.42) !important;
 }
 .cp-alert-warning {
   color: var(--cp-secondary) !important;
@@ -1062,26 +1065,20 @@ A.tab {
   background: rgba(110, 76, 150, 0.12) !important;
   border-color: rgba(110, 76, 150, 0.28) !important;
 }
-/* Badge — 30px severity-tinted circle with dark SVG icon */
+/* Badge — bare outline glyph in the severity color (no filled circle) */
 .cp-alert-badge {
   flex-shrink: 0 !important;
-  width: 30px !important;
-  height: 30px !important;
-  border-radius: 50% !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  background: currentColor !important;
+  background: transparent !important;
 }
-.cp-alert-error .cp-alert-badge { color: #ffb4ab !important; }
-.cp-alert-warning .cp-alert-badge { color: var(--cp-secondary) !important; }
-.cp-alert-info .cp-alert-badge { color: var(--cp-primary) !important; }
-.cp-alert-badge svg { color: #1e1e1e !important; }
+.cp-alert-badge svg { width: 22px !important; height: 22px !important; color: inherit !important; }
 /* Content block */
 .cp-alert-content { flex: 1 !important; min-width: 0 !important; }
 .cp-alert-title {
   font-size: 14px !important;
-  font-weight: 600 !important;
+  font-weight: 700 !important;
   color: inherit !important;
 }
 .cp-alert-body {
@@ -1089,17 +1086,20 @@ A.tab {
   color: var(--cp-text-muted) !important;
   margin-top: 2px !important;
 }
-/* Code chip — right-aligned monospace pill */
+/* Code chip — right-aligned monospace pill, tinted to the severity color */
 .cp-alert-chip {
   flex-shrink: 0 !important;
-  font-size: 11px !important;
-  font-family: var(--cp-font-mono, monospace) !important;
-  color: var(--cp-text-muted) !important;
+  font: 600 11px/1 var(--cp-font-mono, ui-monospace, monospace) !important;
+  color: inherit !important;
   background: rgba(255, 255, 255, 0.06) !important;
-  padding: 2px 8px !important;
-  border-radius: 10px !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  padding: 5px 9px !important;
+  border-radius: 6px !important;
   white-space: nowrap !important;
 }
+.cp-alert-error .cp-alert-chip { background: rgba(224, 108, 117, 0.14) !important; border-color: rgba(224, 108, 117, 0.32) !important; }
+.cp-alert-warning .cp-alert-chip { background: rgba(232, 145, 80, 0.14) !important; border-color: rgba(232, 145, 80, 0.32) !important; }
+.cp-alert-info .cp-alert-chip { background: rgba(110, 76, 150, 0.16) !important; border-color: rgba(110, 76, 150, 0.34) !important; }
 
 /* ============================================================
    Login Screen
@@ -2557,6 +2557,46 @@ html.cp-console-active .cp-console::-webkit-scrollbar-button:vertical:end {
   text-align: right !important;
   word-break: break-word !important;
 }
+/* Settings-source glance pill (Activation Code / STIR-SHAKEN): muted = inherited (System),
+   lavender = custom (Reseller). Read-out only — the form page stays the editable source. */
+.cp-leaf-srcpill {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  font: 700 11.5px/1 "Nunito", sans-serif !important;
+  padding: 3px 9px !important;
+  border-radius: 999px !important;
+  white-space: nowrap !important;
+}
+.cp-leaf-srcpill svg { width: 13px !important; height: 13px !important; flex: 0 0 auto !important; }
+.cp-leaf-src-sys {
+  background: rgba(164, 162, 156, 0.14) !important;
+  color: #cfcdc6 !important;
+  border: 1px solid rgba(164, 162, 156, 0.30) !important;
+}
+.cp-leaf-src-res {
+  background: rgba(110, 76, 150, 0.26) !important;
+  color: var(--cp-primary, #C6A8E8) !important;
+  border: 1px solid rgba(198, 168, 232, 0.45) !important;
+}
+/* Default-platform glance pill (Call Recording Platforms): lavender = a value, dashed = None.
+   Mirrors the list-page defaults strip (Option C). */
+.cp-leaf-defpill {
+  display: inline-flex !important;
+  align-items: center !important;
+  font: 700 12px/1 "Nunito", sans-serif !important;
+  padding: 4px 11px !important;
+  border-radius: 999px !important;
+  white-space: nowrap !important;
+  background: rgba(110, 76, 150, 0.26) !important;
+  color: var(--cp-primary, #C6A8E8) !important;
+  border: 1px solid rgba(198, 168, 232, 0.45) !important;
+}
+.cp-leaf-defpill-empty {
+  background: transparent !important;
+  color: #8c8a84 !important;
+  border: 1px dashed #56534e !important;
+}
 
 /* ============================================================
    Console card spacing — aligned to the v5 mockup. Plain legacy
@@ -2907,6 +2947,13 @@ html.cp-grid-on td[width="82%"] { overflow: hidden !important; }
 
 /* filter bar + expansion */
 .cp-srch-filterbar { flex: 0 0 auto; background: var(--cp-surface); border: 1px solid var(--cp-outline); border-radius: 12px; padding: 12px 14px; margin: 12px 0 0; }
+/* Pre-list settings strip (e.g. Call Recording Platforms' System/Reseller Default) — read-only info band
+   above the filter bar so the grid surfaces the page's defaults instead of dropping them. */
+.cp-srch-defaults { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 8px 32px; background: var(--cp-surface); border: 1px solid var(--cp-outline); border-radius: 12px; padding: 12px 16px; margin: 12px 0 0; }
+.cp-srch-def { display: flex; align-items: center; gap: 9px; }
+.cp-srch-def-k { color: var(--cp-text-muted); font-size: 12.5px; font-weight: 700; }
+.cp-srch-def-v { display: inline-flex; align-items: center; font: 700 12px/1 "Nunito", sans-serif; padding: 4px 11px; border-radius: 999px; background: rgba(110, 76, 150, 0.26); color: var(--cp-primary, #C6A8E8); border: 1px solid rgba(198, 168, 232, 0.45); }
+.cp-srch-def-empty { background: transparent; color: #8c8a84; border: 1px dashed #56534e; }
 .cp-srch-frow { display: grid; grid-template-columns: 190px 190px 1fr 176px; gap: 10px; align-items: center; margin-bottom: 9px; }
 /* Yes/No value control for true/false fields (In Trunk Group): two icon chips, the chosen one lights green
    (Yes ✓) or red (No ✕). Sits left in the value cell. */
@@ -3236,6 +3283,13 @@ td.enduserbody:has(.cp-prof-card) {
   border-color: var(--cp-primary-strong) !important;
   box-shadow: 0 0 0 3px rgba(110, 76, 150, 0.18) !important;
 }
+/* Call Recording Platform Add/Modify — host+port on one row, multi-line route textarea. */
+.cp-prof-hostport { display: flex; align-items: center; gap: 10px; width: 100%; }
+.cp-prof-input.cp-prof-host { flex: 1 1 auto !important; width: auto !important; min-width: 0 !important; }
+.cp-prof-portlbl { flex: 0 0 auto; color: var(--cp-text-muted); font-size: 13px; font-weight: 700; }
+.cp-prof-input.cp-prof-port { flex: 0 0 72px !important; width: 72px !important; }
+.cp-prof-input.cp-prof-ta { height: auto !important; min-height: 66px !important; padding: 9px 12px !important; line-height: 1.4 !important; resize: vertical !important; }
+.cp-prof-row.cp-prof-tarow { align-items: start !important; }
 
 /* Read-only value (Reseller ID) + copy button. */
 .cp-prof-roval {

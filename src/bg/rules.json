@@ -7,5 +7,7 @@
   { "id": 3, "priority": 2, "action": { "type": "allow" },
     "condition": { "regexFilter": "^https://[^/]+/commpilot/Logout/", "resourceTypes": ["main_frame"], "requestMethods": ["get"] } },
   { "id": 4, "priority": 2, "action": { "type": "allow" },
-    "condition": { "regexFilter": "^https://[^/]+/commpilot/Common/styles\\.css", "resourceTypes": ["main_frame"], "requestMethods": ["get"] } }
+    "condition": { "regexFilter": "^https://[^/]+/commpilot/Common/styles\\.css", "resourceTypes": ["main_frame"], "requestMethods": ["get"] } },
+  { "id": 5, "priority": 2, "action": { "type": "allow" },
+    "condition": { "regexFilter": "^https://[^/]+/commpilot/servlet/Login", "resourceTypes": ["main_frame"], "requestMethods": ["get"] } }
 ]

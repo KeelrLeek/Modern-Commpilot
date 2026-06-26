@@ -188,7 +188,8 @@ var CP_ITEM_ICONS = {
   "activation code device onboarding policies": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21h-4a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v6"/><path d="M11 4h2"/><path d="M15.5 18m-1.8 0a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0"/><path d="M17.3 18h4"/><path d="M20 18v2"/><path d="M21.5 18v1.5"/></svg>',
   "stir-shaken": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3"/><path d="M11 11a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 12l0 2.5"/></svg>',
   "alternate user ids": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M16 12v1.5a2.5 2.5 0 0 0 5 0v-1.5a9 9 0 1 0 -5.5 8.28"/></svg>',
-  "administrators": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5 -3.5 7.5 -7.66 8.95a1 1 0 0 1 -.67 -.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1 -1c2 0 4.5 -1.2 6.24 -2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M6.376 18.91a6 6 0 0 1 11.249 .003"/><circle cx="12" cy="11" r="4"/></svg>'
+  "administrators": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5 -3.5 7.5 -7.66 8.95a1 1 0 0 1 -.67 -.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1 -1c2 0 4.5 -1.2 6.24 -2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M6.376 18.91a6 6 0 0 1 11.249 .003"/><circle cx="12" cy="11" r="4"/></svg>',
+  "call recording platforms": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg>'
 };
 function cpMenuItemIcon(title) {
   var t = (title || "").trim().toLowerCase();
@@ -1710,22 +1711,25 @@ function alertSeverityMeta(cls) {
   return { severity: "info", defaultTitle: "Notice" };
 }
 function alertBuildSvgIcon(severity) {
+  // Outline (stroked) glyphs — matches the form/console icon family + the approved alert style.
   var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 20 20");
-  svg.setAttribute("width", "18");
-  svg.setAttribute("height", "18");
-  svg.setAttribute("fill", "currentColor");
-  var d;
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", "22");
+  svg.setAttribute("height", "22");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  var markup;
   if (severity === "error") {
-    d = "M10 2.5a1.5 1.5 0 0 1 1.31.75l7.01 12.25A1.5 1.5 0 0 1 17.01 17H2.99a1.5 1.5 0 0 1-1.31-2.25L8.69 3.25A1.5 1.5 0 0 1 10 2.5zm0 2.5a.75.75 0 0 0-.75.75v4a.75.75 0 0 0 1.5 0v-4A.75.75 0 0 0 10 5zm0 7.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2z";
+    markup = '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>';
   } else if (severity === "warning") {
-    d = "M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm0 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zm0 2.75a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0V7a.75.75 0 0 1 .75-.75zM10 12.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2z";
+    markup = '<path d="M12 9v4"></path><path d="M10.24 3.957l-8.422 14.06a1.989 1.989 0 0 0 1.7 2.983h16.845a1.989 1.989 0 0 0 1.7 -2.983l-8.423 -14.06a1.989 1.989 0 0 0 -3.4 0z"></path><path d="M12 17h.01"></path>';
   } else {
-    d = "M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm0 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zm0 2.25a.75.75 0 1 1 0 1.5.75.75 0 0 1 0-1.5zm-.5 3.5a.75.75 0 0 0-.75.75v3a.75.75 0 0 0 1.5 0v-3a.75.75 0 0 0-.75-.75z";
+    markup = '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>';
   }
-  var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("d", d);
-  svg.appendChild(path);
+  svg.innerHTML = markup;
   return svg;
 }
 function alertAddThousands(n) {
@@ -1762,6 +1766,15 @@ function cpBuildAlert(severity, title, body, code) {
 /* Insert an alert card at the top of the content cell with grow-in animation. */
 function cpInsertTopAlert(card) {
   try {
+    // Settings FORM pages (cpProfileForm) mount their content in .cp-prof-scroll. Drop the alert at the TOP
+    // of the form (after the page header, before the first card) so the server's error/success message shows
+    // INSIDE the skinned layout instead of stranded in the legacy cell above the breadcrumb. cpProfileForm
+    // runs before restyleAlerts, so the scroller already exists when the alert is built.
+    var scroller = document.querySelector(".cp-prof-scroll");
+    if (scroller) {
+      var phead = scroller.querySelector(".cp-prof-head");
+      scroller.insertBefore(card, phead ? phead.nextSibling : scroller.firstChild);
+    } else {
     var searchBox = document.querySelector(".cp-search-box");
     var parent, ref;
     if (searchBox) { parent = searchBox.parentNode; ref = searchBox; }
@@ -1809,6 +1822,7 @@ function cpInsertTopAlert(card) {
         if (Math.abs(delta) >= 1) topCard.style.setProperty("margin-top", delta + "px", "important");
       }
     }
+    }
     var h = card.getBoundingClientRect().height;
     if (h) {
       var prevOverflow = card.style.overflow;
@@ -1855,20 +1869,26 @@ function restyleAlerts() {
         var text = (el.textContent || "").trim();
         if (text.length <= 20) continue;
 
-        var codeStr = "", body = text, known = null;
-        var m = /^(?:Failed to read:\s*)?\[(Error|Warning)\s+(\d+)\]\s*(.*)/i.exec(text);
+        var codeStr = "", known = null;
+        // Split off a leading action phrase ("Failed to add:", "Failed to save:") → use it as the TITLE,
+        // so the banner reads "Failed to add" instead of the generic default.
+        var pm = /^(Failed to \w+)\s*:?\s*([\s\S]*)$/i.exec(text);
+        var prefixTitle = null, rest = text;
+        if (pm) { prefixTitle = pm[1].charAt(0).toUpperCase() + pm[1].slice(1).toLowerCase(); rest = pm[2] || ""; }
+        var body = rest;
+        var m = /^\[(Error|Warning)\s+([\d,]+)\]\s*([\s\S]*)/i.exec(rest);
         if (m) {
           codeStr = m[1] + " " + m[2];
-          known = KNOWN_CODES[m[2]];
+          known = KNOWN_CODES[m[2].replace(/,/g, "")];
           if (known) cls = known.severity;
           body = m[3] || "";
-          if (body) body = body.charAt(0).toUpperCase() + body.slice(1);
         }
-
+        if (body) body = body.charAt(0).toUpperCase() + body.slice(1);
         body = body.replace(/\b(\d{4,})\b/g, function (s) { return alertAddThousands(s); });
 
         var meta = alertSeverityMeta(cls);
-        var card = cpBuildAlert(meta.severity, known ? known.title : meta.defaultTitle, body, codeStr || null);
+        var title = known ? known.title : (prefixTitle || meta.defaultTitle);
+        var card = cpBuildAlert(meta.severity, title, body, codeStr || null);
         card.title = text;
 
         el.classList.add("cp-alert-host");
@@ -2232,7 +2252,12 @@ function suppressEmptyResults() {
 function cpRevealCloak() {
   try {
     var contentful = !!document.querySelector('td[width="82%"], form[name="loginForm"], a.navMenuItem, .navOptions');
-    if (contentful) {
+    // Reset the dead-session loop guard ONLY on a real app page (proof of a live session) — NOT on the
+    // Login form. Resetting on Login defeats the guard: a logged-out host whose /Login/ → servlet/Login
+    // bootstrap is caught by the DNR redirect would reset the counter every cycle and loop forever.
+    // (cloak reveal still keys off `contentful`, which includes the login form, so the form stays visible.)
+    var appPage = !!document.querySelector('td[width="82%"], a.navMenuItem, .navOptions');
+    if (appPage) {
       try { sessionStorage.setItem("cp-stub-tries", "0"); } catch (e) {}
     }
     var o = document.getElementById("cp-cloak");
@@ -2346,6 +2371,8 @@ var CP_PROF_EYEOFF_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentCo
 var CP_PROF_X_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg>';
 var CP_PROF_TRASH_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7l16 0"/><path d="M10 11l0 6"/><path d="M14 11l0 6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg>';
 var CP_PROF_ALERT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z"/><path d="M12 16h.01"/></svg>';
+var CP_PROF_SERVER_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3"/><path d="M3 15a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -2"/><path d="M7 8l0 .01"/><path d="M7 16l0 .01"/></svg>';
+var CP_PROF_REC_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M7 12a5 5 0 0 1 5 -5"/><path d="M12 17a5 5 0 0 0 5 -5"/></svg>';
 var CP_PROF_DESC = {
   "Reseller ID": "Unique identifier for this reseller. Read-only.",
   "Name": "Display name shown across the console."
@@ -2819,6 +2846,69 @@ function cpBuildStirRows(cell) {
   return { cards: [cfgC.card, sg.card, tg.card, vf.card], controls: controls, sync: sync, globalActions: true };
 }
 
+/* Call Recording Platform Add/Modify — grouped two-card form (Platform / Recording). Text inputs +
+ * native selects (→ site dropdown via enhanceSelects) are MOVED into settings rows; the supportVideo
+ * true/false radio pair becomes a purple toggle (On = record video). One global Save/Cancel bar. */
+function cpBuildCrpRows(cell) {
+  var nameI = cell.querySelector('input[name="name"]');
+  var descI = cell.querySelector('input[name="description"]');
+  var ipI = cell.querySelector('input[name="ipAddress"]');
+  var portI = cell.querySelector('input[name="port"]');
+  var transportS = cell.querySelector('select[name="transport"]');
+  var mediaS = cell.querySelector('select[name="mediaStream"]');
+  var schemaS = cell.querySelector('select[name="schemaVersion"]');
+  var vidT = cell.querySelector('input[name="supportVideo"][value="true"]');
+  var vidF = cell.querySelector('input[name="supportVideo"][value="false"]');
+  var routeT = cell.querySelector('textarea[name="route"]');
+  if (!nameI || !ipI) return null;
+
+  var controls = [];
+  function ctl(el) { if (el && controls.indexOf(el) < 0) controls.push(el); return el; }
+  function req(row, label) { var k = row.querySelector(".cp-prof-k"); if (k) k.innerHTML = '<span class="cp-prof-req">*</span> ' + label; }
+
+  // supportVideo true/false radio pair → purple toggle (On = "true"). cpProfToggleEl is checkbox-only, so
+  // wrap the pair: toggling clicks whichever radio flips the state, and the visual mirrors the "true" radio.
+  var vidTg = null;
+  if (vidT && vidF) {
+    vidTg = document.createElement("span"); vidTg.className = "cp-prof-toggle";
+    vidTg.setAttribute("role", "switch"); vidTg.setAttribute("tabindex", "0"); vidTg.setAttribute("aria-label", "Support video recording");
+    var fireVid = function () { (vidT.checked ? vidF : vidT).click(); vidTg._sync(); };
+    vidTg.addEventListener("click", fireVid);
+    vidTg.addEventListener("keydown", function (e) { if (e.key === " " || e.key === "Enter") { e.preventDefault(); fireVid(); } });
+    vidTg._sync = function () { vidTg.classList.toggle("cp-prof-toggle-on", vidT.checked); vidTg.setAttribute("aria-checked", vidT.checked ? "true" : "false"); };
+    ctl(vidT);
+  }
+
+  // --- Platform card ---
+  var pc = cpProfCard("Platform", CP_PROF_SERVER_SVG);
+  req(cpProfRow(pc.rows, "Name", "", cpProfInput(ctl(nameI))), "Name");
+  if (descI) cpProfRow(pc.rows, "Description", "", cpProfInput(ctl(descI)));
+  var hostSlot = document.createElement("div"); hostSlot.className = "cp-prof-hostport";
+  cpProfInput(ctl(ipI)); ipI.classList.add("cp-prof-host"); hostSlot.appendChild(ipI);
+  if (portI) {
+    var pl = document.createElement("span"); pl.className = "cp-prof-portlbl"; pl.textContent = "Port"; hostSlot.appendChild(pl);
+    cpProfInput(ctl(portI)); portI.classList.add("cp-prof-port"); hostSlot.appendChild(portI);
+  }
+  req(cpProfRow(pc.rows, "Host name / IP address", "", hostSlot), "Host name / IP address");
+  if (transportS) cpProfRow(pc.rows, "Transport", "", cpProfInput(ctl(transportS)));
+
+  // --- Recording card ---
+  var rc = cpProfCard("Recording", CP_PROF_REC_SVG);
+  if (mediaS) cpProfRow(rc.rows, "Media stream", "", cpProfInput(ctl(mediaS)));
+  if (schemaS) cpProfRow(rc.rows, "Schema version", "", cpProfInput(ctl(schemaS)));
+  if (vidTg) cpProfRow(rc.rows, "Support video recording", "Record video calls to this platform.", vidTg).classList.add("cp-prof-deprow");
+  if (routeT) { cpProfInput(routeT); routeT.classList.add("cp-prof-ta"); cpProfRow(rc.rows, "Route", "", ctl(routeT)).classList.add("cp-prof-tarow"); }
+
+  try { enhanceSelects(); } catch (e) {}
+
+  return {
+    cards: [pc.card, rc.card],
+    controls: controls,
+    sync: function () { if (vidTg) vidTg._sync(); },
+    globalActions: true
+  };
+}
+
 /* Page config — picks the row builder (+ card-header label/icon for single-card pages).
  * Returns null for any page that isn't a configured settings form. */
 function cpSettingsFormConfig(title, cell) {
@@ -2833,6 +2923,9 @@ function cpSettingsFormConfig(title, cell) {
   }
   if (/STIR.?SHAKEN/i.test(title) || cell.querySelector('input[name="signingPolicy"]')) {
     return { multiCard: true, build: cpBuildStirRows };
+  }
+  if (/^Call Recording Platform (Add|Modify)/i.test(title) || (cell.querySelector('input[name="ipAddress"]') && cell.querySelector('select[name="transport"]'))) {
+    return { multiCard: true, build: cpBuildCrpRows };
   }
   return null;
 }

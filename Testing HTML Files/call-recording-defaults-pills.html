@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Call Recording Platforms — defaults strip pills (Option C)</title>
+<style>
+  body { background: #1c1b19; color: #e8e8e8; font-family: "Nunito", system-ui, sans-serif; margin: 0; padding: 40px; }
+  .note { color: #a4a29c; font-size: 13px; margin: 0 0 18px; max-width: 640px; line-height: 1.5; }
+  /* ===== Live skin recipe (skin.css .cp-srch-defaults block, 0.2.223) ===== */
+  .cp-srch-defaults { display: flex; flex-wrap: wrap; gap: 8px 32px; background: #2a2825; border: 1px solid #3c3a37; border-radius: 12px; padding: 12px 16px; margin: 12px 0 0; max-width: 900px; }
+  .cp-srch-def { display: flex; align-items: center; gap: 9px; }
+  .cp-srch-def-k { color: #a4a29c; font-size: 12.5px; font-weight: 700; }
+  .cp-srch-def-v { display: inline-flex; align-items: center; font: 700 12px/1 "Nunito", sans-serif; padding: 4px 11px; border-radius: 999px; background: rgba(110, 76, 150, 0.26); color: #C6A8E8; border: 1px solid rgba(198, 168, 232, 0.45); }
+  .cp-srch-def-empty { background: transparent; color: #8c8a84; border: 1px dashed #56534e; }
+</style>
+</head>
+<body>
+  <p class="note">Reseller &rsaquo; Call Recording Platforms &mdash; the pre-list defaults strip (read-only).
+  Present values render as a lavender filled pill; an empty default renders as a dashed transparent
+  &ldquo;None&rdquo; pill (Option C, user-picked 2026-06-26). This is the exact skin.css recipe shipped in 0.2.223.</p>
+
+  <div class="cp-srch-defaults">
+    <div class="cp-srch-def">
+      <span class="cp-srch-def-k">System Default Call Recording Platform</span>
+      <span class="cp-srch-def-v">AveriStarTest</span>
+    </div>
+    <div class="cp-srch-def">
+      <span class="cp-srch-def-k">Reseller Default Call Recording Platform</span>
+      <span class="cp-srch-def-v cp-srch-def-empty">None</span>
+    </div>
+  </div>
+</body>
+</html>

@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.219";
+  var CP_PJAX_VERSION = "0.2.229";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
 
   // Single-page sign-out: minimum time (ms) the "Signing out…" spinner stays up
@@ -486,6 +486,15 @@
           var t = (a.textContent || "").trim();
           return (!t && a.querySelector("img")) ? "✓" : t;   // boolean columns (e.g. In Trunk Group) render a checkmark IMAGE with no text → keep it as a ✓ marker
         });
+        // Link-less list rows (e.g. Call Recording Platforms): cells are plain <td> TEXT with spacer <td>s
+        // between columns and NO a.tableLink — read the row's non-empty <td> texts in order instead, so the
+        // list is harvested instead of skipped (the "0 results" bug). Drill (if any) still comes from the
+        // row's redirectPost below; System-level read-only rows simply have none.
+        if (!cells.length) {
+          cells = [].map.call(tr.children, function (td) {
+            return td.tagName === "TD" ? (td.textContent || "").replace(/\s+/g, " ").trim() : "";
+          }).filter(function (t) { return t; });
+        }
         if (!cells.length) return;
         var m = /redirectPost\s*\(\s*['"]([^'"]+)['"]\s*,\s*(\{[\s\S]*?\})\s*\)/.exec(tr.innerHTML);
         var drill = null;
@@ -669,7 +678,8 @@
       "activation code device onboarding policies": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21h-4a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v6"/><path d="M11 4h2"/><path d="M15.5 18m-1.8 0a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0"/><path d="M17.3 18h4"/><path d="M20 18v2"/><path d="M21.5 18v1.5"/></svg>',
       "stir-shaken": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3"/><path d="M11 11a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 12l0 2.5"/></svg>',
       "alternate user ids": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M16 12v1.5a2.5 2.5 0 0 0 5 0v-1.5a9 9 0 1 0 -5.5 8.28"/></svg>',
-      "administrators": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5 -3.5 7.5 -7.66 8.95a1 1 0 0 1 -.67 -.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1 -1c2 0 4.5 -1.2 6.24 -2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M6.376 18.91a6 6 0 0 1 11.249 .003"/><circle cx="12" cy="11" r="4"/></svg>'
+      "administrators": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5 -3.5 7.5 -7.66 8.95a1 1 0 0 1 -.67 -.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1 -1c2 0 4.5 -1.2 6.24 -2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M6.376 18.91a6 6 0 0 1 11.249 .003"/><circle cx="12" cy="11" r="4"/></svg>',
+      "call recording platforms": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg>'
     };
     function cpHeaderIcon(title) { return CP_HDR_ICONS[(title || "").trim().toLowerCase()] || ""; }
 
@@ -737,6 +747,36 @@
     // cpListSearch, then renders + wires instant sort / horizontal page-flip / wheel-paginate / fit-to-screen.
     // On a preload FAILURE it removes html.cp-grid-on and re-dispatches cp:reskin so skin.js restores the
     // legacy paginated table (never strand the user).
+    // Harvest pre-list label:value SETTINGS rows (e.g. Call Recording Platforms' "System Default" /
+    // "Reseller Default") so the grid surfaces them above the list instead of dropping them. A settings row =
+    // a <tr> with a label cell ending in ":" + a value cell, NOT a results-table data/header row. Read-only
+    // display of the current value (a control's selected text); the legacy page stays the editable source.
+    function cpGridHarvestSettings(cell) {
+      var out = [], seen = {};
+      var sh = cell.querySelector("a.listSortHeader");
+      var resultsTable = sh ? sh.closest("table") : null;
+      [].slice.call(cell.querySelectorAll("tr")).forEach(function (tr) {
+        if (out.length >= 8) return;
+        if (tr.id && /^Row/.test(tr.id)) return;
+        if (tr.querySelector("a.listSortHeader")) return;
+        if (resultsTable && resultsTable.contains(tr)) return;
+        var tds = [].slice.call(tr.children).filter(function (c) { return c.tagName === "TD"; });
+        if (tds.length < 2) return;
+        var label = (tds[0].textContent || "").replace(/\s+/g, " ").trim();
+        if (!label || label.length > 60 || !/:\s*$/.test(label)) return;
+        label = label.replace(/:\s*$/, "");
+        if (seen[label]) return; seen[label] = 1;
+        var ctrl = tds[1].querySelector("select, input:not([type=hidden]):not([type=button]):not([type=submit]), textarea");
+        var value;
+        if (ctrl) {
+          if (ctrl.tagName === "SELECT") { var o = ctrl.options[ctrl.selectedIndex]; value = o ? (o.textContent || "").trim() : ""; }
+          else value = ctrl.value || "";
+        } else value = (tds[1].textContent || "").replace(/\s+/g, " ").trim();
+        out.push({ label: label, value: value });
+      });
+      return out;
+    }
+
     function cpBuildSearchGrid() {
       var cell = document.querySelector('td[width="82%"]');
       if (!cell) return;
@@ -755,6 +795,21 @@
       var opOpts = opSel ? [].map.call(opSel.options, function (o) { return { value: o.value, label: (o.textContent || "").trim() }; }) : [];
       if (!fieldOpts.length) fieldOpts = [{ value: "", label: "All" }];
       if (!opOpts.length) opOpts = [{ value: "STARTS_WITH", label: "Starts With" }, { value: "CONTAINS", label: "Contains" }, { value: "EQUAL_TO", label: "Equal To" }];
+
+      // Pre-list settings (e.g. Call Recording Platforms' System/Reseller Default) → an info strip above the
+      // filter bar, read from the live page BEFORE we hide it.
+      var settingsHtml = "";
+      try {
+        var defs = cpGridHarvestSettings(cell);
+        if (defs.length) {
+          settingsHtml = '<div class="cp-srch-defaults">' + defs.map(function (s) {
+            var v = (s.value && s.value.trim())
+              ? '<span class="cp-srch-def-v">' + cpEsc(s.value) + '</span>'
+              : '<span class="cp-srch-def-v cp-srch-def-empty">None</span>';
+            return '<div class="cp-srch-def"><span class="cp-srch-def-k">' + cpEsc(s.label) + '</span>' + v + '</div>';
+          }).join("") + '</div>';
+        }
+      } catch (e) { settingsHtml = ""; }
 
       // Scaffold. PRESERVE the breadcrumb band, and HIDE (do NOT detach) the legacy list markup. The legacy
       // markup CONTAINS the mainForm (with #searchTable's findKey/findOp/findValue/rowNum + the formtokenserial)
@@ -776,6 +831,7 @@
             '<span class="cp-srch-count"><span class="cp-srch-dot"></span><span class="cp-srch-count-n">Loading…</span></span>' +
           '</div>' +
         '</div>' +
+        settingsHtml +
         '<div class="cp-srch-filterbar">' +
           '<div class="cp-srch-frows"></div>' +
         '</div>' +
@@ -2623,8 +2679,13 @@
       else { chip.hidden = true; }
     }
 
-    // Option `name` paths whose leaf pages are simple read-only label:value settings — summarize inline.
-    var CP_LEAF_ALLOW = ["/Reseller/Profile/"];
+    // Option `name` paths whose leaf pages get a console glance summary: Profile (read-only label:value
+    // rows) + the two settings-source pages (Activation Code / STIR-SHAKEN — a useSystemSettings radio
+    // surfaced as a System/Reseller source PILL). All fetched the same proven cpFollow way Profile uses.
+    var CP_LEAF_ALLOW = ["/Reseller/Profile/", "/Reseller/DeviceActivationPolicy/", "/Reseller/StirShaken/", "/Reseller/CallRecordingPlatforms/"];
+    // Verbatim Tabler outline glyphs for the source pill (MAIN world has no webfont/asset urls → inline SVG).
+    var CP_SVG_SRC_SYS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg>';
+    var CP_SVG_SRC_RES = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M6 4v4"/><path d="M6 12v8"/><path d="M10 16a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M12 4v10"/><path d="M12 18v2"/><path d="M16 7a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M18 4v1"/><path d="M18 9v11"/></svg>';
 
     function cpFetchLeaf(path) {
       return new Promise(function (resolve) {
@@ -2642,8 +2703,35 @@
               }
               var cell = res.doc.querySelector('td[width="82%"]');
               if (!cell) { resolve(null); return; }
+              // Some LIST pages expose pre-list default settings (Call Recording Platforms' System/Reseller
+              // Default) — surface those as the card glance even though the page is a list (so it must run
+              // BEFORE the leaf-only list-guard below). Reuse the grid's own defaults harvester; a present
+              // value → lavender pill, an empty default → a dashed "None" pill (mirrors the list strip).
+              if (/\/CallRecordingPlatforms\//.test(path)) {
+                var crpDefs = cpGridHarvestSettings(cell);
+                if (!crpDefs || !crpDefs.length) { resolve(null); return; }
+                resolve(crpDefs.map(function (s) {
+                  var has = !!(s.value && s.value.trim());
+                  return {
+                    label: s.label.replace(/\s*Call Recording Platform\s*$/i, "").trim(),
+                    value: has ? s.value.trim() : "None",
+                    kind: "defpill",
+                    empty: !has
+                  };
+                }));
+                return;
+              }
               // Verify leaf-like: not a list (no search/results table)
               if (cell.querySelector('#searchTable, #resultsTable, input[name="searchString"]')) { resolve(null); return; }
+              // Settings-source pages (Activation Code / STIR-SHAKEN) express the loaded policy as a
+              // useSystemSettings radio, not label:value rows — surface it as ONE glance row with a pill.
+              var srcSysR = cell.querySelector('input[name="useSystemSettings"][value="true"]');
+              var srcResR = cell.querySelector('input[name="useSystemSettings"][value="false"]');
+              if (srcSysR || srcResR) {
+                var useSys = !!(srcSysR && (srcSysR.checked || srcSysR.hasAttribute("checked")));
+                resolve([{ label: "Settings source", value: useSys ? "System" : "Reseller", pill: useSys ? "sys" : "res" }]);
+                return;
+              }
               var out = [];
               var trs = cell.querySelectorAll("tr");
               for (var j = 0; j < trs.length && out.length < 6; j++) {
@@ -2685,7 +2773,21 @@
           rows.forEach(function (r) {
             var row = document.createElement("div"); row.className = "cp-leaf-row";
             var k = document.createElement("span"); k.className = "cp-leaf-key"; k.textContent = r.label;
-            var v = document.createElement("span"); v.className = "cp-leaf-val"; v.textContent = r.value;
+            var v;
+            if (r.pill) {
+              // Source pill: muted = inherited (System), lavender = custom (Reseller).
+              v = document.createElement("span");
+              v.className = "cp-leaf-srcpill cp-leaf-src-" + r.pill;
+              v.innerHTML = (r.pill === "sys" ? CP_SVG_SRC_SYS : CP_SVG_SRC_RES);
+              var vt = document.createElement("span"); vt.textContent = r.value; v.appendChild(vt);
+            } else if (r.kind === "defpill") {
+              // Default-value pill (Call Recording Platforms): lavender = a value, dashed = None.
+              v = document.createElement("span");
+              v.className = "cp-leaf-defpill" + (r.empty ? " cp-leaf-defpill-empty" : "");
+              v.textContent = r.value;
+            } else {
+              v = document.createElement("span"); v.className = "cp-leaf-val"; v.textContent = r.value;
+            }
             row.appendChild(k); row.appendChild(v); box.appendChild(row);
           });
           // This summary just grew (… → real rows). If it sits in a section ABOVE a jump anchor, that

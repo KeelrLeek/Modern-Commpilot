@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Call Recording Platform Add — redesign (Option B: grouped cards)</title>
+<style>
+  :root{
+    --cp-bg:#1c1b19; --cp-surface:#2a2825; --cp-surface-high:#322f2c; --cp-surface-low:#232220;
+    --cp-primary:#C6A8E8; --cp-primary-strong:#6E4C96; --cp-text:#e8e8e8; --cp-text-muted:#a4a29c;
+    --cp-outline:#3c3a37;
+  }
+  body{ background:var(--cp-bg); color:var(--cp-text); font-family:"Nunito",system-ui,sans-serif; margin:0; padding:40px; }
+  .wrap{ max-width:1100px; margin:0 auto; padding:0 22px; }
+  .bc{ display:flex; align-items:center; gap:8px; height:44px; font-size:11px; font-weight:700; letter-spacing:.04em; }
+  .bc .muted{ color:var(--cp-text-muted); } .bc .cur{ color:var(--cp-primary); }
+  .head{ display:flex; align-items:center; gap:13px; padding:16px 0 2px; }
+  .head .glyph{ color:var(--cp-primary); display:flex; } .head .glyph svg{ width:27px; height:27px; }
+  .head .title{ font-size:22px; font-weight:700; line-height:1; }
+  .card{ margin:12px 0; background:var(--cp-surface); border:1px solid var(--cp-outline); border-radius:12px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,.25); }
+  .cardhead{ display:flex; align-items:center; gap:9px; padding:14px 20px; border-bottom:1px solid var(--cp-outline); }
+  .cardhead svg{ width:18px; height:18px; color:var(--cp-primary); }
+  .cardhead span{ font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--cp-text-muted); }
+  .rows{ padding:2px 20px; }
+  .row{ display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:24px; align-items:center; padding:17px 0; border-bottom:1px solid var(--cp-outline); }
+  .row:last-child{ border-bottom:0; }
+  .k{ font-size:14px; font-weight:700; } .k .req{ color:var(--cp-primary); }
+  .d{ font-size:12.5px; color:var(--cp-text-muted); margin-top:3px; }
+  .in{ width:100%; height:40px; box-sizing:border-box; background:var(--cp-surface-high); border:1px solid var(--cp-outline); border-radius:8px; color:var(--cp-text); padding:0 12px; font-size:14px; }
+  .in::placeholder{ color:#75726c; }
+  .dd{ height:40px; box-sizing:border-box; background:var(--cp-surface-high); border:1px solid var(--cp-outline); border-radius:8px; color:var(--cp-text); padding:0 12px; display:flex; align-items:center; justify-content:space-between; font-size:14px; cursor:pointer; }
+  .dd em{ color:var(--cp-text-muted); font-style:normal; }
+  .hostrow{ display:flex; gap:10px; align-items:center; }
+  .portlbl{ color:var(--cp-text-muted); font-size:13px; font-weight:700; }
+  .tg{ display:flex; align-items:center; gap:10px; }
+  .trk{ width:44px; height:24px; border-radius:999px; background:var(--cp-outline); position:relative; flex:0 0 auto; }
+  .knob{ position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:var(--cp-text-muted); transition:.18s; }
+  .tg.on .trk{ background:var(--cp-primary-strong); } .tg.on .knob{ left:23px; background:#fff; }
+  .tglbl{ color:var(--cp-text-muted); font-size:13px; font-weight:700; }
+  textarea.in{ height:auto; min-height:66px; padding:9px 12px; resize:vertical; font-family:inherit; }
+  .actions{ display:flex; align-items:center; gap:10px; padding:14px 20px; border-top:1px solid var(--cp-outline); background:rgba(0,0,0,.12); }
+  .actions .sp{ flex:1; }
+  .save{ background:var(--cp-primary-strong); color:#fff; font-weight:700; font-size:13.5px; padding:9px 20px; border:0; border-radius:8px; cursor:pointer; }
+  .cancel{ background:transparent; color:#cfcdc6; font-weight:700; font-size:13.5px; padding:9px 18px; border:1px solid var(--cp-outline); border-radius:8px; cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bc"><span class="muted">RESELLER</span><span class="muted">&rsaquo;</span><span class="cur">CALL RECORDING PLATFORM ADD</span></div>
+  <div class="head">
+    <span class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg></span>
+    <span class="title">Call Recording Platform Add</span>
+  </div>
+
+  <div class="card">
+    <div class="cardhead"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z"/><path d="M7 9h4"/><path d="M7 13h7"/></svg><span>Platform</span></div>
+    <div class="rows">
+      <div class="row"><div class="k">Name <span class="req">&lowast;</span></div><div><input class="in" placeholder="Enter a platform name"></div></div>
+      <div class="row"><div class="k">Description</div><div><input class="in" placeholder="Optional"></div></div>
+      <div class="row"><div><div class="k">Host name / IP address <span class="req">&lowast;</span></div></div><div class="hostrow"><input class="in" style="flex:1;" placeholder="host or IP"><span class="portlbl">Port</span><input class="in" style="width:70px;" placeholder="&mdash;"></div></div>
+      <div class="row"><div class="k">Transport</div><div class="dd">Unspecified <em>&#9662;</em></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="cardhead"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M7 12a5 5 0 0 1 5 -5"/></svg><span>Recording</span></div>
+    <div class="rows">
+      <div class="row"><div class="k">Media stream</div><div class="dd">Dual <em>&#9662;</em></div></div>
+      <div class="row"><div class="k">Schema version</div><div class="dd">1.0 <em>&#9662;</em></div></div>
+      <div class="row"><div><div class="k">Support video recording</div><div class="d">Record video calls to this platform</div></div><div class="tg"><span class="trk"><span class="knob"></span></span><span class="tglbl">Off</span></div></div>
+      <div class="row" style="align-items:start;"><div><div class="k">Route</div></div><div><textarea class="in" placeholder="Optional routing string"></textarea></div></div>
+    </div>
+    <div class="actions"><div class="sp"></div><button class="cancel">Cancel</button><button class="save">Save</button></div>
+  </div>
+</div>
+</body>
+</html>
