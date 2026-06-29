@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.229";
+  var CP_PJAX_VERSION = "0.2.270";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
 
   // Single-page sign-out: minimum time (ms) the "Signing out…" spinner stays up
@@ -49,6 +49,11 @@
   var cpConsoleObserver = null;
   var cpFrameSeq = 0;
   var cpSpEntry = null;
+  // The list LANDING a Find/Find All search was launched from. After a search the address bar reads
+  // /Common/findAll.jsp, against which a later RELATIVE redirectPost from the list (the Add/Import buttons'
+  // "Add/index.jsp") would resolve to /Common/Add/index.jsp → 404. We resolve such relative navs against this
+  // landing instead. Captured at search time (when location is still the real landing). See [[gotcha-relative-nav-after-search]].
+  var cpSearchLanding = null;
   // The CURRENT entity id (e.g. a user id) for the breadcrumb's last pill. Captured from each pjax swap's
   // FETCHED doc (cpHook) because after the swap the live header keeps the PREVIOUS entity (it isn't swapped)
   // and the fresh content cell has none — so neither live source is reliable. null = no pjax swap yet this
@@ -241,7 +246,21 @@
           // modify context, then redirect to .../Admins/Modify/" endpoint). Unlisted → cpHook native-submitted it
           // → a FULL page load on drill-in AND a native POST that degraded the single-use token → /Login/.
           // Pjax-handle it so cpFollow threads the rotating token and follows the stub to Modify/ in-shell.
-          u.indexOf("/Admins/modify.jsp") !== -1)
+          u.indexOf("/Admins/modify.jsp") !== -1 ||
+          // Device-management IMPORT pages live under the Operator/System scope (e.g. Device Families' Import =
+          // /Operator/System/DeviceFamilies/Import/index.jsp), NOT /Reseller/. Unlisted → the list's Import button
+          // redirectPost'd there, cpHook saw a non-pjax url and NATIVE-navigated → a FULL page reload (legacy
+          // styles/graphics re-fetched). Listing it routes the open through cpFollow so the upload form renders
+          // in-shell. (The OK upload posts multipart to /servlet/DeviceManagementImportServlet — NOT pjax-matched
+          // → still a native submit, which a file upload requires anyway. Cancel posts back to the /Reseller list,
+          // already pjax-matched.)
+          /\/commpilot\/Operator\/System\/[A-Za-z0-9_]+\/Import\/(index\.jsp)?$/.test(u) ||
+          // Device-management DRILL-IN: clicking a reseller Tag Set opens its Modify sub-page (the tag-name/value
+          // grid) at /Operator/System/DeviceTags/Modify/TagSet/index.jsp — same Operator/System scope as Import, so
+          // unlisted meant cpHook native-navigated → a FULL page reload on drill-in (legacy styles/graphics
+          // re-fetched). Listing it routes the drill through cpFollow so the sub-page (itself a searchable grid)
+          // opens in-shell. Generic for any Operator/System <section>/Modify/… entry.
+          /\/commpilot\/Operator\/System\/[A-Za-z0-9_]+\/Modify\//.test(u))
       );
     }
 
@@ -470,6 +489,17 @@
       var m = /there\s+are\s+([\d,]+)\s+matching\s+records/i.exec(t);
       return { count: m ? +m[1].replace(/,/g, "") : null };
     }
+    // Legacy "this list is empty" marker — BroadSoft renders a single <td>No Entries Present</td> (anchored, not a
+    // substring of a data cell) ONLY when the server returns zero rows; a populated list has data rows instead. Used
+    // by the client-fill harvest to tell "legitimately empty" from "async fill still pending" (so it stops instead
+    // of spinning 60 ticks re-dispatching DOMContentLoaded). See [[gotcha-empty-list-harvest-spin]].
+    function cpSearchHasEmptyMarker(doc) {
+      var tds = doc.querySelectorAll("td");
+      for (var i = 0; i < tds.length; i++) {
+        if (/^\s*No Entries Present\.?\s*$/i.test(tds[i].textContent || "")) return true;
+      }
+      return false;
+    }
     function cpSearchHeaders(doc) {
       return [].map.call(doc.querySelectorAll("a.listSortHeader"), function (a) {
         return (a.textContent || "").replace(/\s+/g, " ").trim();
@@ -554,8 +584,12 @@
           (function harvest() {
             if (opts.signal && opts.signal.aborted) { resolve({ headers: cpSearchHeaders(document), rows: [], totalPages: 1, desc: descLive }); return; }
             var all = cpSearchParseRows(document);
-            var ready = all.length && all.some(function (r) { return r.cells.some(function (c) { return c && c.trim(); }); });
-            if (!ready) {
+            var hasData = all.length && all.some(function (r) { return r.cells.some(function (c) { return c && c.trim(); }); });
+            // A legitimately EMPTY list (legacy "No Entries Present" cell) must NOT be mistaken for a pending async
+            // fill — otherwise harvest spins all 60 ticks re-dispatching DOMContentLoaded, and pages that wire their
+            // link_<GUID> handlers on DCL (e.g. Device Families) throw "null.addEventListener" up to 60× (a flood +
+            // a ~3s stall on every empty list). Marker present ⇒ the server rendered the empty state ⇒ resolve now.
+            if (!hasData && !cpSearchHasEmptyMarker(document)) {
               // The fill's data loads async, so the swap-time call rendered empty; re-run the fill until the rows
               // populate. TWO mechanisms for robustness, each tick: (1) re-call the handlers CAPTURED by the
               // re-exec shim (works on a pure in-app nav, where the fill is never on the real document); (2)
@@ -657,6 +691,7 @@
     var CP_SVG_CHEVRIGHT2 = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 18 6-6-6-6M13 18l6-6-6-6"/></svg>';
     var CP_SVG_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
     var CP_SVG_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+    var CP_SVG_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-13M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>';
     var CP_SVG_ARRUP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>';
     var CP_SVG_ARRDOWN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
     var CP_SVG_BUILDING = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01"/></svg>';
@@ -679,9 +714,19 @@
       "stir-shaken": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3"/><path d="M11 11a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 12l0 2.5"/></svg>',
       "alternate user ids": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M16 12v1.5a2.5 2.5 0 0 0 5 0v-1.5a9 9 0 1 0 -5.5 8.28"/></svg>',
       "administrators": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5 -3.5 7.5 -7.66 8.95a1 1 0 0 1 -.67 -.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1 -1c2 0 4.5 -1.2 6.24 -2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M6.376 18.91a6 6 0 0 1 11.249 .003"/><circle cx="12" cy="11" r="4"/></svg>',
-      "call recording platforms": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg>'
+      "call recording platforms": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg>',
+      "device management device families": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z"/><path d="m7 16.5-4.74-2.85"/><path d="m7 16.5 5-3"/><path d="M7 16.5v5.17"/><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z"/><path d="m17 16.5-5-3"/><path d="m17 16.5 4.74-2.85"/><path d="M17 16.5v5.17"/><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z"/><path d="M12 8 7.26 5.15"/><path d="m12 8 4.74-2.85"/><path d="M12 13.5V8"/></svg>',
+      "device management tag sets": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z"/><path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193"/><circle cx="10.5" cy="6.5" r=".5" fill="currentColor"/></svg>',
+      "mobile subscriber directory numbers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8.5l4.5 4.5v12.5a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1v-16a1 1 0 0 1 1 -1"/><path d="M9 11h3v6"/><path d="M15 17v.01"/><path d="M15 14v.01"/><path d="M15 11v.01"/><path d="M9 14v.01"/><path d="M9 17v.01"/></svg>',
+      "identity/device endpoints": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5"/><path d="M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5"/><path d="M3 21l2.5 -2.5"/><path d="M18.5 5.5l2.5 -2.5"/><path d="M10 11l-2 2"/><path d="M13 14l-2 2"/></svg>'
     };
-    function cpHeaderIcon(title) { return CP_HDR_ICONS[(title || "").trim().toLowerCase()] || ""; }
+    // Mirrors skin.js cpMenuItemIcon's normalization so the list AND the Modify grid (Tags/Regions) headers resolve
+    // to the tags icon, not just the bare list title.
+    function cpHeaderIcon(title) {
+      var t = (title || "").trim().toLowerCase();
+      if (/^device management (tag sets|regions)( (add|add tag|modify|modify tag))?$/.test(t)) t = "device management tag sets";
+      return CP_HDR_ICONS[t] || "";
+    }
 
     // Per-list column treatments, keyed by the descriptor tableName (labels always come from the SERVER
     // headers, so only the visual TYPE + sort kind are configured here). Unknown lists fall back to an
@@ -767,6 +812,7 @@
         label = label.replace(/:\s*$/, "");
         if (seen[label]) return; seen[label] = 1;
         var ctrl = tds[1].querySelector("select, input:not([type=hidden]):not([type=button]):not([type=submit]), textarea");
+        if (ctrl && ctrl.name === "newTagSetName") return;   // surfaced as an EDITABLE field by cpGridBuildSubnav, not a read-only default
         var value;
         if (ctrl) {
           if (ctrl.tagName === "SELECT") { var o = ctrl.options[ctrl.selectedIndex]; value = o ? (o.textContent || "").trim() : ""; }
@@ -784,6 +830,12 @@
       cpFieldMetaCache = {};   // per-group: the department list differs by page, so don't carry it across builds
       var root = document.documentElement;
       root.classList.add("cp-grid-on");
+      // skin.js's suppressEmptyResults runs on the EARLY (pre-grid) pass and can leave a legacy "No results"
+      // empty-alert stranded at the top of the content (it inserts ABOVE the cell, so wiping the cell below
+      // doesn't clear it). The grid renders its OWN empty state ("No results found"), so that banner is redundant
+      // and showed in the header on first entry to an empty list. Drop it — the grid is now authoritative for this
+      // list's empty state. (The legacy-fallback skinner keeps its alert: it never reaches cpBuildSearchGrid.)
+      try { document.querySelectorAll(".cp-alert[data-cp-empty]").forEach(function (a) { a.remove(); }); } catch (e) {}
 
       // Title + criteria options from the live page BEFORE we wipe it.
       var title = (document.title || "").split(":").pop().trim() || "Search";
@@ -831,6 +883,7 @@
             '<span class="cp-srch-count"><span class="cp-srch-dot"></span><span class="cp-srch-count-n">Loading…</span></span>' +
           '</div>' +
         '</div>' +
+        '<div class="cp-srch-subnav"></div>' +
         settingsHtml +
         '<div class="cp-srch-filterbar">' +
           '<div class="cp-srch-frows"></div>' +
@@ -853,6 +906,11 @@
                 '<button type="button" class="cp-srch-goto-go">Go</button>' +
               '</span>' +
             '</div>' +
+          '</div>' +
+          '<div class="cp-srch-delbar" role="region" aria-label="Selected rows actions">' +
+            '<span class="cp-srch-delcount">0 selected</span>' +
+            '<button type="button" class="cp-srch-delclear">Clear</button>' +
+            '<button type="button" class="cp-srch-deldo">' + CP_SVG_TRASH + '<span>Delete</span></button>' +
           '</div>' +
         '</div>';
       cell.appendChild(wrap);
@@ -885,6 +943,8 @@
       cpGridRenderFilters(state, 1);
       cpGridWireStaticHandlers(state);
       cpGridBuildActions(state);   // surface the legacy page's action buttons (Add / wizard / …) in the header
+      cpGridBuildSubnav(state);    // tabbed sub-pages (Tag Set Modify: Tags|Regions) + editable rename field
+      cpGridSetupDelete(state);    // multi-select delete on lists that expose a legacy delete-checkbox column
 
       // Groups/Users: NO auto-load — show the "click to search" INITIAL state (their lists are huge; auto-load
       // would hammer a big preload + the token-rotating fetches on every visit). Admins-style pages already have
@@ -918,6 +978,74 @@
       });
       return out;
     }
+    // Extract a harvested action button's navigation target from its inline-script wiring. BroadSoft wires these
+    // buttons on DOMContentLoaded (`getElementById(id).addEventListener("click", ()=>redirectPost(url,{params}))`),
+    // and that registration FAILS to re-attach after an in-shell pjax swap (the DCL re-exec throws on the missing
+    // element → "DCL err … addEventListener null") — so forwarding `.click()` to the legacy button silently no-ops
+    // (the "Add does nothing in-shell" bug). Reading the target from the script and calling redirectPost directly
+    // keeps Add/Import working in-shell regardless (Add = relative "Add/index.jsp" → cpHook resolves it against the
+    // list landing; Import = the absolute Operator/System Import url). See [[feedback-everything-through-pjax]].
+    function cpGridActionTarget(el) {
+      if (!el || !el.id) return null;
+      var scripts = [].slice.call(document.querySelectorAll('script:not([src])')).map(function (s) { return s.textContent || ""; }).join("\n");
+      var i = scripts.indexOf(el.id);
+      if (i < 0) return null;
+      var chunk = scripts.slice(i, i + 400);
+      var m = /redirectPost\s*\(\s*['"]([^'"]+)['"]\s*,\s*(\{[\s\S]*?\})\s*\)/.exec(chunk);
+      if (!m) return null;
+      var url = m[1].replace(/\\u002F/g, "/");
+      var params = {}, re = /(\w+)\s*:\s*['"]([^'"]*)['"]/g, mm;
+      while ((mm = re.exec(m[2]))) params[mm[1]] = mm[2].replace(/\\u003E/g, ">").replace(/\\u0025/g, "%").replace(/\\u002F/g, "/");
+      return { url: url, params: params };
+    }
+    // Export action wiring. The legacy Export button calls `exportComponent(component, contextPath, pagePath,
+    // tokenName)` (defined in Scripts/deviceManagementExport.js) — a script the FULL Modify page loads but that pjax
+    // does NOT carry over on an in-shell swap, so exportComponent is UNDEFINED and forwarding the click no-ops. We
+    // extract its args from the inline wiring and run our own equivalent (cpExportComponent). See
+    // [[feedback-everything-through-pjax]], [[gotcha-export-blob-download]].
+    function cpGridExportTarget(el) {
+      if (!el || !el.id) return null;
+      var scripts = [].slice.call(document.querySelectorAll('script:not([src])')).map(function (s) { return s.textContent || ""; }).join("\n");
+      var i = scripts.indexOf(el.id);
+      if (i < 0) return null;
+      var m = /exportComponent\s*\(\s*['"]([^'"]*)['"]\s*,\s*['"]([^'"]*)['"]\s*,\s*['"]([^'"]*)['"]\s*,\s*['"]([^'"]*)['"]\s*\)/.exec(scripts.slice(i, i + 450));
+      if (!m) return null;
+      var dec = function (s) { return (s || "").replace(/\\u002F/g, "/").replace(/\\u0025/g, "%"); };
+      return { component: dec(m[1]), contextPath: dec(m[2]), pagePath: dec(m[3]), tokenName: dec(m[4]) };
+    }
+    // Replicates legacy exportComponent (deviceManagementExport.js) but downloads via a BLOB instead of
+    // `location.href = proxy`. The proxy is a /commpilot/ URL, so the legacy GET nav would be caught by our DNR
+    // recovery redirect (GET main_frame) → styles.css → no download. Fetch+blob+<a download> never touches
+    // main_frame, so DNR can't interfere. Server contract (verified): POST <pagePath>/index.jsp?key=<component>
+    // &export=&<tokenName>=<token> → body has <proxy>URL</proxy>; GET that URL → the file (Content-Disposition).
+    function cpExportComponent(component, contextPath, pagePath, tokenName) {
+      try {
+        var tokEl = (document.mainForm && document.mainForm.elements[tokenName]) || document.getElementsByName(tokenName)[0];
+        var tok = tokEl ? tokEl.value : "";
+        var postUrl = contextPath + pagePath + "/index.jsp?key=" + encodeURIComponent(component) + "&export=";
+        if (tok) postUrl += "&" + tokenName + "=" + encodeURIComponent(tok);
+        fetch(postUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" }, credentials: "same-origin" })
+          .then(function (r) { return r.text(); })
+          .then(function (txt) {
+            var s = txt.indexOf("<proxy>"), e = txt.indexOf("</proxy>");
+            if (s < 0 || e <= s) { console.warn("[pjax] export: no proxy in response"); return; }
+            var proxy = txt.substring(s + 7, e);
+            return fetch(proxy, { credentials: "same-origin" }).then(function (pr) {
+              var cd = pr.headers.get("content-disposition") || "";
+              var fm = /filename="?([^";]+)"?/.exec(cd);
+              var fname = fm ? fm[1].trim() : (component + ".zip");
+              return pr.blob().then(function (blob) {
+                var u = URL.createObjectURL(blob);
+                var a = document.createElement("a");
+                a.href = u; a.download = fname; a.style.display = "none";
+                document.body.appendChild(a); a.click();
+                setTimeout(function () { try { a.remove(); URL.revokeObjectURL(u); } catch (x) {} }, 1500);
+              });
+            });
+          })
+          .catch(function (err) { console.warn("[pjax] export failed:", err); });
+      } catch (e) { console.warn("[pjax] cpExportComponent:", e); }
+    }
     function cpGridBuildActions(state) {
       var host = state.wrap.querySelector(".cp-srch-actions");
       if (!host) return;
@@ -928,9 +1056,202 @@
         btn.className = "cp-srch-actbtn" + (i === 0 ? "" : " sec");   // first action = primary, rest = secondary
         if (i === 0) btn.innerHTML = CP_SVG_PLUS + "<span>" + cpEsc(a.label) + "</span>";
         else btn.textContent = a.label;
-        btn.addEventListener("click", function () { try { a.el.click(); } catch (e) {} });
+        var tgt = cpGridActionTarget(a.el);   // read at build (the legacy element + its inline script are live in the hidden markup)
+        var exp = tgt ? null : cpGridExportTarget(a.el);   // Export = exportComponent(...), not a redirectPost
+        btn.addEventListener("click", function () {
+          // Prefer the extracted target (reliable in-shell). The relative url is resolved by cpHook at click time
+          // (against the list landing / cpSearchLanding). Export downloads via blob. Fall back to forwarding the
+          // real click for any button whose handler isn't a redirectPost (e.g. a true submit).
+          if (tgt && typeof window.redirectPost === "function") window.redirectPost(tgt.url, tgt.params);
+          else if (exp) cpExportComponent(exp.component, exp.contextPath, exp.pagePath, exp.tokenName);
+          else { try { a.el.click(); } catch (e) {} }
+        });
         host.appendChild(btn);
       });
+    }
+    // MULTI-SELECT DELETE (Option B, user-picked 2026-06-26). BroadSoft list pages with a delete column expose a
+    // hidden per-row checkbox `checkbox_…__DELIMITER__<rowKey>` — present ONLY for deletable rows (e.g. reseller-
+    // level Tag Sets; System rows have none) — plus `apply`/`ok` submit buttons. Legacy flow = tick boxes, press
+    // Apply. We surface a grid checkbox in the id cell for the deletable rows, a floating action bar when ≥1 is
+    // selected, and ONE confirm modal; committing checks the matching legacy boxes and clicks Apply (a real
+    // type=submit in mainForm → fires the submit event → rides pjax in-shell, same path as the Add/Import buttons).
+    // See [[project-search-redesign]], [[feedback-everything-through-pjax]].
+    function cpGridSetupDelete(state) {
+      state.delMap = {}; state.delSel = {}; state.delEnabled = false; state.delBtn = null;
+      try {
+        var boxes = state.cell.querySelectorAll('input[type="checkbox"][name*="__DELIMITER__"]');
+        [].forEach.call(boxes, function (cb) {
+          var key = cb.name.split("__DELIMITER__")[1];
+          if (key) state.delMap[key] = 1;   // presence ⇒ this row key is deletable (value unused)
+        });
+        state.delBtn = state.cell.querySelector('input[name="apply"]') ? "apply"
+                     : (state.cell.querySelector('input[name="ok"]') ? "ok" : null);
+        state.delEnabled = Object.keys(state.delMap).length > 0 && !!state.delBtn;
+      } catch (e) { state.delEnabled = false; }
+    }
+    function cpGridSelCount(state) {
+      return state.delSel ? Object.keys(state.delSel).filter(function (k) { return state.delSel[k]; }).length : 0;
+    }
+    function cpGridToggleSel(state, name) {
+      if (!name) return;
+      state.delSel[name] = !state.delSel[name];
+      var esc = (window.CSS && CSS.escape) ? CSS.escape(name) : name;
+      [].forEach.call(state.wrap.querySelectorAll('.cp-srch-selbox[data-name="' + esc + '"]'), function (b) {
+        var on = !!state.delSel[name];
+        b.classList.toggle("on", on); b.setAttribute("aria-checked", on ? "true" : "false");
+      });
+      cpGridSyncHeaderDel(state);
+      cpGridUpdateDelBar(state);
+    }
+    function cpGridClearSel(state) {
+      state.delSel = {};
+      [].forEach.call(state.wrap.querySelectorAll(".cp-srch-selbox.on"), function (b) { b.classList.remove("on"); b.setAttribute("aria-checked", "false"); });
+      cpGridSyncHeaderDel(state);
+      cpGridUpdateDelBar(state);
+    }
+    function cpGridUpdateDelBar(state) {
+      var bar = state.wrap.querySelector(".cp-srch-delbar");
+      if (!bar) return;
+      var n = cpGridSelCount(state);
+      bar.classList.toggle("show", n > 0);
+      var c = bar.querySelector(".cp-srch-delcount");
+      if (c) c.textContent = n + " selected";
+    }
+    function cpGridOpenDelConfirm(state) {
+      var names = Object.keys(state.delSel || {}).filter(function (k) { return state.delSel[k]; });
+      if (!names.length) return;
+      var one = names.length === 1;
+      var ov = document.createElement("div");
+      ov.className = "cp-srch-delmodal-ov";
+      ov.innerHTML =
+        '<div class="cp-srch-delmodal" role="dialog" aria-modal="true" aria-label="Confirm delete">' +
+          '<div class="cp-srch-delmodal-ico">' + CP_SVG_TRASH + '</div>' +
+          '<div class="cp-srch-delmodal-tt">' + (one ? "Delete this entry?" : "Delete " + names.length + " entries?") + '</div>' +
+          '<div class="cp-srch-delmodal-sub">This permanently removes ' + (one ? "it" : "them") + ' and can’t be undone.</div>' +
+          '<div class="cp-srch-delmodal-names">' + names.map(function (n) { return '<span>' + cpEsc(n) + '</span>'; }).join("") + '</div>' +
+          '<div class="cp-srch-delmodal-acts">' +
+            '<button type="button" class="cp-srch-delmodal-cancel">Cancel</button>' +
+            '<button type="button" class="cp-srch-delmodal-go">' + CP_SVG_TRASH + '<span>Delete</span></button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+      function close() { if (ov.parentNode) ov.parentNode.removeChild(ov); document.removeEventListener("keydown", onKey); }
+      function onKey(e) { if (e.key === "Escape") close(); }
+      document.addEventListener("keydown", onKey);
+      ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+      ov.querySelector(".cp-srch-delmodal-cancel").addEventListener("click", close);
+      ov.querySelector(".cp-srch-delmodal-go").addEventListener("click", function () { close(); cpGridCommitDelete(state); });
+      try { ov.querySelector(".cp-srch-delmodal-go").focus(); } catch (e) {}
+    }
+    function cpGridCommitDelete(state) {
+      try {
+        var sel = state.delSel || {}, any = false;
+        var boxes = state.cell.querySelectorAll('input[type="checkbox"][name*="__DELIMITER__"]');
+        [].forEach.call(boxes, function (cb) {
+          cb.checked = !!sel[cb.name.split("__DELIMITER__")[1]];
+          if (cb.checked) any = true;
+        });
+        if (!any) return;
+        // Apply/OK are real type=submit inside mainForm → .click() fires the submit event → pjax intercepts and
+        // posts the form (boxes now checked) in-shell; the server deletes and returns the refreshed list, which
+        // rebuilds the grid fresh (the old state + selection are discarded). Never POST empty context (no boxes).
+        var btn = state.cell.querySelector('input[name="' + state.delBtn + '"]');
+        if (btn) btn.click();
+      } catch (e) { console.warn("[pjax] cpGridCommitDelete:", e); }
+    }
+    // Row key = the id-column value (the tag-set name the legacy delete checkbox is keyed on).
+    function cpGridRowKey(state, row) {
+      var idIdx = 0;
+      for (var i = 0; i < state.cols.length; i++) { if (state.cols[i].type === "id") { idIdx = state.cols[i].idx; break; } }
+      return row.cells[idIdx] == null ? "" : row.cells[idIdx];
+    }
+    // The select-column cell for a row: a checkbox for deletable rows, an empty cell otherwise (its own column).
+    function cpGridSelCellHTML(state, row) {
+      var v = cpGridRowKey(state, row);
+      if (Object.prototype.hasOwnProperty.call(state.delMap, v)) {
+        var on = state.delSel[v] ? " on" : "";
+        return '<div class="cp-srch-td cp-srch-selcell"><span class="cp-srch-selbox' + on + '" data-name="' + cpEsc(v) + '" role="checkbox" aria-checked="' + (state.delSel[v] ? "true" : "false") + '" aria-label="Select ' + cpEsc(v) + '">' + CP_SVG_CHECK + '</span></div>';
+      }
+      return '<div class="cp-srch-td cp-srch-selcell"></div>';
+    }
+    // Sync the header trash button's hot (red, clickable) state with the live selection count (Option B).
+    function cpGridSyncHeaderDel(state) {
+      var d = state.wrap && state.wrap.querySelector(".cp-srch-selhdr-del");
+      if (d) d.classList.toggle("hot", cpGridSelCount(state) > 0);
+    }
+    // Tabbed sub-pages + editable rename, surfaced ABOVE the filter bar. Generic over the legacy BroadSoft tab
+    // markup: `.tabActive` = the current tab, `a.tab` = links to sibling sub-pages (their click is DOMContentLoaded-
+    // wired to redirectPost the sibling URL, which rides pjax via the Operator/System Modify rule). The rename field
+    // surfaces the real `newTagSetName` input (MOVED into the visible row so it still submits inside mainForm) with a
+    // Save that forwards to the legacy Apply. Only renders on pages that actually expose tabs / that input.
+    // Replay a legacy tab switch THROUGH pjax (the whole-app goal — see [[feedback-everything-through-pjax]]).
+    // The legacy handler is TabSubmit(url): it sets mainForm.tabPage = url then form.submit() — a NATIVE submit
+    // that bypasses pjax's submit-event interceptor (→ full reload). Instead we read the target url from the tab's
+    // own inline TabSubmit('…') (its DOMContentLoaded-wired handler isn't attached after an in-shell swap, so a
+    // forwarded .click() does nothing), collect the LIVE mainForm fields, set tabPage, drop the single-use token
+    // (cpHook threads the live one), and redirectPost the CURRENT url (mainForm has no action → posts to self) so it
+    // rides cpFollow in-shell. The full form context is REQUIRED — a bare/empty POST 500s + logs the user out.
+    function cpTabNav(tabEl) {
+      try {
+        var form = document.querySelector('form[name="mainForm"]');
+        if (!form) return;
+        // Deliberately DON'T call the legacy validate(form) here. TabSubmit gates the switch on full-form validity,
+        // which FAILS on the Regions sub-page (its form lacks the fields validate expects) → switching back to Tags
+        // was silently blocked (the asymmetry: Tags→Regions validated fine, Regions→Tags didn't). A tab switch is
+        // navigation, not a save, so it must not be validation-gated.
+        var tabUrl = "";
+        if (tabEl && tabEl.id) {
+          var scripts = [].slice.call(document.querySelectorAll('script:not([src])')).map(function (s) { return s.textContent || ""; }).join("\n");
+          var idx = scripts.indexOf(tabEl.id);
+          if (idx >= 0) { var m = scripts.slice(idx, idx + 400).match(/TabSubmit\s*\(\s*['"]([^'"]+)['"]/); if (m) tabUrl = m[1]; }
+        }
+        var params = {};
+        try { new URLSearchParams(new FormData(form)).forEach(function (v, k) { params[k] = v; }); } catch (e) {}
+        delete params.formtokenserial;   // cpHook threads the live single-use token
+        if (tabUrl) params.tabPage = tabUrl;
+        // Post to the TAB's OWN url (TabSubmit target, e.g. /…/Modify/Regions/) — NOT the current pathname — so
+        // location LANDS on the tab's real page. Otherwise the Regions content shows under the …/Modify/TagSet/
+        // url, and the Add button's RELATIVE "Add/index.jsp" resolves to …/TagSet/Add (Add Tag) instead of
+        // …/Regions/Add (Add Region). cpHook resolves a relative tabUrl; an absolute /commpilot one passes through.
+        window.redirectPost(tabUrl || (location.origin + location.pathname), params);
+      } catch (e) { console.warn("[pjax] cpTabNav:", e); }
+    }
+    function cpGridBuildSubnav(state) {
+      var host = state.wrap.querySelector(".cp-srch-subnav");
+      if (!host) return;
+      host.innerHTML = "";
+      var tabEls = [].slice.call(document.querySelectorAll(".tabActive, a.tab"));
+      if (tabEls.length >= 2) {
+        var seg = document.createElement("div"); seg.className = "cp-srch-tabs";
+        var madeBtns = [], anyOn = false;
+        tabEls.forEach(function (t) {
+          // Active tab = the .tabActive element OR (robust) the one that is NOT a link: the legacy active tab is a
+          // <td>, the inactive ones are <a class="tab"> that redirectPost to the sibling sub-page. (Keying only on
+          // the class missed it, so neither pill lit.)
+          var on = /\btabactive\b/i.test(t.className || "") || (t.tagName || "").toUpperCase() !== "A";
+          var b = document.createElement("button");
+          b.type = "button"; b.className = "cp-srch-tab" + (on ? " cp-srch-tab-on" : "");
+          b.textContent = (t.textContent || "").trim();
+          if (!on) (function (tab) { b.addEventListener("click", function () { cpTabNav(tab); }); })(t);
+          if (on) anyOn = true;
+          madeBtns.push(b); seg.appendChild(b);
+        });
+        if (!anyOn && madeBtns[0]) madeBtns[0].classList.add("cp-srch-tab-on");   // last-resort: assume the first tab is current
+        host.appendChild(seg);
+      }
+      var nameI = document.querySelector('input[name="newTagSetName"]');
+      if (nameI) {
+        var row = document.createElement("div"); row.className = "cp-srch-namerow";
+        var lbl = document.createElement("label"); lbl.className = "cp-srch-namelbl";
+        lbl.innerHTML = '<span class="cp-srch-req">*</span> Tag Set Name';
+        nameI.classList.add("cp-srch-nameinput");
+        var save = document.createElement("button"); save.type = "button"; save.className = "cp-srch-namesave"; save.textContent = "Save name";
+        var apply = document.querySelector('input[name="apply"]') || document.querySelector('input[name="ok"]');
+        if (apply) save.addEventListener("click", function () { try { apply.click(); } catch (e) {} });
+        else save.style.display = "none";
+        row.appendChild(lbl); row.appendChild(nameI); row.appendChild(save);
+        host.appendChild(row);
+      }
     }
 
     // State machine for the results area: "initial" (click-to-search) | "loading" (skeleton) | "nomatch"
@@ -961,12 +1282,15 @@
           return Math.max(8, state.perPage || 12);
         };
         if (skc && skc.length) {
-          var tmpl = cpGridTemplate(skc);
+          var tmpl = cpGridTemplate(skc, state);
           // Header bar: dark (surface-low) with shimmer PLACEHOLDERS, not the real titles — the extension is
           // shared across users, so nothing user-specific renders during loading. (skhd cells are block so the
           // % width resolves; CSP blocks inline style attrs so widths go through cpGridApplyBarWidths.)
+          // Lead select-column cell (Option B) so the loading skeleton lines up with the delete-enabled grid.
+          var skLead = state.delEnabled ? '<div class="cp-srch-td cp-srch-selcell"></div>' : "";
+          var skLeadHd = state.delEnabled ? '<div class="cp-srch-selth"></div>' : "";
           head.style.gridTemplateColumns = tmpl;
-          head.innerHTML = skc.map(function (c) {
+          head.innerHTML = skLeadHd + skc.map(function (c) {
             var num = (c.type === "num" || c.type === "numpill");
             return '<div class="cp-srch-skhd' + (num ? " num" : "") + '"><span class="cp-srch-sk" data-w="' + (num ? 52 : 40) + '"></span></div>';
           }).join("");
@@ -978,7 +1302,7 @@
               var w = num ? (30 + (i * 7) % 16) : (48 + (i * 13 + ci * 29) % 42);
               cells += '<div class="cp-srch-td' + (num ? " num" : "") + '"><span class="cp-srch-sk" data-w="' + w + '"></span></div>';
             }
-            rows += '<div class="cp-srch-ghostrow cp-srch-skg">' + cells + "</div>";
+            rows += '<div class="cp-srch-ghostrow cp-srch-skg">' + skLead + cells + "</div>";
           }
           dbody.innerHTML = '<div class="cp-srch-skwrap">' + rows + "</div>";
           [].forEach.call(dbody.querySelectorAll(".cp-srch-skg"), function (r) { r.style.gridTemplateColumns = tmpl; });
@@ -1447,13 +1771,21 @@
 
     function cpGridRenderHead(state) {
       var head = state.wrap.querySelector(".cp-srch-dhead");
-      head.style.gridTemplateColumns = cpGridTemplate(state.cols);
-      head.innerHTML = state.cols.map(function (c) {
+      head.style.gridTemplateColumns = cpGridTemplate(state.cols, state);
+      // Lead select-column header (Option B): a trash icon, muted until ≥1 row is selected, then it turns red and
+      // acts as a "delete selected" button (opens the same confirm as the floating bar). Class is .cp-srch-selth
+      // (NOT .cp-srch-th) so the sort-wiring loop below skips it.
+      var leadHd = state.delEnabled
+        ? '<div class="cp-srch-selth"><span class="cp-srch-selhdr-del' + (cpGridSelCount(state) > 0 ? " hot" : "") + '" role="button" aria-label="Delete selected" title="Delete selected">' + CP_SVG_TRASH + '</span></div>'
+        : "";
+      head.innerHTML = leadHd + state.cols.map(function (c) {
         var arrow = (c.idx === state.sortK)
           ? '<span class="cp-srch-arr">' + (state.sortDir > 0 ? CP_SVG_ARRUP : CP_SVG_ARRDOWN) + '</span>' : "";
         return '<div class="cp-srch-th' + (c.align === "center" ? " cen" : (c.num ? " num" : "")) + '" data-k="' + c.idx + '">' +
           cpEsc(c.label) + arrow + '</div>';
       }).join("");
+      var hdrDel = head.querySelector(".cp-srch-selhdr-del");
+      if (hdrDel) hdrDel.addEventListener("click", function () { if (cpGridSelCount(state) > 0) cpGridOpenDelConfirm(state); });
       [].forEach.call(head.querySelectorAll(".cp-srch-th"), function (th) {
         th.addEventListener("click", function () {
           cpGridStopRiffle(state);   // cancel any in-flight decel scroll before re-sorting
@@ -1466,13 +1798,16 @@
         });
       });
     }
-    function cpGridTemplate(cols) {
+    function cpGridTemplate(cols, state) {
       // Mirrors the mockup's proportional widths: id/name wider, a fixed last column for numbers.
+      // A leading 46px SELECT column when multi-select delete is enabled (Option B) — the checkbox gets its own
+      // section, separate from the id/name column. Off (delEnabled false) ⇒ template is byte-identical to before.
       // SERVICE INSTANCES ONLY (detected by its distinctive "Service Type" column): rebalance the 7 columns so the
       // long User-ID emails get the room they need and the narrow ones don't hog width — fits without scroll. Pure
       // fr ratios (no hard mins) so it never overflows. Every OTHER grid falls through to the unchanged default.
+      var lead = (state && state.delEnabled) ? "46px " : "";
       var isSI = cols.some(function (c) { return (c.label || "").toLowerCase() === "service type"; });
-      return cols.map(function (c, i) {
+      return lead + cols.map(function (c, i) {
         if (isSI) {
           var lbl = (c.label || "").toLowerCase();
           if (lbl === "extension") return "100px";
@@ -1518,7 +1853,8 @@
       return '<div class="cp-srch-td">' + cpEsc(v) + "</div>";
     }
     function cpGridRowHTML(state, row) {
-      return '<div class="cp-srch-drow">' + state.cols.map(function (c) { return cpGridCellHTML(state, row, c); }).join("") + "</div>";
+      var lead = state.delEnabled ? cpGridSelCellHTML(state, row) : "";   // dedicated select column (Option B)
+      return '<div class="cp-srch-drow">' + lead + state.cols.map(function (c) { return cpGridCellHTML(state, row, c); }).join("") + "</div>";
     }
     // Faint placeholder row (non-interactive) — fills the rest of a short page so the table reads as a full,
     // intentional list instead of leaving empty space below the real rows. Deterministic per-column widths.
@@ -1531,7 +1867,8 @@
         var w = num ? (24 + (rowIdx * 7) % 12) : (40 + (rowIdx * 17 + ci * 31) % 36);
         return '<div class="cp-srch-td' + (cen ? " cen" : (num ? " num" : "")) + '"><span class="cp-srch-gh" data-w="' + w + '"></span></div>';
       }).join("");
-      return '<div class="cp-srch-ghostrow">' + cells + "</div>";
+      var lead = state.delEnabled ? '<div class="cp-srch-td cp-srch-selcell"></div>' : "";   // empty lead cell keeps ghost rows aligned with the select column
+      return '<div class="cp-srch-ghostrow">' + lead + cells + "</div>";
     }
     // Apply bar sizes via CSSOM. Inline style="" attributes set through innerHTML are CSP-blocked on this page
     // (only el.style.x = … applies), so ghost/skeleton bar widths are carried in data-* and set here.
@@ -1569,7 +1906,7 @@
       cpGridSyncFoot(state);
     }
     function cpGridApplyRowTemplate(state) {
-      var tmpl = cpGridTemplate(state.cols);
+      var tmpl = cpGridTemplate(state.cols, state);
       [].forEach.call(state.wrap.querySelectorAll(".cp-srch-drow, .cp-srch-ghostrow"), function (r) { r.style.gridTemplateColumns = tmpl; });
     }
     // Loading → results transition: FILL IN the loading boxes in place, one row at a time top-to-bottom, with the
@@ -1589,17 +1926,19 @@
       // cells. Re-render the skeleton to the RESULT columns so the overlay aligns. Skipped (no-op) when it
       // already matches, i.e. every search after the first.
       if (skwrap) {
-        var resTmpl = cpGridTemplate(state.cols);
+        var resTmpl = cpGridTemplate(state.cols, state);
         var firstSk = skwrap.querySelector(".cp-srch-skg, .cp-srch-skrow");
-        if (!firstSk || firstSk.classList.contains("cp-srch-skrow") || firstSk.children.length !== state.cols.length || firstSk.style.gridTemplateColumns !== resTmpl) {
+        var expectCols = state.cols.length + (state.delEnabled ? 1 : 0);   // +1 for the lead select column
+        if (!firstSk || firstSk.classList.contains("cp-srch-skrow") || firstSk.children.length !== expectCols || firstSk.style.gridTemplateColumns !== resTmpl) {
           var nsk = Math.max(8, state.perPage), shtml = "", si, sci;
+          var sLead = state.delEnabled ? '<div class="cp-srch-td cp-srch-selcell"></div>' : "";
           for (si = 0; si < nsk; si++) {
             var scells = "";
             for (sci = 0; sci < state.cols.length; sci++) {
               var scol = state.cols[sci], snum = (scol.type === "num" || scol.type === "numpill");
               scells += '<div class="cp-srch-td' + (snum ? " num" : "") + '"><span class="cp-srch-sk" data-w="' + (snum ? (30 + (si * 7) % 16) : (48 + (si * 13 + sci * 29) % 42)) + '"></span></div>';
             }
-            shtml += '<div class="cp-srch-ghostrow cp-srch-skg">' + scells + "</div>";
+            shtml += '<div class="cp-srch-ghostrow cp-srch-skg">' + sLead + scells + "</div>";
           }
           skwrap.innerHTML = shtml;
           [].forEach.call(skwrap.querySelectorAll(".cp-srch-skg"), function (r) { r.style.gridTemplateColumns = resTmpl; });
@@ -1833,6 +2172,10 @@
       }, { passive: false });
       // Row click → drill into the entity (reuse the legacy redirectPost target captured per row).
       w.querySelector(".cp-srch-dbody").addEventListener("click", function (e) {
+        // A click on a row's select box toggles selection — never drills (stop it propagating to the row nav).
+        var selEl = e.target.closest && e.target.closest(".cp-srch-selbox");
+        if (selEl) { e.stopPropagation(); cpGridToggleSel(state, selEl.getAttribute("data-name")); return; }
+        if (e.target.closest && e.target.closest(".cp-srch-selcell")) return;   // clicks in the select column never drill
         var rowEl = e.target.closest && e.target.closest(".cp-srch-drow");
         if (!rowEl) return;
         var idx = [].indexOf.call(rowEl.parentNode.children, rowEl) + state.page * state.perPage;
@@ -1841,6 +2184,11 @@
       });
       // The +/− (Add/remove filter) and Search controls live INSIDE the criterion rows now (right of each row),
       // so they're wired per-render in cpGridRenderFilters — not here.
+      // Multi-select delete floating bar (inert until a row is selected; the bar shows/hides via cpGridUpdateDelBar).
+      var delClear = w.querySelector(".cp-srch-delclear");
+      var delDo = w.querySelector(".cp-srch-deldo");
+      if (delClear) delClear.addEventListener("click", function () { cpGridClearSel(state); });
+      if (delDo) delDo.addEventListener("click", function () { cpGridOpenDelConfirm(state); });
       window.addEventListener("resize", function () { if (document.contains(state.wrap)) cpGridRecompute(state); });
     }
     function cpGridRenderFilters(state, n) {
@@ -2216,7 +2564,14 @@
         // /commpilot path so isPjaxUrl can match it — otherwise cpHook native-navigates → a full page load.
         // (Only relative targets are touched; absolute "/commpilot/..." urls pass through unchanged.)
         if (typeof url === "string" && url && url.charAt(0) !== "/" && !/^https?:/i.test(url)) {
-          try { url = new URL(url, location.href).pathname; } catch (e) {}
+          // Resolve against the list LANDING (not location) when the address bar is stuck on a /Common search
+          // artifact — otherwise the list's Add/Import buttons ("Add/index.jsp") resolve to /Common/Add/index.jsp
+          // → 404. (See cpSearchLanding.) Normal case still resolves against location.href.
+          var _base = location.href;
+          if (cpSearchLanding && /\/commpilot\/Common\/(find|findAll|page|sort)\.jsp/.test(location.pathname)) {
+            _base = location.origin + cpSearchLanding;
+          }
+          try { url = new URL(url, _base).pathname; } catch (e) {}
         }
         // Sign-out interception (must precede isPjaxUrl): when skin.js's logout
         // confirmation has armed cp-signing-out, this redirectPost IS the logout.
@@ -2224,6 +2579,14 @@
         if (_so && (Date.now() - _so < 15000)) { cpSignOutFetch(url, params || {}); return; }
         if (isPjaxUrl(url)) {
           var mySeq = ++cpSeq;
+          // Remember the list landing a search was launched FROM (location is still the real landing here, before
+          // the swap repaints the address bar as /Common/findAll.jsp) so later relative navs resolve right.
+          try {
+            if ((url.indexOf("/Common/find.jsp") !== -1 || url.indexOf("/Common/findAll.jsp") !== -1) &&
+                !/\/commpilot\/Common\/(find|findAll|page|sort)\.jsp/.test(location.pathname)) {
+              cpSearchLanding = location.pathname;
+            }
+          } catch (e) {}
           // A real navigation (drill-in, reload replay, sidebar click) supersedes any in-flight grid search OR
           // deep sweep — abort both so their background fetches stop rotating the single-use token and racing
           // with THIS POST.
@@ -2437,6 +2800,22 @@
               } catch (e) {}
             })
             .catch(function (e) {
+              // NETWORK-LEVEL failure (the request threw, vs a server response). The usual cause after idle:
+              // the server / load-balancer closed the persistent keep-alive socket, so the FIRST fetch on the
+              // stale connection throws "TypeError: Failed to fetch" — the POST never reached the server, so the
+              // nav silently died ("dead click after idle"). The raw site dodges this because its full-page form
+              // POSTs transparently reconnect; our fetch() does not. Retry ONCE on a fresh connection (a new
+              // fetch opens a new socket) before giving up. SAFE for saves too: a connection that failed before
+              // the request was processed can't have double-applied it. A real server response — including a
+              // genuine auth failure ({auth:false}) — resolves through .then above and never reaches here, so the
+              // retry can't mask a real logout. Guarded by _retry so it can never loop.
+              var _msg = String((e && e.message) || e || "");
+              var isNetErr = !!e && (e.name === "TypeError" || /failed to fetch|networkerror|load failed/i.test(_msg));
+              if (isNetErr && !_retry) {
+                console.warn("[pjax] fetch network error (dropped idle connection?) — retrying nav once on a fresh connection");
+                setTimeout(function () { try { cpHook(url, params, true); } catch (e2) {} }, 200);
+                return;
+              }
               console.warn("[pjax] fetch FAILED", e);
             });
 
@@ -2829,6 +3208,12 @@
           var uk = trail[1] + ">%" + trail[2] + ">%" + seg;
           window.redirectPost("/commpilot/Group/Members/Modify/index.jsp", { key: uk, P_key: uk }); return;
         }
+        // Device-management Modify pages (Tag Sets, Device Families, …): breadcrumb = [Reseller, <entity>, …Modify].
+        // The generic SP/Group idx-logic below would POST the entity NAME (e.g. a tag-set name) as a Service-Provider
+        // key → 500 → token degraded → LOGOUT. Here ANY ancestor crumb just goes back to that resource's Reseller
+        // LIST (/Operator/System/<Seg>/Modify/ ⇒ /Reseller/<Seg>/). idx 0 still falls through to reseller home below.
+        var dmm = location.pathname.match(/\/commpilot\/Operator\/System\/([A-Za-z0-9_]+)\/Modify\//);
+        if (dmm && idx >= 1) { window.redirectPost("/commpilot/Reseller/" + dmm[1] + "/", {}); return; }
         if (idx === 0) { window.redirectPost("/commpilot/Common/folder_contents.jsp", { folder: "R0", menuId: "8" }); return; }
         if (idx === 1 && trail[1]) { window.redirectPost("/commpilot/Reseller/ServiceProviders/Modify/index.jsp", { key: trail[1], P_key: trail[1] }); return; }
         if (idx === 2 && trail[1] && trail[2]) { var gk = trail[1] + ">%" + trail[2]; window.redirectPost("/commpilot/ServiceProvider/Members/Modify/index.jsp", { key: gk, P_key: gk }); return; }

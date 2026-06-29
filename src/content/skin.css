@@ -2939,11 +2939,30 @@ html.cp-grid-on td[width="82%"] { overflow: hidden !important; }
 .cp-srch-headright { margin-left: auto; align-self: center; display: flex; align-items: center; gap: 10px; }
 .cp-srch-actions { display: flex; align-items: center; gap: 9px; }
 .cp-srch-actions:empty { display: none; }
-.cp-srch-actbtn { height: 38px !important; padding: 0 16px !important; width: auto !important; border: 0 !important; border-radius: 9px !important; font: inherit !important; font-weight: 700 !important; font-size: 13.5px !important; cursor: pointer; background: var(--cp-primary-strong) !important; color: #fff !important; display: inline-flex; align-items: center; gap: 7px; box-shadow: none !important; white-space: nowrap; }
+/* height matches the head's natural rhythm (count pill 29px / lead ~30px) so the action buttons don't
+   inflate .cp-srch-head taller than a no-button page (e.g. Groups) — was 38px → an 11px header nudge. */
+.cp-srch-actbtn { height: 30px !important; padding: 0 14px !important; width: auto !important; border: 0 !important; border-radius: 8px !important; font: inherit !important; font-weight: 700 !important; font-size: 13px !important; cursor: pointer; background: var(--cp-primary-strong) !important; color: #fff !important; display: inline-flex; align-items: center; gap: 6px; box-shadow: none !important; white-space: nowrap; }
 .cp-srch-actbtn svg { width: 16px !important; height: 16px !important; }
 .cp-srch-actbtn:hover { background: #5E3F86 !important; }
 .cp-srch-actbtn.sec { background: transparent !important; border: 1px solid var(--cp-outline) !important; color: var(--cp-text) !important; }
 .cp-srch-actbtn.sec:hover { border-color: var(--cp-primary-strong) !important; color: var(--cp-primary) !important; background: transparent !important; }
+
+/* Sub-nav: segmented tabs (Tags|Regions) + editable rename row (Tag Set Modify). */
+.cp-srch-subnav { margin: 14px 0 0; display: flex; flex-direction: column; gap: 14px; }
+.cp-srch-subnav:empty { display: none; }
+.cp-srch-tabs { display: inline-flex; align-self: flex-start; background: #211f1d; border: 1px solid var(--cp-box-edge); border-radius: 9px; padding: 3px; gap: 2px; }
+/* !important throughout: a global button{…!important} reset otherwise paints both pills #322F2C — the active
+   pill's lavender (and the inactive's transparent) lose without it (same reason .cp-srch-actbtn is all !important). */
+.cp-srch-tab { background: transparent !important; border: 0 !important; border-radius: 7px !important; padding: 7px 20px !important; font: inherit !important; font-size: 13px !important; font-weight: 700 !important; color: var(--cp-text-muted) !important; cursor: pointer; white-space: nowrap; box-shadow: none !important; transition: background .15s ease, color .15s ease; }
+.cp-srch-tab:hover { color: var(--cp-text) !important; }
+.cp-srch-tab-on, .cp-srch-tab-on:hover { background: var(--cp-primary-strong) !important; color: #fff !important; }
+.cp-srch-namerow { display: flex; align-items: center; gap: 13px; }
+.cp-srch-namelbl { font-size: 13.5px; font-weight: 700; color: var(--cp-text); white-space: nowrap; }
+.cp-srch-req { color: var(--cp-warn, #E89150); }
+.cp-srch-nameinput { flex: 0 0 300px; height: 38px !important; width: 300px !important; background: var(--cp-bg) !important; border: 1px solid #4a4068 !important; border-radius: 6px !important; color: var(--cp-text) !important; padding: 0 12px !important; font-size: 13.5px !important; box-sizing: border-box !important; }
+.cp-srch-nameinput:focus { outline: none; border-color: var(--cp-primary) !important; }
+.cp-srch-namesave { background: var(--cp-primary-strong); color: #fff; border: 0; border-radius: 7px; padding: 8px 16px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: background .15s ease; }
+.cp-srch-namesave:hover { background: #5E3F86; }
 
 /* filter bar + expansion */
 .cp-srch-filterbar { flex: 0 0 auto; background: var(--cp-surface); border: 1px solid var(--cp-outline); border-radius: 12px; padding: 12px 14px; margin: 12px 0 0; }
@@ -3004,7 +3023,7 @@ html.cp-grid-on td[width="82%"] { overflow: hidden !important; }
 .cp-srch-btn.cp-srch-findall:hover { background: rgba(110, 76, 150, 0.34) !important; }
 
 /* results */
-.cp-srch-results { flex: 1; min-height: 0; margin-top: 12px; display: flex; flex-direction: column; }
+.cp-srch-results { position: relative; flex: 1; min-height: 0; margin-top: 12px; display: flex; flex-direction: column; }
 .cp-srch-dtable { flex: 1; min-height: 0; border: 1px solid var(--cp-outline); border-radius: 12px; overflow: hidden; background: var(--cp-surface); display: flex; flex-direction: column; }
 .cp-srch-dhead { flex: 0 0 auto; display: grid; background: var(--cp-surface-low); border-bottom: 1px solid var(--cp-outline); }
 .cp-srch-th { padding: 13px 18px; color: var(--cp-text-muted); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; user-select: none; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
@@ -3045,6 +3064,43 @@ html.cp-grid-on td[width="82%"] { overflow: hidden !important; }
 .cp-srch-lim { display: inline-block; min-width: 38px; text-align: center; padding: 3px 10px; border-radius: 7px; background: var(--cp-bg); border: 1px solid var(--cp-outline); font-weight: 700; font-size: 12px; }
 .cp-srch-lim.hi { color: var(--cp-primary); border-color: rgba(110, 76, 150, .55); background: rgba(110, 76, 150, 0.24); }
 .cp-srch-loading, .cp-srch-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--cp-text-muted); font-size: 14px; }
+
+/* MULTI-SELECT DELETE (Option B): per-row select box inside the id cell, a floating action bar, a confirm modal.
+   Only deletable rows (those with a legacy delete checkbox) render a box; System rows get a same-width spacer. */
+.cp-srch-td.cp-srch-selcell { padding: 0; display: flex; align-items: center; justify-content: center; border-right: 1px solid rgba(255, 255, 255, 0.05); }
+.cp-srch-selth { display: flex; align-items: center; justify-content: center; border-right: 1px solid rgba(255, 255, 255, 0.05); }
+.cp-srch-selbox { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--cp-text-muted); display: flex; align-items: center; justify-content: center; color: transparent; cursor: pointer; transition: background .12s, border-color .12s; }
+.cp-srch-selbox svg { width: 13px; height: 13px; opacity: 0; }
+.cp-srch-selbox:hover { border-color: var(--cp-primary); }
+.cp-srch-selbox.on { background: var(--cp-primary-strong); border-color: var(--cp-primary-strong); color: #fff; }
+.cp-srch-selbox.on svg { opacity: 1; }
+/* select-column header = a trash button (Option B): muted/inert until ≥1 row is selected, then red + clickable */
+.cp-srch-selhdr-del { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; color: var(--cp-text-muted); cursor: default; transition: background .12s, color .12s; }
+.cp-srch-selhdr-del svg { width: 17px; height: 17px; }
+.cp-srch-selhdr-del.hot { color: #ef9aa1; background: rgba(224, 108, 117, 0.14); cursor: pointer; }
+.cp-srch-selhdr-del.hot:hover { background: rgba(224, 108, 117, 0.22); color: #f2acb2; }
+.cp-srch-delbar { position: absolute; left: 50%; bottom: 54px; transform: translate(-50%, 12px); display: flex; align-items: center; gap: 14px; padding: 9px 10px 9px 16px; background: var(--cp-surface-low); border: 1px solid var(--cp-outline); border-radius: 12px; box-shadow: 0 8px 26px rgba(0, 0, 0, 0.4); opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease; z-index: 20; }
+.cp-srch-delbar.show { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+.cp-srch-delcount { font-size: 13px; font-weight: 700; color: var(--cp-text); font-variant-numeric: tabular-nums; }
+.cp-srch-delclear { background: transparent !important; border: none !important; color: var(--cp-text-muted) !important; font: inherit !important; font-size: 13px !important; cursor: pointer; padding: 7px 8px !important; width: auto !important; height: auto !important; box-shadow: none !important; }
+.cp-srch-delclear:hover { color: var(--cp-text) !important; }
+.cp-srch-deldo { display: inline-flex; align-items: center; gap: 7px; background: rgba(224, 108, 117, 0.14) !important; border: 1px solid rgba(224, 108, 117, 0.42) !important; color: #ef9aa1 !important; font: inherit !important; font-size: 13px !important; font-weight: 700 !important; padding: 7px 15px !important; border-radius: 9px !important; cursor: pointer; width: auto !important; height: auto !important; box-shadow: none !important; }
+.cp-srch-deldo svg { width: 16px !important; height: 16px !important; }
+.cp-srch-deldo:hover { background: rgba(224, 108, 117, 0.22) !important; border-color: rgba(224, 108, 117, 0.6) !important; color: #f2acb2 !important; }
+.cp-srch-delmodal-ov { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 100000; }
+.cp-srch-delmodal { width: 100%; max-width: 360px; background: var(--cp-surface); border: 1px solid var(--cp-outline); border-radius: 16px; padding: 22px 22px 18px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5); }
+.cp-srch-delmodal-ico { width: 42px; height: 42px; border-radius: 11px; background: rgba(224, 108, 117, 0.14); color: #ef9aa1; display: flex; align-items: center; justify-content: center; margin-bottom: 13px; }
+.cp-srch-delmodal-ico svg { width: 22px; height: 22px; }
+.cp-srch-delmodal-tt { font-size: 16px; font-weight: 700; color: var(--cp-text); }
+.cp-srch-delmodal-sub { font-size: 13px; color: var(--cp-text-muted); margin-top: 5px; line-height: 1.5; }
+.cp-srch-delmodal-names { display: flex; flex-direction: column; gap: 5px; margin-top: 13px; max-height: 180px; overflow-y: auto; }
+.cp-srch-delmodal-names span { font-size: 13px; font-weight: 700; color: var(--cp-primary); background: var(--cp-surface-low); border: 1px solid var(--cp-outline); border-radius: 8px; padding: 6px 10px; }
+.cp-srch-delmodal-acts { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+.cp-srch-delmodal-cancel { background: transparent !important; border: 1px solid var(--cp-outline) !important; color: var(--cp-text) !important; font: inherit !important; font-size: 13px !important; font-weight: 700 !important; padding: 9px 16px !important; border-radius: 9px !important; cursor: pointer; width: auto !important; height: auto !important; box-shadow: none !important; }
+.cp-srch-delmodal-cancel:hover { background: rgba(255, 255, 255, 0.05) !important; }
+.cp-srch-delmodal-go { display: inline-flex; align-items: center; gap: 7px; background: #c0444a !important; border: 1px solid #c0444a !important; color: #fff !important; font: inherit !important; font-size: 13px !important; font-weight: 700 !important; padding: 9px 16px !important; border-radius: 9px !important; cursor: pointer; width: auto !important; height: auto !important; box-shadow: none !important; }
+.cp-srch-delmodal-go svg { width: 15px !important; height: 15px !important; }
+.cp-srch-delmodal-go:hover { background: #d24e54 !important; }
 
 /* state screens: initial (click-to-search) + minimal no-match + skeleton loading */
 .cp-srch-state { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px; text-align: center; padding: 20px; }
@@ -3290,6 +3346,12 @@ td.enduserbody:has(.cp-prof-card) {
 .cp-prof-input.cp-prof-port { flex: 0 0 72px !important; width: 72px !important; }
 .cp-prof-input.cp-prof-ta { height: auto !important; min-height: 66px !important; padding: 9px 12px !important; line-height: 1.4 !important; resize: vertical !important; }
 .cp-prof-row.cp-prof-tarow { align-items: start !important; }
+/* Add Tag — %-wrapped tag name: fixed % adornments flank a borderless input (the % are syntax, not editable). */
+.cp-prof-pctgrp { display: flex; align-items: stretch; height: 40px; background: var(--cp-surface-high); border: 1px solid var(--cp-outline); border-radius: 8px; overflow: hidden; }
+.cp-prof-pctgrp:focus-within { border-color: var(--cp-primary-strong); box-shadow: 0 0 0 3px rgba(110, 76, 150, 0.18); }
+.cp-prof-pct { display: flex; align-items: center; padding: 0 13px; color: var(--cp-primary); background: rgba(110, 76, 150, 0.14); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 15px; font-weight: 700; }
+.cp-prof-input.cp-prof-pctinput { flex: 1 1 auto !important; width: auto !important; min-width: 0 !important; height: 38px !important; border: none !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; font-family: ui-monospace, Menlo, Consolas, monospace !important; }
+.cp-prof-input.cp-prof-pctinput:focus { box-shadow: none !important; }
 
 /* Read-only value (Reseller ID) + copy button. */
 .cp-prof-roval {
@@ -3407,6 +3469,36 @@ td.enduserbody:has(.cp-prof-card) {
 .cp-prof-toggle-dis { opacity: .45; pointer-events: none; }
 .cp-prof-row.cp-prof-dim .cp-prof-k, .cp-prof-row.cp-prof-dim .cp-prof-d { opacity: .5; }
 
+/* ---- File-upload control (Device Families Import): full-width horizontal drop-bar ---- */
+/* gap:0 — the base .cp-prof-row gap:24px is the label↔control gap of the 2-col layout; in this 1-col stacked
+   row it becomes a 24px VERTICAL grid-gap that compounded with the rowc margin → ~35px descriptor→bar. */
+.cp-prof-dzrow { grid-template-columns: 1fr !important; gap: 0 !important; }
+/* NOTE specificity: .cp-prof-ctrlrow .cp-prof-rowc {display:flex} sits LATER in this file, so the dzrow
+   override must out-specify it (3 classes) or the bar shrinks to content width + left-floats. */
+.cp-prof-row.cp-prof-dzrow .cp-prof-rowc { display: block !important; justify-content: initial !important; margin-top: 12px; }
+.cp-prof-dz {
+  display: flex; align-items: center; gap: 14px; width: 100%; box-sizing: border-box;
+  border: 1.5px dashed var(--cp-box-edge); border-radius: 9px; background: var(--cp-bg);
+  padding: 13px 16px; cursor: pointer; transition: border-color .15s ease, background .15s ease;
+}
+.cp-prof-dz:hover, .cp-prof-dz:focus-visible { border-color: var(--cp-primary); outline: none; }
+.cp-prof-dz.cp-prof-dz-over { border-color: var(--cp-primary); background: rgba(198, 168, 232, .07); }
+.cp-prof-dz-ico { color: var(--cp-text-muted); line-height: 0; flex: 0 0 auto; }
+.cp-prof-dz-ico svg { width: 22px; height: 22px; }
+.cp-prof-dz-txt { flex: 1 1 auto; min-width: 0; }
+.cp-prof-dz-main { font-size: 13px; color: var(--cp-text); }
+.cp-prof-dz-browse { color: var(--cp-primary); font-weight: 700; }
+.cp-prof-dz-file { font-size: 11.5px; color: var(--cp-text-muted); margin-top: 1px; word-break: break-all; }
+.cp-prof-dz-btn {
+  flex: 0 0 auto; background: transparent; color: var(--cp-primary); border: 1px solid #4a4068;
+  border-radius: 7px; padding: 7px 15px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: background .15s ease;
+}
+.cp-prof-dz-btn:hover { background: rgba(198, 168, 232, .08); }
+.cp-prof-dz.cp-prof-dz-has .cp-prof-dz-ico { color: var(--cp-primary); }
+.cp-prof-dz.cp-prof-dz-has .cp-prof-dz-file { color: var(--cp-primary); font-weight: 600; }
+.cp-prof-dz-input { position: absolute !important; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
+
 /* ---- STIR-SHAKEN multi-card form: pills, dropdowns, sub-rows, card dim, global action bar ---- */
 .cp-prof-ctrlrow .cp-prof-rowc { display: flex !important; align-items: center; justify-content: flex-end; gap: 10px; }
 .cp-prof-subrow { padding-left: 26px !important; border-left: 2px solid var(--cp-outline); margin-left: 2px; }
@@ -3460,7 +3552,7 @@ td.enduserbody:has(.cp-prof-card) {
 .cp-prof-actions.cp-prof-actions-global {
   position: sticky; bottom: 0; z-index: 5;
   background: var(--cp-surface) !important; border: var(--cp-box-edge-width) solid var(--cp-box-edge) !important;
-  border-radius: 12px !important; margin: 12px 0 0 0 !important; box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.32) !important;
+  border-radius: 12px !important; margin: 12px 0 0 0 !important; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32) !important;
 }
 
 /* ---- Administrator Modify: read-only value, password meter, danger buttons, confirm modal ---- */

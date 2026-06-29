@@ -49,10 +49,9 @@
     try { return JSON.parse(sessionStorage.getItem("cp-last-nav") || "null"); } catch (e) { return null; }
   }
 
-  function replay(nav, token) {
-    // Never replay across origins. The recovery store is per-host + path-only now, but guard against any absolute
-    // foreign URL (e.g. stale legacy global-store data) so apps01 can't be POSTed to the sandbox host.
-    try { if (/^https?:\/\//i.test(nav.url) && nav.url.indexOf(location.origin + "/") !== 0) { location.replace("/commpilot/Login/"); return; } } catch (e) {}
+  // The actual native main-frame POST that commits the recovery (loads the recovered page so content scripts
+  // re-inject and the skin re-applies). Split out of replay() so we can pick the token AFTER an async harvest.
+  function cpNativePost(nav, token) {
     var f = document.createElement("form");
     f.method = "POST";
     f.action = nav.url;
@@ -66,6 +65,52 @@
     add("formtokenserial", token);
     (document.body || document.documentElement).appendChild(f);
     realSubmit.call(f);
+  }
+
+  // Harvest a FRESH, VALID app token from servlet/Login for the recovery replay. Why not just replay the STORED
+  // token: it's frequently stale (consumed by the post-recovery console aggregation before the store caught up),
+  // and a native POST of a stale token gets a 200 server login-redirect — the reload-recovery flakiness, observed
+  // live. A GET to the POST-only folder_contents only yields a "go to Login" stub (a login-context token, also
+  // rejected). But servlet/Login is GET-allowed (DNR rule 5) and SESSION-AWARE: while the session is alive it
+  // returns redirectPost(folder_contents, {fresh token}) — a freshly-issued VALID app token (the same bounce the
+  // live /Login/ page uses to send an already-logged-in user home). Returns that token, or null when the session
+  // is dead / it's the login form / network error → caller falls back to the stored token (no regression).
+  function cpHarvestToken() {
+    return fetch("/commpilot/servlet/Login", { method: "GET", credentials: "same-origin", cache: "no-store" })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        var stub = extractStub(new DOMParser().parseFromString(html, "text/html"));
+        // Only trust a token that arrives WITH an app redirect (folder_contents) — not the login form's own token.
+        return (stub && stub.target && stub.target.indexOf("folder_contents") !== -1 && stub.token) ? stub.token : null;
+      })
+      .catch(function () { return null; });
+  }
+
+  function replay(nav, token) {
+    // Never replay across origins. The recovery store is per-host + path-only now, but guard against any absolute
+    // foreign URL (e.g. stale legacy global-store data) so apps01 can't be POSTed to the sandbox host.
+    try { if (/^https?:\/\//i.test(nav.url) && nav.url.indexOf(location.origin + "/") !== 0) { location.replace("/commpilot/Login/"); return; } } catch (e) {}
+    // Mark that a recovery replay is in flight, so a FAILED replay landing on /Login/ or the "temporarily
+    // unavailable" error page can be detected and auto-retried ONCE (instead of forcing a manual re-login).
+    try { sessionStorage.setItem("cp-replay-at", String(Date.now())); } catch (e) {}
+    // FETCH-VERIFY: harvest a fresh token first, then native-POST with it. A native POST of a possibly-stale
+    // STORED token is the recovery-flakiness root (→ 200 login-redirect). If the harvest yields a fresh token we
+    // commit with that; if it fails for ANY reason (session dead, login page, network error, timeout) we fall
+    // back to the stored token = the previous behaviour exactly (NO REGRESSION). Bounded by a timeout so a hung
+    // fetch can't strand recovery.
+    var committed = false;
+    function commit(tok, why) {
+      if (committed) return; committed = true;
+      try { console.log("[stubguard] recovery replay — " + why); } catch (e) {}
+      cpNativePost(nav, tok);
+    }
+    try {
+      cpHarvestToken().then(
+        function (fresh) { commit(fresh || token, fresh ? "fresh token harvested" : "harvest empty → stored token"); },
+        function () { commit(token, "harvest rejected → stored token"); }
+      );
+    } catch (e) { commit(token, "harvest threw → stored token"); }
+    setTimeout(function () { commit(token, "harvest timeout → stored token"); }, 3500);
   }
 
   // Parse a redirect-stub document: target URL, data object, fresh token.
@@ -141,6 +186,22 @@
 
   // ---- Single-navigation login (/Login/ pages only) ----------------------
   if (path.indexOf("/Login/") !== -1) {
+    // A recovery replay that just FAILED (its single-use token transiently rejected — most often right after an
+    // EXTENSION reload) can redirect here even though the session is still alive. A clean retry succeeds, so
+    // re-enter recovery ONCE before showing the login form. Bounded by cp-err-retries (reset on the next real app
+    // page); only fires when a replay happened in the last few seconds (cp-replay-at). /Login/ is DNR-allowed so
+    // reloading it wouldn't re-enter recovery — GET an app url instead (DNR-redirected → styles.css → recovery).
+    try {
+      var _rAt = parseInt(sessionStorage.getItem("cp-replay-at") || "0", 10) || 0;
+      var _rN = parseInt(sessionStorage.getItem("cp-err-retries") || "0", 10) || 0;
+      if (_rAt && (Date.now() - _rAt < 12000) && _rN < 1) {
+        sessionStorage.setItem("cp-err-retries", String(_rN + 1));
+        sessionStorage.setItem("cp-stub-tries", "0");
+        sessionStorage.removeItem("cp-replay-at");
+        location.replace("/commpilot/Common/folder_contents.jsp");
+        return;
+      }
+    } catch (e) {}
     var armedLogin = true;
 
     function cpLoginFollow(u, p, token, depth) {

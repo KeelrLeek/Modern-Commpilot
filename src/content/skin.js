@@ -189,11 +189,18 @@ var CP_ITEM_ICONS = {
   "stir-shaken": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3"/><path d="M11 11a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 12l0 2.5"/></svg>',
   "alternate user ids": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M16 12v1.5a2.5 2.5 0 0 0 5 0v-1.5a9 9 0 1 0 -5.5 8.28"/></svg>',
   "administrators": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5 -3.5 7.5 -7.66 8.95a1 1 0 0 1 -.67 -.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1 -1c2 0 4.5 -1.2 6.24 -2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M6.376 18.91a6 6 0 0 1 11.249 .003"/><circle cx="12" cy="11" r="4"/></svg>',
-  "call recording platforms": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg>'
+  "call recording platforms": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg>',
+  "device management device families": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z"/><path d="m7 16.5-4.74-2.85"/><path d="m7 16.5 5-3"/><path d="M7 16.5v5.17"/><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z"/><path d="m17 16.5-5-3"/><path d="m17 16.5 4.74-2.85"/><path d="M17 16.5v5.17"/><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z"/><path d="M12 8 7.26 5.15"/><path d="m12 8 4.74-2.85"/><path d="M12 13.5V8"/></svg>',
+  "device management tag sets": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z"/><path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193"/><circle cx="10.5" cy="6.5" r=".5" fill="currentColor"/></svg>',
+  "mobile subscriber directory numbers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8.5l4.5 4.5v12.5a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1v-16a1 1 0 0 1 1 -1"/><path d="M9 11h3v6"/><path d="M15 17v.01"/><path d="M15 14v.01"/><path d="M15 11v.01"/><path d="M9 14v.01"/><path d="M9 17v.01"/></svg>',
+  "identity/device endpoints": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5"/><path d="M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5"/><path d="M3 21l2.5 -2.5"/><path d="M18.5 5.5l2.5 -2.5"/><path d="M10 11l-2 2"/><path d="M13 14l-2 2"/></svg>'
 };
 function cpMenuItemIcon(title) {
   var t = (title || "").trim().toLowerCase();
   if (/^administrator (modify|add)$/.test(t)) t = "administrators";   // the edit/create form pages share the list icon
+  if (/^call recording platform (modify|add)$/.test(t)) t = "call recording platforms";  // Add/Modify form → list icon (audio-lines)
+  if (/^device management device families (add|import|modify)$/.test(t)) t = "device management device families";  // Add/Import/Modify form → list icon (boxes)
+  if (/^device management (tag sets|regions)( (add|add tag|modify|modify tag))?$/.test(t)) t = "device management tag sets";  // Tag Sets list/Modify + Add/Add Tag/Modify Tag + Regions Add → list icon (tags)
   return CP_ITEM_ICONS[t] || "";
 }
 
@@ -2259,6 +2266,8 @@ function cpRevealCloak() {
     var appPage = !!document.querySelector('td[width="82%"], a.navMenuItem, .navOptions');
     if (appPage) {
       try { sessionStorage.setItem("cp-stub-tries", "0"); } catch (e) {}
+      try { sessionStorage.setItem("cp-err-retries", "0"); } catch (e) {}   // recovery succeeded → refresh the retry budget
+      try { sessionStorage.removeItem("cp-replay-at"); } catch (e) {}
     }
     var o = document.getElementById("cp-cloak");
     if (!o) return;
@@ -2373,6 +2382,12 @@ var CP_PROF_TRASH_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentCol
 var CP_PROF_ALERT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z"/><path d="M12 16h.01"/></svg>';
 var CP_PROF_SERVER_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3"/><path d="M3 15a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -2"/><path d="M7 8l0 .01"/><path d="M7 16l0 .01"/></svg>';
 var CP_PROF_REC_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M7 12a5 5 0 0 1 5 -5"/><path d="M12 17a5 5 0 0 0 5 -5"/></svg>';
+var CP_PROF_UPLOAD_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4v12"/></svg>';
+/* single Tabler `tag` — the Tag-Set Add card-section icon. Deliberately NOT the reserved Lucide `tags` menu icon
+ * (that's assigned only when the whole Tag Sets redesign is done — the icon-as-done-tracker rule). */
+var CP_PROF_TAG_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 7.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M3 6v5.172a2 2 0 0 0 .586 1.414l7.71 7.71a2.41 2.41 0 0 0 3.408 0l5.592 -5.592a2.41 2.41 0 0 0 0 -3.408l-7.71 -7.71a2 2 0 0 0 -1.414 -.586h-5.172a3 3 0 0 0 -3 3"/></svg>';
+/* Tabler `map-pin` — the Device Management Regions Add card-section icon. */
+var CP_PROF_REGION_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>';
 var CP_PROF_DESC = {
   "Reseller ID": "Unique identifier for this reseller. Read-only.",
   "Name": "Display name shown across the console."
@@ -2558,8 +2573,8 @@ function cpBuildAdminRows(rowsWrap, cell) {
     cpProfRow(rowsWrap, "Administrator ID", "Login ID for this administrator. Read-only.", idv);
   }
   // 2 + 3. Names
-  cpProfRow(rowsWrap, "Last name", "", cpProfInput(lastN));
-  cpProfRow(rowsWrap, "First name", "", cpProfInput(firstN));
+  cpProfRow(rowsWrap, "Last name", "The administrator's last name.", cpProfInput(lastN));
+  cpProfRow(rowsWrap, "First name", "The administrator's first name.", cpProfInput(firstN));
 
   // 4. Reset password (+ show toggle + live requirements meter)
   var pwslot = document.createElement("div");
@@ -2571,7 +2586,7 @@ function cpBuildAdminRows(rowsWrap, cell) {
   pwwrap.appendChild(eye); pwslot.appendChild(pwwrap);
   var treat = document.createElement("div"); treat.className = "cp-prof-treat"; pwslot.appendChild(treat);
   var pwLabel = isAdd ? "Initial password" : "Reset password";
-  var pwRow = cpProfRow(rowsWrap, pwLabel, isAdd ? "" : "Leave blank to keep the current password.", pwslot);
+  var pwRow = cpProfRow(rowsWrap, pwLabel, isAdd ? "The administrator's initial sign-in password." : "Leave blank to keep the current password.", pwslot);
   pwRow.classList.add("cp-prof-pwrow");
   pwRow.querySelector(".cp-prof-k").innerHTML = '<span class="cp-prof-req">*</span> ' + pwLabel;
 
@@ -2580,15 +2595,15 @@ function cpBuildAdminRows(rowsWrap, cell) {
   cpProfInput(pw2); p2slot.appendChild(pw2);
   var mat = document.createElement("div"); mat.className = "cp-prof-mat"; mat.style.display = "none"; p2slot.appendChild(mat);
   var rtLabel = isAdd ? "Re-type initial password" : "Re-type new password";
-  var p2Row = cpProfRow(rowsWrap, rtLabel, "", p2slot);
+  var p2Row = cpProfRow(rowsWrap, rtLabel, "Enter the same password again to confirm.", p2slot);
   p2Row.classList.add("cp-prof-pwrow");
   p2Row.querySelector(".cp-prof-k").innerHTML = '<span class="cp-prof-req">*</span> ' + rtLabel;
 
   // 6. Language (real select → site dropdown via enhanceSelects)
-  if (lang) { cpProfInput(lang); cpProfRow(rowsWrap, "Language", "", lang); }
+  if (lang) { cpProfInput(lang); cpProfRow(rowsWrap, "Language", "Console display language for this administrator.", lang); }
 
   // 7. Last authentication (read-only)
-  if (lastAuth) { var lav = document.createElement("div"); lav.className = "cp-prof-mval"; lav.textContent = lastAuth; cpProfRow(rowsWrap, "Last authentication", "", lav); }
+  if (lastAuth) { var lav = document.createElement("div"); lav.className = "cp-prof-mval"; lav.textContent = lastAuth; cpProfRow(rowsWrap, "Last authentication", "When this administrator last signed in.", lav); }
 
   // 8. Disable account (toggle)
   var tg = null;
@@ -2633,7 +2648,7 @@ function cpBuildAdminRows(rowsWrap, cell) {
 
 /* Destructive-action confirm modal — a fixed overlay with a danger card. Forwards the real legacy delete
  * click ONLY when the user confirms (the double-ask). Esc / backdrop / Cancel all dismiss. */
-function cpProfConfirmDelete(entity, subject, realDelete) {
+function cpProfConfirmDelete(entity, subject, realDelete, detail) {
   try {
     document.querySelectorAll(".cp-prof-modalov").forEach(function (o) { o.remove(); });
     function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
@@ -2643,7 +2658,7 @@ function cpProfConfirmDelete(entity, subject, realDelete) {
       '<div class="cp-prof-modal" role="dialog" aria-modal="true" aria-label="Confirm delete">' +
         '<div class="cp-prof-modalic">' + CP_PROF_ALERT_SVG + "</div>" +
         '<div class="cp-prof-modaltt">Delete this ' + esc(entity) + "?</div>" +
-        '<div class="cp-prof-modalmsg">This permanently removes ' + subj + " and revokes their access to the console. This can’t be undone.</div>" +
+        '<div class="cp-prof-modalmsg">This permanently removes ' + subj + (detail ? " " + esc(detail) : "") + ". This can’t be undone.</div>" +
         '<div class="cp-prof-modalacts">' +
           '<button type="button" class="cp-prof-btn cp-prof-ghost" data-cp="cancel">Cancel</button>' +
           '<button type="button" class="cp-prof-btn cp-prof-dangersolid" data-cp="confirm">' + CP_PROF_TRASH_SVG + "<span>Delete " + esc(entity) + "</span></button>" +
@@ -2684,6 +2699,41 @@ function cpProfRow(rows, k, d, ctrl, opts) {
   return row;
 }
 function cpProfInput(inputEl) { if (inputEl) inputEl.classList.add("cp-prof-input"); return inputEl; }
+/* Wrap a real <input type=file> in a themed drop-zone (dashed box + upload icon + browse + filename). The real
+ * input is visually hidden but kept in the form (it still submits multipart); click/Enter/drop all feed it. */
+function cpBuildDropzone(fileI) {
+  var dz = document.createElement("div");
+  dz.className = "cp-prof-dz";
+  dz.setAttribute("role", "button"); dz.setAttribute("tabindex", "0"); dz.setAttribute("aria-label", "Choose a file to upload");
+  fileI.classList.add("cp-prof-dz-input");
+  var ico = document.createElement("div"); ico.className = "cp-prof-dz-ico"; ico.innerHTML = CP_PROF_UPLOAD_SVG;
+  var txt = document.createElement("div"); txt.className = "cp-prof-dz-txt";
+  var main = document.createElement("div"); main.className = "cp-prof-dz-main";
+  main.innerHTML = 'Drag a file here, or <span class="cp-prof-dz-browse">browse</span>';
+  var fn = document.createElement("div"); fn.className = "cp-prof-dz-file"; fn.textContent = "No file chosen";
+  txt.appendChild(main); txt.appendChild(fn);
+  var btn = document.createElement("button"); btn.type = "button"; btn.className = "cp-prof-dz-btn"; btn.textContent = "Browse";
+  dz.appendChild(ico); dz.appendChild(txt); dz.appendChild(btn); dz.appendChild(fileI);
+  function sync() {
+    var f = fileI.files && fileI.files[0];
+    fn.textContent = f ? f.name : "No file chosen";
+    dz.classList.toggle("cp-prof-dz-has", !!f);
+  }
+  dz.addEventListener("click", function (e) { if (e.target === fileI) return; fileI.click(); });
+  dz.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileI.click(); } });
+  fileI.addEventListener("change", sync);
+  dz.addEventListener("dragover", function (e) { e.preventDefault(); dz.classList.add("cp-prof-dz-over"); });
+  dz.addEventListener("dragleave", function () { dz.classList.remove("cp-prof-dz-over"); });
+  dz.addEventListener("drop", function (e) {
+    e.preventDefault(); dz.classList.remove("cp-prof-dz-over");
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+      try { fileI.files = e.dataTransfer.files; } catch (err) {}
+      sync(); try { fileI.dispatchEvent(new Event("change", { bubbles: true })); } catch (err) {}
+    }
+  });
+  sync();
+  return dz;
+}
 function cpProfToggleEl(cbEl, onChange) {
   var tg = document.createElement("span"); tg.className = "cp-prof-toggle";
   tg.setAttribute("role", "switch"); tg.setAttribute("tabindex", "0");
@@ -2879,25 +2929,25 @@ function cpBuildCrpRows(cell) {
     ctl(vidT);
   }
 
-  // --- Platform card ---
+  // --- Platform card --- (every field carries a descriptor, matching the Activation-policy form)
   var pc = cpProfCard("Platform", CP_PROF_SERVER_SVG);
-  req(cpProfRow(pc.rows, "Name", "", cpProfInput(ctl(nameI))), "Name");
-  if (descI) cpProfRow(pc.rows, "Description", "", cpProfInput(ctl(descI)));
+  req(cpProfRow(pc.rows, "Name", "A label to identify this recording platform.", cpProfInput(ctl(nameI))), "Name");
+  if (descI) cpProfRow(pc.rows, "Description", "Optional notes describing this platform.", cpProfInput(ctl(descI)));
   var hostSlot = document.createElement("div"); hostSlot.className = "cp-prof-hostport";
   cpProfInput(ctl(ipI)); ipI.classList.add("cp-prof-host"); hostSlot.appendChild(ipI);
   if (portI) {
     var pl = document.createElement("span"); pl.className = "cp-prof-portlbl"; pl.textContent = "Port"; hostSlot.appendChild(pl);
     cpProfInput(ctl(portI)); portI.classList.add("cp-prof-port"); hostSlot.appendChild(portI);
   }
-  req(cpProfRow(pc.rows, "Host name / IP address", "", hostSlot), "Host name / IP address");
-  if (transportS) cpProfRow(pc.rows, "Transport", "", cpProfInput(ctl(transportS)));
+  req(cpProfRow(pc.rows, "Host name / IP address", "Address of the recording server, with an optional port.", hostSlot), "Host name / IP address");
+  if (transportS) cpProfRow(pc.rows, "Transport", "Protocol used to reach the platform.", cpProfInput(ctl(transportS)));
 
   // --- Recording card ---
   var rc = cpProfCard("Recording", CP_PROF_REC_SVG);
-  if (mediaS) cpProfRow(rc.rows, "Media stream", "", cpProfInput(ctl(mediaS)));
-  if (schemaS) cpProfRow(rc.rows, "Schema version", "", cpProfInput(ctl(schemaS)));
+  if (mediaS) cpProfRow(rc.rows, "Media stream", "Whether call audio is sent as one mixed or two separate streams.", cpProfInput(ctl(mediaS)));
+  if (schemaS) cpProfRow(rc.rows, "Schema version", "Metadata format version used when sending recordings.", cpProfInput(ctl(schemaS)));
   if (vidTg) cpProfRow(rc.rows, "Support video recording", "Record video calls to this platform.", vidTg).classList.add("cp-prof-deprow");
-  if (routeT) { cpProfInput(routeT); routeT.classList.add("cp-prof-ta"); cpProfRow(rc.rows, "Route", "", ctl(routeT)).classList.add("cp-prof-tarow"); }
+  if (routeT) { cpProfInput(routeT); routeT.classList.add("cp-prof-ta"); cpProfRow(rc.rows, "Route", "Optional SIP route applied to recording requests.", ctl(routeT)).classList.add("cp-prof-tarow"); }
 
   try { enhanceSelects(); } catch (e) {}
 
@@ -2909,6 +2959,165 @@ function cpBuildCrpRows(cell) {
   };
 }
 
+/* Device Management Device Families ADD — one required field (device family name) in a single card. */
+function cpBuildDeviceFamilyAddRows(cell) {
+  var nameI = cell.querySelector('input[name="deviceFamilyName"]');
+  if (!nameI) return null;
+  var dc = cpProfCard("Device family", CP_PROF_SERVER_SVG);
+  cpProfInput(nameI);
+  var row = cpProfRow(dc.rows, "Device Family Name", "A unique name for this device family.", nameI);
+  var k = row.querySelector(".cp-prof-k"); if (k) k.innerHTML = '<span class="cp-prof-req">*</span> Device Family Name';
+  return { cards: [dc.card], controls: [nameI], subject: nameI.value || "", globalActions: true };
+}
+
+/* Device Management Device Families IMPORT — File-upload card (themed drop-zone over the real multipart file
+ * input) + Options card (the three legacy checkboxes → purple toggles). The OK submit stays a native multipart
+ * POST to /servlet/DeviceManagementImportServlet (a file upload can't ride pjax). */
+function cpBuildDeviceFamilyImportRows(cell) {
+  var fileI = cell.querySelector('input[type="file"][name="fileName"]');
+  if (!fileI) return null;
+  var dfOv = cell.querySelector('input[name="dfOverrideCheckBox"]');
+  var dtUp = cell.querySelector('input[name="dtFileUpdateCheckBox"]');
+  var tsOv = cell.querySelector('input[name="tsOverrideCheckBox"]');
+  var controls = [];
+  function ctl(el) { if (el && controls.indexOf(el) < 0) controls.push(el); return el; }
+
+  var fc = cpProfCard("File upload", CP_PROF_UPLOAD_SVG);
+  var dzRow = cpProfRow(fc.rows, "Upload file", "Select a device family file to import.", cpBuildDropzone(ctl(fileI)));
+  dzRow.classList.add("cp-prof-dzrow");
+  var fk = dzRow.querySelector(".cp-prof-k"); if (fk) fk.innerHTML = '<span class="cp-prof-req">*</span> Upload file';
+
+  var oc = cpProfCard("Options", CP_PROF_ADJ_SVG);
+  if (dfOv) cpProfRow(oc.rows, "Device Family Override", "Replace an existing device family that has the same name.", cpProfToggleEl(ctl(dfOv))).classList.add("cp-prof-deprow");
+  if (dtUp) cpProfRow(oc.rows, "Device Type File Update", "Update device type files from the imported file.", cpProfToggleEl(ctl(dtUp))).classList.add("cp-prof-deprow");
+  if (tsOv) cpProfRow(oc.rows, "Tag Set Override", "Replace existing tag sets with those in the imported file.", cpProfToggleEl(ctl(tsOv))).classList.add("cp-prof-deprow");
+
+  return { cards: [fc.card, oc.card], controls: controls, globalActions: true };
+}
+
+/* Device Management Tag Sets Add — a single required field. SINGLE-card form: one row (Tag set name + the moved
+ * real input). The shared header/card/action-bar/22px-inset come from cpProfileForm; the row needs a descriptor
+ * (see [[feedback-every-form-field-needs-descriptor]]). */
+function cpBuildTagSetAddRows(rowsWrap, cell) {
+  var name = cell.querySelector('input[name="tagSetName"]');
+  if (!name) return null;
+  var row = cpProfRow(rowsWrap, "Tag set name",
+    "A unique name for this set of device-configuration tags. Up to 30 characters.",
+    cpProfInput(name));
+  row.querySelector(".cp-prof-k").innerHTML = '<span class="cp-prof-req">*</span> Tag set name';
+  return { controls: [name] };
+}
+
+/* Device Management Tag Sets MODIFY → Add Tag — adds a %TAG% to an existing tag set. Fields: read-only tag set
+ * (display only), the %-wrapped Tag Name (the % are FIXED syntax — the moved input submits the BARE name, the
+ * server wraps it as %name%), an Overridable checkbox → toggle, and the Tag Value. Every row gets a descriptor
+ * (see [[feedback-every-form-field-needs-descriptor]]). */
+function cpBuildTagAddRows(rowsWrap, cell) {
+  var name = cell.querySelector('input[name="tagName"]');
+  var value = cell.querySelector('input[name="tagValue"]');
+  if (!name || !value) return null;
+  var ovr = cell.querySelector('input[name="tagValueOverridable"]');
+
+  // Read-only "Tag Set Name" — a legacy label row with no input (the set this tag is added to).
+  var trs = cell.querySelectorAll("tr"), setName = "";
+  for (var i = 0; i < trs.length; i++) {
+    var tds = trs[i].querySelectorAll("td");
+    if (tds.length >= 2 && /tag set name/i.test((tds[0].textContent || "").trim()) && !tds[1].querySelector("input,select,textarea")) {
+      setName = (tds[1].textContent || "").trim(); break;
+    }
+  }
+  if (setName) {
+    var sv = document.createElement("div"); sv.className = "cp-prof-roval";
+    var svt = document.createElement("span"); svt.className = "cp-prof-rovaltxt"; svt.textContent = setName; sv.appendChild(svt);
+    cpProfRow(rowsWrap, "Tag set", "The tag set this tag is added to.", sv);
+  }
+
+  // Tag name — the % adornments are fixed syntax; the moved input submits the bare name inside the group.
+  var pgrp = document.createElement("div"); pgrp.className = "cp-prof-pctgrp";
+  var p1 = document.createElement("span"); p1.className = "cp-prof-pct"; p1.textContent = "%";
+  var p2 = document.createElement("span"); p2.className = "cp-prof-pct"; p2.textContent = "%";
+  cpProfInput(name); name.classList.add("cp-prof-pctinput");
+  pgrp.appendChild(p1); pgrp.appendChild(name); pgrp.appendChild(p2);
+  var nameRow = cpProfRow(rowsWrap, "Tag name", "The tag identifier between percent signs — e.g. %DEVICE_TYPE%.", pgrp);
+  nameRow.querySelector(".cp-prof-k").innerHTML = '<span class="cp-prof-req">*</span> Tag name';
+
+  var controls = [name, value], ovrTgl = null;
+  if (ovr) {
+    ovrTgl = cpProfToggleEl(ovr);
+    cpProfRow(rowsWrap, "Overridable", "Allow device profiles to override this tag's value.", ovrTgl);
+    controls.push(ovr);
+  }
+  cpProfRow(rowsWrap, "Tag value", "The value this tag expands to in the device configuration.", cpProfInput(value));
+
+  return { controls: controls, sync: function () { if (ovrTgl && ovrTgl._sync) ovrTgl._sync(); } };
+}
+
+/* Device Management Regions Add — adds a region to an existing tag set. SINGLE-card: a read-only "Tag set"
+ * context row (the set this region belongs to) + the required Region Name. Same family as the Tag Set / Tag
+ * Add forms; every row gets a descriptor (see [[feedback-every-form-field-needs-descriptor]]). */
+function cpBuildRegionAddRows(rowsWrap, cell) {
+  var name = cell.querySelector('input[name="regionName"]');
+  if (!name) return null;
+
+  // Read-only "Tag Set Name" — a legacy label row with no input (the set this region belongs to).
+  var trs = cell.querySelectorAll("tr"), setName = "";
+  for (var i = 0; i < trs.length; i++) {
+    var tds = trs[i].querySelectorAll("td");
+    if (tds.length >= 2 && /tag set name/i.test((tds[0].textContent || "").trim()) && !tds[1].querySelector("input,select,textarea")) {
+      setName = (tds[1].textContent || "").trim(); break;
+    }
+  }
+  if (setName) {
+    var sv = document.createElement("div"); sv.className = "cp-prof-roval";
+    var svt = document.createElement("span"); svt.className = "cp-prof-rovaltxt"; svt.textContent = setName; sv.appendChild(svt);
+    cpProfRow(rowsWrap, "Tag set", "The tag set this region belongs to.", sv);
+  }
+
+  var row = cpProfRow(rowsWrap, "Region name", "A unique name for this region within the tag set. Up to 64 characters.", cpProfInput(name));
+  row.querySelector(".cp-prof-k").innerHTML = '<span class="cp-prof-req">*</span> Region name';
+  return { controls: [name] };
+}
+
+/* Device Management Tag Sets Modify Tag — edit an existing tag. Tag Set + Tag Name are READ-ONLY (you can't rename
+ * a tag — delete and re-add); only the Overridable toggle (newTagValueOverridable) + Tag Value (newTagValue) are
+ * editable. The action bar auto-adds Delete (cell has input[name=delete]) → confirm uses subject = the tag name.
+ * Every row gets a descriptor (see [[feedback-every-form-field-needs-descriptor]]). */
+function cpBuildTagModifyRows(rowsWrap, cell) {
+  var value = cell.querySelector('input[name="newTagValue"]');
+  if (!value) return null;
+  var ovr = cell.querySelector('input[name="newTagValueOverridable"]');
+
+  function legacyVal(re) {
+    var trs = cell.querySelectorAll("tr");
+    for (var i = 0; i < trs.length; i++) {
+      var tds = trs[i].querySelectorAll("td");
+      if (tds.length >= 2 && re.test((tds[0].textContent || "").trim()) && !tds[1].querySelector("input,select,textarea")) {
+        return (tds[1].textContent || "").trim();
+      }
+    }
+    return "";
+  }
+  function roRow(label, val, desc) {
+    if (!val) return;
+    var v = document.createElement("div"); v.className = "cp-prof-roval";
+    var vt = document.createElement("span"); vt.className = "cp-prof-rovaltxt"; vt.textContent = val; v.appendChild(vt);
+    cpProfRow(rowsWrap, label, desc, v);
+  }
+  var tagName = legacyVal(/tag name/i);
+  roRow("Tag set", legacyVal(/tag set name/i), "The tag set this tag belongs to.");
+  roRow("Tag name", tagName, "The tag identifier — read-only. Delete and re-add to rename.");
+
+  var controls = [value], ovrTgl = null;
+  if (ovr) {
+    ovrTgl = cpProfToggleEl(ovr);
+    cpProfRow(rowsWrap, "Overridable", "Allow device profiles to override this tag's value.", ovrTgl);
+    controls.push(ovr);
+  }
+  cpProfRow(rowsWrap, "Tag value", "The value this tag expands to in the device configuration. Up to 256 characters.", cpProfInput(value));
+
+  return { controls: controls, sync: function () { if (ovrTgl && ovrTgl._sync) ovrTgl._sync(); }, subject: tagName };
+}
+
 /* Page config — picks the row builder (+ card-header label/icon for single-card pages).
  * Returns null for any page that isn't a configured settings form. */
 function cpSettingsFormConfig(title, cell) {
@@ -2916,7 +3125,7 @@ function cpSettingsFormConfig(title, cell) {
     return { label: "Reseller information", icon: CP_PROF_USER_SVG, build: cpBuildProfileRows };
   }
   if (/^Administrator (Modify|Add)/i.test(title) && cell.querySelector('input[name="echoPassword"]')) {
-    return { label: "Administrator", icon: CP_ITEM_ICONS["administrators"], build: cpBuildAdminRows };
+    return { label: "Administrator", icon: CP_ITEM_ICONS["administrators"], build: cpBuildAdminRows, deleteMsg: "and revokes their access to the console" };
   }
   if (/Activation Code Device Onboarding/i.test(title) || cell.querySelector('input[name="allowActivationRequestByUser"]')) {
     return { label: "Onboarding policy", icon: CP_PROF_QR_SVG, build: cpBuildDapRows };
@@ -2926,6 +3135,25 @@ function cpSettingsFormConfig(title, cell) {
   }
   if (/^Call Recording Platform (Add|Modify)/i.test(title) || (cell.querySelector('input[name="ipAddress"]') && cell.querySelector('select[name="transport"]'))) {
     return { multiCard: true, build: cpBuildCrpRows };
+  }
+  if (/Device Families (Add|Modify)/i.test(title) || cell.querySelector('input[name="deviceFamilyName"]')) {
+    return { multiCard: true, build: cpBuildDeviceFamilyAddRows };
+  }
+  if (/Device Families Import/i.test(title) || cell.querySelector('input[type="file"][name="fileName"]')) {
+    return { multiCard: true, build: cpBuildDeviceFamilyImportRows, okLabel: "Import" };
+  }
+  if (/Device Management Tag Sets Add Tag/i.test(title) || (cell.querySelector('input[name="tagName"]') && cell.querySelector('input[name="tagValue"]'))) {
+    return { label: "Tag", icon: CP_PROF_TAG_SVG, build: cpBuildTagAddRows, okLabel: "Create" };
+  }
+  if (/Device Management Tag Sets Modify Tag/i.test(title) || cell.querySelector('input[name="newTagValue"]')) {
+    return { label: "Tag", icon: CP_PROF_TAG_SVG, build: cpBuildTagModifyRows, okLabel: "Save", deleteEntity: "tag" };
+  }
+  if (/Device Management Regions Add/i.test(title) || cell.querySelector('input[name="regionName"]')) {
+    return { label: "Region", icon: CP_PROF_REGION_SVG, build: cpBuildRegionAddRows, okLabel: "Create" };
+  }
+  // End-anchored: must NOT also match "…Add Tag" (handled above).
+  if (/Device Management Tag Sets Add$/i.test(title) || cell.querySelector('input[name="tagSetName"]')) {
+    return { label: "New tag set", icon: CP_PROF_TAG_SVG, build: cpBuildTagSetAddRows, okLabel: "Create" };
   }
   return null;
 }
@@ -2992,7 +3220,7 @@ function cpProfileForm() {
       b.addEventListener("click", function () { real.click(); });
       actions.appendChild(b);
     }
-    addBtn(realOk, "Save", "cp-prof-primary", CP_PROF_CHECK_SVG, true);
+    addBtn(realOk, cfg.okLabel || "Save", "cp-prof-primary", CP_PROF_CHECK_SVG, true);
     addBtn(realApply, "Apply", "cp-prof-secondary", "", true);
     addBtn(realCancel, "Cancel", "cp-prof-ghost", "", false);
     // Destructive Delete (e.g. admin Modify) → a danger button on the LEFT, gated behind a confirm modal that
@@ -3003,8 +3231,8 @@ function cpProfileForm() {
       var delBtn = document.createElement("button");
       delBtn.type = "button"; delBtn.className = "cp-prof-btn cp-prof-danger";
       delBtn.innerHTML = CP_PROF_TRASH_SVG + "<span>Delete</span>";
-      var entity = (headTitle.replace(/\s*(Modify|Add)\s*$/i, "").trim() || "item").toLowerCase();
-      delBtn.addEventListener("click", function () { cpProfConfirmDelete(entity, cardSubject, realDelete); });
+      var entity = cfg.deleteEntity || (headTitle.replace(/\s*(Modify|Add)\s*$/i, "").trim() || "item").toLowerCase();
+      delBtn.addEventListener("click", function () { cpProfConfirmDelete(entity, cardSubject, realDelete, cfg.deleteMsg); });
       actions.insertBefore(delBtn, actions.firstChild);
     }
     if (!cfg.multiCard && card) card.appendChild(actions);               // single-card: footer inside the card
@@ -3061,7 +3289,22 @@ function cpHandleErrorPage() {
     if (!body) return false;
     var txt = body.textContent || "";
     if (!/temporarily unavailable/i.test(txt) || !/page you have selected/i.test(txt)) return false;
-    // Stop the recovery loop: the stored last-nav / recover-nav here IS the failing page.
+    // AUTO-RETRY the recovery ONCE before giving up. A recovery replay can transiently fail — most reliably right
+    // after an EXTENSION reload: the orphaned old content scripts + re-injection churn poison the FIRST replay's
+    // single-use token → the server 500s → this "temporarily unavailable" page. A clean second attempt almost always
+    // succeeds (a plain reload recovers fine), so re-enter recovery instead of stranding the user at Login. Bounded
+    // by cp-err-retries (reset on the next real app page by cpRevealCloak); cp-stub-tries is zeroed so the
+    // interstitial loop-guard doesn't pre-empt the retry. KEEP the stored recover-nav so the retry replays the page.
+    var rAt = 0; try { rAt = parseInt(sessionStorage.getItem("cp-replay-at") || "0", 10) || 0; } catch (e) {}
+    var errTries = 0; try { errTries = parseInt(sessionStorage.getItem("cp-err-retries") || "0", 10) || 0; } catch (e) {}
+    if (rAt && (Date.now() - rAt < 12000) && errTries < 1) {
+      try { sessionStorage.setItem("cp-err-retries", String(errTries + 1)); } catch (e) {}
+      try { sessionStorage.setItem("cp-stub-tries", "0"); } catch (e) {}
+      try { sessionStorage.removeItem("cp-replay-at"); } catch (e) {}
+      try { location.reload(); } catch (e) { try { location.assign("/commpilot/"); } catch (e2) {} }
+      return true;
+    }
+    // Retry exhausted → original escape. Stop the recovery loop: the stored last-nav / recover-nav here IS the failing page.
     try { sessionStorage.removeItem("cp-last-nav"); } catch (e) {}
     try { if (window.chrome && chrome.storage && chrome.storage.local) chrome.storage.local.remove(["cpRecoverNav"]); } catch (e) {}
     // Rewire OK → clean GET to /Login/. cloneNode strips the page's native redirectPost click handler (it's
