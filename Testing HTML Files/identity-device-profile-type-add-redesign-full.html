@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Identity/Device Profile Type Add — full-coverage redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css">
+<style>
+:root{--bg:#1c1b19;--surf:#2a2825;--surf2:#211f1d;--bd:#3c3a37;--bd2:#46433f;--tx:#e8e6e2;--mut:#9a958c;--lav:#6E4C96;--lav2:#8366ad;--lavt:rgba(124,92,168,.20);--lavtx:#bda7da;--grn:#98c379;--red:#e06c75;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:'Nunito','Segoe UI',system-ui,sans-serif;font-size:14px;padding:28px 16px;display:flex;justify-content:center;}
+.page{width:100%;max-width:980px;}
+.glyph{width:32px;height:32px;border-radius:9px;background:var(--lavt);color:var(--lavtx);display:inline-flex;align-items:center;justify-content:center;font-size:18px;flex:none;}
+h1{font-size:22px;font-weight:700;margin:0;}
+.sub{color:var(--mut);font-size:12.5px;margin:3px 0 0 44px;}
+.card{background:var(--surf);border:1px solid var(--bd);border-radius:11px;padding:4px 18px 13px;margin-top:13px;}
+.ch{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 0 10px;border-bottom:1px solid var(--bd);margin-bottom:4px;}
+.ct{display:flex;align-items:center;gap:9px;} .ct i{color:var(--lavtx);font-size:16px;} .ct .t{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);}
+.row{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid var(--surf2);}
+.row:last-child{border-bottom:0;}
+.k{font-size:13.5px;color:var(--tx);} .req{color:var(--lav2);} .d{color:var(--mut);font-size:12px;margin-top:2px;max-width:380px;line-height:1.45;}
+input[type=text],input[type=password],select{background:var(--surf2);border:1px solid var(--bd2);border-radius:8px;height:34px;color:var(--tx);font:inherit;font-size:13px;padding:0 11px;min-width:230px;}
+input:focus,select:focus{outline:none;border-color:var(--lav2);}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--tx);background:var(--surf2);border:1px solid var(--bd);border-radius:7px;padding:6px 12px;}
+.seg{display:inline-flex;border:1px solid var(--bd2);border-radius:9px;overflow:hidden;flex:none;}
+.seg button{padding:7px 15px;font:inherit;font-size:12.5px;color:var(--mut);background:none;border:0;border-right:1px solid var(--bd2);cursor:pointer;}
+.seg button:last-child{border-right:0;} .seg button.on{background:var(--lav);color:#fff;}
+.ports{display:flex;align-items:center;gap:10px;} .ports input{width:96px;min-width:0;}
+.count{font-size:11.5px;color:var(--lavtx);background:var(--lavt);padding:3px 11px;border-radius:20px;white-space:nowrap;}
+.search{display:flex;align-items:center;gap:8px;background:var(--surf2);border:1px solid var(--bd2);border-radius:9px;padding:0 12px;height:34px;margin:12px 0;}
+.search i{color:var(--mut);font-size:15px;} .search input{background:none;border:0;height:34px;color:var(--tx);font:inherit;font-size:13px;flex:1;min-width:0;} .search input:focus{outline:none;}
+.cloud{display:flex;flex-wrap:wrap;gap:6px;}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mut);padding:6px 12px;border:1px solid var(--bd);border-radius:20px;background:var(--surf2);cursor:pointer;user-select:none;}
+.pill .tick{display:none;font-size:11px;color:var(--lavtx);} .pill.on{color:var(--tx);border-color:var(--lav);background:rgba(124,92,168,.12);} .pill.on .tick{display:inline-flex;}
+.empty{color:var(--mut);font-size:12.5px;padding:8px 2px;}
+/* purple toggle switch */
+.tgl{position:relative;width:42px;height:24px;border-radius:13px;background:var(--surf2);border:1px solid var(--bd2);cursor:pointer;flex:none;transition:.16s;}
+.tgl::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--mut);transition:.16s;}
+.tgl.on{background:var(--lav);border-color:var(--lav);} .tgl.on::after{left:21px;background:#fff;}
+/* master config 3-way + conditional panels */
+.master{display:flex;align-items:center;gap:12px;padding:6px 0 4px;}
+.master .ml{font-size:13.5px;font-weight:700;}
+.cfgpanel{display:none;margin-top:6px;border-top:1px dashed var(--bd);padding-top:4px;}
+.cfgpanel.show{display:block;}
+.note{color:var(--mut);font-size:12.5px;padding:14px 2px 4px;font-style:italic;}
+.subhead{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--lavtx);padding:14px 0 2px;}
+.act{display:flex;justify-content:flex-end;gap:10px;margin:20px 0 8px;}
+.btn{font:inherit;font-size:13.5px;padding:9px 20px;border:1px solid var(--bd2);border-radius:9px;color:var(--tx);background:none;cursor:pointer;}
+.btn.p{background:var(--lav);border-color:var(--lav);color:#fff;}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:0 26px;}
+@media(max-width:680px){.two{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span class="glyph"><i class="ti ti-router"></i></span><h1>Identity/Device Profile Type Add</h1>
+  </div>
+  <div class="sub">Add a new identity/device profile type for the reseller.</div>
+
+  <!-- PROFILE -->
+  <div class="card">
+    <div class="ch"><div class="ct"><i class="ti ti-id"></i><span class="t">Profile</span></div></div>
+    <div class="row"><div><div class="k">Reseller ID</div><div class="d">The reseller this profile type belongs to.</div></div><span class="mono">Trifecta_Sandbox</span></div>
+    <div class="row"><div><div class="k">Identity/Device profile type <span class="req">*</span></div><div class="d">A unique name for this profile type.</div></div><input type="text" placeholder="e.g. Polycom-VVX-Generic"></div>
+    <div class="row"><div><div class="k">Signaling address type</div><div class="d">How the device's lines and ports are addressed.</div></div>
+      <select><option>Non-intelligent Device Addressing</option><option>Non-intelligent Proxy Addressing</option><option>Intelligent Device Addressing</option><option>Intelligent Proxy Addressing</option></select></div>
+  </div>
+
+  <!-- STANDARD OPTIONS -->
+  <div class="card">
+    <div class="ch"><div class="ct"><i class="ti ti-adjustments"></i><span class="t">Standard options</span></div></div>
+    <div class="row"><div><div class="k">Number of ports</div><div class="d">Line/port capacity of the device.</div></div>
+      <div class="ports"><div class="seg"><button class="on" data-seg>Unlimited</button><button data-seg>Limited to</button></div><input type="text" placeholder="&mdash;"></div></div>
+    <div class="row"><div><div class="k">Ringback tone / early media</div><div class="d">How early media and ringback are handled.</div></div>
+      <select><option>RTP &ndash; Session</option><option>RTP &ndash; Early Session</option><option>Local Ringback &ndash; No Early Media</option></select></div>
+    <div class="row"><div><div class="k">Authentication</div><div class="d">Whether the device must authenticate.</div></div>
+      <div class="seg"><button class="on" data-seg>Enabled</button><button data-seg>Disabled</button></div></div>
+    <div class="row"><div><div class="k">Hold normalization</div><div class="d">SDP treatment when a call is held.</div></div>
+      <select><option>RFC3264</option><option>Unspecified Address</option><option>Inactive</option></select></div>
+  </div>
+
+  <!-- CAPABILITIES -->
+  <div class="card">
+    <div class="ch"><div class="ct"><i class="ti ti-checkbox"></i><span class="t">Capabilities</span></div><span class="count" id="capcount"></span></div>
+    <div class="search"><i class="ti ti-search"></i><input type="text" id="capsearch" placeholder="Filter capabilities&hellip;" aria-label="Filter capabilities"></div>
+    <div class="cloud" id="cloud"></div>
+    <p class="empty" id="capempty" style="display:none;">No capabilities match that filter.</p>
+  </div>
+
+  <!-- SIGNALING & RESET -->
+  <div class="card">
+    <div class="ch"><div class="ct"><i class="ti ti-settings-2"></i><span class="t">Signaling &amp; reset</span></div></div>
+    <div class="row"><div><div class="k">Reset event</div><div class="d">How the device is told to reload.</div></div>
+      <div class="seg"><button data-seg>reSync</button><button data-seg>checkSync</button><button data-seg>resetString</button><button class="on" data-seg>Not supported</button></div></div>
+    <div class="row"><div><div class="k">Reset string</div><div class="d">Sent when reset event is &ldquo;resetString&rdquo;.</div></div><input type="text" value="restart_now"></div>
+    <div class="row"><div><div class="k">Trunk mode</div><div class="d">Role of the device on the trunk.</div></div>
+      <div class="seg"><button class="on" data-seg>User</button><button data-seg>Pilot</button><button data-seg>Proxy</button></div></div>
+    <div class="row"><div><div class="k">Hold announcement method</div><div class="d">How music-on-hold is signalled.</div></div>
+      <div class="seg"><button class="on" data-seg>Inactive</button><button data-seg>Bandwidth attributes</button></div></div>
+    <div class="row"><div><div class="k">Device category</div><div class="d">Classifies the device for routing and features.</div></div>
+      <select><option>Generic</option><option>Hosted</option><option>Client App</option><option>Trunking</option><option>Local Gateway</option></select></div>
+    <div class="row"><div><div class="k">Unscreened presentation identity policy</div><div class="d">Identity used for unscreened calls.</div></div>
+      <select><option>Profile Presentation Identity</option><option>Unscreened Presentation Identity</option><option>Unscreened Presentation Identity With Profile Domain</option></select></div>
+    <div class="row"><div><div class="k">Web based configuration URL extension</div><div class="d">Appended to the device's web-config URL.</div></div><input type="text" placeholder="&mdash;"></div>
+  </div>
+
+  <!-- DEVICE CONFIGURATION (master toggle + conditional panels) -->
+  <div class="card">
+    <div class="ch"><div class="ct"><i class="ti ti-server-cog"></i><span class="t">Device configuration</span></div></div>
+    <div class="master">
+      <span class="ml">Configuration source</span>
+      <div class="seg" id="cfgseg"><button class="on" data-cfg="none">Not supported</button><button data-cfg="dm">Device Management</button><button data-cfg="legacy">Legacy</button></div>
+    </div>
+    <p class="note" id="cfgnone">No device configuration. The device won't be managed via tag sets or a config server.</p>
+
+    <!-- DEVICE MANAGEMENT panel -->
+    <div class="cfgpanel" id="cfgdm">
+      <div class="subhead">Tag sets</div>
+      <div class="row"><div><div class="k">Device configuration tag sets</div><div class="d">Which tag sets the device's config uses.</div></div>
+        <select><option>No Tag Sets</option><option>Use Default System Tag Set Only</option><option>Use Default System Tag Set and Custom</option></select></div>
+      <div class="row"><div><div class="k">Custom tag set</div><div class="d">Reseller tag set applied to this device type.</div></div>
+        <select><option>&mdash; None &mdash;</option><option>TF_Polycom_Tags</option><option>TF_Yealink-Tx</option><option>TF_Cisco-MPP-Tags</option><option>AVPaaS_BT_Tags</option><option>&hellip;</option></select></div>
+      <div class="row"><div><div class="k">Allow Identity/Device Profiles to configure custom tags</div><div class="d">Profiles may define their own custom tags.</div></div><div class="tgl" data-tgl></div></div>
+      <div class="row"><div><div class="k">Allow Groups to configure custom tags</div><div class="d">Groups may define custom tags.</div></div><div class="tgl" data-tgl></div></div>
+      <div class="row"><div><div class="k">Allow Enterprises/Service Providers to configure custom tags</div><div class="d">SPs/Enterprises may define custom tags.</div></div><div class="tgl" data-tgl></div></div>
+
+      <div class="subhead">Activation &amp; onboarding</div>
+      <div class="row"><div><div class="k">Allow activation code onboarding</div><div class="d">Device can be onboarded with an activation code.</div></div><div class="tgl" data-tgl></div></div>
+      <div class="row"><div><div class="k">Send activation code request through messaging server</div><div class="d">Route the activation request via the messaging server.</div></div><div class="tgl" data-tgl></div></div>
+      <div class="row"><div><div class="k">Enforced device model</div><div class="d">Restrict onboarding to a specific model.</div></div><input type="text" placeholder="&mdash;"></div>
+      <div class="row"><div><div class="k">Send email on device reset failure</div><div class="d">Notify the user if a reset fails.</div></div><div class="tgl" data-tgl></div></div>
+
+      <div class="subhead">Device access</div>
+      <div class="row"><div><div class="k">Device access protocol</div><div class="d">Transport the config server uses.</div></div>
+        <select><option>http</option><option>https</option><option>ftps</option><option>ftp</option><option>sftp</option><option>tftp</option></select></div>
+      <div class="row"><div><div class="k">Device access FQDN</div><div class="d">Host of the config server.</div></div><input type="text" placeholder="&mdash;"></div>
+      <div class="row"><div><div class="k">Device access port</div><div class="d">Port of the config server.</div></div><input type="text" placeholder="&mdash;"></div>
+      <div class="row"><div><div class="k">Device access context name</div><div class="d">Context/path on the config server.</div></div><input type="text" placeholder="&mdash;"></div>
+      <div class="row"><div><div class="k">Device access URI</div><div class="d">Full URI override (optional).</div></div><input type="text" placeholder="&mdash;"></div>
+      <div class="row"><div><div class="k">MAC address in</div><div class="d">Where the device's MAC is carried.</div></div>
+        <div class="seg"><button class="on" data-seg>HTTP request URI</button><button data-seg>HTTP header</button><button data-seg>Client certificate</button></div></div>
+      <div class="row"><div><div class="k">Device access HTTP authentication</div><div class="d">Auth scheme for the config fetch.</div></div>
+        <div class="seg"><button class="on" data-seg>Basic</button><button data-seg>Digest</button></div></div>
+      <div class="row"><div><div class="k">Authentication mode</div><div class="d">Allowed device authentication methods.</div></div>
+        <div class="cloud" style="max-width:420px;justify-content:flex-end;">
+          <span class="pill" data-pill role="switch"><span class="tick"><i class="ti ti-check"></i></span>MAC-Based</span>
+          <span class="pill" data-pill role="switch"><span class="tick"><i class="ti ti-check"></i></span>Username &amp; Password</span>
+          <span class="pill" data-pill role="switch"><span class="tick"><i class="ti ti-check"></i></span>Bearer File</span>
+        </div></div>
+      <div class="row"><div><div class="k">Default device language</div><div class="d">Language sent to the device.</div></div><input type="text" placeholder="&mdash;"></div>
+      <div class="row"><div><div class="k">Default device encoding</div><div class="d">Character encoding for the config.</div></div><input type="text" placeholder="&mdash;"></div>
+
+      <div class="subhead">Auto provisioning</div>
+      <div class="row"><div><div class="k">Device type used for automatic linking</div><div class="d">Profile type to auto-link discovered devices to.</div></div>
+        <select><option>&mdash; None &mdash;</option></select></div>
+      <div class="row"><div><div class="k">Device profiles auto creation</div><div class="d">Auto-create profiles at this level.</div></div>
+        <select><option>&mdash; None &mdash;</option><option>Group</option><option>Service Provider</option></select></div>
+      <div class="row"><div><div class="k">Support links</div><div class="d">Web-config support links exposed to the device.</div></div>
+        <select><option>Not Supported</option><option>Support Link to Device</option><option>Support Link to Device and User</option><option>Support Links from Devices</option></select></div>
+    </div>
+
+    <!-- LEGACY panel -->
+    <div class="cfgpanel" id="cfglegacy">
+      <div class="row"><div><div class="k">Legacy configuration type</div><div class="d">Number of config files generated.</div></div>
+        <div class="seg"><button class="on" data-seg>2 config file</button><button data-seg>3 config file</button></div></div>
+      <div class="subhead">Tag sets</div>
+      <div class="row"><div><div class="k">Device configuration tag sets</div><div class="d">Which tag sets the legacy config uses.</div></div>
+        <select><option>No Tag Sets</option><option>Use Default System Tag Set Only</option><option>Use Default System Tag Set and Custom</option></select></div>
+      <div class="row"><div><div class="k">Custom tag set</div><div class="d">Reseller tag set applied to this device type.</div></div>
+        <select><option>&mdash; None &mdash;</option><option>TF_Polycom_Tags</option><option>&hellip;</option></select></div>
+      <div class="row"><div><div class="k">Allow Identity/Device Profiles to configure custom tags</div><div class="d">Profiles may define their own custom tags.</div></div><div class="tgl" data-tgl></div></div>
+      <div class="row"><div><div class="k">Allow Groups to configure custom tags</div><div class="d">Groups may define custom tags.</div></div><div class="tgl" data-tgl></div></div>
+      <div class="row"><div><div class="k">Allow Enterprises/Service Providers to configure custom tags</div><div class="d">SPs/Enterprises may define custom tags.</div></div><div class="tgl" data-tgl></div></div>
+      <div class="row"><div><div class="k">Send email on device reset failure</div><div class="d">Notify the user if a reset fails.</div></div><div class="tgl" data-tgl></div></div>
+
+      <div class="subhead">Device access</div>
+      <div class="row"><div><div class="k">Device access URI</div><div class="d">Config server URI.</div></div><input type="text" placeholder="&mdash;"></div>
+      <div class="row"><div><div class="k">Device access username</div><div class="d">Credential for the config fetch.</div></div><input type="text" placeholder="&mdash;"></div>
+      <div class="row"><div><div class="k">Device access password</div><div class="d">Credential for the config fetch.</div></div><input type="password" placeholder="&mdash;"></div>
+      <div class="row"><div><div class="k">Re-type device access password</div><div class="d">Confirm the password.</div></div><input type="password" placeholder="&mdash;"></div>
+      <div class="row"><div><div class="k">MAC address in</div><div class="d">Where the device's MAC is carried.</div></div>
+        <div class="seg"><button class="on" data-seg>HTTP request URI</button><button data-seg>HTTP header</button><button data-seg>Client certificate</button></div></div>
+      <div class="row"><div><div class="k">MAC address format</div><div class="d">HTTP header format string.</div></div><input type="text" placeholder="&mdash;"></div>
+      <div class="row"><div><div class="k">Device access HTTP authentication</div><div class="d">Auth scheme for the config fetch.</div></div>
+        <div class="seg"><button class="on" data-seg>Basic</button><button data-seg>Digest</button></div></div>
+      <div class="row"><div><div class="k">Authentication mode</div><div class="d">Allowed device authentication methods.</div></div>
+        <div class="cloud" style="max-width:420px;justify-content:flex-end;">
+          <span class="pill" data-pill role="switch"><span class="tick"><i class="ti ti-check"></i></span>MAC-Based</span>
+          <span class="pill" data-pill role="switch"><span class="tick"><i class="ti ti-check"></i></span>Username &amp; Password</span>
+        </div></div>
+    </div>
+  </div>
+
+  <div class="act"><button class="btn">Cancel</button><button class="btn p">Add</button></div>
+</div>
+<script>
+(function(){
+  var caps=[["Registration Capable",0],["Authenticate REFER",1],["Static Registration Capable",0],["Video Capable",0],["E164 Capable",0],["Use History Info Header",0],["Trusted",0],["Route Advance",0],["Forwarding Override",0],["Wireless Integration",0],["Conference Device",0],["PBX Integration",0],["Mobility Manager Device",0],["Add P-Called-Party-ID",0],["Music On Hold Device",0],["Auto Configuration Soft Client",0],["Requires Cisco BroadWorks Digit Collection",0],["Requires Cisco BroadWorks Call Waiting Tone",0],["Requires MWI Subscription",0],["Advice of Charge Capable",0],["Support Call Center MIME Type",0],["Support Emergency Disconnect Control",0],["Support Identity In UPDATE and Re-INVITE",0],["Enable Monitoring",0],["Support RFC 3398",0],["Static Line/Port Ordering",0],["Support Client Session Info",0],["Support Call Info Conference Subscription URI",0],["Support Remote Party Info",0],["Support Visual Device Management Redirect Link",0],["Bypass Media Treatment",0],["Support Cause Parameter",0],["Support Calling Party Category In Outbound From Header",1],["Verstat In PAI Header",0],["Verstat In From Header",0],["Support Preferred Auto-Answer And Forced Answer",0],["Support Cisco Caller Id Disposition Header",0],["Verstat In History-Info or Diversion Header",0]];
+  var cl=document.getElementById("cloud");
+  caps.forEach(function(x){var b=document.createElement("button");b.className="pill"+(x[1]?" on":"");b.setAttribute("role","switch");b.setAttribute("aria-checked",x[1]?"true":"false");b.innerHTML='<span class="tick"><i class="ti ti-check"></i></span>'+x[0];b.addEventListener("click",function(){var o=b.classList.toggle("on");b.setAttribute("aria-checked",o?"true":"false");upd();});cl.appendChild(b);});
+  function upd(){var on=cl.querySelectorAll(".pill.on").length;document.getElementById("capcount").textContent=on+" of "+caps.length+" enabled";}
+  upd();
+  document.getElementById("capsearch").addEventListener("input",function(e){var q=e.target.value.toLowerCase(),v=0;cl.querySelectorAll(".pill").forEach(function(p){var m=p.textContent.toLowerCase().indexOf(q)>=0;p.style.display=m?"":"none";if(m)v++;});document.getElementById("capempty").style.display=v?"none":"block";});
+  // segmented groups
+  document.querySelectorAll(".seg").forEach(function(s){ if(s.id==="cfgseg")return; s.querySelectorAll("button").forEach(function(b){b.addEventListener("click",function(){s.querySelectorAll("button").forEach(function(x){x.classList.remove("on");});b.classList.add("on");});});});
+  // toggles
+  document.querySelectorAll("[data-tgl]").forEach(function(t){t.addEventListener("click",function(){t.classList.toggle("on");});});
+  // auth-mode pills
+  document.querySelectorAll("[data-pill]").forEach(function(p){p.addEventListener("click",function(){var o=p.classList.toggle("on");p.setAttribute("aria-checked",o?"true":"false");});});
+  // master config 3-way
+  var cfgseg=document.getElementById("cfgseg");
+  cfgseg.querySelectorAll("button").forEach(function(b){b.addEventListener("click",function(){
+    cfgseg.querySelectorAll("button").forEach(function(x){x.classList.remove("on");});b.classList.add("on");
+    var mode=b.getAttribute("data-cfg");
+    document.getElementById("cfgnone").style.display=mode==="none"?"":"none";
+    document.getElementById("cfgdm").classList.toggle("show",mode==="dm");
+    document.getElementById("cfglegacy").classList.toggle("show",mode==="legacy");
+  });});
+})();
+</script>
+</body>
+</html>

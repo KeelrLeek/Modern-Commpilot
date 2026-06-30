@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.270";
+  var CP_PJAX_VERSION = "0.2.275";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
 
   // Single-page sign-out: minimum time (ms) the "Signing out…" spinner stays up
@@ -260,7 +260,15 @@
           // unlisted meant cpHook native-navigated → a FULL page reload on drill-in (legacy styles/graphics
           // re-fetched). Listing it routes the drill through cpFollow so the sub-page (itself a searchable grid)
           // opens in-shell. Generic for any Operator/System <section>/Modify/… entry.
-          /\/commpilot\/Operator\/System\/[A-Za-z0-9_]+\/Modify\//.test(u))
+          /\/commpilot\/Operator\/System\/[A-Za-z0-9_]+\/Modify\//.test(u) ||
+          // Device-management ADD forms (e.g. Identity/Device Profile Type Add =
+          // /Operator/System/DeviceType/Add/index.jsp). Unlisted → the list's Add button redirectPost'd there,
+          // cpHook native-navigated → a FULL page reload AND the OK save (posts to self = …/Add/index.jsp) fell
+          // through the submit interceptor to a native POST. Listing it routes the open + the OK save through
+          // cpFollow in-shell (server still validates; blank submit → "Failed to add"). Cancel is type=button,
+          // DCL-wired → won't survive the swap → routed to the /Reseller list by the Cancel click handler below.
+          // Scoped to DeviceType so it can't disturb the committed Tag Sets forms in the same Operator/System scope.
+          /\/commpilot\/Operator\/System\/DeviceType\/Add\/(index\.jsp)?$/.test(u))
       );
     }
 
@@ -718,13 +726,15 @@
       "device management device families": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z"/><path d="m7 16.5-4.74-2.85"/><path d="m7 16.5 5-3"/><path d="M7 16.5v5.17"/><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z"/><path d="m17 16.5-5-3"/><path d="m17 16.5 4.74-2.85"/><path d="M17 16.5v5.17"/><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z"/><path d="M12 8 7.26 5.15"/><path d="m12 8 4.74-2.85"/><path d="M12 13.5V8"/></svg>',
       "device management tag sets": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z"/><path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193"/><circle cx="10.5" cy="6.5" r=".5" fill="currentColor"/></svg>',
       "mobile subscriber directory numbers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8.5l4.5 4.5v12.5a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1v-16a1 1 0 0 1 1 -1"/><path d="M9 11h3v6"/><path d="M15 17v.01"/><path d="M15 14v.01"/><path d="M15 11v.01"/><path d="M9 14v.01"/><path d="M9 17v.01"/></svg>',
-      "identity/device endpoints": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5"/><path d="M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5"/><path d="M3 21l2.5 -2.5"/><path d="M18.5 5.5l2.5 -2.5"/><path d="M10 11l-2 2"/><path d="M13 14l-2 2"/></svg>'
+      "identity/device endpoints": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5"/><path d="M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5"/><path d="M3 21l2.5 -2.5"/><path d="M18.5 5.5l2.5 -2.5"/><path d="M10 11l-2 2"/><path d="M13 14l-2 2"/></svg>',
+      "identity/device profile types": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1l0 -2"/><path d="M4 13a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -6"/><path d="M14 12l6 0"/><path d="M14 16l6 0"/><path d="M14 20l6 0"/></svg>'
     };
     // Mirrors skin.js cpMenuItemIcon's normalization so the list AND the Modify grid (Tags/Regions) headers resolve
     // to the tags icon, not just the bare list title.
     function cpHeaderIcon(title) {
       var t = (title || "").trim().toLowerCase();
       if (/^device management (tag sets|regions)( (add|add tag|modify|modify tag))?$/.test(t)) t = "device management tag sets";
+      if (/^identity\/device profile type (add|modify)$/.test(t)) t = "identity/device profile types";
       return CP_HDR_ICONS[t] || "";
     }
 
@@ -2592,10 +2602,21 @@
           // with THIS POST.
           try { if (cpGridState && cpGridState._searchAbort) cpGridState._searchAbort.abort(); } catch (e) {}
           try { if (cpGridState && cpGridState._sweepAbort) cpGridState._sweepAbort.abort(); } catch (e) {}
-          try { cpLastNav = { url: url, params: params || {} }; } catch (e) {}
+          // Classify the nav so reload-recovery never remembers a FORM submit or an Add-form open: cold-replaying
+          // those bounces to /Login/ on a still-alive session (the idle-reload-logout). A SUBMIT carries an action
+          // button param (ok/apply/delete/cancel/buttonClicked); an Add form is a deep create page. NB we deliberately
+          // do NOT exclude /Modify/ broadly — SP/Group/User console drill-ins use Modify and ARE valid recover-navs.
+          // See [[gotcha-idle-connection-drop-dead-click]].
+          var _submitNav = !!(params && (params.ok != null || params.apply != null || params.delete != null || params.cancel != null || params.buttonClicked != null));
+          var _addForm = /\/Add\//.test(url);
+          // cpLastNav drives the F5 in-shell replay — never remember a SUBMIT (replaying it would re-submit the form);
+          // an Add-form OPEN is fine to remember (F5 just re-opens it in-shell).
+          try { if (!_submitNav) cpLastNav = { url: url, params: params || {} }; } catch (e) {}
           // Remember the SP entry (Modify nav) — recorded for reload/replay + future Group/User work.
           try { if (/\/ServiceProviders\/Modify\//.test(url)) cpSpEntry = { url: url, params: params || {} }; } catch (e) {}
-          try { if (url.indexOf("/Common/page.jsp") === -1 && url.indexOf("/Common/sort.jsp") === -1) { var _nav = { url: url, params: params || {} }; sessionStorage.setItem("cp-last-nav", JSON.stringify(_nav)); window.postMessage({ __cpRecoverNav: _nav }, location.origin); } } catch (e) {}
+          // Persisted browser-reload recover-nav (stubguard cold-POST-replays this). Exclude form submits + Add opens
+          // (and page.jsp/sort.jsp) so recovery falls back to the last LIST/console nav, which replays cleanly.
+          try { if (url.indexOf("/Common/page.jsp") === -1 && url.indexOf("/Common/sort.jsp") === -1 && !_submitNav && !_addForm) { var _nav = { url: url, params: params || {} }; sessionStorage.setItem("cp-last-nav", JSON.stringify(_nav)); window.postMessage({ __cpRecoverNav: _nav }, location.origin); } } catch (e) {}
           var liveTokEl = document.getElementsByName("formtokenserial")[0];
           var firstTok = liveTokEl ? liveTokEl.value : null;
           var cpLoader = cpNeedsFrame(url, params) ? cpFollowFrame : cpFollow;
@@ -2865,15 +2886,19 @@
     // whatever it does. (The redesign wires its own Cancel the same way — this is the real navigate-out wiring.)
     document.addEventListener("click", function (e) {
       try {
-        // Match the admin Modify (Modify/ or modify.jsp) AND Add (Add/index.jsp) pages — both legacy Cancels
-        // return via a server-side context our pjax nav doesn't preserve, so route them straight to the list.
-        if (!/\/Reseller\/Admins\/(Add|[Mm]odify)/.test(location.pathname)) return;
+        // Forms whose legacy Cancel returns via a server-side context our pjax nav doesn't preserve (or whose
+        // Cancel is a DCL-wired type=button that doesn't survive an in-shell swap) — route Cancel straight to the
+        // owning /Reseller list. Covers the admin Add/Modify AND the Operator/System DeviceType Add/Modify forms.
+        var _p = location.pathname, _list = null;
+        if (/\/Reseller\/Admins\/(Add|[Mm]odify)/.test(_p)) _list = "/commpilot/Reseller/Admins/";
+        else { var _dm = _p.match(/\/commpilot\/Operator\/System\/(DeviceType)\/(?:Add|[Mm]odify)\//); if (_dm) _list = "/commpilot/Reseller/" + _dm[1] + "/"; }
+        if (!_list) return;
         var tt = e.target;
         var btn = tt && (tt.name === "cancel" ? tt : (tt.closest ? tt.closest('input[name="cancel"], button[name="cancel"]') : null));
         if (!btn) return;
         e.preventDefault(); e.stopImmediatePropagation();
-        console.log("[pjax] admin Modify Cancel -> Admins list");
-        window.redirectPost("/commpilot/Reseller/Admins/", {});
+        console.log("[pjax] form Cancel -> list", _list);
+        window.redirectPost(_list, {});
       } catch (err) {}
     }, true);
 

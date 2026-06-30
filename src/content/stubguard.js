@@ -43,7 +43,7 @@
     try { return parseInt(sessionStorage.getItem("cp-stub-tries") || "0", 10) || 0; } catch (e) { return 0; }
   }
   function bumpTries() {
-    try { sessionStorage.setItem("cp-stub-tries", String(tries() + 1)); } catch (e) {}
+    try { sessionStorage.setItem("cp-stub-tries", String(tries() + 1)); sessionStorage.setItem("cp-stub-tries-at", String(Date.now())); } catch (e) {}
   }
   function sessionNav() {
     try { return JSON.parse(sessionStorage.getItem("cp-last-nav") || "null"); } catch (e) { return null; }
@@ -75,15 +75,23 @@
   // returns redirectPost(folder_contents, {fresh token}) — a freshly-issued VALID app token (the same bounce the
   // live /Login/ page uses to send an already-logged-in user home). Returns that token, or null when the session
   // is dead / it's the login form / network error → caller falls back to the stored token (no regression).
-  function cpHarvestToken() {
+  function cpHarvestOnce() {
     return fetch("/commpilot/servlet/Login", { method: "GET", credentials: "same-origin", cache: "no-store" })
       .then(function (r) { return r.text(); })
       .then(function (html) {
         var stub = extractStub(new DOMParser().parseFromString(html, "text/html"));
         // Only trust a token that arrives WITH an app redirect (folder_contents) — not the login form's own token.
         return (stub && stub.target && stub.target.indexOf("folder_contents") !== -1 && stub.token) ? stub.token : null;
-      })
-      .catch(function () { return null; });
+      });
+  }
+  function cpHarvestToken() {
+    // ONE-SHOT retry on a NETWORK error only: the harvest is the FIRST request after idle, so it can hit the same
+    // dropped-socket "Failed to fetch" as the dead-click bug (0.2.264) — a second fetch opens a fresh socket. A
+    // RESOLVED null (session dead / login form) is definitive and is NOT retried (it passes straight through). The
+    // final fallback stays null → caller uses the stored token, identical to before (no 0.2.270 regression).
+    return cpHarvestOnce().catch(function () {
+      return new Promise(function (res) { setTimeout(res, 250); }).then(cpHarvestOnce);
+    }).catch(function () { return null; });
   }
 
   function replay(nav, token) {
@@ -110,7 +118,9 @@
         function () { commit(token, "harvest rejected → stored token"); }
       );
     } catch (e) { commit(token, "harvest threw → stored token"); }
-    setTimeout(function () { commit(token, "harvest timeout → stored token"); }, 3500);
+    // 8000ms (was 3500): a cold TLS re-handshake + server round-trip after an idle dropped socket routinely
+    // exceeds 3.5s; committing the STORED (possibly-consumed) token early was forcing a 200 /Login/ bounce.
+    setTimeout(function () { commit(token, "harvest timeout → stored token"); }, 8000);
   }
 
   // Parse a redirect-stub document: target URL, data object, fresh token.
@@ -435,6 +445,13 @@
   // ---- Recovery interstitial (DNR redirected a main-frame GET here) ----
   if (path === "/commpilot/Common/styles.css") {
     try { document.documentElement.classList.add("cp-stub-hold"); } catch (e) {}
+    // EXPIRE a stale loop-guard counter before the short-circuit. cp-stub-tries survives reloads and is reset only
+    // when a contentful app page renders (skin.js cpRevealCloak), so heavy churn (many extension reloads / earlier
+    // cold-URL bounces) can leave it >=2 and send a FRESH, unrelated idle reload straight to Login with NO replay.
+    // A genuine dead-session loop is RAPID (back-to-back reloads); a real idle reload is minutes later — so if the
+    // last attempt was >30s ago, treat this as a new recovery cycle and reset, leaving the guard to catch only true
+    // rapid loops. See [[gotcha-idle-connection-drop-dead-click]].
+    try { var _bAt = parseInt(sessionStorage.getItem("cp-stub-tries-at") || "0", 10) || 0; if (_bAt && (Date.now() - _bAt > 30000)) sessionStorage.setItem("cp-stub-tries", "0"); } catch (e) {}
     if (tries() >= 2) {
       location.replace(LOGIN);
       return;

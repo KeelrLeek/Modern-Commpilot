@@ -193,11 +193,13 @@ var CP_ITEM_ICONS = {
   "device management device families": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z"/><path d="m7 16.5-4.74-2.85"/><path d="m7 16.5 5-3"/><path d="M7 16.5v5.17"/><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z"/><path d="m17 16.5-5-3"/><path d="m17 16.5 4.74-2.85"/><path d="M17 16.5v5.17"/><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z"/><path d="M12 8 7.26 5.15"/><path d="m12 8 4.74-2.85"/><path d="M12 13.5V8"/></svg>',
   "device management tag sets": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z"/><path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193"/><circle cx="10.5" cy="6.5" r=".5" fill="currentColor"/></svg>',
   "mobile subscriber directory numbers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8.5l4.5 4.5v12.5a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1v-16a1 1 0 0 1 1 -1"/><path d="M9 11h3v6"/><path d="M15 17v.01"/><path d="M15 14v.01"/><path d="M15 11v.01"/><path d="M9 14v.01"/><path d="M9 17v.01"/></svg>',
-  "identity/device endpoints": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5"/><path d="M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5"/><path d="M3 21l2.5 -2.5"/><path d="M18.5 5.5l2.5 -2.5"/><path d="M10 11l-2 2"/><path d="M13 14l-2 2"/></svg>'
+  "identity/device endpoints": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5"/><path d="M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5"/><path d="M3 21l2.5 -2.5"/><path d="M18.5 5.5l2.5 -2.5"/><path d="M10 11l-2 2"/><path d="M13 14l-2 2"/></svg>',
+  "identity/device profile types": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1l0 -2"/><path d="M4 13a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -6"/><path d="M14 12l6 0"/><path d="M14 16l6 0"/><path d="M14 20l6 0"/></svg>'
 };
 function cpMenuItemIcon(title) {
   var t = (title || "").trim().toLowerCase();
   if (/^administrator (modify|add)$/.test(t)) t = "administrators";   // the edit/create form pages share the list icon
+  if (/^identity\/device profile type (add|modify)$/.test(t)) t = "identity/device profile types";  // Add/Modify form → list icon (template)
   if (/^call recording platform (modify|add)$/.test(t)) t = "call recording platforms";  // Add/Modify form → list icon (audio-lines)
   if (/^device management device families (add|import|modify)$/.test(t)) t = "device management device families";  // Add/Import/Modify form → list icon (boxes)
   if (/^device management (tag sets|regions)( (add|add tag|modify|modify tag))?$/.test(t)) t = "device management tag sets";  // Tag Sets list/Modify + Add/Add Tag/Modify Tag + Regions Add → list icon (tags)
@@ -3118,6 +3120,213 @@ function cpBuildTagModifyRows(rowsWrap, cell) {
   return { controls: controls, sync: function () { if (ovrTgl && ovrTgl._sync) ovrTgl._sync(); }, subject: tagName };
 }
 
+/* Identity/Device Profile Type Add — the big device-type form. FULL-COVERAGE multi-card skin:
+ * Profile / Standard options / Capabilities (filterable pill cloud) / Signaling & reset / Device
+ * configuration (a master `deviceConfigOption` 3-way seg that reveals the Device Management OR the Legacy
+ * sub-card). Text inputs + selects are MOVED into rows (selects themed by enhanceSelects, invoked from sync
+ * so it runs AFTER the dispatcher mounts the cards — idempotent); radio groups → cpProfSeg/cpProfDropdown and
+ * checkboxes → cpProfToggleEl, all forward-clicking the real (hidden) legacy controls so submit + legacy JS
+ * are unchanged. sync() mirrors real state, dims actualMaxCalls under "Unlimited", and shows/hides the config
+ * sub-cards by the master toggle. One global Add/Cancel bar. Every surfaced row carries a descriptor
+ * ([[feedback-every-form-field-needs-descriptor]]). RE map: [[project-devicetype-add-redesign]]. */
+var CP_PROF_CHECKS_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.615 20h-2.615a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8"/><path d="M14 19l2 2l4 -4"/><path d="M9 8h4"/><path d="M9 12h2"/></svg>';
+var CP_PROF_SETTINGS_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"/><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></svg>';
+var CP_PROF_DCSEARCH_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 0 0 -14 0"/><path d="M21 21l-6 -6"/></svg>';
+/* The 38 capability checkboxes, in legacy DOM order → pill cloud. [name, label]. */
+var CP_DEVICETYPE_CAPS = [
+  ["registrationCapable", "Registration Capable"], ["authenticateRefer", "Authenticate REFER"],
+  ["staticRegistrationCapable", "Static Registration Capable"], ["videoCapable", "Video Capable"],
+  ["e164capable", "E164 Capable"], ["useHistoryInfoHeaderOnAccessSide", "Use History Info Header"],
+  ["trusted", "Trusted"], ["routeAdvance", "Route Advance"], ["forwardingOverride", "Forwarding Override"],
+  ["wirelessIntegration", "Wireless Integration"], ["conferenceDevice", "Conference Device"],
+  ["PBXIntegration", "PBX Integration"], ["mobilityManagerDevice", "Mobility Manager Device"],
+  ["addPCalledPartyId", "Add P-Called-Party-ID"], ["musicOnHoldDevice", "Music On Hold Device"],
+  ["autoConfigSoftClient", "Auto Configuration Soft Client"],
+  ["requiresBroadWorksDigitCollection", "Requires Cisco BroadWorks Digit Collection"],
+  ["requiresBWCallWaitingTone", "Requires Cisco BroadWorks Call Waiting Tone"],
+  ["requiresMWISubscription", "Requires MWI Subscription"], ["aocCapable", "Advice of Charge Capable"],
+  ["supportCCMIMEType", "Support Call Center MIME Type"],
+  ["supportEmergencyDisconnectControl", "Support Emergency Disconnect Control"],
+  ["supportIdentityInUpdateAndReInvite", "Support Identity In UPDATE and Re-INVITE"],
+  ["enableMonitoring", "Enable Monitoring"], ["rfc3398Support", "Support RFC 3398"],
+  ["staticLineOrdering", "Static Line/Port Ordering"], ["supportClientSessionInfo", "Support Client Session Info"],
+  ["supportCallInfoConferenceSubscriptionURI", "Support Call Info Conference Subscription URI"],
+  ["supportRemotePartyInfo", "Support Remote Party Info"],
+  ["supportVisualDeviceManagement", "Support Visual Device Management Redirect Link"],
+  ["bypassMediaTreatment", "Bypass Media Treatment"], ["supportCauseParameter", "Support Cause Parameter"],
+  ["supportCPCInOutboundFromHeader", "Support Calling Party Category In Outbound From Header"],
+  ["verstatInPAIHeader", "Verstat In PAI Header"], ["verstatInFromHeader", "Verstat In From Header"],
+  ["supportPreferredAutoAndForcedAnswer", "Support Preferred Auto-Answer And Forced Answer"],
+  ["supportCiscoCallerIdDispositionHeader", "Support Cisco Caller Id Disposition Header"],
+  ["verstatInHistoryInfoOrDiversionHeader", "Verstat In History-Info or Diversion Header"]
+];
+function cpBuildDeviceTypeAddRows(cell) {
+  function R(n) { return Array.prototype.slice.call(cell.querySelectorAll('input[name="' + n + '"]')); }
+  function C(n) { return cell.querySelector('[name="' + n + '"]'); }
+  var nameI = C("deviceType");
+  if (!nameI || !cell.querySelector('input[name="deviceConfigOption"]')) return null;   // shape guard
+  cpProfDdEnsure();
+
+  var controls = [], widgets = [], dimRules = [], cardVis = [];
+  function ctl(el) { if (el && controls.indexOf(el) < 0) controls.push(el); return el; }
+  function ctlAll(arr) { arr.forEach(ctl); }
+  function reg(w) { if (w && w._sync) widgets.push(w); return w; }
+  function crow(rows, k, d, w, opts) { var r = cpProfRow(rows, k, d, w, opts); reg(w); return r; }
+  function subhead(rows, t) { var s = document.createElement("div"); s.className = "cp-prof-subhead"; s.textContent = t; rows.appendChild(s); return s; }
+  function segR(name, labels) { var r = R(name); if (!r.length) return null; ctlAll(r); return cpProfSeg(r, labels, null, sync); }
+  function ddR(name, labels) { var r = R(name); if (!r.length) return null; ctlAll(r); return cpProfDropdown(r, labels, sync); }
+  function inp(name) { var el = C(name); if (!el) return null; ctl(el); return cpProfInput(el); }
+  function segRow(rows, name, labels, k, d) { var w = segR(name, labels); if (w) crow(rows, k, d, w); return w; }
+  function ddRow(rows, name, labels, k, d) { var w = ddR(name, labels); if (w) crow(rows, k, d, w); return w; }
+  function inputRow(rows, name, k, d) { var el = inp(name); if (el) cpProfRow(rows, k, d, el); return el; }
+  function toggleRow(rows, name, k, d) { var cb = C(name); if (!cb) return; ctl(cb); crow(rows, k, d, cpProfToggleEl(cb, sync)).classList.add("cp-prof-deprow"); }
+
+  function sync() {
+    try { enhanceSelects(); } catch (e) {}                       // theme moved selects post-mount (idempotent)
+    widgets.forEach(function (w) { w._sync(); });
+    dimRules.forEach(function (r) { r.el.classList.toggle(r.cls || "cp-prof-dim", r.fn()); });
+    cardVis.forEach(function (cv) { cv.card.style.display = cv.fn() ? "" : "none"; });
+  }
+
+  // ---- Profile ----
+  var pc = cpProfCard("Profile", CP_PROF_USER_SVG);
+  var resId = "";
+  Array.prototype.forEach.call(cell.querySelectorAll("td"), function (td) {
+    if (resId) return;
+    if (/^Reseller ID:?$/i.test((td.textContent || "").replace(/\s+/g, " ").trim())) {
+      var nx = td.nextElementSibling; if (nx) resId = (nx.textContent || "").replace(/\s+/g, " ").trim();
+    }
+  });
+  if (resId) {
+    var rv = document.createElement("div"); rv.className = "cp-prof-roval";
+    var rtx = document.createElement("span"); rtx.className = "cp-prof-rovaltxt"; rtx.textContent = resId; rv.appendChild(rtx);
+    cpProfRow(pc.rows, "Reseller ID", "The reseller this profile type belongs to.", rv);
+  }
+  var dtRow = cpProfRow(pc.rows, "Identity/Device profile type", "A unique name for this profile type.", cpProfInput(ctl(nameI)));
+  var dk = dtRow.querySelector(".cp-prof-k"); if (dk) dk.innerHTML = '<span class="cp-prof-req">*</span> Identity/Device profile type';
+  inputRow(pc.rows, "signalingAddressType", "Signaling address type", "How the device's lines and ports are addressed.");
+
+  // ---- Standard options ----
+  var sc = cpProfCard("Standard options", CP_PROF_ADJ_SVG);
+  var unl = R("unlimitedMaxCalls");
+  if (unl.length) {
+    ctlAll(unl);
+    var pseg = cpProfSeg(unl, ["Unlimited", "Limited to"], null, sync); reg(pseg);
+    var slot = document.createElement("div"); slot.className = "cp-prof-portrow"; slot.appendChild(pseg);
+    var maxI = C("actualMaxCalls");
+    if (maxI) { ctl(maxI); cpProfInput(maxI); maxI.classList.add("cp-prof-portnum"); slot.appendChild(maxI); dimRules.push({ el: maxI, cls: "cp-prof-input-dim", fn: function () { var u = !!(unl[0] && unl[0].checked); maxI.readOnly = u; return u; } }); }
+    cpProfRow(sc.rows, "Number of ports", "Line/port capacity of the device.", slot);
+  }
+  ddRow(sc.rows, "earlyMedia", ["RTP – Session", "RTP – Early Session", "Local Ringback – No Early Media"], "Ringback tone / early media", "How early media and ringback are handled.");
+  segRow(sc.rows, "authentication", ["Enabled", "Disabled"], "Authentication", "Whether the device must authenticate.");
+  ddRow(sc.rows, "holdNormalization", ["Unspecified Address", "Inactive", "RFC3264"], "Hold normalization", "SDP treatment when a call is held.");
+
+  // ---- Capabilities (filterable pill cloud) ----
+  var cc = cpProfCard("Capabilities", CP_PROF_CHECKS_SVG);
+  var cnt = document.createElement("span"); cnt.className = "cp-prof-capcount";
+  var chead = cc.card.querySelector(".cp-prof-cardhead"); if (chead) chead.appendChild(cnt);
+  var srch = document.createElement("div"); srch.className = "cp-prof-capsearch";
+  srch.innerHTML = CP_PROF_DCSEARCH_SVG + '<input type="text" placeholder="Filter capabilities…" aria-label="Filter capabilities">';
+  cc.rows.appendChild(srch);
+  var cloud = document.createElement("div"); cloud.className = "cp-prof-cloud"; cc.rows.appendChild(cloud);
+  var capEmpty = document.createElement("div"); capEmpty.className = "cp-prof-capempty"; capEmpty.textContent = "No capabilities match that filter."; capEmpty.style.display = "none"; cc.rows.appendChild(capEmpty);
+  CP_DEVICETYPE_CAPS.forEach(function (pair) {
+    var cb = C(pair[0]); if (!cb) return; ctl(cb);
+    var pill = document.createElement("button"); pill.type = "button"; pill.className = "cp-prof-cappill"; pill.setAttribute("role", "switch");
+    pill.innerHTML = '<span class="cp-prof-captick">' + CP_PROF_CHECK_SVG + '</span><span class="cp-prof-caplbl">' + pair[1] + '</span>';
+    pill._cb = cb; pill._lbl = pair[1].toLowerCase();
+    pill.addEventListener("click", function () { cb.click(); capSync(); });
+    cloud.appendChild(pill);
+  });
+  function capSync() {
+    var on = 0, tot = cloud.children.length;
+    Array.prototype.forEach.call(cloud.children, function (p) { var c = p._cb.checked; p.classList.toggle("cp-prof-cappill-on", c); p.setAttribute("aria-checked", c ? "true" : "false"); if (c) on++; });
+    cnt.textContent = on + " of " + tot + " enabled";
+  }
+  reg({ _sync: capSync });
+  srch.querySelector("input").addEventListener("input", function (e) {
+    var q = (e.target.value || "").toLowerCase(), v = 0;
+    Array.prototype.forEach.call(cloud.children, function (p) { var m = p._lbl.indexOf(q) >= 0; p.style.display = m ? "" : "none"; if (m) v++; });
+    capEmpty.style.display = v ? "none" : "block";
+  });
+
+  // ---- Signaling & reset ----
+  var gc = cpProfCard("Signaling & reset", CP_PROF_SETTINGS_SVG);
+  segRow(gc.rows, "resetEvent", ["reSync", "checkSync", "resetString", "Not supported"], "Reset event", "How the device is told to reload.");
+  inputRow(gc.rows, "customResetString", "Reset string", "Sent when the reset event is “resetString”.");
+  segRow(gc.rows, "trunkMode", ["User", "Pilot", "Proxy"], "Trunk mode", "Role of the device on the trunk.");
+  segRow(gc.rows, "holdAnnouncementMethod", ["Inactive", "Bandwidth attributes"], "Hold announcement method", "How music-on-hold is signalled.");
+  ddRow(gc.rows, "deviceCategory", ["Generic", "Hosted", "Client App", "Trunking", "Local Gateway"], "Device category", "Classifies the device for routing and features.");
+  ddRow(gc.rows, "unscreenedPresentationIdentityPolicy", ["Profile Presentation Identity", "Unscreened Presentation Identity", "Unscreened Presentation Identity With Profile Domain"], "Unscreened presentation identity policy", "Identity used for unscreened calls.");
+  inputRow(gc.rows, "configurationURL", "Web based configuration URL extension", "Appended to the device's web-config URL.");
+
+  // ---- Device configuration (master toggle + conditional sub-cards) ----
+  var dcc = cpProfCard("Device configuration", CP_PROF_SERVER_SVG);
+  var dco = R("deviceConfigOption");
+  ctlAll(dco);
+  crow(dcc.rows, "Configuration source", "Whether the device is managed via tag sets or a configuration server.", cpProfSeg(dco, ["Not supported", "Device Management", "Legacy"], null, sync));
+  var dcNote = document.createElement("div"); dcNote.className = "cp-prof-confignote";
+  dcNote.innerHTML = CP_PROF_INFO_SVG + '<span>No device configuration. Choose <b>Device Management</b> or <b>Legacy</b> to manage the device via tag sets or a config server.</span>';
+  dcc.rows.appendChild(dcNote);
+  reg({ _sync: function () { dcNote.style.display = (dco[0] && dco[0].checked) ? "" : "none"; } });
+
+  // ---- Device Management sub-card ----
+  var dmc = cpProfCard("Device Management", CP_PROF_SERVER_SVG);
+  subhead(dmc.rows, "Tag sets");
+  ddRow(dmc.rows, "deviceConfiguration", ["No Tag Sets", "Use Default System Tag Set Only", "Use Default System Tag Set and Custom"], "Device configuration tag sets", "Which tag sets the device's configuration uses.");
+  inputRow(dmc.rows, "tagSet", "Custom tag set", "Reseller tag set applied to this device type.");
+  toggleRow(dmc.rows, "allowDeviceProfileCustomTag", "Allow Identity/Device Profiles to configure custom tags", "Profiles may define their own custom tags.");
+  toggleRow(dmc.rows, "allowGroupCustomTag", "Allow Groups to configure custom tags", "Groups may define custom tags.");
+  toggleRow(dmc.rows, "allowSpCustomTag", "Allow Enterprises/Service Providers to configure custom tags", "SPs/Enterprises may define custom tags.");
+  subhead(dmc.rows, "Activation & onboarding");
+  toggleRow(dmc.rows, "allowDeviceActivation", "Allow activation code onboarding", "Device can be onboarded with an activation code.");
+  toggleRow(dmc.rows, "isActivationCodeThroughMessagingServer", "Send activation code request through messaging server", "Route the activation request via the messaging server.");
+  inputRow(dmc.rows, "deviceModelToValidate", "Enforced device model", "Restrict onboarding to a specific model.");
+  toggleRow(dmc.rows, "sendEmailUponDeviceResetFailure", "Send email on device reset failure", "Notify the user if a reset fails.");
+  subhead(dmc.rows, "Device access");
+  inputRow(dmc.rows, "deviceAccessProtocol", "Device access protocol", "Transport the configuration server uses.");
+  inputRow(dmc.rows, "deviceAccessFqdn", "Device access FQDN", "Host of the configuration server.");
+  inputRow(dmc.rows, "deviceAccessPort", "Device access port", "Port of the configuration server.");
+  inputRow(dmc.rows, "deviceAccessContext", "Device access context name", "Context/path on the configuration server.");
+  inputRow(dmc.rows, "deviceAccessUri", "Device access URI", "Full URI override (optional).");
+  segRow(dmc.rows, "macAddressIn", ["HTTP request URI", "HTTP header", "Client certificate"], "MAC address in", "Where the device's MAC address is carried.");
+  segRow(dmc.rows, "deviceAccessHttp", ["Basic", "Digest"], "Device access HTTP authentication", "Auth scheme for the configuration fetch.");
+  toggleRow(dmc.rows, "macBasedAuthentication", "Authentication mode · MAC-based", "Allow MAC-based device authentication.");
+  toggleRow(dmc.rows, "usernamePasswordAuthentication", "Authentication mode · Username & password", "Allow username/password device authentication.");
+  toggleRow(dmc.rows, "bearerFileAuthentication", "Authentication mode · Bearer file", "Allow bearer-file device authentication.");
+  inputRow(dmc.rows, "defaultDeviceLanguage", "Default device language", "Language sent to the device.");
+  inputRow(dmc.rows, "defaultDeviceEncoding", "Default device encoding", "Character encoding for the configuration.");
+  subhead(dmc.rows, "Auto provisioning");
+  inputRow(dmc.rows, "autoLinkingDeviceType", "Device type used for automatic linking", "Profile type to auto-link discovered devices to.");
+  inputRow(dmc.rows, "autoCreate", "Device profiles auto creation", "Auto-create profiles at this level.");
+  ddRow(dmc.rows, "deviceAccessSupportLinks", ["Not supported", "Support link to device", "Support link to device and user", "Support links from devices"], "Support links", "Web-config support links exposed to the device.");
+  cardVis.push({ card: dmc.card, fn: function () { return !!(dco[1] && dco[1].checked); } });
+
+  // ---- Legacy configuration sub-card ----
+  var lgc = cpProfCard("Legacy configuration", CP_PROF_TAG_SVG);
+  segRow(lgc.rows, "legacyConfigType", ["2 config file", "3 config file"], "Legacy configuration type", "Number of configuration files generated.");
+  subhead(lgc.rows, "Tag sets");
+  ddRow(lgc.rows, "deviceConfigurationLegacy", ["No Tag Sets", "Use Default System Tag Set Only", "Use Default System Tag Set and Custom"], "Device configuration tag sets", "Which tag sets the legacy configuration uses.");
+  inputRow(lgc.rows, "tagSetLegacy", "Custom tag set", "Reseller tag set applied to this device type.");
+  toggleRow(lgc.rows, "allowDeviceProfileCustomTagLegacy", "Allow Identity/Device Profiles to configure custom tags", "Profiles may define their own custom tags.");
+  toggleRow(lgc.rows, "allowGroupCustomTagLegacy", "Allow Groups to configure custom tags", "Groups may define custom tags.");
+  toggleRow(lgc.rows, "allowSpCustomTagLegacy", "Allow Enterprises/Service Providers to configure custom tags", "SPs/Enterprises may define custom tags.");
+  toggleRow(lgc.rows, "sendEmailUponDeviceResetFailureLegacy", "Send email on device reset failure", "Notify the user if a reset fails.");
+  subhead(lgc.rows, "Device access");
+  inputRow(lgc.rows, "deviceAccessUriLegacy", "Device access URI", "Configuration server URI.");
+  inputRow(lgc.rows, "deviceAccessUsernameLegacy", "Device access username", "Credential for the configuration fetch.");
+  inputRow(lgc.rows, "deviceAccessPasswordLegacy", "Device access password", "Credential for the configuration fetch.");
+  inputRow(lgc.rows, "deviceAccessPasswordConfirmLegacy", "Re-type device access password", "Confirm the password.");
+  segRow(lgc.rows, "macAddressInLegacy", ["HTTP request URI", "HTTP header", "Client certificate"], "MAC address in", "Where the device's MAC address is carried.");
+  inputRow(lgc.rows, "httpHeaderFormatLegacy", "MAC address format", "HTTP header format string.");
+  segRow(lgc.rows, "deviceAccessHttpLegacy", ["Basic", "Digest"], "Device access HTTP authentication", "Auth scheme for the configuration fetch.");
+  toggleRow(lgc.rows, "macBasedAuthenticationLegacy", "Authentication mode · MAC-based", "Allow MAC-based device authentication.");
+  toggleRow(lgc.rows, "usernamePasswordAuthenticationLegacy", "Authentication mode · Username & password", "Allow username/password device authentication.");
+  cardVis.push({ card: lgc.card, fn: function () { return !!(dco[2] && dco[2].checked); } });
+
+  return { cards: [pc.card, sc.card, cc.card, gc.card, dcc.card, dmc.card, lgc.card], controls: controls, sync: sync, globalActions: true };
+}
+
 /* Page config — picks the row builder (+ card-header label/icon for single-card pages).
  * Returns null for any page that isn't a configured settings form. */
 function cpSettingsFormConfig(title, cell) {
@@ -3154,6 +3363,11 @@ function cpSettingsFormConfig(title, cell) {
   // End-anchored: must NOT also match "…Add Tag" (handled above).
   if (/Device Management Tag Sets Add$/i.test(title) || cell.querySelector('input[name="tagSetName"]')) {
     return { label: "New tag set", icon: CP_PROF_TAG_SVG, build: cpBuildTagSetAddRows, okLabel: "Create" };
+  }
+  // Identity/Device Profile Type Add — big device-type form (deviceType name + the deviceConfigOption master).
+  // Builder is Add-scoped; the shape pair only exists on the Add page (Modify shows the name read-only).
+  if (/Identity\/Device Profile Type Add/i.test(title) || (cell.querySelector('input[name="deviceType"]') && cell.querySelector('input[name="deviceConfigOption"]'))) {
+    return { multiCard: true, build: cpBuildDeviceTypeAddRows, okLabel: "Add" };
   }
   return null;
 }
