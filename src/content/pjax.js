@@ -2,8 +2,21 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.275";
+  var CP_PJAX_VERSION = "0.2.277";
   try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
+
+  // Strip legacy inline styles (<style> blocks + style="" attrs) from a FETCHED response before we
+  // DOMParser-parse / inject it. Re-injected here they carry the SERVER response's CSP nonce (≠ the live page's),
+  // so style-src blocks them ANYWAY — they never apply (skin.css does the styling). Stripping first removes the
+  // useless CSP-violation console noise with ZERO visual change. See [[gotcha-csp-inline-style-attr-blocked]].
+  function cpStripInlineStyles(html) {
+    try {
+      return String(html)
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+        .replace(/\sstyle\s*=\s*"[^"]*"/gi, "")
+        .replace(/\sstyle\s*=\s*'[^']*'/gi, "");
+    } catch (e) { return html; }
+  }
 
   // Single-page sign-out: minimum time (ms) the "Signing out…" spinner stays up
   // before landing on the login, so a fast logout still reads as a smooth,
@@ -306,6 +319,7 @@
             console.warn("[pjax] AUTH-FAIL response from", u, "(token …" + (token ? String(token).slice(-6) : "none") + ", hop " + depth + ")");
             return { auth: false };
           }
+          html = cpStripInlineStyles(html);   // drop nonce-mismatched legacy inline styles (blocked anyway) → no CSP noise
           var doc = new DOMParser().parseFromString(html, "text/html");
           if (doc.querySelector('td[width="82%"]')) return { doc: doc, html: html };
           var stub = cpExtractStub(doc);
@@ -357,6 +371,7 @@
             try { f.remove(); } catch (e) {}
             if (!html || html.length < 300) return;
             if (html.indexOf("Please login again") !== -1 || html.indexOf("not authorized to access the system") !== -1) { done({ auth: false }); return; }
+            html = cpStripInlineStyles(html);
             var fdoc = new DOMParser().parseFromString(html, "text/html");
             if (fdoc.querySelector('td[width="82%"]')) { done({ doc: fdoc, html: html }); return; }
             var stub = cpExtractStub(fdoc);

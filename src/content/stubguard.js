@@ -49,6 +49,18 @@
     try { return JSON.parse(sessionStorage.getItem("cp-last-nav") || "null"); } catch (e) { return null; }
   }
 
+  // Strip legacy inline styles from a FETCHED response before DOMParser/injection — they carry the server
+  // response's CSP nonce (≠ the live page's) so style-src blocks them anyway (they never apply). Removing them
+  // pre-parse silences the CSP-violation console noise with zero visual change. Mirrors pjax cpStripInlineStyles.
+  function cpStripInlineStyles(html) {
+    try {
+      return String(html)
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+        .replace(/\sstyle\s*=\s*"[^"]*"/gi, "")
+        .replace(/\sstyle\s*=\s*'[^']*'/gi, "");
+    } catch (e) { return html; }
+  }
+
   // The actual native main-frame POST that commits the recovery (loads the recovered page so content scripts
   // re-inject and the skin re-applies). Split out of replay() so we can pick the token AFTER an async harvest.
   function cpNativePost(nav, token) {
@@ -79,7 +91,7 @@
     return fetch("/commpilot/servlet/Login", { method: "GET", credentials: "same-origin", cache: "no-store" })
       .then(function (r) { return r.text(); })
       .then(function (html) {
-        var stub = extractStub(new DOMParser().parseFromString(html, "text/html"));
+        var stub = extractStub(new DOMParser().parseFromString(cpStripInlineStyles(html), "text/html"));
         // Only trust a token that arrives WITH an app redirect (folder_contents) — not the login form's own token.
         return (stub && stub.target && stub.target.indexOf("folder_contents") !== -1 && stub.token) ? stub.token : null;
       });
@@ -143,12 +155,11 @@
     if (document.getElementById("cp-cloak")) return;
     var o = document.createElement("div");
     o.id = "cp-cloak";
-    o.setAttribute(
-      "style",
-      "position:fixed;inset:0;z-index:2147483647;background:#1c1b19;" +
-        "display:flex;align-items:center;justify-content:center;" +
-        "font:600 14px/1.4 'Nunito','Segoe UI',system-ui,sans-serif;color:#6b6862;"
-    );
+    // Per-property CSSOM, not setAttribute("style") — the page CSP blocks inline style ATTRIBUTES but not
+    // CSSOM property writes, so the interstitial splash actually paints. See skin.js cpLoginSplash note.
+    o.style.position = "fixed"; o.style.inset = "0"; o.style.zIndex = "2147483647"; o.style.background = "#1c1b19";
+    o.style.display = "flex"; o.style.alignItems = "center"; o.style.justifyContent = "center";
+    o.style.font = "600 14px/1.4 'Nunito','Segoe UI',system-ui,sans-serif"; o.style.color = "#6b6862";
     o.textContent = "CommPilot";
     document.documentElement.appendChild(o);
     if (o.animate) o.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: "ease-out" });
@@ -227,7 +238,7 @@
         .then(function (r) { return r.text(); })
         .then(function (html) {
           if (html.indexOf("Please login again") !== -1 || html.indexOf("not authorized to access the system") !== -1) return { auth: false };
-          var d = new DOMParser().parseFromString(html, "text/html");
+          var d = new DOMParser().parseFromString(cpStripInlineStyles(html), "text/html");
           if (d.querySelector('td[width="82%"]')) return { doc: d };
           var stub = extractStub(d);
           if (stub && stub.target && depth < 4) {
@@ -335,7 +346,7 @@
       })
         .then(function (r) { return r.text(); })
         .then(function (html) {
-          var doc = new DOMParser().parseFromString(html, "text/html");
+          var doc = new DOMParser().parseFromString(cpStripInlineStyles(html), "text/html");
           var stub = extractStub(doc);
           if (stub && stub.target && stub.token) {
             if (stub.target.indexOf("/Login/") !== -1) {
@@ -382,7 +393,7 @@
           // session-stored and renders on a GET of the login page.
           fetch("/commpilot/Login/", { credentials: "same-origin" })
             .then(function (r) { return r.text(); })
-            .then(function (loginHtml) { showFail(new DOMParser().parseFromString(loginHtml, "text/html")); })
+            .then(function (loginHtml) { showFail(new DOMParser().parseFromString(cpStripInlineStyles(loginHtml), "text/html")); })
             .catch(function () { showFail(doc); });
         })
         .catch(function (e) {

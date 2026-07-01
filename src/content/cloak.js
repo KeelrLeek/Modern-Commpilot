@@ -11,12 +11,11 @@
   if (!root || document.getElementById("cp-cloak")) return;
   var o = document.createElement("div");
   o.id = "cp-cloak";
-  o.setAttribute(
-    "style",
-    "position:fixed;inset:0;z-index:2147483647;background:#1c1b19;" +
-      "display:flex;align-items:center;justify-content:center;" +
-      "font:600 14px/1.4 'Nunito','Segoe UI',system-ui,sans-serif;color:#6b6862;"
-  );
+  // Per-property CSSOM, not setAttribute("style") — the page CSP (style-src 'nonce-…') blocks inline style
+  // ATTRIBUTES but not CSSOM property writes, so the splash actually paints (anti-FOUC). See skin.js note.
+  o.style.position = "fixed"; o.style.inset = "0"; o.style.zIndex = "2147483647"; o.style.background = "#1c1b19";
+  o.style.display = "flex"; o.style.alignItems = "center"; o.style.justifyContent = "center";
+  o.style.font = "600 14px/1.4 'Nunito','Segoe UI',system-ui,sans-serif"; o.style.color = "#6b6862";
   // During a user-initiated sign-out (skin.js sets cp-signing-out on confirm),
   // paint the SAME "Signing out…" spinner the dialog morphed into, so the wait
   // reads as one continuous branded screen across the logout→login hops instead

@@ -1334,6 +1334,9 @@ function cpLogoutToLogin() {
  * it — one continuous transition instead of a page-load pop.
  */
 function cpLoginSplash() {
+  // Orphaned content script (left over from an extension reload/update) → chrome.runtime is dead and
+  // chrome.runtime.getURL below throws "Extension context invalidated". Bail so it no-ops instead of throwing.
+  try { if (!chrome.runtime || !chrome.runtime.id) return; } catch (e) { return; }
   if (document.getElementById("cp-cloak")) return;
   // Not during a sign-out: this fires on EVERY beforeunload (skin.js end), so the
   // logout navigation would otherwise spawn a competing #cp-cloak (z above the
@@ -1347,7 +1350,7 @@ function cpLoginSplash() {
     btn.textContent = "";
     var sp = document.createElement("span");
     sp.className = "cp-login-spinner";
-    sp.style.cssText = "border:2px solid rgba(198,168,232,0.35);border-top-color:#C6A8E8;border-radius:50%;width:14px;height:14px;margin-right:8px;vertical-align:-2px;display:inline-block";
+    sp.style.border = "2px solid rgba(198,168,232,0.35)"; sp.style.borderTopColor = "#C6A8E8"; sp.style.borderRadius = "50%"; sp.style.width = "14px"; sp.style.height = "14px"; sp.style.marginRight = "8px"; sp.style.verticalAlign = "-2px"; sp.style.display = "inline-block";
     btn.appendChild(sp);
     btn.appendChild(document.createTextNode("Signing in\u2026"));
     if (sp.animate) {
@@ -1369,19 +1372,18 @@ function cpLoginSplash() {
   document.documentElement.classList.add("cp-stub-hold");
   var o = document.createElement("div");
   o.id = "cp-cloak";
-  o.setAttribute(
-    "style",
-    "position:fixed;inset:0;z-index:2147483647;background:#1c1b19;" +
-      "display:flex;flex-direction:column;align-items:center;justify-content:center;"
-  );
+  // Per-property CSSOM, not setAttribute("style") — the page CSP (style-src 'nonce-…') blocks inline style
+  // ATTRIBUTES but not CSSOM property writes. See [[gotcha-csp-inline-style-attr-blocked]].
+  o.style.position = "fixed"; o.style.inset = "0"; o.style.zIndex = "2147483647"; o.style.background = "#1c1b19";
+  o.style.display = "flex"; o.style.flexDirection = "column"; o.style.alignItems = "center"; o.style.justifyContent = "center";
   var mark = document.createElement("img");
   mark.className = "cp-cloak-mark";
   mark.src = chrome.runtime.getURL("assets/icons/trifecta-mark.svg");
-  mark.style.cssText = "width:72px;height:auto;opacity:0";
+  mark.style.width = "72px"; mark.style.height = "auto"; mark.style.opacity = "0";
   o.appendChild(mark);
   var word = document.createElement("div");
   word.className = "cp-cloak-word";
-  word.style.cssText = "font:600 14px/1.4 'Nunito','Segoe UI',system-ui,sans-serif;color:#a4a29c;margin-top:14px;opacity:0";
+  word.style.font = "600 14px/1.4 'Nunito','Segoe UI',system-ui,sans-serif"; word.style.color = "#a4a29c"; word.style.marginTop = "14px"; word.style.opacity = "0";
   word.textContent = "CommPilot";
   o.appendChild(word);
   document.documentElement.appendChild(o);
