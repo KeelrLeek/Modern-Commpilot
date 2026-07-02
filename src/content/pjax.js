@@ -2,8 +2,46 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.277";
-  try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded"); } catch (e) {}
+  var CP_PJAX_VERSION = "0.2.282";
+
+  // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
+  // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
+  // console.warn/console.error stays ALWAYS-ON — real failures still surface. cpDbg() replaces the gated logs.
+  var CP_DEBUG = false;
+  try { CP_DEBUG = localStorage.getItem("cpDebug") === "1"; } catch (e) {}
+  function cpDbg() { if (CP_DEBUG) { try { console.log.apply(console, arguments); } catch (e) {} } }
+
+  // Rolling coalescer for the pjax transport WARN lines: a single degraded nav fans out into dozens of section/
+  // leaf/grid-harvest fetches, each logging its 500/bounce/FAILED with identical text within ~1s → an avalanche.
+  // Coalesce by (key): the first hit within a 1500ms window logs immediately; repeats are counted and a single
+  // trailing "… (xN)" summary is emitted when the burst settles. Logging-only — never changes nav behavior.
+  var cpCoMap = Object.create(null);
+  function cpWarnCo(key, msg) {
+    try {
+      var now = (window.performance && performance.now) ? performance.now() : (+new Date());
+      var e = cpCoMap[key];
+      if (e && (now - e.last) < 1500) {
+        e.count++; e.last = now;
+        if (e.timer) clearTimeout(e.timer);
+        e.timer = setTimeout(function () { if (e.count > 1) console.warn(msg + " (x" + e.count + ")"); cpCoMap[key] = null; }, 1600);
+        return;
+      }
+      console.warn(msg);
+      cpCoMap[key] = { count: 1, last: now, timer: setTimeout(function () { cpCoMap[key] = null; }, 1600) };
+    } catch (x) { try { console.warn(msg); } catch (y) {} }
+  }
+  // Version stamp stays ALWAYS-ON: one line at load, and the reload-verification dance needs it visible to
+  // confirm the on-disk build actually loaded (not a stale cached script). It never fires on a nav.
+  try { console.log("[pjax] v" + CP_PJAX_VERSION + " loaded" + (CP_DEBUG ? " (debug)" : "")); } catch (e) {}
+
+  // ── NO BACKGROUND PINGS — deliberate (0.2.282). Two keep-alive designs were tried and BOTH caused the very
+  // idle logout they aimed to prevent (proven live 2026-07-02, controlled A/B on apps-sbx): a static styles.css
+  // GET every 45s → logged out at ~20 min; a servlet/Login GET every 45s → logged out at ~26 min; the SAME
+  // build/account/server with pings OFF idled 35 min and stayed logged in (as did the raw no-extension control,
+  // 38+ min). Something server-side (session filter or LB) invalidates a session receiving bare background GETs.
+  // DO NOT reintroduce a ping here. Idle resilience is handled by the transport fixes instead: the one-shot nav
+  // retry (0.2.264), redirect:'manual' bounce classification (0.2.278), and the in-place token re-harvest on
+  // auth-fail (0.2.279). See [[gotcha-idle-connection-drop-dead-click]].
 
   // Strip legacy inline styles (<style> blocks + style="" attrs) from a FETCHED response before we
   // DOMParser-parse / inject it. Re-injected here they carry the SERVER response's CSP nonce (≠ the live page's),
@@ -142,7 +180,7 @@
     window.addEventListener = function (type, fn, opts) {
       if (type === "load" && typeof fn === "function") {
         Promise.resolve().then(function () {
-          try { fn.call(window, new Event("load")); } catch (e) { console.warn("[pjax] load shim err", e); }
+          try { fn.call(window, new Event("load")); } catch (e) { cpWarnCo("loadshim|" + String((e && e.message) || e), "[pjax] load shim err: " + String((e && e.message) || e)); }
         });
         return;
       }
@@ -304,32 +342,67 @@
       if (token) body.append("formtokenserial", token);
       cpInflightPosts++;   // mark a token-bearing POST in flight (drained by the reload handler)
       var _settled = false, _done = function () { if (_settled) return; _settled = true; cpInflightPosts = Math.max(0, cpInflightPosts - 1); };
+      // redirect:"manual" — a server 3xx is this app's LOGIN/SESSION BOUNCE (the server hard-codes an
+      // http:// Login redirect). Under the default redirect:"follow" the browser tries to follow that hop,
+      // block-all-mixed-content (page CSP) blocks the http:// target, and fetch REJECTS with
+      // "TypeError: Failed to fetch" — INDISTINGUISHABLE from a dropped socket — while ALSO logging a
+      // connect-src CSP violation (the console noise). With redirect:"manual" the bounce comes back as a clean
+      // opaqueredirect Response (status 0, type "opaqueredirect"): no attempted http hop → no CSP violation, no
+      // false network error. We route it as {auth:false} so cpHook's fresh-token re-attempt / recovery runs
+      // instead of a silent dead click. Normal navs are 200 with content — this POST-based app never uses a 3xx
+      // for real navigation. See [[gotcha-idle-connection-drop-dead-click]] / [[gotcha-csp-inline-style-attr-blocked]].
       return fetch(u, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: body.toString(),
-        credentials: "same-origin"
+        credentials: "same-origin",
+        redirect: "manual"
       })
         .then(function (r) {
-          console.log("[pjax] response", r.status, r.url, "(hop " + depth + ")");
+          if (r.type === "opaqueredirect" || (r.status >= 300 && r.status < 400)) {
+            cpWarnCo("bounce|" + u, "[pjax] session bounce (server redirect) on " + u + " (hop " + depth + ") — auth-fail, no socket drop");
+            return { auth: false };
+          }
+          if (r.status >= 500) cpWarnCo("resp|" + u + "|" + r.status, "[pjax] response " + r.status + " " + u + " (hop " + depth + ")");
+          else cpDbg("[pjax] response", r.status, r.url, "(hop " + depth + ")");
+          return r.text().then(function (html) {
+            if (html.indexOf("Please login again") !== -1 || html.indexOf("not authorized to access the system") !== -1) {
+              cpWarnCo("authfail|" + u, "[pjax] AUTH-FAIL response from " + u + " (hop " + depth + ")");
+              return { auth: false };
+            }
+            html = cpStripInlineStyles(html);   // drop nonce-mismatched legacy inline styles (blocked anyway) → no CSP noise
+            var doc = new DOMParser().parseFromString(html, "text/html");
+            if (doc.querySelector('td[width="82%"]')) return { doc: doc, html: html };
+            var stub = cpExtractStub(doc);
+            if (stub && stub.target && depth < 4) {
+              cpDbg("[pjax] following stub ->", stub.target);
+              return cpFollow(stub.target, stub.data, stub.token, depth + 1);
+            }
+            return { doc: doc, html: html };
+          });
+        })
+        .then(function (v) { _done(); return v; }, function (e) { _done(); throw e; });
+    }
+
+    // Harvest a FRESH valid app token in-place (the one GET-allowed, session-aware endpoint) — mirrors
+    // stubguard's cpHarvestOnce trust rule EXACTLY: trust the token ONLY when servlet/Login hands back an
+    // app redirect (redirectPost -> folder_contents), never the login form's own token. Resolves null when
+    // the session is genuinely dead (bounce/opaqueredirect/no-stub) → caller falls back to a real nav.
+    // redirect:"manual" so a dead-session http:// Login bounce resolves as opaqueredirect (null) with NO
+    // connect-src violation. Used by cpHook to recover a still-alive-but-token-stale nav in place instead of
+    // hard-logging-out. See [[gotcha-idle-connection-drop-dead-click]].
+    function cpHarvestFreshToken() {
+      return fetch("/commpilot/servlet/Login", { method: "GET", credentials: "same-origin", cache: "no-store", redirect: "manual" })
+        .then(function (r) {
+          if (r.type === "opaqueredirect" || r.status === 0 || r.status >= 300) return null;
           return r.text();
         })
         .then(function (html) {
-          if (html.indexOf("Please login again") !== -1 || html.indexOf("not authorized to access the system") !== -1) {
-            console.warn("[pjax] AUTH-FAIL response from", u, "(token …" + (token ? String(token).slice(-6) : "none") + ", hop " + depth + ")");
-            return { auth: false };
-          }
-          html = cpStripInlineStyles(html);   // drop nonce-mismatched legacy inline styles (blocked anyway) → no CSP noise
-          var doc = new DOMParser().parseFromString(html, "text/html");
-          if (doc.querySelector('td[width="82%"]')) return { doc: doc, html: html };
-          var stub = cpExtractStub(doc);
-          if (stub && stub.target && depth < 4) {
-            console.log("[pjax] following stub ->", stub.target);
-            return cpFollow(stub.target, stub.data, stub.token, depth + 1);
-          }
-          return { doc: doc, html: html };
+          if (!html) return null;
+          var stub = cpExtractStub(new DOMParser().parseFromString(cpStripInlineStyles(html), "text/html"));
+          return (stub && stub.target && stub.target.indexOf("folder_contents") !== -1 && stub.token) ? stub.token : null;
         })
-        .then(function (v) { _done(); return v; }, function (e) { _done(); throw e; });
+        .catch(function () { return null; });
     }
 
     // Iframe transport. At Service-Provider / Group / User levels, folder_contents.jsp returns a
@@ -375,7 +448,7 @@
             var fdoc = new DOMParser().parseFromString(html, "text/html");
             if (fdoc.querySelector('td[width="82%"]')) { done({ doc: fdoc, html: html }); return; }
             var stub = cpExtractStub(fdoc);
-            if (stub && stub.target && d < 4) { console.log("[pjax] frame stub ->", stub.target); post(stub.target, stub.data, stub.token, d + 1); return; }
+            if (stub && stub.target && d < 4) { cpDbg("[pjax] frame stub ->", stub.target); post(stub.target, stub.data, stub.token, d + 1); return; }
             done({ doc: fdoc, html: html });
           };
           f.submit();
@@ -1049,9 +1122,15 @@
         var tok = tokEl ? tokEl.value : "";
         var postUrl = contextPath + pagePath + "/index.jsp?key=" + encodeURIComponent(component) + "&export=";
         if (tok) postUrl += "&" + tokenName + "=" + encodeURIComponent(tok);
-        fetch(postUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" }, credentials: "same-origin" })
-          .then(function (r) { return r.text(); })
+        fetch(postUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" }, credentials: "same-origin", redirect: "manual" })
+          .then(function (r) {
+            // redirect:"manual" — a session bounce (http:// Login) would otherwise CSP-fail as "Failed to fetch"
+            // + a connect-src violation; an opaqueredirect resolves so we fail soft with a clear message.
+            if (r.type === "opaqueredirect" || r.status === 0 || r.status >= 300) { console.warn("[pjax] export: session bounce — please sign in again"); return null; }
+            return r.text();
+          })
           .then(function (txt) {
+            if (txt == null) return;
             var s = txt.indexOf("<proxy>"), e = txt.indexOf("</proxy>");
             if (s < 0 || e <= s) { console.warn("[pjax] export: no proxy in response"); return; }
             var proxy = txt.substring(s + 7, e);
@@ -2573,12 +2652,17 @@
         for (var k in params) if (Object.prototype.hasOwnProperty.call(params, k)) body.append(k, params[k]);
         var tEl = document.getElementsByName("formtokenserial")[0];
         if (tEl && tEl.value) body.append("formtokenserial", tEl.value);
-        console.log("[pjax] sign-out fetch", url);
+        cpDbg("[pjax] sign-out fetch", url);
+        // redirect:"manual" — a sign-out POST that the server answers with an http:// Login/Logout bounce means
+        // the session is already gone; letting the browser follow that hop would CSP-fail (mixed content) → a
+        // spurious connect-src violation + fallback. An opaqueredirect RESOLVES, so go() runs (navigates onward)
+        // exactly as on a clean 200. See [[gotcha-csp-inline-style-attr-blocked]].
         fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: body.toString(),
-          credentials: "same-origin"
+          credentials: "same-origin",
+          redirect: "manual"
         }).then(go, fallback);
       } catch (e) { fallback(); }
     }
@@ -2635,11 +2719,11 @@
           var liveTokEl = document.getElementsByName("formtokenserial")[0];
           var firstTok = liveTokEl ? liveTokEl.value : null;
           var cpLoader = cpNeedsFrame(url, params) ? cpFollowFrame : cpFollow;
-          console.log("[pjax]", cpLoader === cpFollowFrame ? "iframe-loading" : "fetching", url);
+          cpDbg("[pjax]", cpLoader === cpFollowFrame ? "iframe-loading" : "fetching", url);
           cpLoader(url, params, firstTok, 0)
             .then(function (res) {
               if (mySeq !== cpSeq) {
-                console.log("[pjax] superseded — dropping stale swap");
+                cpDbg("[pjax] superseded — dropping stale swap");
                 return;
               }
               if (!res || res.auth === false || !res.doc || !res.doc.querySelector('td[width="82%"]')) {
@@ -2656,6 +2740,25 @@
                     cpHook(url, params, true);
                     return;
                   }
+                  // Token did NOT rotate — the common case on a server login-BOUNCE (the rejected POST rendered
+                  // no new token). Rather than fall straight to _orig (a native full-page redirectPost that FOLLOWS
+                  // the server's http:// Login bounce → a visible "session timeout" logout of a possibly-still-alive
+                  // session), first try to RECOVER IN PLACE: harvest a fresh app token from servlet/Login and retry
+                  // the nav with it. Only if the harvest yields nothing (session genuinely dead) fall to _orig.
+                  // Preserves the redirect:'manual' noise/CSP win while restoring "never hard-logout an alive session".
+                  cpHarvestFreshToken().then(function (tok) {
+                    if (mySeq !== cpSeq) { cpDbg("[pjax] superseded — dropping stale harvest"); return; }
+                    if (tok) {
+                      var _toks = document.getElementsByName("formtokenserial");
+                      for (var _i = 0; _i < _toks.length; _i++) _toks[_i].value = tok;
+                      console.warn("[pjax] follow unusable, token not rotated — harvested a fresh token, re-attempting nav in place");
+                      cpHook(url, params, true);
+                    } else {
+                      console.warn("[pjax] no content cell after follow + harvest empty (session dead?) — real navigation fallback");
+                      _orig.call(window, url, params);
+                    }
+                  });
+                  return;
                 }
                 console.warn("[pjax] no content cell after follow — real navigation fallback");
                 _orig.call(window, url, params);
@@ -2790,7 +2893,7 @@
                     try {
                       fn.call(document, new Event("DOMContentLoaded"));
                     } catch (e) {
-                      console.warn("[pjax] DCL err", e);
+                      cpWarnCo("dclerr|" + String((e && e.message) || e), "[pjax] DCL err: " + String((e && e.message) || e));
                     }
                   });
                   return;
@@ -2801,7 +2904,7 @@
               window.addEventListener = function (type, fn, opts) {
                 if (type === "load" && typeof fn === "function") {
                   Promise.resolve().then(function () {
-                    try { fn.call(window, new Event("load")); } catch (e) { console.warn("[pjax] load shim err", e); }
+                    try { fn.call(window, new Event("load")); } catch (e) { cpWarnCo("loadshim|" + String((e && e.message) || e), "[pjax] load shim err: " + String((e && e.message) || e)); }
                   });
                   return;
                 }
@@ -2812,9 +2915,9 @@
               document.addEventListener = origAdd;
               window.addEventListener = origWinAdd;
               if (window.redirectPost !== cpHook) { _orig = window.redirectPost; window.redirectPost = cpHook; }
-              console.log("[pjax] re-executed", n, "scripts");
+              cpDbg("[pjax] re-executed", n, "scripts");
               document.dispatchEvent(new CustomEvent("cp:reskin"));
-              console.log("[pjax] reskin dispatched");
+              cpDbg("[pjax] reskin dispatched");
               var canonical = url;
               if ((url.indexOf("/Common/page.jsp") !== -1 || url.indexOf("/Common/sort.jsp") !== -1) && params && params.returnPage) {
                 var rp = String(params.returnPage);
@@ -2836,11 +2939,14 @@
               } catch (e) {}
             })
             .catch(function (e) {
-              // NETWORK-LEVEL failure (the request threw, vs a server response). The usual cause after idle:
-              // the server / load-balancer closed the persistent keep-alive socket, so the FIRST fetch on the
-              // stale connection throws "TypeError: Failed to fetch" — the POST never reached the server, so the
-              // nav silently died ("dead click after idle"). The raw site dodges this because its full-page form
-              // POSTs transparently reconnect; our fetch() does not. Retry ONCE on a fresh connection (a new
+              // GENUINE NETWORK-LEVEL failure (the request threw, vs a server response). Since cpFollow uses
+              // redirect:"manual", a server LOGIN BOUNCE (302 → http:// Login, CSP-blocked as mixed content) now
+              // resolves as an opaqueredirect → {auth:false} and NO LONGER reaches here — so a throw here is a
+              // real dropped socket, not a masquerading CSP block. The usual cause after idle: the server /
+              // load-balancer closed the persistent keep-alive socket, so the FIRST fetch on the stale connection
+              // throws "TypeError: Failed to fetch" — the POST never reached the server, so the nav silently died
+              // ("dead click after idle"). The raw site dodges this because its full-page form POSTs transparently
+              // reconnect; our fetch() does not. Retry ONCE on a fresh connection (a new
               // fetch opens a new socket) before giving up. SAFE for saves too: a connection that failed before
               // the request was processed can't have double-applied it. A real server response — including a
               // genuine auth failure ({auth:false}) — resolves through .then above and never reaches here, so the
@@ -2852,7 +2958,7 @@
                 setTimeout(function () { try { cpHook(url, params, true); } catch (e2) {} }, 200);
                 return;
               }
-              console.warn("[pjax] fetch FAILED", e);
+              cpWarnCo("failed|" + url + "|" + _msg, "[pjax] fetch FAILED " + _msg + " (" + url + ")");
             });
 
           return; // do NOT call _orig — no navigation for menu navs
@@ -2912,7 +3018,7 @@
         var btn = tt && (tt.name === "cancel" ? tt : (tt.closest ? tt.closest('input[name="cancel"], button[name="cancel"]') : null));
         if (!btn) return;
         e.preventDefault(); e.stopImmediatePropagation();
-        console.log("[pjax] form Cancel -> list", _list);
+        cpDbg("[pjax] form Cancel -> list", _list);
         window.redirectPost(_list, {});
       } catch (err) {}
     }, true);
@@ -2944,7 +3050,7 @@
       // below is only needed for DEEP, POST-only pages whose address-bar URL would otherwise reload to the wrong
       // place; the grid is never one of those.
       if (_gs) {
-        console.log("[pjax] reload intercepted → native reload (grid active, GET-safe)");
+        cpDbg("[pjax] reload intercepted → native reload (grid active, GET-safe)");
         try { location.reload(); } catch (e3) { try { location.href = location.href; } catch (e4) {} }
         return;
       }
@@ -2954,7 +3060,7 @@
       var nav = cpLastNav;
       if (!nav) { try { nav = JSON.parse(sessionStorage.getItem("cp-last-nav") || "null"); } catch (e) {} }
       if (!nav || !nav.url) nav = { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
-      console.log("[pjax] reload intercepted → replay", nav.url);
+      cpDbg("[pjax] reload intercepted → replay", nav.url);
       // Even off the grid, a token-bearing POST may be mid-rotation (a console/aggregation fetch). DRAIN all
       // in-flight token-POSTs to 0 (max ~1.6s) before replaying, so the reload's POST can't race a fetch over the
       // single-use token. This counts an aborted-but-still-resolving prior search too — which the old
@@ -2972,7 +3078,7 @@
         var nav = e.state && e.state.cpNav;
         if (!nav || !nav.url) return;
         cpPopReplaying = true;
-        console.log("[pjax] popstate → replay", nav.url);
+        cpDbg("[pjax] popstate → replay", nav.url);
         window.redirectPost(nav.url, nav.params || {});
       } catch (err) { cpPopReplaying = false; console.warn("[pjax] popstate replay failed", err); }
     }, false);
@@ -2985,7 +3091,7 @@
         sessionStorage.removeItem("cp-pending-return");
         var last = JSON.parse(sessionStorage.getItem("cp-last-nav") || "null");
         if (last && last.url) {
-          console.log("[pjax] auto-return →", last.url, last.params);
+          cpDbg("[pjax] auto-return →", last.url, last.params);
           setTimeout(function () {
             try {
               window.redirectPost(last.url, last.params || {});

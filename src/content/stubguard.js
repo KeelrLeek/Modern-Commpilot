@@ -39,6 +39,13 @@
   var HOME = { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
   var realSubmit = HTMLFormElement.prototype.submit;
 
+  // CP_DEBUG gates the ROUTINE recovery/login trace logs so a normal reload recovery is quiet; every warn stays
+  // always-on. Flip with localStorage.cpDebug="1". Separate copy from pjax (different MAIN-world script). See
+  // pjax.js CP_DEBUG note.
+  var CP_DEBUG = false;
+  try { CP_DEBUG = localStorage.getItem("cpDebug") === "1"; } catch (e) {}
+  function cpDbg() { if (CP_DEBUG) { try { console.log.apply(console, arguments); } catch (e) {} } }
+
   function tries() {
     try { return parseInt(sessionStorage.getItem("cp-stub-tries") || "0", 10) || 0; } catch (e) { return 0; }
   }
@@ -88,9 +95,16 @@
   // live /Login/ page uses to send an already-logged-in user home). Returns that token, or null when the session
   // is dead / it's the login form / network error → caller falls back to the stored token (no regression).
   function cpHarvestOnce() {
-    return fetch("/commpilot/servlet/Login", { method: "GET", credentials: "same-origin", cache: "no-store" })
-      .then(function (r) { return r.text(); })
+    return fetch("/commpilot/servlet/Login", { method: "GET", credentials: "same-origin", cache: "no-store", redirect: "manual" })
+      .then(function (r) {
+        // redirect:"manual" — a dead session bounces servlet/Login to http:// Login; following it would CSP-fail
+        // (mixed content) as a spurious connect-src violation. An opaqueredirect/3xx means "no fresh token" → null
+        // (caller falls back to the stored token, identical to before). Only a real 200 body carries a harvestable stub.
+        if (r.type === "opaqueredirect" || r.status === 0 || r.status >= 300) return null;
+        return r.text();
+      })
       .then(function (html) {
+        if (!html) return null;
         var stub = extractStub(new DOMParser().parseFromString(cpStripInlineStyles(html), "text/html"));
         // Only trust a token that arrives WITH an app redirect (folder_contents) — not the login form's own token.
         return (stub && stub.target && stub.target.indexOf("folder_contents") !== -1 && stub.token) ? stub.token : null;
@@ -121,7 +135,7 @@
     var committed = false;
     function commit(tok, why) {
       if (committed) return; committed = true;
-      try { console.log("[stubguard] recovery replay — " + why); } catch (e) {}
+      cpDbg("[stubguard] recovery replay — " + why);
       cpNativePost(nav, tok);
     }
     try {
@@ -243,7 +257,7 @@
           var stub = extractStub(d);
           if (stub && stub.target && depth < 4) {
             if (stub.target.indexOf("/Login/") !== -1) return { fallback: true };
-            console.log("[stubguard] morph following stub ->", stub.target);
+            cpDbg("[stubguard] morph following stub ->", stub.target);
             return cpLoginFollow(stub.target, stub.data, stub.token, depth + 1);
           }
           return { doc: d };
@@ -350,15 +364,15 @@
           var stub = extractStub(doc);
           if (stub && stub.target && stub.token) {
             if (stub.target.indexOf("/Login/") !== -1) {
-              console.log("[stubguard] login produced /Login/ stub — failed login");
+              cpDbg("[stubguard] login produced /Login/ stub — failed login");
             } else {
-              console.log("[stubguard] login ok — morphing into app via", stub.target);
+              cpDbg("[stubguard] login ok — morphing into app via", stub.target);
               morphIntoApp(stub);
               return;
             }
           }
           // No handoff stub, or /Login/ stub — login failed.
-          console.log("[stubguard] login produced no handoff — staying on form");
+          cpDbg("[stubguard] login produced no handoff — staying on form");
           armedLogin = true; // re-arm immediately so a quick retry never falls through to native submit
           var liveTok = form.querySelector('input[name="formtokenserial"]');
           var MIN_SPLASH = 600;
@@ -378,7 +392,7 @@
                 if (/not authorized to access the system|session timeout/i.test(e.textContent || "")) staleGlitch = true;
               });
               if (staleGlitch) {
-                console.log("[stubguard] stale-session login glitch — silent retry with fresh token");
+                cpDbg("[stubguard] stale-session login glitch — silent retry with fresh token");
                 armedLogin = false;            // we drive the retry directly; prevent a stray submit piling on
                 loginFetchFlow(form, attempt + 1);
                 return;                         // keep splash up; skip showing the error
@@ -430,16 +444,24 @@
       if (ask) clearInterval(ask);
       if (!(nav && nav.url)) nav = HOME;
       if (token) {
-        console.log("[stubguard] " + label + " → replay", nav.url);
+        cpDbg("[stubguard] " + label + " → replay", nav.url);
         replay(nav, token);
       } else {
-        console.log("[stubguard] " + label + " — no stored token, going to Login");
-        onNoToken();
+        // No stored token (slow/failed storage bridge on a cold service-worker, OR the bridge answered with none).
+        // Rather than log out immediately, let replay() try to HARVEST a fresh token from servlet/Login first —
+        // it commits a native POST only after the harvest, and a genuinely dead session still ends on Login (the
+        // harvest yields null → a null-token POST bounces there). Net-safer: an alive-but-slow-bridge session
+        // recovers instead of being ejected. See [[gotcha-idle-connection-drop-dead-click]] (bridge race).
+        cpDbg("[stubguard] " + label + " — no stored token; harvest-replay before Login");
+        replay(nav, null);
       }
     };
+    // 3000ms (was 800): a cold service-worker + chrome.storage read via the cloak.js bridge routinely exceeds 800ms,
+    // and firing the fallback with a null token used to log out a still-alive session. Give the real token time to
+    // arrive; the fallback now attempts a harvest-replay anyway (above) rather than an immediate Login.
     var fallback = setTimeout(function () {
       finish(sessionNav(), null);
-    }, 800);
+    }, 3000);
     window.addEventListener("message", function onReply(e) {
       if (e.source !== window || !e.data || !("__cpStubNavReply" in e.data)) return;
       window.removeEventListener("message", onReply);
@@ -462,7 +484,10 @@
     // A genuine dead-session loop is RAPID (back-to-back reloads); a real idle reload is minutes later — so if the
     // last attempt was >30s ago, treat this as a new recovery cycle and reset, leaving the guard to catch only true
     // rapid loops. See [[gotcha-idle-connection-drop-dead-click]].
-    try { var _bAt = parseInt(sessionStorage.getItem("cp-stub-tries-at") || "0", 10) || 0; if (_bAt && (Date.now() - _bAt > 30000)) sessionStorage.setItem("cp-stub-tries", "0"); } catch (e) {}
+    // Reset when the last bump was >30s ago OR its timestamp is MISSING (older data written before the stamp
+    // existed, or a cleared key): a missing timestamp must count as stale so a leftover counter can't short-circuit
+    // a fresh idle reload to Login. (Fix 1a hardened — was gated on `_bAt &&`, which left a stampless counter stuck.)
+    try { var _bAt = parseInt(sessionStorage.getItem("cp-stub-tries-at") || "0", 10) || 0; if (!_bAt || (Date.now() - _bAt > 30000)) sessionStorage.setItem("cp-stub-tries", "0"); } catch (e) {}
     if (tries() >= 2) {
       location.replace(LOGIN);
       return;

@@ -1,4 +1,10 @@
-console.log("[Modern CommPilot Skin] content script loaded");
+// CP_DEBUG gates skin.js's dev-audit logs (this load stamp + the Help-coverage table). Enable with
+// localStorage.cpDebug="1". Every per-feature try/catch WARN stays always-on. Isolated-world copy — separate
+// from the pjax/stubguard MAIN-world flag; all read the same localStorage key so one toggle covers all three.
+var CP_DEBUG = false;
+try { CP_DEBUG = localStorage.getItem("cpDebug") === "1"; } catch (e) {}
+function cpDbg() { if (CP_DEBUG) { try { console.log.apply(console, arguments); } catch (e) {} } }
+cpDbg("[Modern CommPilot Skin] content script loaded");
 
 // When the redesigned search grid (pjax MAIN) has taken over a list page it sets html.cp-grid-on; skin.js
 // then SKIPS its in-place legacy list skinning (search box / results box / pagination / row-click) so the two
@@ -2203,12 +2209,14 @@ function suppressEmptyResults() {
       mark(link, "text", t, t);
     });
     try {
-      console.group("[CommPilot Skin] Help coverage — " + covered.length + " covered, " + missing.length + " missing");
-      if (missing.length) {
-        if (console.table) console.table(missing);
-        else missing.forEach(function (m) { console.log("MISSING", m.type, m.key, "—", m.label); });
+      if (CP_DEBUG) {
+        console.group("[CommPilot Skin] Help coverage — " + covered.length + " covered, " + missing.length + " missing");
+        if (missing.length) {
+          if (console.table) console.table(missing);
+          else missing.forEach(function (m) { console.log("MISSING", m.type, m.key, "—", m.label); });
+        }
+        console.groupEnd();
       }
-      console.groupEnd();
     } catch (e) {}
   }
 
