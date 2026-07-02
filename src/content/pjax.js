@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.286";
+  var CP_PJAX_VERSION = "0.2.288";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -842,6 +842,7 @@
       var t = (title || "").trim().toLowerCase();
       if (/^device management (tag sets|regions)( (add|add tag|modify|modify tag))?$/.test(t)) t = "device management tag sets";
       if (/^identity\/device profile type (add|modify)$/.test(t)) t = "identity/device profile types";
+      if (/^domains add$/.test(t)) t = "domains";
       return CP_HDR_ICONS[t] || "";
     }
 
@@ -1340,7 +1341,17 @@
           if (idx >= 0) { var m = scripts.slice(idx, idx + 400).match(/([Tt])abSubmit\s*\(\s*['"]([^'"]+)['"]/); if (m) { dialectLower = m[1] === "t"; tabUrl = m[2]; } }
         }
         if (dialectLower) {
-          window.redirectPost(location.origin + location.pathname, tabUrl ? { tabPage: tabUrl } : {});
+          // Enter the sibling tab as its OWN page, bare ({} — cpHook threads the token). Each tab IS a separate
+          // page (verified apps01: bare POSTs render /Group/ and /User/ cleanly and location LANDS on the real
+          // tab URL, so later relative navs resolve right). Posting {tabPage} to the current url only works from
+          // the family's ENTRY page — from a sibling URL the tab controller reads the POST as an APPLY with
+          // missing fields and attempts a MODIFY ("set default … failed", Error 27233, live 2026-07-02). A bare
+          // per-page entry has no such ambiguity. If the wiring extraction failed, do NOTHING (a dead tab click
+          // beats an accidental write).
+          var resolved = "";
+          try { resolved = new URL(tabUrl, location.origin + location.pathname).pathname; } catch (e) {}
+          if (resolved && tabUrl) window.redirectPost(resolved, {});
+          else console.warn("[pjax] cpTabNav: no tab target extracted — ignoring tab click");
           return;
         }
         var params = {};
@@ -1916,7 +1927,7 @@
         var arrow = (c.idx === state.sortK)
           ? '<span class="cp-srch-arr">' + (state.sortDir > 0 ? CP_SVG_ARRUP : CP_SVG_ARRDOWN) + '</span>' : "";
         return '<div class="cp-srch-th' + (c.align === "center" ? " cen" : (c.num ? " num" : "")) + '" data-k="' + c.idx + '">' +
-          cpEsc(c.label) + arrow + '</div>';
+          '<span class="cp-srch-thlbl" title="' + cpEsc(c.label) + '">' + cpEsc(c.label) + '</span>' + arrow + '</div>';
       }).join("");
       var hdrDel = head.querySelector(".cp-srch-selhdr-del");
       if (hdrDel) hdrDel.addEventListener("click", function () { if (cpGridSelCount(state) > 0) cpGridOpenDelConfirm(state); });

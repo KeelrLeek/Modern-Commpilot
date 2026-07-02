@@ -216,6 +216,7 @@ function cpMenuItemIcon(title) {
   if (/^call recording platform (modify|add)$/.test(t)) t = "call recording platforms";  // Add/Modify form → list icon (audio-lines)
   if (/^device management device families (add|import|modify)$/.test(t)) t = "device management device families";  // Add/Import/Modify form → list icon (boxes)
   if (/^device management (tag sets|regions)( (add|add tag|modify|modify tag))?$/.test(t)) t = "device management tag sets";  // Tag Sets list/Modify + Add/Add Tag/Modify Tag + Regions Add → list icon (tags)
+  if (/^domains add$/.test(t)) t = "domains";   // Add form → list icon (world-www)
   return CP_ITEM_ICONS[t] || "";
 }
 
@@ -3014,6 +3015,18 @@ function cpBuildDeviceFamilyImportRows(cell) {
   return { cards: [fc.card, oc.card], controls: controls, globalActions: true };
 }
 
+/* Domains Add — a single required field: the domain name. SINGLE-card form (shared header/card/action-bar/
+ * 22px-inset come from cpProfileForm); the row gets a descriptor per [[feedback-every-form-field-needs-descriptor]]. */
+function cpBuildDomainAddRows(rowsWrap, cell) {
+  var domain = cell.querySelector('input[name="domain"]');
+  if (!domain) return null;
+  var row = cpProfRow(rowsWrap, "Domain",
+    "The domain name to add to this reseller (e.g. example.com). Groups and users can then be assigned addresses under it.",
+    cpProfInput(domain));
+  row.querySelector(".cp-prof-k").innerHTML = '<span class="cp-prof-req">*</span> Domain';
+  return { controls: [domain] };
+}
+
 /* Device Management Tag Sets Add — a single required field. SINGLE-card form: one row (Tag set name + the moved
  * real input). The shared header/card/action-bar/22px-inset come from cpProfileForm; the row needs a descriptor
  * (see [[feedback-every-form-field-needs-descriptor]]). */
@@ -3380,6 +3393,9 @@ function cpSettingsFormConfig(title, cell) {
   // End-anchored: must NOT also match "…Add Tag" (handled above).
   if (/Device Management Tag Sets Add$/i.test(title) || cell.querySelector('input[name="tagSetName"]')) {
     return { label: "New tag set", icon: CP_PROF_TAG_SVG, build: cpBuildTagSetAddRows, okLabel: "Create" };
+  }
+  if (/^Domains Add$/i.test(title) || (/domain/i.test(title) && cell.querySelector('input[name="domain"]'))) {
+    return { label: "New domain", icon: CP_ITEM_ICONS["domains"], build: cpBuildDomainAddRows, okLabel: "Add" };
   }
   // Identity/Device Profile Type Add — big device-type form (deviceType name + the deviceConfigOption master).
   // Builder is Add-scoped; the shape pair only exists on the Add page (Modify shows the name read-only).
