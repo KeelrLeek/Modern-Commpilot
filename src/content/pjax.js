@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.282";
+  var CP_PJAX_VERSION = "0.2.286";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -89,6 +89,7 @@
   // Module-level pjax state (shared between cpPjaxInit and __cpPjaxMorphed)
   var cpPjaxInited = false;
   var cpSeq = 0;
+  var cpDclSpin = false;   // true while cpListSearch's harvest re-dispatches DOMContentLoaded (see cpHook guard)
   var cpLastNav = { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
   var cpPopReplaying = false;
   var _orig = null;
@@ -363,8 +364,16 @@
             cpWarnCo("bounce|" + u, "[pjax] session bounce (server redirect) on " + u + " (hop " + depth + ") — auth-fail, no socket drop");
             return { auth: false };
           }
-          if (r.status >= 500) cpWarnCo("resp|" + u + "|" + r.status, "[pjax] response " + r.status + " " + u + " (hop " + depth + ")");
-          else cpDbg("[pjax] response", r.status, r.url, "(hop " + depth + ")");
+          if (r.status >= 500) {
+            // Server error — return a DISTINCT failure and DO NOT parse/follow the error page's embedded
+            // redirect stub. The old flow hopped the stub back into the failing endpoint (up to depth 4 →
+            // 5 token-bearing POSTs into a 500ing page), which is how one broken menu item (DeviceInventory
+            // Find-All, Xsi at reseller) escalated a single 500 into a KILLED SESSION → logout (live
+            // 2026-07-02). Callers route {err} to an in-place notice / grid error state — no more requests.
+            cpWarnCo("resp|" + u + "|" + r.status, "[pjax] response " + r.status + " " + u + " (hop " + depth + ") — aborting (no stub-follow on a server error)");
+            return { err: r.status };
+          }
+          cpDbg("[pjax] response", r.status, r.url, "(hop " + depth + ")");
           return r.text().then(function (html) {
             if (html.indexOf("Please login again") !== -1 || html.indexOf("not authorized to access the system") !== -1) {
               cpWarnCo("authfail|" + u, "[pjax] AUTH-FAIL response from " + u + " (hop " + depth + ")");
@@ -690,8 +699,11 @@
               // populate. TWO mechanisms for robustness, each tick: (1) re-call the handlers CAPTURED by the
               // re-exec shim (works on a pure in-app nav, where the fill is never on the real document); (2)
               // re-dispatch DOMContentLoaded (fires any fill that registered late on the real document).
-              (window.__cpDclFns || []).forEach(function (fn) { try { fn.call(document, new Event("DOMContentLoaded")); } catch (e) {} });
-              try { document.dispatchEvent(new Event("DOMContentLoaded")); } catch (e) {}
+              cpDclSpin = true;   // handlers run synchronously in these calls; cpHook drops any nav they fire
+              try {
+                (window.__cpDclFns || []).forEach(function (fn) { try { fn.call(document, new Event("DOMContentLoaded")); } catch (e) {} });
+                try { document.dispatchEvent(new Event("DOMContentLoaded")); } catch (e) {}
+              } finally { cpDclSpin = false; }
               if (++tries <= 60) { setTimeout(harvest, 50); return; }   // up to ~3s for the (async) fill data
             }
             var rows = aFilter(all);
@@ -815,7 +827,14 @@
       "device management tag sets": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z"/><path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193"/><circle cx="10.5" cy="6.5" r=".5" fill="currentColor"/></svg>',
       "mobile subscriber directory numbers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8.5l4.5 4.5v12.5a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1v-16a1 1 0 0 1 1 -1"/><path d="M9 11h3v6"/><path d="M15 17v.01"/><path d="M15 14v.01"/><path d="M15 11v.01"/><path d="M9 14v.01"/><path d="M9 17v.01"/></svg>',
       "identity/device endpoints": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5"/><path d="M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5"/><path d="M3 21l2.5 -2.5"/><path d="M18.5 5.5l2.5 -2.5"/><path d="M10 11l-2 2"/><path d="M13 14l-2 2"/></svg>',
-      "identity/device profile types": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1l0 -2"/><path d="M4 13a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -6"/><path d="M14 12l6 0"/><path d="M14 16l6 0"/><path d="M14 20l6 0"/></svg>'
+      "identity/device profile types": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1l0 -2"/><path d="M4 13a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -6"/><path d="M14 12l6 0"/><path d="M14 16l6 0"/><path d="M14 20l6 0"/></svg>',
+      "identity/device profile inventory": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2"/><path d="M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2"/><path d="M9 12l.01 0"/><path d="M13 12l2 0"/><path d="M9 16l.01 0"/><path d="M13 16l2 0"/></svg>',
+      "domains": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 7a9 9 0 0 0 -7.5 -4a8.991 8.991 0 0 0 -7.484 4"/><path d="M11.5 3a16.989 16.989 0 0 0 -1.826 4"/><path d="M12.5 3a16.989 16.989 0 0 1 1.828 4"/><path d="M19.5 17a9 9 0 0 1 -7.5 4a8.991 8.991 0 0 1 -7.484 -4"/><path d="M11.5 21a16.989 16.989 0 0 1 -1.826 -4"/><path d="M12.5 21a16.989 16.989 0 0 0 1.828 -4"/><path d="M2 10l1 4l1.5 -4l1.5 4l1 -4"/><path d="M17 10l1 4l1.5 -4l1.5 4l1 -4"/><path d="M9.5 10l1 4l1.5 -4l1.5 4l1 -4"/></svg>',
+      "numbers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l14 0"/><path d="M5 15l14 0"/><path d="M11 4l-4 16"/><path d="M17 4l-4 16"/></svg>',
+      "numbers usage": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -6"/><path d="M15 9a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -10"/><path d="M9 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -14"/><path d="M4 20h14"/></svg>',
+      "enterprise trunk number ranges": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.875 12c.621 0 1.125 .512 1.125 1.143v5.714c0 .631 -.504 1.143 -1.125 1.143h-15.875a1 1 0 0 1 -1 -1v-5.857c0 -.631 .504 -1.143 1.125 -1.143h15.75"/><path d="M9 12v2"/><path d="M6 12v3"/><path d="M12 12v3"/><path d="M18 12v3"/><path d="M15 12v2"/><path d="M3 3v4"/><path d="M3 5h18"/><path d="M21 3v4"/></svg>',
+      "enterprise trunk number prefixes": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l2 -2v8"/><path d="M9 8h3a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-2a1 1 0 0 0 -1 1v2a1 1 0 0 0 1 1h3"/><path d="M17 8h2.5a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1 -1.5 1.5h-1.5h1.5a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1 -1.5 1.5h-2.5"/></svg>',
+      "xsi policy profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13h5"/><path d="M12 16v-8h3a2 2 0 0 1 2 2v1a2 2 0 0 1 -2 2h-3"/><path d="M20 8v8"/><path d="M9 16v-5.5a2.5 2.5 0 0 0 -5 0v5.5"/></svg>'
     };
     // Mirrors skin.js cpMenuItemIcon's normalization so the list AND the Modify grid (Tags/Regions) headers resolve
     // to the tags icon, not just the bare list title.
@@ -1303,20 +1322,31 @@
         // which FAILS on the Regions sub-page (its form lacks the fields validate expects) → switching back to Tags
         // was silently blocked (the asymmetry: Tags→Regions validated fine, Regions→Tags didn't). A tab switch is
         // navigation, not a save, so it must not be validation-gated.
-        var tabUrl = "";
+        // TWO legacy tab dialects (both wired by uuid addEventListener scripts, inline onclick is CSP-stripped):
+        //  - "TabSubmit('<url>')" (capital T — TagSets/Regions): replay must post to the TAB's OWN url so location
+        //    lands on the tab's real page (0.2.253 — relative Add buttons resolve against it).
+        //  - "tabSubmit('<rel>')" (lowercase t, Scripts/tabSubmit.js — Xsi Policy Profile): the native handler sets
+        //    mainForm.tabPage=<rel> and form.submit()s to SELF; the SERVER switches the tab (location stays on the
+        //    entry URL). Replay = POST {tabPage} ONLY to the CURRENT url (verified live on apps01: SP→Group→User).
+        //    ⚠ Do NOT forward the rest of the mainForm here: the tab pages carry stateful fields (defaultProfile /
+        //    checkbox_* "Default" columns) and after one server-side switch the URL no longer matches the rendered
+        //    tab — a full-form replay was interpreted as a MODIFY ("set default ... failed", Error 27233, live on
+        //    apps01 2026-07-02). tabPage+token alone switches cleanly with zero write risk.
+        //    (NB the apps-sbx sandbox 500s this switch server-side even RAW — deployment bug, not ours.)
+        var tabUrl = "", dialectLower = false;
         if (tabEl && tabEl.id) {
           var scripts = [].slice.call(document.querySelectorAll('script:not([src])')).map(function (s) { return s.textContent || ""; }).join("\n");
           var idx = scripts.indexOf(tabEl.id);
-          if (idx >= 0) { var m = scripts.slice(idx, idx + 400).match(/TabSubmit\s*\(\s*['"]([^'"]+)['"]/); if (m) tabUrl = m[1]; }
+          if (idx >= 0) { var m = scripts.slice(idx, idx + 400).match(/([Tt])abSubmit\s*\(\s*['"]([^'"]+)['"]/); if (m) { dialectLower = m[1] === "t"; tabUrl = m[2]; } }
+        }
+        if (dialectLower) {
+          window.redirectPost(location.origin + location.pathname, tabUrl ? { tabPage: tabUrl } : {});
+          return;
         }
         var params = {};
         try { new URLSearchParams(new FormData(form)).forEach(function (v, k) { params[k] = v; }); } catch (e) {}
         delete params.formtokenserial;   // cpHook threads the live single-use token
         if (tabUrl) params.tabPage = tabUrl;
-        // Post to the TAB's OWN url (TabSubmit target, e.g. /…/Modify/Regions/) — NOT the current pathname — so
-        // location LANDS on the tab's real page. Otherwise the Regions content shows under the …/Modify/TagSet/
-        // url, and the Add button's RELATIVE "Add/index.jsp" resolves to …/TagSet/Add (Add Tag) instead of
-        // …/Regions/Add (Add Region). cpHook resolves a relative tabUrl; an absolute /commpilot one passes through.
         window.redirectPost(tabUrl || (location.origin + location.pathname), params);
       } catch (e) { console.warn("[pjax] cpTabNav:", e); }
     }
@@ -2669,6 +2699,12 @@
 
     cpHook = function (url, params, _retry) {
       try {
+        // SYNTHETIC-NAV GUARD: cpListSearch's client-fill harvest re-dispatches DOMContentLoaded to run a
+        // page's own fill. On some pages (DeviceInventory) a DCL handler NAVIGATES (redirectPost to the
+        // landing) instead of filling — 60 spin ticks fired repeated token-bearing POSTs into a 500ing
+        // endpoint and KILLED the session (live 2026-07-02). Handlers run synchronously inside the
+        // re-dispatch, so navs arriving inside the flag window are ours — drop them.
+        if (cpDclSpin) { cpDbg("[pjax] ignoring synthetic nav during client-fill spin:", url); return; }
         // Resolve a RELATIVE redirectPost target (e.g. the admin Add button's "Add/index.jsp") to an absolute
         // /commpilot path so isPjaxUrl can match it — otherwise cpHook native-navigates → a full page load.
         // (Only relative targets are touched; absolute "/commpilot/..." urls pass through unchanged.)
@@ -2724,6 +2760,14 @@
             .then(function (res) {
               if (mySeq !== cpSeq) {
                 cpDbg("[pjax] superseded — dropping stale swap");
+                return;
+              }
+              if (res && res.err >= 500) {
+                // The server 500'd this nav. Do NOT retry, harvest, or fall to a native POST — every further
+                // request into a 500ing endpoint risks killing the session (proven live 2026-07-02). Stay on
+                // the current page and tell the user.
+                console.warn("[pjax] server " + res.err + " on " + url + " — staying on the current page (no retry)");
+                try { window.alert("The server couldn't load that page (error " + res.err + ").\nYou're still on the previous page — try again in a moment."); } catch (e) {}
                 return;
               }
               if (!res || res.auth === false || !res.doc || !res.doc.querySelector('td[width="82%"]')) {
@@ -3646,6 +3690,7 @@
         }
         if (!folder) return;
         a.setAttribute("data-cp-folder", folder);
+        a.setAttribute("data-cp-menuid", menuId);   // used by the folder-click takeover (below) to replay the nav safely
         folders.push({ name: name, folder: folder, menuId: menuId });
       });
       if (folders.length === 0) return;
@@ -4230,15 +4275,26 @@
       if (!a) return;
       var fid = a.getAttribute('data-cp-folder');
       if (!fid) return;
+      // NEVER fall through to the anchor's own legacy listener. The per-render wiring scripts attach
+      // listeners by uuid id (link_/anchor_<uuid>); after a console rebuild a stale re-execution has been
+      // seen MIS-ATTACHING a menu ITEM's redirectPost to a folder anchor (live 2026-07-02: clicking the
+      // "Resources" folder fired Xsi Policy Profile's empty-context POST → server 500 → session KILLED →
+      // logout). We know the folder + menuId (enumerated at build, stamped on the anchor) — replay the
+      // folder nav ourselves in both non-scroll cases.
+      function cpFolderNavTakeover() {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        try { window.redirectPost("/commpilot/Common/folder_contents.jsp", { folder: fid, menuId: a.getAttribute("data-cp-menuid") || "8" }); } catch (err) {}
+      }
       if (!document.querySelector('.cp-console')) {
-        // Not on the console (e.g. a Groups/Users list): let the native nav take us to the
-        // reseller menu, but remember which folder was clicked so the console jumps to THAT
-        // section instead of defaulting to the top (Profile).
+        // Not on the console (e.g. a Groups/Users list): navigate to the folder menu, remembering which
+        // folder was clicked so the console jumps to THAT section instead of defaulting to the top (Profile).
         cpPendingFolder = fid;
+        cpFolderNavTakeover();
         return;
       }
       var sec = document.querySelector('.cp-console-section[data-cp-folder="' + fid + '"]');
-      if (!sec) return;
+      if (!sec) { cpFolderNavTakeover(); return; }
       e.preventDefault();
       e.stopImmediatePropagation();
       // Suppress the scroll-spy for the smooth-scroll's duration so it doesn't flip the accordion

@@ -3026,7 +3026,10 @@ html.cp-grid-on td[width="82%"] { overflow: hidden !important; }
 .cp-srch-results { position: relative; flex: 1; min-height: 0; margin-top: 12px; display: flex; flex-direction: column; }
 .cp-srch-dtable { flex: 1; min-height: 0; border: 1px solid var(--cp-outline); border-radius: 12px; overflow: hidden; background: var(--cp-surface); display: flex; flex-direction: column; }
 .cp-srch-dhead { flex: 0 0 auto; display: grid; background: var(--cp-surface-low); border-bottom: 1px solid var(--cp-outline); }
-.cp-srch-th { padding: 13px 18px; color: var(--cp-text-muted); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; user-select: none; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+/* min-width:0 + ellipsis: a grid child won't shrink below its content without min-width:0, so long labels in
+   narrow numeric columns OVERLAPPED their neighbors (seen on Numbers Usage: 4 long headers over narrow columns).
+   Clip with an ellipsis instead — the full label stays readable via the title attr browsers derive on hover. */
+.cp-srch-th { padding: 13px 18px; color: var(--cp-text-muted); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; user-select: none; white-space: nowrap; display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .cp-srch-th.num { justify-content: flex-end; text-align: right; }
 .cp-srch-th:hover { color: var(--cp-text); }
 .cp-srch-arr { color: var(--cp-primary); display: inline-flex; }
