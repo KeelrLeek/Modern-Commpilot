@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.288";
+  var CP_PJAX_VERSION = "0.2.290";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -834,7 +834,15 @@
       "numbers usage": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -6"/><path d="M15 9a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -10"/><path d="M9 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -14"/><path d="M4 20h14"/></svg>',
       "enterprise trunk number ranges": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.875 12c.621 0 1.125 .512 1.125 1.143v5.714c0 .631 -.504 1.143 -1.125 1.143h-15.875a1 1 0 0 1 -1 -1v-5.857c0 -.631 .504 -1.143 1.125 -1.143h15.75"/><path d="M9 12v2"/><path d="M6 12v3"/><path d="M12 12v3"/><path d="M18 12v3"/><path d="M15 12v2"/><path d="M3 3v4"/><path d="M3 5h18"/><path d="M21 3v4"/></svg>',
       "enterprise trunk number prefixes": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l2 -2v8"/><path d="M9 8h3a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-2a1 1 0 0 0 -1 1v2a1 1 0 0 0 1 1h3"/><path d="M17 8h2.5a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1 -1.5 1.5h-1.5h1.5a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1 -1.5 1.5h-2.5"/></svg>',
-      "xsi policy profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13h5"/><path d="M12 16v-8h3a2 2 0 0 1 2 2v1a2 2 0 0 1 -2 2h-3"/><path d="M20 8v8"/><path d="M9 16v-5.5a2.5 2.5 0 0 0 -5 0v5.5"/></svg>'
+      "xsi policy profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13h5"/><path d="M12 16v-8h3a2 2 0 0 1 2 2v1a2 2 0 0 1 -2 2h-3"/><path d="M20 8v8"/><path d="M9 16v-5.5a2.5 2.5 0 0 0 -5 0v5.5"/></svg>',
+      "call notify": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6"/><path d="M9 17v1a3 3 0 0 0 6 0v-1"/></svg>',
+      "collaborate": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12v3a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10a1 1 0 0 1 1 -1h9"/><path d="M7 20l10 0"/><path d="M9 16l0 4"/><path d="M15 16l0 4"/><path d="M17 4h4v4"/><path d="M16 9l5 -5"/></svg>',
+      "emergency zones": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M15.005 19.31l-1.591 1.59a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 13.592 -4.638"/><path d="M19 16v3"/><path d="M19 22v.01"/></svg>',
+      "voice messaging": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="4"/><circle cx="18" cy="12" r="4"/><line x1="6" x2="18" y1="16" y2="16"/></svg>',
+      "emergency call notification": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 16v-4a4 4 0 0 1 8 0v4"/><path d="M3 12h1m8 -9v1m8 8h1m-15.4 -6.4l.7 .7m12.1 -.7l-.7 .7"/><path d="M6 17a1 1 0 0 1 1 -1h10a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-10a1 1 0 0 1 -1 -1l0 -2"/></svg>',
+      "mail parameters": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v5"/><path d="M3 7l9 6l9 -6"/><path d="M17.001 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M19.001 15.5v1.5"/><path d="M19.001 21v1.5"/><path d="M22.032 17.25l-1.299 .75"/><path d="M17.27 20l-1.3 .75"/><path d="M15.97 17.25l1.3 .75"/><path d="M20.733 20l1.3 .75"/></svg>',
+      "call center profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-3a8 8 0 1 1 16 0v3"/><path d="M18 19c0 1.657 -2.686 3 -6 3"/><path d="M4 14a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-1a2 2 0 0 1 -2 -2v-3"/><path d="M15 14a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-1a2 2 0 0 1 -2 -2v-3"/></svg>',
+      "meet-me profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4"/><path d="M3 8a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -8"/></svg>'
     };
     // Mirrors skin.js cpMenuItemIcon's normalization so the list AND the Modify grid (Tags/Regions) headers resolve
     // to the tags icon, not just the bare list title.
@@ -2778,7 +2786,24 @@
                 // request into a 500ing endpoint risks killing the session (proven live 2026-07-02). Stay on
                 // the current page and tell the user.
                 console.warn("[pjax] server " + res.err + " on " + url + " — staying on the current page (no retry)");
-                try { window.alert("The server couldn't load that page (error " + res.err + ").\nYou're still on the previous page — try again in a moment."); } catch (e) {}
+                // Styled in-page banner (reuses skin.css .cp-alert) instead of window.alert — the native alert
+                // BLOCKS the page (and automation) and looks off-theme. Auto-dismisses; page state untouched.
+                try {
+                  var _bc = document.querySelector('td[width="82%"]');
+                  if (_bc) {
+                    var _bn = document.createElement("div");
+                    _bn.className = "cp-alert cp-alert-error";
+                    _bn.innerHTML =
+                      '<div class="cp-alert-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></div>' +
+                      '<div class="cp-alert-content"><div class="cp-alert-title">Server error</div>' +
+                      '<div class="cp-alert-body">The server couldn\'t load that page — you\'re still on the previous page. Try again in a moment.</div></div>' +
+                      '<span class="cp-alert-chip">HTTP ' + res.err + '</span>';
+                    _bc.insertBefore(_bn, _bc.firstChild);
+                    setTimeout(function () { try { _bn.remove(); } catch (e) {} }, 9000);
+                  } else {
+                    window.alert("The server couldn't load that page (error " + res.err + ").");
+                  }
+                } catch (e) {}
                 return;
               }
               if (!res || res.auth === false || !res.doc || !res.doc.querySelector('td[width="82%"]')) {
@@ -2971,6 +2996,10 @@
               window.addEventListener = origWinAdd;
               if (window.redirectPost !== cpHook) { _orig = window.redirectPost; window.redirectPost = cpHook; }
               cpDbg("[pjax] re-executed", n, "scripts");
+              // Stamp the NAV TARGET on <html> BEFORE the reskin: cp:reskin handlers run before the address-bar
+              // history update, so location.pathname is still the PREVIOUS page inside them. skin.js's
+              // pathname-keyed form dispatch (the notification-email family) reads this attribute first.
+              try { document.documentElement.setAttribute("data-cp-path", url); } catch (e) {}
               document.dispatchEvent(new CustomEvent("cp:reskin"));
               cpDbg("[pjax] reskin dispatched");
               var canonical = url;

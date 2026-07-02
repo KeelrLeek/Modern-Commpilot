@@ -207,7 +207,15 @@ var CP_ITEM_ICONS = {
   "numbers usage": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -6"/><path d="M15 9a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -10"/><path d="M9 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -14"/><path d="M4 20h14"/></svg>',
   "enterprise trunk number ranges": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.875 12c.621 0 1.125 .512 1.125 1.143v5.714c0 .631 -.504 1.143 -1.125 1.143h-15.875a1 1 0 0 1 -1 -1v-5.857c0 -.631 .504 -1.143 1.125 -1.143h15.75"/><path d="M9 12v2"/><path d="M6 12v3"/><path d="M12 12v3"/><path d="M18 12v3"/><path d="M15 12v2"/><path d="M3 3v4"/><path d="M3 5h18"/><path d="M21 3v4"/></svg>',
   "enterprise trunk number prefixes": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l2 -2v8"/><path d="M9 8h3a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-2a1 1 0 0 0 -1 1v2a1 1 0 0 0 1 1h3"/><path d="M17 8h2.5a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1 -1.5 1.5h-1.5h1.5a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1 -1.5 1.5h-2.5"/></svg>',
-  "xsi policy profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13h5"/><path d="M12 16v-8h3a2 2 0 0 1 2 2v1a2 2 0 0 1 -2 2h-3"/><path d="M20 8v8"/><path d="M9 16v-5.5a2.5 2.5 0 0 0 -5 0v5.5"/></svg>'
+  "xsi policy profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13h5"/><path d="M12 16v-8h3a2 2 0 0 1 2 2v1a2 2 0 0 1 -2 2h-3"/><path d="M20 8v8"/><path d="M9 16v-5.5a2.5 2.5 0 0 0 -5 0v5.5"/></svg>',
+  "call notify": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6"/><path d="M9 17v1a3 3 0 0 0 6 0v-1"/></svg>',
+  "collaborate": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12v3a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10a1 1 0 0 1 1 -1h9"/><path d="M7 20l10 0"/><path d="M9 16l0 4"/><path d="M15 16l0 4"/><path d="M17 4h4v4"/><path d="M16 9l5 -5"/></svg>',
+  "emergency zones": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M15.005 19.31l-1.591 1.59a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 13.592 -4.638"/><path d="M19 16v3"/><path d="M19 22v.01"/></svg>',
+  "voice messaging": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="4"/><circle cx="18" cy="12" r="4"/><line x1="6" x2="18" y1="16" y2="16"/></svg>',
+  "emergency call notification": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 16v-4a4 4 0 0 1 8 0v4"/><path d="M3 12h1m8 -9v1m8 8h1m-15.4 -6.4l.7 .7m12.1 -.7l-.7 .7"/><path d="M6 17a1 1 0 0 1 1 -1h10a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-10a1 1 0 0 1 -1 -1l0 -2"/></svg>',
+  "mail parameters": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v5"/><path d="M3 7l9 6l9 -6"/><path d="M17.001 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M19.001 15.5v1.5"/><path d="M19.001 21v1.5"/><path d="M22.032 17.25l-1.299 .75"/><path d="M17.27 20l-1.3 .75"/><path d="M15.97 17.25l1.3 .75"/><path d="M20.733 20l1.3 .75"/></svg>',
+  "call center profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-3a8 8 0 1 1 16 0v3"/><path d="M18 19c0 1.657 -2.686 3 -6 3"/><path d="M4 14a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-1a2 2 0 0 1 -2 -2v-3"/><path d="M15 14a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-1a2 2 0 0 1 -2 -2v-3"/></svg>',
+  "meet-me profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4"/><path d="M3 8a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -8"/></svg>'
 };
 function cpMenuItemIcon(title) {
   var t = (title || "").trim().toLowerCase();
@@ -248,7 +256,16 @@ function wrapMenuCards() {
       head.className = "cp-card-head";
 
       // Icon badge (left): the item's assigned icon, or a dashed placeholder when not yet done.
-      const svg = cpMenuItemIcon(anchor.textContent);
+      // The Call Center (R3) and Meet-Me (R4) folders each carry an item ALSO titled "Profile" — disambiguate
+      // by the containing console section so they don't inherit the reseller Profile icon (user-cog).
+      let icoTitle = (anchor.textContent || "").trim();
+      if (/^profile$/i.test(icoTitle)) {
+        const fsec = anchor.closest("[data-cp-folder]");
+        const fid = fsec ? fsec.getAttribute("data-cp-folder") : "";
+        if (fid === "R3") icoTitle = "call center profile";
+        else if (fid === "R4") icoTitle = "meet-me profile";
+      }
+      const svg = cpMenuItemIcon(icoTitle);
       const icoWrap = document.createElement("div");
       icoWrap.className = "cp-card-ico" + (svg ? "" : " cp-card-ico-todo");
       if (svg) icoWrap.innerHTML = svg;
@@ -3015,6 +3032,45 @@ function cpBuildDeviceFamilyImportRows(cell) {
   return { cards: [fc.card, oc.card], controls: controls, globalActions: true };
 }
 
+/* NOTIFICATION-EMAIL form family — the ENTIRE Services/Call Center/Meet-Me/Utilities reseller tree is
+ * variations of one legacy form: N "Default From Email Address" text inputs (VM has 3 under section labels,
+ * everything else has 1). One builder factory covers all 8 pages; the per-page config supplies card label,
+ * glyph and per-row label/descriptor ([[feedback-every-form-field-needs-descriptor]]). Inputs are harvested
+ * in DOM order — no per-page field names needed. */
+function cpBuildNotifyRows(spec) {
+  return function (rowsWrap, cell) {
+    var inputs = [].slice.call(cell.querySelectorAll('input[type="text"]'));
+    if (!inputs.length) return null;
+    var controls = [];
+    inputs.forEach(function (inp, i) {
+      var r = (spec.rows && spec.rows[i]) || { l: "Default from address", d: "The email address used as the From field for emails this service sends." };
+      cpProfRow(rowsWrap, r.l, r.d, cpProfInput(inp));
+      controls.push(inp);
+    });
+    return { controls: controls };
+  };
+}
+var CP_NOTIFY_FORMS = {
+  "/Reseller/CallNotify/": { label: "Call Notify", key: "call notify", rows: [
+    { l: "Default from address", d: "The From address used when Call Notify emails are sent to users." }] },
+  "/Reseller/Collaborate/": { label: "Collaborate", key: "collaborate", rows: [
+    { l: "Default from address", d: "The From address used when Collaborate invitation emails are sent." }] },
+  "/Reseller/EmergencyZone/": { label: "Emergency Zones", key: "emergency zones", rows: [
+    { l: "Default from address", d: "The From address used when Emergency Zones alert emails are sent." }] },
+  "/Reseller/VM/": { label: "Voice Messaging", key: "voice messaging", rows: [
+    { l: "Voice message delivery", d: "The From address for emails that deliver voice messages to users." },
+    { l: "Voice message notification", d: "The From address for new-voice-message notification emails." },
+    { l: "Voice portal passcode lockout", d: "The From address for voice-portal passcode lockout alert emails." }] },
+  "/Reseller/CallCenter/": { label: "Call Center", key: "call center profile", headTitle: "Call Center", rows: [
+    { l: "Default from address", d: "The From address used when Call Center report emails are sent." }] },
+  "/Reseller/MeetMeConferencing/": { label: "Meet-Me Conferencing", key: "meet-me profile", headTitle: "Meet-Me Conferencing", rows: [
+    { l: "Default from address", d: "The From address used when Meet-Me Conferencing emails are sent." }] },
+  "/Reseller/EmergencyCallNotification/": { label: "Emergency Call Notification", key: "emergency call notification", rows: [
+    { l: "Default from address", d: "The From address used when an emergency (911) call notification email is sent." }] },
+  "/Reseller/MailParameters/": { label: "Mail Parameters", key: "mail parameters", rows: [
+    { l: "Default from address", d: "The reseller-wide default From address for system-generated emails." }] }
+};
+
 /* Domains Add — a single required field: the domain name. SINGLE-card form (shared header/card/action-bar/
  * 22px-inset come from cpProfileForm); the row gets a descriptor per [[feedback-every-form-field-needs-descriptor]]. */
 function cpBuildDomainAddRows(rowsWrap, cell) {
@@ -3360,6 +3416,20 @@ function cpBuildDeviceTypeAddRows(cell) {
 /* Page config — picks the row builder (+ card-header label/icon for single-card pages).
  * Returns null for any page that isn't a configured settings form. */
 function cpSettingsFormConfig(title, cell) {
+  // Notification-email family FIRST (pathname-keyed): the Call Center and Meet-Me pages are ALSO titled
+  // "Profile" and used to collide with the reseller Profile config below → "Reseller information" card with
+  // the wrong glyph and no descriptors (found in the 2026-07-02 reseller UX audit).
+  // Current nav path: prefer pjax's data-cp-path stamp — inside a cp:reskin handler location.pathname is
+  // STILL the previous page (history updates after the reskin), which made this dispatch miss on swaps.
+  var cpCurPath = document.documentElement.getAttribute("data-cp-path") || location.pathname;
+  for (var nfPath in CP_NOTIFY_FORMS) {
+    if (cpCurPath.indexOf(nfPath) !== -1) {
+      var nf = CP_NOTIFY_FORMS[nfPath];
+      return { label: nf.label, icon: CP_ITEM_ICONS[nf.key] || CP_PROF_USER_SVG, build: cpBuildNotifyRows(nf), headKey: nf.key, headTitle: nf.headTitle };
+    }
+  }
+  // (No pathname guard here: the notify-family dispatch above already claims the CallCenter/MeetMe "Profile"
+  // pages, and Profile forms at OTHER levels — SP/Group — must keep matching this entry.)
   if (/^Profile$/.test(title)) {
     return { label: "Reseller information", icon: CP_PROF_USER_SVG, build: cpBuildProfileRows };
   }
@@ -3487,11 +3557,11 @@ function cpProfileForm() {
     // --- page header (LOCKED spec — matches .cp-srch-head: glyph/bar + title, NO subtitle) ---
     var pg = document.createElement("div"); pg.className = "cp-prof-head";
     var lead = document.createElement("span");
-    var headIcon = cpMenuItemIcon(headTitle);
+    var headIcon = cpMenuItemIcon(cfg.headKey || headTitle);   // headKey: pages whose legacy title collides (CC/MM "Profile")
     if (headIcon) { lead.className = "cp-prof-headglyph"; lead.innerHTML = headIcon; }
     else { lead.className = "cp-prof-headbar"; }
     var txt = document.createElement("div"); txt.className = "cp-prof-headtxt";
-    var ti = document.createElement("div"); ti.className = "cp-prof-title"; ti.textContent = headTitle;
+    var ti = document.createElement("div"); ti.className = "cp-prof-title"; ti.textContent = cfg.headTitle || headTitle;
     txt.appendChild(ti);
     pg.appendChild(lead); pg.appendChild(txt);
 
