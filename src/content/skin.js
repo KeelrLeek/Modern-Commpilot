@@ -433,6 +433,11 @@ document.addEventListener("cp:reskin", function () {
         /* Click was directly on the link inside the card — let it handle */
         if (e.target.closest("a.navMenuItem")) return;
 
+        /* Glance-pill actions (copy / pencil / the inline editor) — interactions, not navigation. This
+           forwarder is document-level CAPTURE phase, so it fires BEFORE the buttons' own handlers can
+           stopPropagation — it must opt out itself. */
+        if (e.target.closest(".cp-leaf-valwrap")) return;
+
         var link = card.querySelector("a.navMenuItem");
         if (link) {
           e.preventDefault();

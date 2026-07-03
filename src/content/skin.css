@@ -2601,6 +2601,28 @@ html.cp-console-active .cp-console::-webkit-scrollbar-button:vertical:end {
   color: #8c8a84 !important;
   border: 1px dashed #56534e !important;
 }
+/* Glance-pill hover actions (copy / edit) + the inline editor — Option B (2026-07-02). Icons fade in on row
+   hover; the pencil swaps the pill for an input that saves in the background (same Apply the page's own
+   button posts). Green/red pill flash reports the save result. */
+.cp-leaf-valwrap { display: inline-flex !important; align-items: center !important; gap: 6px !important; min-width: 0 !important; }
+.cp-leaf-act { display: inline-flex !important; align-items: center !important; gap: 2px !important; opacity: 0 !important; transition: opacity .15s ease !important; }
+.cp-leaf-row:hover .cp-leaf-act, .cp-leaf-act:focus-within { opacity: 1 !important; }
+.cp-leaf-actbtn { background: none !important; border: 0 !important; padding: 2px !important; margin: 0 !important; cursor: pointer !important; color: #8c8a84 !important; display: inline-flex !important; align-items: center !important; border-radius: 6px !important; }
+.cp-leaf-actbtn:hover { color: var(--cp-primary, #C6A8E8) !important; background: rgba(110, 76, 150, 0.18) !important; }
+.cp-leaf-actbtn svg { width: 15px !important; height: 15px !important; display: block !important; }
+.cp-leaf-actbtn[disabled] { opacity: .5 !important; cursor: default !important; }
+.cp-leaf-act-ok { color: #98c379 !important; }
+.cp-leaf-act-no { color: #e06c75 !important; }
+.cp-leaf-editin {
+  background: #1c1b19 !important; border: 1px solid var(--cp-primary, #6E4C96) !important; color: #e8e8e8 !important;
+  font: 600 12px/1 "Nunito", sans-serif !important; padding: 4px 10px !important; border-radius: 7px !important;
+  width: 220px !important; max-width: 46vw !important; outline: none !important; box-sizing: border-box !important;
+}
+/* Hide class for the edit swap — the pill/acts base rules carry display:...!important, which BEATS a plain
+   inline style="display:none", so the editor's hide must be !important too. */
+.cp-leaf-hidden { display: none !important; }
+.cp-leaf-savedflash { border-color: rgba(152, 195, 121, 0.8) !important; color: #98c379 !important; background: rgba(152, 195, 121, 0.12) !important; transition: all .25s ease !important; }
+.cp-leaf-failflash { border-color: rgba(224, 108, 117, 0.8) !important; color: #e06c75 !important; background: rgba(224, 108, 117, 0.12) !important; transition: all .25s ease !important; }
 
 /* ============================================================
    Console card spacing — aligned to the v5 mockup. Plain legacy

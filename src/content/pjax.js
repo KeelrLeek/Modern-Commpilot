@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.290";
+  var CP_PJAX_VERSION = "0.2.295";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -3291,10 +3291,118 @@
     // Option `name` paths whose leaf pages get a console glance summary: Profile (read-only label:value
     // rows) + the two settings-source pages (Activation Code / STIR-SHAKEN — a useSystemSettings radio
     // surfaced as a System/Reseller source PILL). All fetched the same proven cpFollow way Profile uses.
-    var CP_LEAF_ALLOW = ["/Reseller/Profile/", "/Reseller/DeviceActivationPolicy/", "/Reseller/StirShaken/", "/Reseller/CallRecordingPlatforms/"];
+    var CP_LEAF_ALLOW = ["/Reseller/Profile/", "/Reseller/DeviceActivationPolicy/", "/Reseller/StirShaken/", "/Reseller/CallRecordingPlatforms/",
+      "/Reseller/CallNotify/", "/Reseller/Collaborate/", "/Reseller/EmergencyZone/", "/Reseller/VM/",
+      "/Reseller/CallCenter/", "/Reseller/MeetMeConferencing/", "/Reseller/EmergencyCallNotification/", "/Reseller/MailParameters/"];
+    // Notification-email family (the 8 "Default From Email Address" pages): per-page glance-row labels, in the
+    // page's input order (VM has 3 fields; everything else 1). Rendered as CRP-style defpills (lavender = a
+    // configured address, dashed "None" = unset) — user-picked "Option A" mockup, 2026-07-02.
+    var CP_LEAF_NOTIFY = {
+      "/Reseller/CallNotify/": ["Default from"],
+      "/Reseller/Collaborate/": ["Default from"],
+      "/Reseller/EmergencyZone/": ["Default from"],
+      "/Reseller/VM/": ["Delivery", "Notification", "Passcode lockout"],
+      "/Reseller/CallCenter/": ["Default from"],
+      "/Reseller/MeetMeConferencing/": ["Default from"],
+      "/Reseller/EmergencyCallNotification/": ["Default from"],
+      "/Reseller/MailParameters/": ["Default from"]
+    };
     // Verbatim Tabler outline glyphs for the source pill (MAIN world has no webfont/asset urls → inline SVG).
     var CP_SVG_SRC_SYS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg>';
     var CP_SVG_SRC_RES = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M6 4v4"/><path d="M6 12v8"/><path d="M10 16a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M12 4v10"/><path d="M12 18v2"/><path d="M16 7a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M18 4v1"/><path d="M18 9v11"/></svg>';
+
+    // Glance-pill action glyphs (Tabler outline, inline — MAIN world has no webfont).
+    var CP_SVG_LEAF_COPY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z"/><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/></svg>';
+    var CP_SVG_LEAF_PENCIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/></svg>';
+    var CP_SVG_LEAF_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5l10 -10"/></svg>';
+    var CP_SVG_LEAF_XX = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg>';
+
+    // Inline glance-pill editor (Option B, 2026-07-02): the pencil swaps the pill for an input; Enter/✓ saves
+    // via cpLeafSave, Esc/✕ cancels. All events stop propagation so the surrounding menu-card nav never fires.
+    function cpLeafEdit(pill, acts, r) {
+      if (pill.__cpEditing) return;
+      pill.__cpEditing = true;
+      var old = r.empty ? "" : pill.textContent;
+      var wrap = pill.parentNode;
+      var inp = document.createElement("input");
+      inp.type = "text"; inp.className = "cp-leaf-editin"; inp.value = old;
+      var okB = document.createElement("button");
+      okB.type = "button"; okB.className = "cp-leaf-actbtn cp-leaf-act-ok"; okB.title = "Save"; okB.innerHTML = CP_SVG_LEAF_CHECK;
+      var noB = document.createElement("button");
+      noB.type = "button"; noB.className = "cp-leaf-actbtn cp-leaf-act-no"; noB.title = "Cancel"; noB.innerHTML = CP_SVG_LEAF_XX;
+      pill.classList.add("cp-leaf-hidden"); acts.classList.add("cp-leaf-hidden");   // class, not inline style — the base rules are !important
+      wrap.appendChild(inp); wrap.appendChild(okB); wrap.appendChild(noB);
+      inp.focus(); inp.select();
+      function done() {
+        try { inp.remove(); okB.remove(); noB.remove(); } catch (e) {}
+        pill.classList.remove("cp-leaf-hidden"); acts.classList.remove("cp-leaf-hidden"); pill.__cpEditing = false;
+      }
+      function flash(cls) { pill.classList.add(cls); setTimeout(function () { pill.classList.remove(cls); }, 1600); }
+      function save(ev) {
+        if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+        var nv = inp.value.trim();
+        if (nv === old) { done(); return; }
+        inp.disabled = true; okB.disabled = true; noB.disabled = true;
+        cpLeafSave(r.edit, nv).then(function (good) {
+          done();
+          if (good) {
+            pill.textContent = nv || "None";
+            pill.classList.toggle("cp-leaf-defpill-empty", !nv);
+            r.empty = !nv; r.value = nv || "None";
+            flash("cp-leaf-savedflash");
+          } else {
+            flash("cp-leaf-failflash");
+          }
+        });
+      }
+      function cancel(ev) { if (ev) { ev.stopPropagation(); ev.preventDefault(); } done(); }
+      okB.addEventListener("click", save);
+      noB.addEventListener("click", cancel);
+      inp.addEventListener("click", function (ev) { ev.stopPropagation(); ev.preventDefault(); });
+      inp.addEventListener("keydown", function (ev) {
+        ev.stopPropagation();
+        if (ev.key === "Enter") { ev.preventDefault(); save(); }
+        else if (ev.key === "Escape") { ev.preventDefault(); cancel(); }
+      });
+    }
+
+    // Background save for a glance-pill edit: fetch the page fresh (fresh token + full form), swap in the new
+    // value, POST with apply="Apply" (saves WITHOUT the OK page-exit, so the response is the page itself and
+    // the new value can be verified). Serialized through the section queue — token-rotating calls never race.
+    function cpLeafSave(edit, newValue) {
+      return new Promise(function (resolve) {
+        cpEnqueueSection(function () {
+          var tokEl = document.getElementsByName("formtokenserial")[0];
+          var token = tokEl ? tokEl.value : null;
+          return cpFollow(edit.path, {}, token, 0).then(function (res) {
+            if (!res || res.auth === false || res.err || !res.doc) { resolve(false); return; }
+            var nt = res.doc.getElementsByName("formtokenserial")[0];
+            if (nt) { var ts = document.getElementsByName("formtokenserial"); for (var i = 0; i < ts.length; i++) ts[i].value = nt.value; }
+            var form = res.doc.querySelector('form[name="mainForm"]');
+            if (!form) { resolve(false); return; }
+            var params = {};
+            [].slice.call(form.querySelectorAll("input, select, textarea")).forEach(function (el) {
+              if (!el.name) return;
+              var t = (el.type || "").toLowerCase();
+              if (t === "button" || t === "submit" || t === "image") return;
+              if ((t === "checkbox" || t === "radio") && !(el.checked || el.hasAttribute("checked"))) return;
+              params[el.name] = el.value || "";
+            });
+            delete params.formtokenserial;   // cpFollow threads the (just-refreshed) live token
+            params[edit.name] = newValue;
+            params.apply = "Apply";
+            var tok2 = document.getElementsByName("formtokenserial")[0];
+            return cpFollow(edit.path, params, tok2 ? tok2.value : null, 0).then(function (res2) {
+              if (!res2 || res2.auth === false || res2.err || !res2.doc) { resolve(false); return; }
+              var nt2 = res2.doc.getElementsByName("formtokenserial")[0];
+              if (nt2) { var ts2 = document.getElementsByName("formtokenserial"); for (var j = 0; j < ts2.length; j++) ts2[j].value = nt2.value; }
+              var chk = res2.doc.querySelector('input[name="' + edit.name + '"]');
+              resolve(chk ? (chk.value || "").trim() === newValue : true);
+            });
+          }).catch(function () { resolve(false); });
+        });
+      });
+    }
 
     function cpFetchLeaf(path) {
       return new Promise(function (resolve) {
@@ -3330,6 +3438,29 @@
                 }));
                 return;
               }
+              // Notification-email family: harvest the text inputs in DOM order and label them per the page's
+              // CP_LEAF_NOTIFY spec — the legacy rows all share the SAME label ("Default From Email Address:"),
+              // so the generic label:value parser below can't produce useful per-row labels for VM's 3 fields.
+              var nfLabels = null;
+              for (var nfk in CP_LEAF_NOTIFY) { if (path.indexOf(nfk) !== -1) { nfLabels = CP_LEAF_NOTIFY[nfk]; break; } }
+              if (nfLabels) {
+                var nfIns = cell.querySelectorAll('input[type="text"]');
+                if (!nfIns.length) { resolve(null); return; }
+                // Inline edit rides the input NAME — only offered when the name is unique in the form (params
+                // are name-keyed; a duplicate name would clobber a sibling field on save).
+                var nfNames = {};
+                for (var nn = 0; nn < nfIns.length; nn++) { var nm = nfIns[nn].name || ""; if (nm) nfNames[nm] = (nfNames[nm] || 0) + 1; }
+                var nfRows = [];
+                for (var ni = 0; ni < nfIns.length && ni < 4; ni++) {
+                  var nfv = (nfIns[ni].value || "").trim();
+                  var nfnm = nfIns[ni].name || "";
+                  nfRows.push({
+                    label: nfLabels[ni] || "Default from", value: nfv || "None", kind: "defpill", empty: !nfv,
+                    edit: (nfnm && nfNames[nfnm] === 1) ? { path: path, name: nfnm } : null
+                  });
+                }
+                resolve(nfRows); return;
+              }
               // Verify leaf-like: not a list (no search/results table)
               if (cell.querySelector('#searchTable, #resultsTable, input[name="searchString"]')) { resolve(null); return; }
               // Settings-source pages (Activation Code / STIR-SHAKEN) express the loaded policy as a
@@ -3352,7 +3483,9 @@
                 var inp = tds[1].querySelector("input, select, textarea");
                 var val = inp ? (inp.value || "") : (tds[1].textContent || "").trim();
                 if (!val) continue;
-                out.push({ label: label.replace(/:\s*$/, ""), value: val.slice(0, 80) });
+                // defpill (lavender value pill) — the console-wide glance style (user: make Profile match the
+                // CRP/email cards; the old plain-text .cp-leaf-val rendering predated the pill standard).
+                out.push({ label: label.replace(/:\s*$/, ""), value: val.slice(0, 80), kind: "defpill", empty: false });
               }
               resolve(out.length ? out : null);
             })
@@ -3390,10 +3523,47 @@
               v.innerHTML = (r.pill === "sys" ? CP_SVG_SRC_SYS : CP_SVG_SRC_RES);
               var vt = document.createElement("span"); vt.textContent = r.value; v.appendChild(vt);
             } else if (r.kind === "defpill") {
-              // Default-value pill (Call Recording Platforms): lavender = a value, dashed = None.
+              // Default-value pill: lavender = a value, dashed = None — plus hover actions: COPY on every
+              // non-empty pill, PENCIL (inline background edit) where the leaf supplied an edit recipe.
               v = document.createElement("span");
-              v.className = "cp-leaf-defpill" + (r.empty ? " cp-leaf-defpill-empty" : "");
-              v.textContent = r.value;
+              v.className = "cp-leaf-valwrap";
+              var pill = document.createElement("span");
+              pill.className = "cp-leaf-defpill" + (r.empty ? " cp-leaf-defpill-empty" : "");
+              pill.textContent = r.value;
+              v.appendChild(pill);
+              var acts = document.createElement("span");
+              acts.className = "cp-leaf-act";
+              (function (pillEl, actsEl, rr) {
+                if (!rr.empty || rr.edit) {
+                  var cb = document.createElement("button");
+                  cb.type = "button"; cb.className = "cp-leaf-actbtn"; cb.title = "Copy"; cb.setAttribute("aria-label", "Copy value");
+                  cb.innerHTML = CP_SVG_LEAF_COPY;
+                  cb.addEventListener("click", function (ev) {
+                    ev.stopPropagation(); ev.preventDefault();
+                    if (/^\s*None\s*$/.test(pillEl.textContent)) return;
+                    var wr = (navigator.clipboard && navigator.clipboard.writeText) ? navigator.clipboard.writeText(pillEl.textContent) : Promise.reject();
+                    wr.then(function () {
+                      cb.innerHTML = CP_SVG_LEAF_CHECK;
+                      setTimeout(function () { cb.innerHTML = CP_SVG_LEAF_COPY; }, 1200);
+                    }).catch(function () {});
+                  });
+                  actsEl.appendChild(cb);
+                }
+                if (rr.edit) {
+                  var eb = document.createElement("button");
+                  eb.type = "button"; eb.className = "cp-leaf-actbtn"; eb.title = "Edit"; eb.setAttribute("aria-label", "Edit value");
+                  eb.innerHTML = CP_SVG_LEAF_PENCIL;
+                  eb.addEventListener("click", function (ev) {
+                    ev.stopPropagation(); ev.preventDefault();
+                    cpLeafEdit(pillEl, actsEl, rr);
+                  });
+                  actsEl.appendChild(eb);
+                }
+              })(pill, acts, r);
+              // Icons sit LEFT of the pill: opacity-hidden elements still occupy layout, so trailing icons
+              // left a dead gap at the row's right edge (user report) — leading icons fill the natural gap
+              // between label and pill instead, and the pill stays flush right.
+              if (acts.childNodes.length) v.insertBefore(acts, pill);
             } else {
               v = document.createElement("span"); v.className = "cp-leaf-val"; v.textContent = r.value;
             }
