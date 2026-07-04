@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.295";
+  var CP_PJAX_VERSION = "0.2.298";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -106,6 +106,12 @@
   // "Add/index.jsp") would resolve to /Common/Add/index.jsp → 404. We resolve such relative navs against this
   // landing instead. Captured at search time (when location is still the real landing). See [[gotcha-relative-nav-after-search]].
   var cpSearchLanding = null;
+  // The LIST a form page (Add/Import/Modify) was OPENED from — recorded at form-open time in cpHook, when
+  // location is still the list. A form's action POSTs to the FORM endpoint but the server answers with the
+  // LIST screen (no redirect stub), stranding the address bar on the form URL: the grid's next search then
+  // POSTs to the form endpoint → 0 results forever (live: DeviceType Add 2026-07-03), and relative Add
+  // buttons double up. Used to re-anchor the canonical URL when a submit's response renders list content.
+  var cpFormOrigin = null;
   // The CURRENT entity id (e.g. a user id) for the breadcrumb's last pill. Captured from each pjax swap's
   // FETCHED doc (cpHook) because after the swap the live header keeps the PREVIOUS entity (it isn't swapped)
   // and the fresh content cell has none — so neither live source is reliable. null = no pjax swap yet this
@@ -627,7 +633,12 @@
         // row's redirectPost below; System-level read-only rows simply have none.
         if (!cells.length) {
           cells = [].map.call(tr.children, function (td) {
-            return td.tagName === "TD" ? (td.textContent || "").replace(/\s+/g, " ").trim() : "";
+            if (td.tagName !== "TD") return "";
+            var t = (td.textContent || "").replace(/\s+/g, " ").trim();
+            // Boolean columns (e.g. DeviceType "Is Obsolete") render a checkmark IMAGE with no text —
+            // same ✓ marker as the a.tableLink path above, or the flag silently drops from the grid.
+            if (!t && td.querySelector("img")) t = "✓";
+            return t;
           }).filter(function (t) { return t; });
         }
         if (!cells.length) return;
@@ -851,6 +862,7 @@
       if (/^device management (tag sets|regions)( (add|add tag|modify|modify tag))?$/.test(t)) t = "device management tag sets";
       if (/^identity\/device profile type (add|modify)$/.test(t)) t = "identity/device profile types";
       if (/^domains add$/.test(t)) t = "domains";
+      if (/^xsi policy profile usage$/.test(t)) t = "xsi policy profile";
       return CP_HDR_ICONS[t] || "";
     }
 
@@ -2763,6 +2775,14 @@
           // See [[gotcha-idle-connection-drop-dead-click]].
           var _submitNav = !!(params && (params.ok != null || params.apply != null || params.delete != null || params.cancel != null || params.buttonClicked != null));
           var _addForm = /\/Add\//.test(url);
+          // Remember the list a form is being OPENED from (location is still the list here, pre-swap).
+          // Only when the current page is NOT itself a form URL, so form→form chains (Modify → Add Tag)
+          // keep the ORIGINAL list as the return anchor. Consumed by the canonical re-anchor below.
+          try {
+            if (/\/(Add|Import|Modify)\//.test(url) && !/\/(Add|Import|Modify)\//.test(location.pathname)) {
+              cpFormOrigin = location.pathname;
+            }
+          } catch (e) {}
           // cpLastNav drives the F5 in-shell replay — never remember a SUBMIT (replaying it would re-submit the form);
           // an Add-form OPEN is fine to remember (F5 just re-opens it in-shell).
           try { if (!_submitNav) cpLastNav = { url: url, params: params || {} }; } catch (e) {}
@@ -3014,6 +3034,20 @@
               try {
                 if (/\/Admins\/(Add\/|Modify\/|modify\.jsp)/i.test(url) && liveCell && liveCell.querySelector && !liveCell.querySelector('input[name="password"]')) {
                   canonical = url.replace(/\/(Add|Modify)\/(index\.jsp)?$/i, "/").replace(/\/modify\.jsp$/i, "/");
+                }
+              } catch (e) {}
+              // GENERALIZED form-submit re-anchor (the Admins case above, for every form family): a submit
+              // (ok/apply/cancel/delete) POSTed to a form endpoint whose response renders the LIST screen
+              // (find-criteria selects present) re-anchors to the list the form was opened from — NOT a
+              // path-strip of the form URL, because the form can live under a different tree than its list
+              // (DeviceType list = /Reseller/DeviceType/ but its Add = /Operator/System/DeviceType/Add/).
+              try {
+                if (_submitNav && cpFormOrigin && canonical === url &&
+                    /\/(Add|Import|Modify)\//.test(url) &&
+                    liveCell && liveCell.querySelector &&
+                    liveCell.querySelector('select[name="findKey0"], #searchTable')) {
+                  canonical = cpFormOrigin;
+                  document.documentElement.setAttribute("data-cp-path", canonical);
                 }
               } catch (e) {}
               try {
@@ -3669,7 +3703,23 @@
         pill.className = isCur
           ? ((lastIsId || segIsId) ? "cp-bc-cur cp-bc-id" : "cp-bc-cur")
           : (segIsId ? "cp-bc-seg cp-bc-id" : "cp-bc-seg");
-        pill.textContent = seg;
+        // Quiet icons (Option A, 0.2.298): the CURRENT pill leads with its page icon (13px). Ancestors stay
+        // text-only. Id pills and un-iconed titles (level homes, deep pages) render exactly as before —
+        // no icon, no flex class. Icon before label; cpAttachCrumbDropdown appends the chevron after.
+        var curSvg = (isCur && !(lastIsId || segIsId) && typeof cpHeaderIcon === "function") ? cpHeaderIcon(seg) : "";
+        if (curSvg) {
+          pill.classList.add("cp-bc-cur-hasico");
+          var curIco = document.createElement("span");
+          curIco.className = "cp-bc-cur-ico";
+          curIco.setAttribute("aria-hidden", "true");
+          curIco.innerHTML = curSvg;
+          pill.appendChild(curIco);
+          var curLbl = document.createElement("span");
+          curLbl.textContent = seg;
+          pill.appendChild(curLbl);
+        } else {
+          pill.textContent = seg;
+        }
         if (isCur) {
           pill.setAttribute("aria-current", "page");
           // SUB-MENUS only: pages built by cpHook's restore (lists/leaf/settings) open this level's MEGA menu.
@@ -3821,7 +3871,25 @@
           var item = document.createElement("a");
           item.className = "cp-bc-dd-item" + (isCurItem ? " cp-bc-dd-cur" : "");
           item.setAttribute("role", "menuitem");
-          item.textContent = pg.name;
+          // Quiet icons (Option A, 0.2.298): each item carries its CP_HDR_ICONS glyph — muted at rest,
+          // lavender on hover/active (CSS); un-iconed pages get the dashed tracker placeholder, same rule
+          // as the console cards / sidebar sub-items. The two folder-titled "Profile" items (Call Center /
+          // Meet-Me) disambiguate by GROUP label, mirroring wrapMenuCards' R3/R4 console-folder split.
+          var iconTitle = pg.name;
+          if (/^profile$/i.test(pg.name) && g.label) {
+            if (/call center/i.test(g.label)) iconTitle = "call center profile";
+            else if (/meet-?me/i.test(g.label)) iconTitle = "meet-me profile";
+          }
+          var iSvg = (typeof cpHeaderIcon === "function") ? cpHeaderIcon(iconTitle) : "";
+          var ico = document.createElement("span");
+          ico.setAttribute("aria-hidden", "true");
+          ico.className = "cp-bc-dd-ico" + (iSvg ? "" : " cp-bc-dd-ico-todo");
+          if (iSvg) ico.innerHTML = iSvg;
+          item.appendChild(ico);
+          var lbl = document.createElement("span");
+          lbl.className = "cp-bc-dd-lbl";
+          lbl.textContent = pg.name;
+          item.appendChild(lbl);
           item.addEventListener("click", function (e) {
             e.preventDefault();
             cpCloseCrumbDropdown();

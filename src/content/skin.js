@@ -225,6 +225,7 @@ function cpMenuItemIcon(title) {
   if (/^device management device families (add|import|modify)$/.test(t)) t = "device management device families";  // Add/Import/Modify form → list icon (boxes)
   if (/^device management (tag sets|regions)( (add|add tag|modify|modify tag))?$/.test(t)) t = "device management tag sets";  // Tag Sets list/Modify + Add/Add Tag/Modify Tag + Regions Add → list icon (tags)
   if (/^domains add$/.test(t)) t = "domains";   // Add form → list icon (world-www)
+  if (/^xsi policy profile usage$/.test(t)) t = "xsi policy profile";   // row drill's Usage grid → list icon (api)
   return CP_ITEM_ICONS[t] || "";
 }
 
@@ -3001,6 +3002,36 @@ function cpBuildCrpRows(cell) {
   };
 }
 
+/* User "Alternate User IDs" form (reached by drilling a row on the reseller Alternate User IDs list, and
+ * from the user console's Profile card): N alt/desc text-input pairs (the server renders 4). One .cp-prof
+ * row per pair — the real ID + note inputs ride side-by-side in a hostport-style dual slot (both flex).
+ * Shape-keyed on input[name="alt1"]; single-card contract (rowsWrap, cell). */
+function cpBuildAltUserIdRows(rowsWrap, cell) {
+  var pairs = [];
+  for (var i = 1; i <= 20; i++) {
+    var a = cell.querySelector('input[name="alt' + i + '"]');
+    if (!a) break;
+    pairs.push({ n: i, alt: a, desc: cell.querySelector('input[name="desc' + i + '"]') });
+  }
+  if (!pairs.length) return null;
+  var controls = [];
+  function ctl(el) { if (el && controls.indexOf(el) < 0) controls.push(el); return el; }
+  var ord = ["Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth"];
+  pairs.forEach(function (p, idx) {
+    var slot = document.createElement("div"); slot.className = "cp-prof-hostport";
+    cpProfInput(ctl(p.alt)); p.alt.classList.add("cp-prof-host"); slot.appendChild(p.alt);
+    if (p.desc) {
+      var dl = document.createElement("span"); dl.className = "cp-prof-portlbl"; dl.textContent = "Note";
+      slot.appendChild(dl);
+      cpProfInput(ctl(p.desc)); p.desc.classList.add("cp-prof-desc"); slot.appendChild(p.desc);
+    }
+    var d = idx === 0 ? "An extra ID this user can sign in with, plus an optional note."
+                      : (ord[idx - 1] || "Another") + " alternate sign-in ID.";
+    cpProfRow(rowsWrap, "Alternate ID " + p.n, d, slot);
+  });
+  return { controls: controls };
+}
+
 /* Device Management Device Families ADD — one required field (device family name) in a single card. */
 function cpBuildDeviceFamilyAddRows(cell) {
   var nameI = cell.querySelector('input[name="deviceFamilyName"]');
@@ -3440,6 +3471,11 @@ function cpSettingsFormConfig(title, cell) {
   }
   if (/^Administrator (Modify|Add)/i.test(title) && cell.querySelector('input[name="echoPassword"]')) {
     return { label: "Administrator", icon: CP_ITEM_ICONS["administrators"], build: cpBuildAdminRows, deleteMsg: "and revokes their access to the console" };
+  }
+  // User-level Alternate User IDs form (the reseller list's row drill lands here). Shape-keyed on alt1 so
+  // the identically-titled reseller LIST page (guarded off above by the list check anyway) can never match.
+  if (/^Alternate User IDs$/i.test(title) && cell.querySelector('input[name="alt1"]')) {
+    return { label: "Alternate IDs", icon: CP_ITEM_ICONS["alternate user ids"] || CP_PROF_USER_SVG, build: cpBuildAltUserIdRows };
   }
   if (/Activation Code Device Onboarding/i.test(title) || cell.querySelector('input[name="allowActivationRequestByUser"]')) {
     return { label: "Onboarding policy", icon: CP_PROF_QR_SVG, build: cpBuildDapRows };

@@ -2300,6 +2300,19 @@ html.cp-console-active .cp-bc-pill .cp-bc-dd-chev {
 }
 html.cp-console-active .cp-bc-pill .cp-bc-dd-chev svg { width: 100% !important; height: 100% !important; display: block !important; }
 html.cp-console-active .cp-bc-pill .cp-bc-dd-open .cp-bc-dd-chev { transform: rotate(180deg) !important; }
+/* Quiet icons (Option A, 0.2.298): the current pill's page icon — 13px before the label. The pill goes
+   inline-flex only when it HAS an icon (.cp-bc-cur-hasico), so un-iconed pills render exactly as before;
+   the 5px gap matches .cp-bc-has-dd's icon→label→chevron spacing. */
+html.cp-console-active .cp-bc-pill .cp-bc-cur-hasico {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+html.cp-console-active .cp-bc-pill .cp-bc-cur-ico {
+  width: 13px !important; height: 13px !important;
+  display: inline-flex !important; flex: none !important;
+}
+html.cp-console-active .cp-bc-pill .cp-bc-cur-ico svg { width: 100% !important; height: 100% !important; display: block !important; }
 .cp-bc-dd {
   position: fixed !important;
   z-index: 99999 !important;
@@ -2323,14 +2336,15 @@ html.cp-console-active .cp-bc-pill .cp-bc-dd-open .cp-bc-dd-chev { transform: ro
 }
 .cp-bc-dd-item:hover { background: rgba(255, 255, 255, 0.06) !important; }
 .cp-bc-dd-cur { background: rgba(110, 76, 150, 0.26) !important; color: var(--cp-primary, #C6A8E8) !important; }
-/* MEGA variant (user sub-page switcher): all sub-pages grouped by folder, two columns, scrollable. */
+/* MEGA variant (user sub-page switcher): all sub-pages grouped by folder, two columns, scrollable.
+   Width bumped 430/460 → 460/500 for the Option-A icon column (16px glyph + 9px gap per item). */
 .cp-bc-dd-mega {
   display: grid !important;
   grid-template-columns: 1fr 1fr !important;
   gap: 2px 18px !important;
   align-content: start !important;
-  min-width: 430px !important;
-  max-width: 460px !important;
+  min-width: 460px !important;
+  max-width: 500px !important;
   max-height: 340px !important;
   overflow-y: auto !important;
 }
@@ -2350,6 +2364,25 @@ html.cp-console-active .cp-bc-pill .cp-bc-dd-open .cp-bc-dd-chev { transform: ro
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
+/* Quiet icons (Option A, 0.2.298) — every mega-menu item leads with its CP_HDR_ICONS glyph: muted at
+   rest, lavender on hover/active; un-iconed pages show the dashed tracker placeholder (the same
+   progress language as the console cards / sidebar sub-items). Ellipsis moves to the label span. */
+.cp-bc-dd-mega .cp-bc-dd-item { display: flex !important; align-items: center !important; gap: 9px !important; }
+.cp-bc-dd-ico {
+  width: 16px !important; height: 16px !important; flex: 0 0 16px !important;
+  display: inline-flex !important; align-items: center !important; justify-content: center !important;
+  color: #7e7c76 !important;
+}
+.cp-bc-dd-ico svg { width: 16px !important; height: 16px !important; display: block !important; }
+.cp-bc-dd-item:hover .cp-bc-dd-ico,
+.cp-bc-dd-cur .cp-bc-dd-ico { color: var(--cp-primary, #C6A8E8) !important; }
+.cp-bc-dd-ico.cp-bc-dd-ico-todo {
+  width: 13px !important; height: 13px !important; flex-basis: 13px !important;
+  margin: 0 1.5px !important;
+  border: 1px dashed var(--cp-outline, #3c3a37) !important;
+  border-radius: 4px !important;
+}
+.cp-bc-dd-lbl { min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
 html.cp-console-active .cp-bc-pill .cp-bc-sep {
   flex: none !important;
   color: #6f6a64 !important;
@@ -3376,6 +3409,8 @@ td.enduserbody:has(.cp-prof-card) {
 .cp-prof-input.cp-prof-host { flex: 1 1 auto !important; width: auto !important; min-width: 0 !important; }
 .cp-prof-portlbl { flex: 0 0 auto; color: var(--cp-text-muted); font-size: 13px; font-weight: 700; }
 .cp-prof-input.cp-prof-port { flex: 0 0 72px !important; width: 72px !important; }
+/* Equal-width SECOND input in a dual slot (Alternate User IDs' note field) — flexes like .cp-prof-host. */
+.cp-prof-input.cp-prof-desc { flex: 1 1 auto !important; width: auto !important; min-width: 0 !important; }
 .cp-prof-input.cp-prof-ta { height: auto !important; min-height: 66px !important; padding: 9px 12px !important; line-height: 1.4 !important; resize: vertical !important; }
 .cp-prof-row.cp-prof-tarow { align-items: start !important; }
 /* Add Tag — %-wrapped tag name: fixed % adornments flank a borderless input (the % are syntax, not editable). */
