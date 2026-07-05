@@ -133,8 +133,43 @@
     // back to the stored token = the previous behaviour exactly (NO REGRESSION). Bounded by a timeout so a hung
     // fetch can't strand recovery.
     var committed = false;
+    // Re-establish the ENTITY context before the final nav. The recovery lands on a session whose navigation
+    // target was reset (the GET that triggered recovery / the harvest bounce), so replaying an SP/Group/User-
+    // scoped nav alone answers "There is no target object to get viewable features" → 500s or a logout (live
+    // repro: F5 on an SP Schedules grid, 2026-07-04). nav.entry = the nav that last CHANGED the sidebar level
+    // (recorded by pjax): POST it in the background first and thread ITS fresh token into the final POST.
+    function cpEnterEntity(entry, tok) {
+      var body = [];
+      var p = entry.params || {};
+      for (var k in p) if (Object.prototype.hasOwnProperty.call(p, k)) body.push(encodeURIComponent(k) + "=" + encodeURIComponent(p[k]));
+      if (tok) body.push("formtokenserial=" + encodeURIComponent(tok));
+      return fetch(entry.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+        credentials: "same-origin",
+        redirect: "manual",
+        body: body.join("&")
+      }).then(function (r) {
+        if (r.type === "opaqueredirect" || r.status === 0 || r.status >= 300) return null;
+        return r.text();
+      }).then(function (html) {
+        if (!html) return null;
+        var doc = new DOMParser().parseFromString(cpStripInlineStyles(html), "text/html");
+        var t = doc.getElementsByName("formtokenserial")[0];
+        if (t && t.value) return t.value;
+        // A drill entry may answer with a redirect stub (context set + follow-on hop) — its token works too.
+        var stub = extractStub(doc);
+        return (stub && stub.token) ? stub.token : null;
+      }).catch(function () { return null; });
+    }
     function commit(tok, why) {
       if (committed) return; committed = true;
+      var entry = nav && nav.entry;
+      if (entry && entry.url && entry.url !== nav.url && !/^https?:\/\//i.test(entry.url)) {
+        cpDbg("[stubguard] recovery replay — " + why + " + entity re-entry first: " + entry.url);
+        cpEnterEntity(entry, tok).then(function (etok) { cpNativePost(nav, etok || tok); });
+        return;
+      }
       cpDbg("[stubguard] recovery replay — " + why);
       cpNativePost(nav, tok);
     }

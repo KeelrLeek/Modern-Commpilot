@@ -44,7 +44,8 @@ window.addEventListener("message", function (e) {
     if (e.source === window && e.data && e.data.__cpRecoverNav && chrome.storage) {
       var nav = e.data.__cpRecoverNav;
       // Strip any origin so the stored nav is a same-host PATH (defence against cross-host replay).
-      try { if (nav && typeof nav.url === "string") nav = { url: nav.url.replace(/^https?:\/\/[^\/]+/, ""), params: nav.params }; } catch (e2) {}
+      try { if (nav && typeof nav.url === "string") nav = { url: nav.url.replace(/^https?:\/\/[^\/]+/, ""), params: nav.params, entry: nav.entry || null }; } catch (e2) {}
+      try { if (nav && nav.entry && typeof nav.entry.url === "string") nav.entry = { url: nav.entry.url.replace(/^https?:\/\/[^\/]+/, ""), params: nav.entry.params }; } catch (e3) {}
       var o = {}; o[cpRecoverKey("cpRecoverNav")] = nav;
       chrome.storage.local.set(o);
     }
@@ -3282,11 +3283,28 @@ var CP_DEVICETYPE_CAPS = [
   ["supportCiscoCallerIdDispositionHeader", "Support Cisco Caller Id Disposition Header"],
   ["verstatInHistoryInfoOrDiversionHeader", "Verstat In History-Info or Diversion Header"]
 ];
+/* Banner bits for the Modify variant (Option C "banner strip", user-picked 2026-07-04): identity name +
+ * locked meta pills + the Obsolete toggle in a slim strip under the page header — no Profile card. */
+var CP_PROF_LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6z"/><path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0"/><path d="M8 11v-4a4 4 0 1 1 8 0v4"/></svg>';
+var CP_PROF_ROUTE2_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-9a3.5 3.5 0 0 1 0 -7h4.5"/></svg>';
+var CP_PROF_DL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>';
+function cpProfBannerPill(svg, text, title) {
+  var p = document.createElement("span"); p.className = "cp-prof-bpill";
+  if (title) p.title = title;
+  p.innerHTML = svg;
+  var t = document.createElement("span"); t.textContent = text; p.appendChild(t);
+  return p;
+}
 function cpBuildDeviceTypeAddRows(cell) {
   function R(n) { return Array.prototype.slice.call(cell.querySelectorAll('input[name="' + n + '"]')); }
   function C(n) { return cell.querySelector('[name="' + n + '"]'); }
   var nameI = C("deviceType");
-  if (!nameI || !cell.querySelector('input[name="deviceConfigOption"]')) return null;   // shape guard
+  var obI = C("isObsolete");
+  // TWO shapes, one builder: Add has the editable deviceType name input; Modify has NO name input but DOES
+  // have the isObsolete checkbox (name/signaling render as static text there). Both carry the
+  // deviceConfigOption radios (locked/disabled on Modify).
+  var isMod = !nameI && !!obI;
+  if ((!nameI && !obI) || !cell.querySelector('input[name="deviceConfigOption"]')) return null;   // shape guard
   cpProfDdEnsure();
 
   var controls = [], widgets = [], dimRules = [], cardVis = [];
@@ -3310,8 +3328,30 @@ function cpBuildDeviceTypeAddRows(cell) {
     cardVis.forEach(function (cv) { cv.card.style.display = cv.fn() ? "" : "none"; });
   }
 
-  // ---- Profile ----
-  var pc = cpProfCard("Profile", CP_PROF_USER_SVG);
+  // ---- Profile (Add) / identity banner (Modify) ----
+  var dco = R("deviceConfigOption");
+  var pc = null, bn = null;
+  if (isMod) {
+    // Option C banner: name + locked signaling/config pills + the Obsolete toggle. The name and signaling
+    // type are STATIC text on Modify — parse them out of the flattened header text.
+    var flat = (cell.textContent || "").replace(/\s+/g, " ");
+    var nmM = /Identity\/Device Profile Type:\s*(.*?)\s*Signaling Address Type:/.exec(flat);
+    var sgM = /Signaling Address Type:\s*(.*?)\s*Obsolete/.exec(flat);
+    bn = document.createElement("div"); bn.className = "cp-prof-banner";
+    var bname = document.createElement("span"); bname.className = "cp-prof-bname";
+    bname.textContent = nmM ? nmM[1] : "Identity/Device profile type";
+    bn.appendChild(bname);
+    if (sgM) bn.appendChild(cpProfBannerPill(CP_PROF_ROUTE2_SVG, sgM[1], "Signaling address type — set at creation"));
+    var modeLbl = (dco[1] && dco[1].checked) ? "Device Management" : (dco[2] && dco[2].checked) ? "Legacy configuration" : "No device configuration";
+    bn.appendChild(cpProfBannerPill(CP_PROF_LOCK_SVG, modeLbl, "Configuration source — locked at creation"));
+    var bsp = document.createElement("span"); bsp.className = "cp-prof-bspace"; bn.appendChild(bsp);
+    var bobs = document.createElement("span"); bobs.className = "cp-prof-bobs";
+    bobs.title = "Hide this type from new device creation.";
+    var bol = document.createElement("span"); bol.textContent = "Obsolete"; bobs.appendChild(bol);
+    ctl(obI); bobs.appendChild(reg(cpProfToggleEl(obI, sync)));
+    bn.appendChild(bobs);
+  } else {
+  var pcC = cpProfCard("Profile", CP_PROF_USER_SVG); pc = pcC;
   var resId = "";
   Array.prototype.forEach.call(cell.querySelectorAll("td"), function (td) {
     if (resId) return;
@@ -3327,6 +3367,7 @@ function cpBuildDeviceTypeAddRows(cell) {
   var dtRow = cpProfRow(pc.rows, "Identity/Device profile type", "A unique name for this profile type.", cpProfInput(ctl(nameI)));
   var dk = dtRow.querySelector(".cp-prof-k"); if (dk) dk.innerHTML = '<span class="cp-prof-req">*</span> Identity/Device profile type';
   inputRow(pc.rows, "signalingAddressType", "Signaling address type", "How the device's lines and ports are addressed.");
+  }
 
   // ---- Standard options ----
   var sc = cpProfCard("Standard options", CP_PROF_ADJ_SVG);
@@ -3382,18 +3423,25 @@ function cpBuildDeviceTypeAddRows(cell) {
   ddRow(gc.rows, "unscreenedPresentationIdentityPolicy", ["Profile Presentation Identity", "Unscreened Presentation Identity", "Unscreened Presentation Identity With Profile Domain"], "Unscreened presentation identity policy", "Identity used for unscreened calls.");
   inputRow(gc.rows, "configurationURL", "Web based configuration URL extension", "Appended to the device's web-config URL.");
 
-  // ---- Device configuration (master toggle + conditional sub-cards) ----
-  var dcc = cpProfCard("Device configuration", CP_PROF_SERVER_SVG);
-  var dco = R("deviceConfigOption");
+  // ---- Device configuration (master toggle + conditional sub-cards) — Add only: the mode is LOCKED on
+  // Modify (server disables the radios) and lives in the banner's lock pill instead of a one-row card. ----
+  var dcc = null;
+  if (!isMod) {
+  dcc = cpProfCard("Device configuration", CP_PROF_SERVER_SVG);
   ctlAll(dco);
   crow(dcc.rows, "Configuration source", "Whether the device is managed via tag sets or a configuration server.", cpProfSeg(dco, ["Not supported", "Device Management", "Legacy"], null, sync));
   var dcNote = document.createElement("div"); dcNote.className = "cp-prof-confignote";
   dcNote.innerHTML = CP_PROF_INFO_SVG + '<span>No device configuration. Choose <b>Device Management</b> or <b>Legacy</b> to manage the device via tag sets or a config server.</span>';
   dcc.rows.appendChild(dcNote);
   reg({ _sync: function () { dcNote.style.display = (dco[0] && dco[0].checked) ? "" : "none"; } });
+  }
 
-  // ---- Device Management sub-card ----
-  var dmc = cpProfCard("Device Management", CP_PROF_SERVER_SVG);
+  // ---- Device Management sub-card ---- (on Modify the server renders this fieldset ONLY for a
+  // Device-Management-mode type — gate on its master select so a notSupported/Legacy type doesn't get an
+  // empty husk of subheads)
+  var dmc = null;
+  if (!isMod || C("deviceConfiguration")) {
+  dmc = cpProfCard("Device Management", CP_PROF_SERVER_SVG);
   subhead(dmc.rows, "Tag sets");
   ddRow(dmc.rows, "deviceConfiguration", ["No Tag Sets", "Use Default System Tag Set Only", "Use Default System Tag Set and Custom"], "Device configuration tag sets", "Which tag sets the device's configuration uses.");
   inputRow(dmc.rows, "tagSet", "Custom tag set", "Reseller tag set applied to this device type.");
@@ -3422,10 +3470,14 @@ function cpBuildDeviceTypeAddRows(cell) {
   inputRow(dmc.rows, "autoLinkingDeviceType", "Device type used for automatic linking", "Profile type to auto-link discovered devices to.");
   inputRow(dmc.rows, "autoCreate", "Device profiles auto creation", "Auto-create profiles at this level.");
   ddRow(dmc.rows, "deviceAccessSupportLinks", ["Not supported", "Support link to device", "Support link to device and user", "Support links from devices"], "Support links", "Web-config support links exposed to the device.");
-  cardVis.push({ card: dmc.card, fn: function () { return !!(dco[1] && dco[1].checked); } });
+  if (!isMod) cardVis.push({ card: dmc.card, fn: function () { return !!(dco[1] && dco[1].checked); } });
+  }
 
-  // ---- Legacy configuration sub-card ----
-  var lgc = cpProfCard("Legacy configuration", CP_PROF_TAG_SVG);
+  // ---- Legacy configuration sub-card ---- (Modify: gated the same way — the notSupported type's legacy
+  // fieldset holds only hidden state carriers, no legacyConfigType radios)
+  var lgc = null;
+  if (!isMod || R("legacyConfigType").length) {
+  lgc = cpProfCard("Legacy configuration", CP_PROF_TAG_SVG);
   segRow(lgc.rows, "legacyConfigType", ["2 config file", "3 config file"], "Legacy configuration type", "Number of configuration files generated.");
   subhead(lgc.rows, "Tag sets");
   ddRow(lgc.rows, "deviceConfigurationLegacy", ["No Tag Sets", "Use Default System Tag Set Only", "Use Default System Tag Set and Custom"], "Device configuration tag sets", "Which tag sets the legacy configuration uses.");
@@ -3444,9 +3496,32 @@ function cpBuildDeviceTypeAddRows(cell) {
   segRow(lgc.rows, "deviceAccessHttpLegacy", ["Basic", "Digest"], "Device access HTTP authentication", "Auth scheme for the configuration fetch.");
   toggleRow(lgc.rows, "macBasedAuthenticationLegacy", "Authentication mode · MAC-based", "Allow MAC-based device authentication.");
   toggleRow(lgc.rows, "usernamePasswordAuthenticationLegacy", "Authentication mode · Username & password", "Allow username/password device authentication.");
-  cardVis.push({ card: lgc.card, fn: function () { return !!(dco[2] && dco[2].checked); } });
+  if (!isMod) cardVis.push({ card: lgc.card, fn: function () { return !!(dco[2] && dco[2].checked); } });
+  }
 
-  return { cards: [pc.card, sc.card, cc.card, gc.card, dcc.card, dmc.card, lgc.card], controls: controls, sync: sync, globalActions: true };
+  var cards = [isMod ? bn : pc.card, sc.card, cc.card, gc.card];
+  if (dcc) cards.push(dcc.card);
+  if (dmc) cards.push(dmc.card);
+  if (lgc) cards.push(lgc.card);
+  return { cards: cards, controls: controls, sync: sync, globalActions: true };
+}
+
+/* SP Schedules Add — the modal-Add pilot (a 2-row form: name + Holiday/Time type). Single-card contract,
+ * so it works BOTH inside the center modal and as the full-page fallback. */
+var CP_PROF_CAL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/><path d="M11 15h1"/><path d="M12 15v3"/></svg>';
+function cpBuildScheduleAddRows(rows, cell) {
+  var nameI = cell.querySelector('input[name="scheduleName"]');
+  var rads = Array.prototype.slice.call(cell.querySelectorAll('input[name="scheduleType"]'));
+  if (!nameI || !rads.length) return null;
+  var controls = [nameI], widgets = [];
+  function sync() { widgets.forEach(function (w) { w._sync(); }); }
+  var nRow = cpProfRow(rows, "Schedule name", "A unique name for this schedule.", cpProfInput(nameI));
+  var nk = nRow.querySelector(".cp-prof-k"); if (nk) nk.innerHTML = '<span class="cp-prof-req">*</span> Schedule name';
+  rads.forEach(function (r) { controls.push(r); });
+  var seg = cpProfSeg(rads, ["Holiday", "Time"], null, sync);
+  widgets.push(seg);
+  cpProfRow(rows, "Schedule type", "Time schedules define recurring hours; holiday schedules mark days off.", seg);
+  return { controls: controls, sync: sync };
 }
 
 /* Page config — picks the row builder (+ card-header label/icon for single-card pages).
@@ -3508,10 +3583,19 @@ function cpSettingsFormConfig(title, cell) {
   if (/^Domains Add$/i.test(title) || (/domain/i.test(title) && cell.querySelector('input[name="domain"]'))) {
     return { label: "New domain", icon: CP_ITEM_ICONS["domains"], build: cpBuildDomainAddRows, okLabel: "Add" };
   }
+  // SP Schedules Add (the modal-Add pilot) — shape-keyed on the scheduleName input.
+  if (/^Schedule Add$/i.test(title) || cell.querySelector('input[name="scheduleName"]')) {
+    return { label: "New schedule", icon: CP_PROF_CAL_SVG, build: cpBuildScheduleAddRows, okLabel: "Add" };
+  }
   // Identity/Device Profile Type Add — big device-type form (deviceType name + the deviceConfigOption master).
-  // Builder is Add-scoped; the shape pair only exists on the Add page (Modify shows the name read-only).
   if (/Identity\/Device Profile Type Add/i.test(title) || (cell.querySelector('input[name="deviceType"]') && cell.querySelector('input[name="deviceConfigOption"]'))) {
     return { multiCard: true, build: cpBuildDeviceTypeAddRows, okLabel: "Add" };
+  }
+  // Identity/Device Profile Type Modify — SAME builder in its Modify mode (no deviceType input there;
+  // shape = isObsolete checkbox + the locked deviceConfigOption radios; name/signaling are static text
+  // rendered as the Option C identity banner).
+  if (/Identity\/Device Profile Type Modify/i.test(title) || (cell.querySelector('input[name="isObsolete"]') && cell.querySelector('input[name="deviceConfigOption"]'))) {
+    return { multiCard: true, build: cpBuildDeviceTypeAddRows, okLabel: "Save" };
   }
   return null;
 }
@@ -3578,6 +3662,10 @@ function cpProfileForm() {
       b.addEventListener("click", function () { real.click(); });
       actions.appendChild(b);
     }
+    // Export (e.g. Identity/Device Profile Type Modify) — forwards the real button's click; pjax's
+    // capture-phase exportComponent takeover turns it into a blob download ([[gotcha-export-blob-download]]).
+    var realExport = lastBtn("export");
+    if (realExport) addBtn(realExport, "Export", "cp-prof-secondary", CP_PROF_DL_SVG, false);
     addBtn(realOk, cfg.okLabel || "Save", "cp-prof-primary", CP_PROF_CHECK_SVG, true);
     addBtn(realApply, "Apply", "cp-prof-secondary", "", true);
     addBtn(realCancel, "Cancel", "cp-prof-ghost", "", false);
@@ -3630,6 +3718,74 @@ function cpProfileForm() {
     console.warn("[CommPilot Skin] cpProfileForm:", e);
   }
 }
+
+/* Center-modal Add (Option A, user-picked 2026-07-04) — dresses the raw Add form pjax fetched into
+ * .cp-modal-body (hidden by CSS): same cpSettingsFormConfig dispatch as the full page, single-card contract,
+ * but the action bar submits via a BACKGROUND post (cp:modalsubmit → pjax) instead of forwarding the page
+ * buttons, and Cancel/✕ just close (cp:modalcancel). cp:modalform-fail tells pjax to fall back to the normal
+ * page navigation when this form has no config (or a multiCard one — those stay full-page). */
+var CP_MODAL_X_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg>';
+function cpModalFormSkin() {
+  try {
+    var back = document.querySelector(".cp-modal-back");
+    var card = back && back.querySelector(".cp-modal");
+    var body = back && back.querySelector(".cp-modal-body");
+    if (!card || !body || card.querySelector(".cp-prof-rows")) return;
+    var snEl = body.querySelector("td.screenName");
+    var title = snEl ? (snEl.textContent || "").trim() : "";
+    var cfg = cpSettingsFormConfig(title, body);
+    if (!cfg || cfg.multiCard || !cfg.build) { document.dispatchEvent(new CustomEvent("cp:modalform-fail")); return; }
+
+    var head = document.createElement("div"); head.className = "cp-modal-head";
+    var hIco = document.createElement("span"); hIco.className = "cp-modal-headico"; hIco.innerHTML = cfg.icon || "";
+    var hTxt = document.createElement("span"); hTxt.textContent = title || cfg.label || "Add";
+    var hX = document.createElement("button"); hX.type = "button"; hX.className = "cp-modal-x";
+    hX.setAttribute("aria-label", "Close"); hX.innerHTML = CP_MODAL_X_SVG;
+    head.appendChild(hIco); head.appendChild(hTxt); head.appendChild(hX);
+
+    var rowsWrap = document.createElement("div"); rowsWrap.className = "cp-prof-rows cp-modal-rows";
+    var res = cfg.build(rowsWrap, body);
+    if (!res) { head.remove(); document.dispatchEvent(new CustomEvent("cp:modalform-fail")); return; }
+
+    var err = document.createElement("div"); err.className = "cp-modal-err";
+    var foot = document.createElement("div"); foot.className = "cp-modal-foot";
+    var cancelB = document.createElement("button"); cancelB.type = "button"; cancelB.className = "cp-prof-btn cp-prof-ghost";
+    cancelB.innerHTML = "<span>Cancel</span>";
+    var okB = document.createElement("button"); okB.type = "button"; okB.className = "cp-prof-btn cp-prof-primary";
+    okB.innerHTML = CP_PROF_CHECK_SVG + "<span>" + (cfg.okLabel || "Add") + "</span>";
+    foot.appendChild(cancelB); foot.appendChild(okB);
+
+    function closeEv() { document.dispatchEvent(new CustomEvent("cp:modalcancel")); }
+    hX.addEventListener("click", closeEv);
+    cancelB.addEventListener("click", closeEv);
+    okB.addEventListener("click", function () {
+      if (card.classList.contains("cp-modal-busy")) return;
+      card.classList.add("cp-modal-busy");
+      err.classList.remove("on");
+      document.dispatchEvent(new CustomEvent("cp:modalsubmit"));
+    });
+
+    card.insertBefore(head, body);
+    card.appendChild(rowsWrap);
+    card.appendChild(err);
+    card.appendChild(foot);
+    if (res.sync) res.sync();
+    var firstIn = rowsWrap.querySelector("input[type='text'], input:not([type]), select, textarea");
+    if (firstIn) { try { firstIn.focus(); } catch (e) {} }
+  } catch (e) {
+    console.warn("[CommPilot Skin] cpModalFormSkin:", e);
+    document.dispatchEvent(new CustomEvent("cp:modalform-fail"));
+  }
+}
+document.addEventListener("cp:modalform", cpModalFormSkin);
+document.addEventListener("cp:modalerror", function () {
+  var back = document.querySelector(".cp-modal-back");
+  if (!back) return;
+  var card = back.querySelector(".cp-modal");
+  if (card) card.classList.remove("cp-modal-busy");
+  var err = back.querySelector(".cp-modal-err");
+  if (err) { err.textContent = back.getAttribute("data-cp-err") || "Something went wrong — try again."; err.classList.add("on"); }
+});
 
 /*
  * BroadWorks "temporarily unavailable" ERROR page → give OK a real escape (no loop).

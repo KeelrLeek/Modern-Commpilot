@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.298";
+  var CP_PJAX_VERSION = "0.2.307";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -112,6 +112,15 @@
   // POSTs to the form endpoint → 0 results forever (live: DeviceType Add 2026-07-03), and relative Add
   // buttons double up. Used to re-anchor the canonical URL when a submit's response renders list content.
   var cpFormOrigin = null;
+  // The nav that last CHANGED the sidebar level (a res→SP/Group/User drill or an exit back up) — i.e. the
+  // request that established the server's CURRENT target context. Persisted with cp-last-nav so recovery
+  // paths can re-enter the entity before replaying an entity-scoped page: a recovery replay alone lands on
+  // a context-reset session → "There is no target object to get viewable features" → 500s/logout (live
+  // repro: F5 on an SP Schedules grid, 2026-07-04).
+  var cpEntityEntry = null;
+  // One-shot follow-up nav consumed after the NEXT successful swap — lets a caller chain "enter the entity,
+  // THEN open the page" through pjax (auto-return after login uses it; see cpEntityEntry).
+  var cpPendingNav = null;
   // The CURRENT entity id (e.g. a user id) for the breadcrumb's last pill. Captured from each pjax swap's
   // FETCHED doc (cpHook) because after the swap the live header keeps the PREVIOUS entity (it isn't swapped)
   // and the fresh content cell has none — so neither live source is reliable. null = no pjax swap yet this
@@ -326,7 +335,11 @@
           // cpFollow in-shell (server still validates; blank submit → "Failed to add"). Cancel is type=button,
           // DCL-wired → won't survive the swap → routed to the /Reseller list by the Cancel click handler below.
           // Scoped to DeviceType so it can't disturb the committed Tag Sets forms in the same Operator/System scope.
-          /\/commpilot\/Operator\/System\/DeviceType\/Add\/(index\.jsp)?$/.test(u))
+          /\/commpilot\/Operator\/System\/DeviceType\/Add\/(index\.jsp)?$/.test(u) ||
+          // The DeviceType MODIFY form (the Modify/ mini console's "Profile" item). Unlisted → that click
+          // native-navigated (full reload, observed 2026-07-04) and the OK/Apply/Delete self-POST would fall
+          // through the submit interceptor the same way the Add form's did.
+          /\/commpilot\/Operator\/System\/DeviceType\/Profile\/(index\.jsp)?$/.test(u))
       );
     }
 
@@ -1190,6 +1203,117 @@
           .catch(function (err) { console.warn("[pjax] export failed:", err); });
       } catch (e) { console.warn("[pjax] cpExportComponent:", e); }
     }
+    // FORM-page Export (e.g. Identity/Device Profile Type Modify): same exportComponent wiring as the grid
+    // Export action, but the button sits in a settings form's button bar (skin.js forward-clicks the real
+    // input). The legacy handler both dies after an in-shell swap (exportComponent undefined) AND, on a full
+    // load, navigates location.href to a /commpilot/ proxy GET our DNR recovery redirect eats — so intercept
+    // at document CAPTURE (fires before the element's own listener), stop the event, and run the blob path.
+    // Non-exportComponent export buttons fall through untouched. [[gotcha-export-blob-download]]
+    document.addEventListener("click", function (ev) {
+      try {
+        var b = ev.target && ev.target.closest ? ev.target.closest('input[name="export"]') : null;
+        if (!b) return;
+        var tgt = cpGridExportTarget(b);
+        if (!tgt) return;
+        ev.preventDefault(); ev.stopImmediatePropagation();
+        cpExportComponent(tgt.component, tgt.contextPath, tgt.pagePath, tgt.tokenName);
+      } catch (e) {}
+    }, true);
+    // ---- Center-modal Add (Option A, user-picked 2026-07-04). pjax owns the HOST: fetch the Add form in
+    // the background (token threaded, same engine as cpLeafSave), mount its raw markup (kept hidden by CSS)
+    // inside the modal, let skin.js dress it (cp:modalform → cp-prof rows + Add/Cancel), background-POST on
+    // cp:modalsubmit, close + refresh the grid in place on success, surface the server's message on failure.
+    // skin.js answers cp:modalform-fail when it has no config for the fetched form → fall back to the normal
+    // page navigation, so un-skinned Add forms keep working. Pilot: SP Schedules Add.
+    var cpModalEl = null, cpModalCtx = null;
+    function cpModalClose() {
+      document.removeEventListener("keydown", cpModalKey, true);
+      if (cpModalEl) { try { cpModalEl.remove(); } catch (e) {} }
+      cpModalEl = null; cpModalCtx = null;
+    }
+    function cpModalKey(e) { if (e.key === "Escape") { e.stopPropagation(); cpModalClose(); } }
+    function cpModalTokenSync(doc) {
+      var nt = doc && doc.getElementsByName("formtokenserial")[0];
+      if (nt) { var ts = document.getElementsByName("formtokenserial"); for (var i = 0; i < ts.length; i++) ts[i].value = nt.value; }
+    }
+    function cpModalAdd(state, url, params) {
+      if (cpModalEl) return;
+      cpModalCtx = { url: url, params: params || {}, state: state,
+                     listUrl: document.documentElement.getAttribute("data-cp-path") || location.pathname };
+      cpModalEl = document.createElement("div");
+      cpModalEl.className = "cp-modal-back";
+      var card = document.createElement("div"); card.className = "cp-modal";
+      var load = document.createElement("div"); load.className = "cp-modal-load"; load.textContent = "Loading…";
+      var body = document.createElement("div"); body.className = "cp-modal-body";
+      card.appendChild(load); card.appendChild(body);
+      cpModalEl.appendChild(card);
+      cpModalEl.addEventListener("mousedown", function (e) { if (e.target === cpModalEl) cpModalClose(); });
+      document.addEventListener("keydown", cpModalKey, true);
+      document.body.appendChild(cpModalEl);
+      var tokEl = document.getElementsByName("formtokenserial")[0];
+      cpFollow(url, params || {}, tokEl ? tokEl.value : null, 0).then(function (res) {
+        if (!cpModalEl) return;   // user closed while loading
+        if (!res || res.auth === false || res.err || !res.doc) { cpModalClose(); cpHook(url, params || {}); return; }
+        cpModalTokenSync(res.doc);
+        var cell = res.doc.querySelector("td.enduserbody") || res.doc.querySelector('td[width="82%"]');
+        if (!cell) { cpModalClose(); cpHook(url, params || {}); return; }
+        body.innerHTML = cell.innerHTML;
+        try { load.remove(); } catch (e) {}
+        document.dispatchEvent(new CustomEvent("cp:modalform"));
+      }).catch(function () { cpModalClose(); });
+    }
+    document.addEventListener("cp:modalcancel", cpModalClose);
+    document.addEventListener("cp:modalform-fail", function () {
+      if (!cpModalCtx) return;
+      var u = cpModalCtx.url, p = cpModalCtx.params;
+      cpModalClose();
+      cpHook(u, p);
+    });
+    document.addEventListener("cp:modalsubmit", function () {
+      if (!cpModalEl || !cpModalCtx) return;
+      // Serialize from the MODAL ROOT: the skinner MOVES text inputs/selects into its rows while the
+      // forward-clicked radios/checkboxes stay in the hidden raw body — both live under cpModalEl.
+      var params = {};
+      [].forEach.call(cpModalEl.querySelectorAll("input, select, textarea"), function (el) {
+        if (!el.name || el.name === "formtokenserial") return;
+        var t = (el.type || "").toLowerCase();
+        if (t === "submit" || t === "button" || t === "image") return;
+        if ((t === "checkbox" || t === "radio") && !el.checked) return;
+        params[el.name] = el.value || "";
+      });
+      var okEl = cpModalEl.querySelector('input[name="ok"]');
+      params.ok = okEl ? (okEl.value || "OK") : "OK";
+      var tokEl = document.getElementsByName("formtokenserial")[0];
+      cpFollow(cpModalCtx.url, params, tokEl ? tokEl.value : null, 0).then(function (res) {
+        if (!cpModalEl) return;
+        var doc = res && res.doc;
+        if (doc) cpModalTokenSync(doc);
+        // Success ⇒ the server did NOT re-render the same form (a good add answers with the list/stub; a
+        // validation failure re-renders the form — with its ok submit — plus an inline message).
+        var cell = doc && (doc.querySelector("td.enduserbody") || doc.querySelector('td[width="82%"]'));
+        var formAgain = cell && cell.querySelector('input[name="ok"]');
+        var failed = !!(res && res.err) || (res && res.auth === false) || !doc || !!formAgain;
+        if (!failed) {
+          // Re-ENTER the list rather than re-running the search: BroadWorks keeps a session-scoped result
+          // model built at list ENTRY, and find/findAll serve THAT — after a background add even Find All
+          // returns the stale model until the list is re-entered (user repro: test/test2 schedules absent
+          // until leaving + returning). The legacy flow never showed this because OK's response is itself
+          // a fresh list entry — mirror it with a bare in-shell re-entry of the list page.
+          var lu = cpModalCtx.listUrl;
+          cpModalClose();
+          try { if (lu) cpHook(lu, {}); } catch (e) {}
+          return;
+        }
+        var msg = "The server didn't accept that — check the fields and try again.";
+        try {
+          var mtx = (cell ? cell.textContent : "").replace(/\s+/g, " ");
+          var em = /Error\s*\d+[^.!]*[.!]?/.exec(mtx);
+          if (em) msg = em[0].trim();
+        } catch (e) {}
+        cpModalEl.setAttribute("data-cp-err", msg);
+        document.dispatchEvent(new CustomEvent("cp:modalerror"));
+      });
+    });
     function cpGridBuildActions(state) {
       var host = state.wrap.querySelector(".cp-srch-actions");
       if (!host) return;
@@ -1206,7 +1330,14 @@
           // Prefer the extracted target (reliable in-shell). The relative url is resolved by cpHook at click time
           // (against the list landing / cpSearchLanding). Export downloads via blob. Fall back to forwarding the
           // real click for any button whose handler isn't a redirectPost (e.g. a true submit).
-          if (tgt && typeof window.redirectPost === "function") window.redirectPost(tgt.url, tgt.params);
+          // Add actions open the CENTER MODAL instead of navigating (skin falls back to nav when it can't
+          // skin the fetched form). Import stays a page (file upload needs a native submit).
+          if (tgt && /(^|\/)Add\/(index\.jsp)?$/.test(tgt.url)) {
+            var mu = tgt.url.charAt(0) === "/" ? tgt.url
+              : ((cpSearchLanding || location.pathname).replace(/[^/]*$/, "") + tgt.url);
+            cpModalAdd(state, mu, tgt.params);
+          }
+          else if (tgt && typeof window.redirectPost === "function") window.redirectPost(tgt.url, tgt.params);
           else if (exp) cpExportComponent(exp.component, exp.contextPath, exp.pagePath, exp.tokenName);
           else { try { a.el.click(); } catch (e) {} }
         });
@@ -1585,6 +1716,7 @@
     // Unified load: skeleton → preload-all (criteria or null=all) → render grid, or the minimal no-match
     // state, or fall back to the legacy table on a transport failure (never strand the user).
     function cpGridLoad(state, criteria) {
+      state._lastCrit = criteria;   // remembered so the modal-Add success path can refresh the same search
       cpGridStopRiffle(state);   // stop any in-flight riffle / decelerating scroll
       if (state._searchAbort) { try { state._searchAbort.abort(); } catch (e) {} }   // cancel a prior in-flight search
       if (state._sweepAbort) { try { state._sweepAbort.abort(); } catch (e) {} state._sweepAbort = null; }   // and any deep sweep
@@ -2790,7 +2922,7 @@
           try { if (/\/ServiceProviders\/Modify\//.test(url)) cpSpEntry = { url: url, params: params || {} }; } catch (e) {}
           // Persisted browser-reload recover-nav (stubguard cold-POST-replays this). Exclude form submits + Add opens
           // (and page.jsp/sort.jsp) so recovery falls back to the last LIST/console nav, which replays cleanly.
-          try { if (url.indexOf("/Common/page.jsp") === -1 && url.indexOf("/Common/sort.jsp") === -1 && !_submitNav && !_addForm) { var _nav = { url: url, params: params || {} }; sessionStorage.setItem("cp-last-nav", JSON.stringify(_nav)); window.postMessage({ __cpRecoverNav: _nav }, location.origin); } } catch (e) {}
+          try { if (url.indexOf("/Common/page.jsp") === -1 && url.indexOf("/Common/sort.jsp") === -1 && !_submitNav && !_addForm) { var _nav = { url: url, params: params || {}, entry: (cpEntityEntry && cpEntityEntry.url !== url) ? cpEntityEntry : null }; sessionStorage.setItem("cp-last-nav", JSON.stringify(_nav)); window.postMessage({ __cpRecoverNav: _nav }, location.origin); } } catch (e) {}
           var liveTokEl = document.getElementsByName("formtokenserial")[0];
           var firstTok = liveTokEl ? liveTokEl.value : null;
           var cpLoader = cpNeedsFrame(url, params) ? cpFollowFrame : cpFollow;
@@ -2886,6 +3018,37 @@
                 console.warn("[pjax] content cell not found", !!fetched, !!liveCell);
                 return;
               }
+              // Single-item drill-in SKIP (user request 2026-07-04): the DeviceType row drill lands on a
+              // one-card mini menu (RESELLER → <type> → "Profile") whose only item forwards to the Modify
+              // form — pure friction. Detect it in the FETCHED doc BEFORE painting and forward straight to
+              // the form: no flash, no sidebar swap, no history entry for the menu (Back = the list).
+              // v0.2.302 did this POST-swap via cpGridActionTarget, whose relative target resolved against
+              // the LIST landing → POSTed /Reseller/DeviceType/Profile/… → HTTP 500s (user report). The
+              // target is now extracted from the fetched doc's own wiring and resolved against the KNOWN
+              // Operator/System/DeviceType/ base this drill lives under.
+              try {
+                if (/\/DeviceType\/Modify\/(index\.jsp)?$/.test(url)) {
+                  var _ml = fetched.querySelectorAll('a[id^="link_"]');
+                  if (_ml.length === 1 && _ml[0].id) {
+                    var _msrc = "";
+                    var _mss = doc.querySelectorAll("script");
+                    for (var _mi = 0; _mi < _mss.length; _mi++) _msrc += (_mss[_mi].textContent || "") + "\n";
+                    var _mj = _msrc.indexOf(_ml[0].id);
+                    var _mm = _mj >= 0 ? /redirectPost\s*\(\s*['"]([^'"]+)['"]\s*,\s*(\{[\s\S]*?\})\s*\)/.exec(_msrc.slice(_mj, _mj + 400)) : null;
+                    if (_mm) {
+                      var _mu = _mm[1].replace(/\\u002F/g, "/");
+                      if (_mu.charAt(0) !== "/") _mu = "/commpilot/Operator/System/DeviceType/" + _mu;
+                      if (_mu.indexOf("/DeviceType/Profile/") !== -1) {
+                        var _mp = {}, _mre = /(\w+)\s*:\s*['"]([^'"]*)['"]/g, _mkv;
+                        while ((_mkv = _mre.exec(_mm[2]))) _mp[_mkv[1]] = _mkv[2].replace(/\\u003E/g, ">").replace(/\\u0025/g, "%").replace(/\\u002F/g, "/");
+                        cpDbg("[pjax] single-item drill skip ->", _mu);
+                        cpHook(_mu, _mp);
+                        return;
+                      }
+                    }
+                  }
+                }
+              } catch (e) {}
               liveCell.innerHTML = fetched.innerHTML;
 
               // Level change → swap the sidebar too. pjax normally KEEPS the sidebar and only syncs the
@@ -2906,6 +3069,7 @@
                   cpAggEnd();
                   liveNav.innerHTML = fNav.innerHTML;
                   cpLiveNav = liveNav;
+                  cpEntityEntry = { url: url, params: params || {} };   // this nav set the server's target context
                 }
               } catch (e) { console.warn("[pjax] sidebar swap", e); cpLiveNav = null; }
 
@@ -3043,7 +3207,7 @@
               // (DeviceType list = /Reseller/DeviceType/ but its Add = /Operator/System/DeviceType/Add/).
               try {
                 if (_submitNav && cpFormOrigin && canonical === url &&
-                    /\/(Add|Import|Modify)\//.test(url) &&
+                    (/\/(Add|Import|Modify)\//.test(url) || /\/Operator\/System\/DeviceType\/Profile\//.test(url)) &&
                     liveCell && liveCell.querySelector &&
                     liveCell.querySelector('select[name="findKey0"], #searchTable')) {
                   canonical = cpFormOrigin;
@@ -3054,6 +3218,11 @@
                 var cpState = { cpNav: { url: url, params: params || {} } };
                 if (cpPopReplaying) { history.replaceState(cpState, "", canonical); cpPopReplaying = false; }
                 else { history.pushState(cpState, "", canonical); }
+              } catch (e) {}
+              // Chained follow-up (entity re-entry → target page): fire the pending nav now that this swap
+              // (the entry) has committed. See cpPendingNav/cpEntityEntry.
+              try {
+                if (cpPendingNav) { var _pn = cpPendingNav; cpPendingNav = null; setTimeout(function () { cpHook(_pn.url, _pn.params || {}); }, 0); }
               } catch (e) {}
             })
             .catch(function (e) {
@@ -3130,7 +3299,7 @@
         // owning /Reseller list. Covers the admin Add/Modify AND the Operator/System DeviceType Add/Modify forms.
         var _p = location.pathname, _list = null;
         if (/\/Reseller\/Admins\/(Add|[Mm]odify)/.test(_p)) _list = "/commpilot/Reseller/Admins/";
-        else { var _dm = _p.match(/\/commpilot\/Operator\/System\/(DeviceType)\/(?:Add|[Mm]odify)\//); if (_dm) _list = "/commpilot/Reseller/" + _dm[1] + "/"; }
+        else { var _dm = _p.match(/\/commpilot\/Operator\/System\/(DeviceType)\/(?:Add|[Mm]odify|Profile)\//); if (_dm) _list = "/commpilot/Reseller/" + _dm[1] + "/"; }
         if (!_list) return;
         var tt = e.target;
         var btn = tt && (tt.name === "cancel" ? tt : (tt.closest ? tt.closest('input[name="cancel"], button[name="cancel"]') : null));
@@ -3212,7 +3381,14 @@
           cpDbg("[pjax] auto-return →", last.url, last.params);
           setTimeout(function () {
             try {
-              window.redirectPost(last.url, last.params || {});
+              // A fresh login's server context is HOME — re-enter the entity first when the saved nav is
+              // entity-scoped, then chain to the page (cpPendingNav). Direct replay alone → "no target object".
+              if (last.entry && last.entry.url && last.entry.url !== last.url) {
+                cpPendingNav = { url: last.url, params: last.params || {} };
+                window.redirectPost(last.entry.url, last.entry.params || {});
+              } else {
+                window.redirectPost(last.url, last.params || {});
+              }
             } catch (e) {
               console.warn("[pjax] auto-return failed", e);
             }
@@ -3365,7 +3541,10 @@
       var noB = document.createElement("button");
       noB.type = "button"; noB.className = "cp-leaf-actbtn cp-leaf-act-no"; noB.title = "Cancel"; noB.innerHTML = CP_SVG_LEAF_XX;
       pill.classList.add("cp-leaf-hidden"); acts.classList.add("cp-leaf-hidden");   // class, not inline style — the base rules are !important
-      wrap.appendChild(inp); wrap.appendChild(okB); wrap.appendChild(noB);
+      // ✓/✕ go LEFT of the input (mirroring the copy/pencil-left-of-pill layout) so the INPUT's right
+      // edge lands exactly on the pill alignment line — input-first left the ✕ on the line and the
+      // input floating loose (user screenshot, 2026-07-04).
+      wrap.appendChild(okB); wrap.appendChild(noB); wrap.appendChild(inp);
       inp.focus(); inp.select();
       function done() {
         try { inp.remove(); okB.remove(); noB.remove(); } catch (e) {}
