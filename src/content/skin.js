@@ -217,7 +217,9 @@ var CP_ITEM_ICONS = {
   "mail parameters": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v5"/><path d="M3 7l9 6l9 -6"/><path d="M17.001 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M19.001 15.5v1.5"/><path d="M19.001 21v1.5"/><path d="M22.032 17.25l-1.299 .75"/><path d="M17.27 20l-1.3 .75"/><path d="M15.97 17.25l1.3 .75"/><path d="M20.733 20l1.3 .75"/></svg>',
   "call center profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-3a8 8 0 1 1 16 0v3"/><path d="M18 19c0 1.657 -2.686 3 -6 3"/><path d="M4 14a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-1a2 2 0 0 1 -2 -2v-3"/><path d="M15 14a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-1a2 2 0 0 1 -2 -2v-3"/></svg>',
   "meet-me profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4"/><path d="M3 8a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -8"/></svg>',
-  "schedules": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/><path d="M8 15h2v2h-2z"/></svg>'
+  "schedules": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/><path d="M8 15h2v2h-2z"/></svg>',
+  "call processing policies": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M6 4v4"/><path d="M6 12v8"/><path d="M10 16a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M12 4v10"/><path d="M12 18v2"/><path d="M16 7a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M18 4v1"/><path d="M18 9v11"/></svg>',
+  "dial plan policy": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h4v4h-4z"/><path d="M10 3h4v4h-4z"/><path d="M17 3h4v4h-4z"/><path d="M3 10h4v4h-4z"/><path d="M10 10h4v4h-4z"/><path d="M17 10h4v4h-4z"/><path d="M10 17h4v4h-4z"/></svg>'
 };
 function cpMenuItemIcon(title) {
   var t = (title || "").trim().toLowerCase();
@@ -1120,8 +1122,16 @@ function revealResultsBox() {
  * Skipped silently on menu pages (no results table).
  * Idempotent — safe to call multiple times.
  */
+/* HYBRID form pages: a settings FORM that also embeds a legacy list (Dial Plan Policy = policy
+ * fields + the outside-access-codes list). The form skin owns these — the legacy list pipeline
+ * (wrapResultsBox → suppressEmptyResults/pagination/footer, all keyed off .cp-results-box) must not
+ * claim them, or the form gets hidden behind a "No results" empty state (live 2026-07-06). */
+function cpIsHybridFormPage() {
+  return !!document.querySelector('input[name="reqAccCode"]');
+}
 function wrapResultsBox() {
   if (cpGridOn()) return;
+  if (cpIsHybridFormPage()) return;
   try {
     var bodyTd = document.querySelector("td.enduserbody");
     if (!bodyTd) return;
@@ -3867,6 +3877,272 @@ function cpBuildScheduleEventRows(rowsWrap, cell) {
   return { controls: controls, sync: sync, prepare: prepare };
 }
 
+/* Call Processing Policies (SP/Group) — Option A (user-picked 2026-07-06): the 7 legacy fieldsets
+ * become cards flowing in a TWO-COLUMN grid (.cp-prof-grid2). Field treatments: policy radio pairs →
+ * joined segmented controls; the 3-way network-usage choice → themed dropdown (labels too long for a
+ * half-width seg); Call Limits → toggle + compact number rows (number disabled while off); the
+ * System/Service-Provider sources (Conferencing, Dialable Caller ID) → segs that dim their dependents. */
+function cpBuildCallProcessingRows(cell) {
+  function R(name) { return Array.prototype.slice.call(cell.querySelectorAll('input[name="' + name + '"]')); }
+  function C(name) { return cell.querySelector('[name="' + name + '"]'); }
+  var clid = R("clidPolicy"), media = R("mediaPolicy");
+  if (clid.length < 2 || media.length < 3) return null;
+  cpProfDdEnsure();
+
+  var ICONS = {
+    clid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 12h3v4h-3z"/><path d="M10 6h-6a1 1 0 0 0 -1 1v10a1 1 0 0 0 1 1h16a1 1 0 0 0 1 -1v-10a1 1 0 0 0 -1 -1h-6"/><path d="M10 3m0 1a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1z"/><path d="M14 16h2"/><path d="M14 12h4"/></svg>',
+    media: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8l4 -16l3 8h4"/></svg>',
+    limits: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M12 7l0 .01"/><path d="M17 12l0 .01"/><path d="M12 12l3.5 -2"/><path d="M7 12l0 .01"/></svg>',
+    conf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M8 21v-1a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v1"/><path d="M15 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M17 10h2a2 2 0 0 1 2 2v1"/><path d="M5 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M3 13v-1a2 2 0 0 1 2 -2h2"/></svg>',
+    route: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M17 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"/></svg>',
+    dclid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h4v4h-4z"/><path d="M10 3h4v4h-4z"/><path d="M17 3h4v4h-4z"/><path d="M3 10h4v4h-4z"/><path d="M10 10h4v4h-4z"/><path d="M17 10h4v4h-4z"/><path d="M10 17h4v4h-4z"/></svg>',
+    lookup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg>'
+  };
+
+  var widgets = [], controls = [];
+  function reg(w) { if (w && w._sync) widgets.push(w); return w; }
+  function ctl(el) { if (el && controls.indexOf(el) < 0) controls.push(el); return el; }
+  function sync() {
+    try { enhanceSelects(); } catch (e) {}
+    widgets.forEach(function (w) { try { w._sync(); } catch (e) {} });
+  }
+  function segRow(rows, k, d, radios, labels) {
+    radios.forEach(ctl);
+    return cpProfRow(rows, k, d, reg(cpProfSeg(radios, labels, null, sync)));
+  }
+  function tglRow(rows, k, d, cb) {
+    if (!cb) return null;
+    ctl(cb);
+    return cpProfRow(rows, k, d, reg(cpProfToggleEl(cb, sync)));
+  }
+  // Call-limit row: enable toggle + compact number; the number disables while the limit is off.
+  function limitRow(rows, k, d, cbName, numName) {
+    var cb = C(cbName), num = C(numName);
+    if (!cb || !num) return null;
+    ctl(cb); ctl(num);
+    var wrap = document.createElement("span"); wrap.className = "cp-cpp-limit";
+    wrap.appendChild(reg(cpProfToggleEl(cb, sync)));
+    cpProfInput(num); num.classList.add("cp-cpp-num");
+    wrap.appendChild(num);
+    reg({ _sync: function () { num.disabled = !cb.checked; wrap.classList.toggle("cp-cpp-off", !cb.checked); } });
+    return cpProfRow(rows, k, d, wrap);
+  }
+  function dimWhen(row, fn) { reg({ _sync: function () { row.classList.toggle("cp-prof-dim", fn()); } }); }
+
+  // --- Calling Line ID ---
+  var cClid = cpProfCard("Calling Line ID", ICONS.clid);
+  segRow(cClid.rows, "External calls", "Which number external parties see as the calling identity.", R("clidPolicy"), ["User number", "Configurable"]);
+  segRow(cClid.rows, "Group calls", "Identity presented for calls inside the group.", R("groupCallsClidPolicy"), ["Extension", "External policy"]);
+  segRow(cClid.rows, "Emergency calls", "Identity sent with emergency calls.", R("emergencyClidPolicy"), ["User number", "Configurable"]);
+  tglRow(cClid.rows, "Alternate numbers for redirects", "Allow redirected calls to present an alternate number.", C("allowAlternateNumbersForRedirect"));
+  tglRow(cClid.rows, "Configurable CLID for redirects", "Allow redirected calls to present the configurable CLID.", C("allowConfigurableCLIDForRedirect"));
+  tglRow(cClid.rows, "Mobile DN for redirects", "Allow a mobile directory number as the redirecting identity.", C("allowMobileDNForRedirectingIdentity"));
+  tglRow(cClid.rows, "Block calling name externally", "Withhold the calling name on external calls.", C("blockCallingNameForExternalCalls"));
+  tglRow(cClid.rows, "User number when internal CLID unavailable", "Fall back to the user's number on group calls without an internal CLID.", C("useUserPhoneNumberForGroupCallsWhenInternalCLIDUnavailable"));
+
+  // --- Media ---
+  var cMedia = cpProfCard("Media", ICONS.media);
+  segRow(cMedia.rows, "Media policy", "Restrict which codecs calls may negotiate.", media, ["Uncompressed", "Supported set", "None"]);
+  var supSel = C("supportedMedia");
+  if (supSel) {
+    ctl(supSel);
+    var supRow = cpProfRow(cMedia.rows, "Supported media set", "The media set enforced when the policy above uses one.", supSel);
+    dimWhen(supRow, function () { var r = media.filter(function (x) { return x.checked; })[0]; return !r || r.value !== "Use Supported Media Set"; });
+  }
+
+  // --- Call Limits ---
+  var cLim = cpProfCard("Call Limits", ICONS.limits);
+  limitRow(cLim.rows, "Concurrent calls", "Cap simultaneous calls.", "useMaxSimCall", "maxSimCall");
+  limitRow(cLim.rows, "Concurrent video calls", "Cap simultaneous video calls.", "useMaxSimVideoCall", "maxSimVideoCall");
+  limitRow(cLim.rows, "Answered call minutes", "Longest allowed answered call.", "useMaxTimeForAnsweredCall", "maxTimeForAnsweredCall");
+  limitRow(cLim.rows, "Unanswered call minutes", "Longest a call may ring unanswered.", "useMaxTimeForUnansweredCalls", "maxTimeForUnansweredCall");
+  limitRow(cLim.rows, "Concurrent redirected calls", "Cap simultaneous redirected calls.", "useMaxConcRedirectedCall", "maxConcRedirectedCall");
+  limitRow(cLim.rows, "Find Me/Follow Me invocations", "Cap concurrent Find Me/Follow Me runs.", "useMaxConcFindMeFollowMeInvocations", "maxConcFindMeFollowMeInvocations");
+  limitRow(cLim.rows, "Find Me/Follow Me depth", "How deep a Find Me/Follow Me chain may go.", "useMaxFindMeFollowMeDepth", "maxFindMeFollowMeDepth");
+  limitRow(cLim.rows, "Alerting requests", "Cap concurrent terminating alerting requests.", "useMaxConcTerminationAlertingRequests", "maxConcTerminationAlertingRequests");
+  tglRow(cLim.rows, "Count redirections in concurrent cap", "Redirected legs count against the concurrent-calls cap.", C("includeRedirectionsInMaxConcCalls"));
+  var mrd = C("maxRedirectionDepth");
+  if (mrd) { ctl(mrd); cpProfInput(mrd); mrd.classList.add("cp-cpp-num"); cpProfRow(cLim.rows, "Max redirection depth", "How many times a call may be redirected.", mrd); }
+
+  // --- Conferencing ---
+  var cConf = cpProfCard("Conferencing", ICONS.conf);
+  var lvl = R("useLevelSettings");
+  segRow(cConf.rows, "Conference URI source", "Inherit the system conference URI, or set one for this service provider.", lvl, ["System", "Service provider"]);
+  var uriA = C("conferenceURIAddr"), uriD = C("conferenceURIDomain");
+  if (uriA && uriD) {
+    ctl(uriA); ctl(uriD);
+    var uriWrap = document.createElement("span"); uriWrap.className = "cp-cpp-uri";
+    cpProfInput(uriA); uriA.classList.add("cp-cpp-uriaddr");
+    var at = document.createElement("span"); at.className = "cp-cpp-at"; at.textContent = "@";
+    uriWrap.appendChild(uriA); uriWrap.appendChild(at); uriWrap.appendChild(uriD);
+    var uriRow = cpProfRow(cConf.rows, "Conference URI", "Address conference calls are anchored on.", uriWrap);
+    dimWhen(uriRow, function () { var sys = lvl.filter(function (x) { return x.checked; })[0]; return !sys || sys.value !== "Service Provider"; });
+  }
+
+  // --- Translation and Routing ---
+  var cRoute = cpProfCard("Translation and Routing", ICONS.route);
+  var netR = R("forceAllCallsUseNetwork");
+  if (netR.length === 3) {
+    netR.forEach(ctl);
+    cpProfRow(cRoute.rows, "Network usage", "When calls must route via the network.",
+      reg(cpProfDropdown(netR, ["Force all calls to the network", "All except extension/location calls", "Don't force enterprise/group calls"], sync)));
+  }
+  tglRow(cRoute.rows, "Enforce group CLID restriction", "Apply the group calling line identity restriction.", C("enforceGroupCallingLineIdentityRest"));
+  tglRow(cRoute.rows, "Group call typing (private plans)", "Allow group call typing for private dialing plans.", C("allowEnterpriseGroupCallTypingForPrivateDialingPlan"));
+  tglRow(cRoute.rows, "Group call typing (public plans)", "Allow group call typing for public dialing plans.", C("allowEnterpriseGroupCallTypingForPublicDialingPlan"));
+  tglRow(cRoute.rows, "Override CLID restriction (private calls)", "Bypass the CLID restriction for the private call category.", C("overrideCLIDRestrictionForPrivateCallCategory"));
+
+  // --- Dialable Caller ID ---
+  var cDclid = cpProfCard("Dialable Caller ID", ICONS.dclid);
+  var spD = R("useSpDclidSetting");
+  // Value true = "Use Service Provider policy", false = "Use System policy" — label by VALUE, not order.
+  if (spD.length === 2) {
+    var spTrue = spD.filter(function (r) { return r.value === "true"; })[0] || spD[0];
+    var spFalse = spD.filter(function (r) { return r.value === "false"; })[0] || spD[1];
+    segRow(cDclid.rows, "Policy source", "Inherit the system Dialable Caller ID policy, or use this service provider's.", [spFalse, spTrue], ["System", "Service provider"]);
+  }
+  var dOn = R("enabledDclid");
+  if (dOn.length === 2) {
+    var dTrue = dOn.filter(function (r) { return r.value === "true"; })[0] || dOn[0];
+    var dFalse = dOn.filter(function (r) { return r.value === "false"; })[0] || dOn[1];
+    var dRow = segRow(cDclid.rows, "Dialable Caller ID", "Present caller IDs in dialable format.", [dTrue, dFalse], ["On", "Off"]);
+    dimWhen(dRow, function () { var t = spD.filter(function (x) { return x.checked; })[0]; return !!t && t.value !== "true"; });
+  }
+
+  // --- Phone List Lookup ---
+  var cPll = cpProfCard("Phone List Lookup", ICONS.lookup);
+  var pll = cell.querySelector('input[type="checkbox"][name^="enablePhon"]');
+  tglRow(cPll.rows, "Phone list lookup", "Resolve incoming caller IDs against phone lists.", pll);
+
+  // Two-column grid wrapper (Option A) — the multiCard mount appends each returned "card" verbatim,
+  // so the grid itself is the single returned card.
+  var grid = document.createElement("div"); grid.className = "cp-prof-grid2";
+  [cClid, cLim, cMedia, cConf, cRoute, cDclid, cPll].forEach(function (c) { grid.appendChild(c.card); });
+  return { cards: [grid], controls: controls, sync: sync };
+}
+
+/* Dial Plan Policy (SP/Group) — a HYBRID: policy toggles + digit maps + the embedded outside-access-
+ * codes list. Three cards: Public call policies, Digit maps, Outside access codes. The codes card
+ * lists the legacy rows; Add / row-edit open the center modal via pjax (the target travels in
+ * data-cp-dpp-* attributes on <html> + a cp:dppmodal event — CustomEvent detail doesn't cross the
+ * isolated→MAIN world boundary, DOM attributes do). Delete = check the row's legacy checkbox +
+ * forward-click the real Apply (a true submit → rides pjax in-shell). */
+function cpBuildDialPlanRows(cell) {
+  function C(name) { return cell.querySelector('[name="' + name + '"]'); }
+  var req = C("reqAccCode"), pubMap = C("publicDigitMap");
+  if (!req || !pubMap) return null;
+  var ICONS = {
+    pol: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2"/></svg>',
+    map: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4a2 2 0 0 0 -2 2v3a2 3 0 0 1 -2 3a2 3 0 0 1 2 3v3a2 2 0 0 0 2 2"/><path d="M17 4a2 2 0 0 1 2 2v3a2 3 0 0 0 2 3a2 3 0 0 0 -2 3v3a2 2 0 0 1 -2 2"/></svg>',
+    codes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h4v4h-4z"/><path d="M10 3h4v4h-4z"/><path d="M17 3h4v4h-4z"/><path d="M3 10h4v4h-4z"/><path d="M10 10h4v4h-4z"/><path d="M17 10h4v4h-4z"/><path d="M10 17h4v4h-4z"/></svg>'
+  };
+  var widgets = [], controls = [];
+  function reg(w) { if (w && w._sync) widgets.push(w); return w; }
+  function ctl(el) { if (el && controls.indexOf(el) < 0) controls.push(el); return el; }
+  function sync() { widgets.forEach(function (w) { try { w._sync(); } catch (e) {} }); }
+  function tglRow(rows, k, d, cb) {
+    if (!cb) return null;
+    ctl(cb);
+    return cpProfRow(rows, k, d, reg(cpProfToggleEl(cb, sync)));
+  }
+
+  var cPol = cpProfCard("Public call policies", ICONS.pol);
+  tglRow(cPol.rows, "Require access code for public calls", "Public calls must be dialed with an outside access code.", req);
+  tglRow(cPol.rows, "Allow E.164 public calls", "Permit dialing full E.164-formatted numbers.", C("allowE164Calls"));
+  tglRow(cPol.rows, "Prefer E.164 for callbacks", "Format callback-service numbers as E.164 when possible.", C("preferE164ForCallbackSvcs"));
+
+  var cMap = cpProfCard("Digit maps", ICONS.map);
+  ctl(pubMap); cpProfInput(pubMap); pubMap.classList.add("cp-dpp-map");
+  cpProfRow(cMap.rows, "Public digit map", "Digit-collection pattern for public calls.", pubMap);
+  var privMap = C("privateDigitMap");
+  if (privMap) {
+    ctl(privMap); cpProfInput(privMap); privMap.classList.add("cp-dpp-map");
+    cpProfRow(cMap.rows, "Private digit map", "Digit-collection pattern for private dial plans.", privMap);
+  }
+
+  // --- Outside access codes (the embedded legacy list, re-rendered as card rows) ---
+  var cCodes = cpProfCard("Outside access codes", ICONS.codes);
+  var list = document.createElement("div"); list.className = "cp-dpp-list";
+  function dppModal(url, params) {
+    var root = document.documentElement;
+    root.setAttribute("data-cp-dpp-url", url);
+    root.setAttribute("data-cp-dpp-params", JSON.stringify(params || {}));
+    document.dispatchEvent(new CustomEvent("cp:dppmodal"));
+  }
+  var realApply = (function () { var l = document.querySelectorAll('input[name="apply"]'); return l.length ? l[l.length - 1] : null; })();
+  var trs = Array.prototype.slice.call(cell.querySelectorAll('tr[id^="Row"]'));
+  if (!trs.length) {
+    var empty = document.createElement("div"); empty.className = "cp-dpp-empty";
+    empty.textContent = "No access codes yet — add the first one below.";
+    list.appendChild(empty);
+  }
+  trs.forEach(function (tr) {
+    var links = Array.prototype.slice.call(tr.querySelectorAll("a.tableLink")).map(function (a) { return (a.textContent || "").trim(); });
+    var cellsTx = links.length ? links : Array.prototype.slice.call(tr.children).map(function (td) { return (td.textContent || "").replace(/\s+/g, " ").trim(); }).filter(Boolean);
+    var code = cellsTx[0] || "";
+    if (!code) return;
+    var m = /redirectPost\s*\(\s*['"]([^'"]+)['"]\s*,\s*(\{[\s\S]*?\})\s*\)/.exec(tr.innerHTML);
+    var drill = null;
+    if (m) {
+      var params = {}, re = /(\w+)\s*:\s*['"]([^'"]*)['"]/g, mm;
+      while ((mm = re.exec(m[2]))) params[mm[1]] = mm[2].replace(/\\u002F/g, "/");
+      drill = { url: m[1].replace(/\\u002F/g, "/"), params: params };
+    }
+    var row = document.createElement("button"); row.type = "button"; row.className = "cp-dpp-row";
+    var nm = document.createElement("span"); nm.className = "cp-dpp-code"; nm.textContent = code;
+    row.appendChild(nm);
+    if (cellsTx[1]) { var ds = document.createElement("span"); ds.className = "cp-dpp-desc"; ds.textContent = cellsTx[1]; row.appendChild(ds); }
+    var delCb = tr.querySelector('input[type="checkbox"][name^="checkbox_"]');
+    if (delCb && realApply) {
+      var del = document.createElement("span"); del.className = "cp-pick-del";
+      del.setAttribute("role", "button"); del.setAttribute("aria-label", "Delete " + code);
+      del.innerHTML = CP_PROF_TRASH_SVG;
+      del.addEventListener("click", function (e) {
+        e.stopPropagation();
+        cpProfConfirmDelete("access code", code, { click: function () { delCb.checked = true; realApply.click(); } });
+      });
+      row.appendChild(del);
+    }
+    var chev = document.createElement("span"); chev.className = "cp-dpp-chev";
+    chev.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6l-6 6"/></svg>';
+    row.appendChild(chev);
+    row.addEventListener("click", function () { if (drill) dppModal(drill.url, drill.params); });
+    list.appendChild(row);
+  });
+  var foot = document.createElement("div"); foot.className = "cp-dpp-foot";
+  var addB = document.createElement("button"); addB.type = "button"; addB.className = "cp-prof-btn cp-prof-primary";
+  addB.innerHTML = CP_PROF_CHECK_SVG + "<span>Add code</span>";
+  addB.addEventListener("click", function () { dppModal("Add/index.jsp", {}); });
+  foot.appendChild(addB);
+  cCodes.rows.appendChild(list);
+  cCodes.rows.appendChild(foot);
+
+  var grid = document.createElement("div"); grid.className = "cp-prof-grid2";
+  [cPol, cCodes, cMap].forEach(function (c) { grid.appendChild(c.card); });
+  return { cards: [grid], controls: controls, sync: sync };
+}
+
+/* Dial Plan Policy Add/Modify (the access-code form) — rides the center modal from the codes card. */
+function cpBuildAccessCodeRows(rowsWrap, cell) {
+  var codeI = cell.querySelector('input[name="accessCode"]');
+  if (!codeI) return null;
+  var widgets = [], controls = [];
+  function reg(w) { if (w && w._sync) widgets.push(w); return w; }
+  function ctl(el) { if (el && controls.indexOf(el) < 0) controls.push(el); return el; }
+  function sync() { widgets.forEach(function (w) { try { w._sync(); } catch (e) {} }); }
+  function req(row, k) { var kk = row.querySelector(".cp-prof-k"); if (kk) kk.innerHTML = '<span class="cp-prof-req">*</span> ' + k; return row; }
+  req(cpProfRow(rowsWrap, "Access code", "The digits dialed to reach an outside line (e.g. 9).", cpProfInput(ctl(codeI))), "Access code");
+  var descI = cell.querySelector('input[name="description"]');
+  if (descI) cpProfRow(rowsWrap, "Description", "A note about what this code is for.", cpProfInput(ctl(descI)));
+  [["incCodeForTranslations", "Include code in translations", "Keep the code on the number for network translations and routing."],
+   ["incCodeForScreeningServ", "Include code for screening", "Keep the code on the number for screening services."],
+   ["enableSecDialTone", "Secondary dial tone", "Play a second dial tone after the code is dialed."]].forEach(function (t) {
+    var cb = cell.querySelector('input[name="' + t[0] + '"]');
+    if (cb) { ctl(cb); cpProfRow(rowsWrap, t[1], t[2], reg(cpProfToggleEl(cb, sync))); }
+  });
+  return { controls: controls, sync: sync };
+}
+
 /* Page config — picks the row builder (+ card-header label/icon for single-card pages).
  * Returns null for any page that isn't a configured settings form. */
 function cpSettingsFormConfig(title, cell) {
@@ -3940,6 +4216,21 @@ function cpSettingsFormConfig(title, cell) {
     return { label: evEdit ? "Edit event" : "New event", icon: CP_PROF_CAL_SVG, build: cpBuildScheduleEventRows,
              okLabel: evEdit ? "Save" : "Add", modalClass: "cp-modal-c", deleteEntity: "event" };
   }
+  // Call Processing Policies (SP/Group) — 7 fieldsets → the two-column card grid (Option A).
+  if (/^Call Processing Policies$/i.test(title) || (cell.querySelector('input[name="clidPolicy"]') && cell.querySelector('input[name="mediaPolicy"]'))) {
+    return { multiCard: true, build: cpBuildCallProcessingRows };
+  }
+  // Dial Plan Policy (SP/Group) — HYBRID (policy form + embedded access-codes list) → 3-card grid.
+  if (/^Dial Plan Policy$/i.test(title) || (cell.querySelector('input[name="reqAccCode"]') && cell.querySelector('input[name="publicDigitMap"]'))) {
+    return { multiCard: true, hybrid: true, build: cpBuildDialPlanRows };
+  }
+  // Dial Plan Policy Add/Modify — the access-code form (modal from the codes card, full-page fallback).
+  if (/^Dial Plan Policy (Add|Modify)$/i.test(title) || cell.querySelector('input[name="accessCode"]')) {
+    var acIn = cell.querySelector('input[name="accessCode"]');
+    var acEdit = /Modify/i.test(title) || !!(acIn && acIn.value);
+    return { label: acEdit ? "Edit access code" : "New access code", icon: CP_ITEM_ICONS["call processing policies"] || CP_PROF_TAG_SVG,
+             build: cpBuildAccessCodeRows, okLabel: acEdit ? "Save" : "Add", deleteEntity: "access code" };
+  }
   // Identity/Device Profile Type Add — big device-type form (deviceType name + the deviceConfigOption master).
   if (/Identity\/Device Profile Type Add/i.test(title) || (cell.querySelector('input[name="deviceType"]') && cell.querySelector('input[name="deviceConfigOption"]'))) {
     return { multiCard: true, build: cpBuildDeviceTypeAddRows, okLabel: "Add" };
@@ -3962,7 +4253,8 @@ function cpSettingsFormConfig(title, cell) {
 function cpProfileForm() {
   try {
     if (document.querySelector(".cp-console")) return;                    // aggregated console
-    if (document.querySelector(".cp-results-box, #searchTable")) return;  // a list/search page
+    // A list/search page — EXCEPT configured hybrids (form + embedded list), which the form skin owns.
+    if (document.querySelector(".cp-results-box, #searchTable") && !cpIsHybridFormPage()) return;
     var cell = document.querySelector("td.enduserbody");
     if (!cell) return;
     if (cell.querySelector(".cp-prof-card")) return;                      // already skinned

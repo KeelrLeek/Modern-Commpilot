@@ -3362,6 +3362,51 @@ td.enduserbody:has(.cp-prof-card) {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
 }
 
+/* ---- Call Processing Policies (Option A, user-picked 2026-07-06): two-column card grid ---- */
+.cp-prof-grid2 {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px; align-items: start;
+  margin: 12px 0;
+}
+.cp-prof-grid2 .cp-prof-card { margin: 0 !important; }
+@media (max-width: 1100px) { .cp-prof-grid2 { grid-template-columns: minmax(0, 1fr); } }
+/* Call-limit rows: enable toggle + compact number (dimmed while the limit is off). */
+.cp-cpp-limit { display: inline-flex; align-items: center; gap: 12px; }
+.cp-cpp-limit.cp-cpp-off .cp-cpp-num { opacity: 0.45; }
+input.cp-cpp-num.cp-prof-input {
+  width: 76px !important; min-width: 76px !important; text-align: right;
+}
+/* Conference URI composite: address @ domain. */
+.cp-cpp-uri { display: inline-flex; align-items: center; gap: 7px; }
+input.cp-cpp-uriaddr.cp-prof-input { width: 150px !important; min-width: 150px !important; }
+.cp-cpp-at { color: var(--cp-text-muted); font: 700 13px/1 "Nunito", sans-serif; }
+
+/* ---- Dial Plan Policy: digit maps + the outside-access-codes card ---- */
+input.cp-dpp-map.cp-prof-input {
+  width: 100% !important; min-width: 220px !important;
+  font-family: "JetBrains Mono", "Cascadia Code", Consolas, monospace !important; font-size: 12px !important;
+}
+.cp-dpp-list { padding: 4px 0; }
+.cp-dpp-row {
+  display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important;
+  padding: 10px 12px !important; border: 0 !important; border-bottom: 1px solid rgba(60, 58, 55, 0.55) !important;
+  border-radius: 0 !important; background: transparent !important; cursor: pointer !important;
+  text-align: left !important; box-shadow: none !important;
+}
+.cp-dpp-row:last-of-type { border-bottom: 0 !important; }
+.cp-dpp-row:hover { background: rgba(110, 76, 150, 0.12) !important; }
+.cp-dpp-code { color: var(--cp-tertiary); font: 700 13px/1.3 "Nunito", sans-serif; }
+.cp-dpp-desc {
+  color: var(--cp-text-muted); font: 600 12px/1.3 "Nunito", sans-serif;
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cp-dpp-row .cp-pick-del { margin-left: auto; }
+.cp-dpp-code + .cp-dpp-chev { margin-left: auto; }   /* no desc/trash → chevron still right-aligned */
+.cp-dpp-chev { display: inline-flex; line-height: 0; color: var(--cp-text-muted); }
+.cp-dpp-chev svg { width: 14px; height: 14px; }
+.cp-dpp-empty { padding: 16px 12px; text-align: center; color: var(--cp-text-muted); font: 600 12.5px/1.4 "Nunito", sans-serif; }
+.cp-dpp-foot { display: flex; padding: 10px 12px 12px; }
+
 .cp-prof-cardhead {
   display: flex !important;
   align-items: center !important;
