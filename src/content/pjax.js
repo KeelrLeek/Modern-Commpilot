@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.307";
+  var CP_PJAX_VERSION = "0.2.316";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -339,7 +339,13 @@
           // The DeviceType MODIFY form (the Modify/ mini console's "Profile" item). Unlisted → that click
           // native-navigated (full reload, observed 2026-07-04) and the OK/Apply/Delete self-POST would fall
           // through the submit interceptor the same way the Add form's did.
-          /\/commpilot\/Operator\/System\/DeviceType\/Profile\/(index\.jsp)?$/.test(u))
+          /\/commpilot\/Operator\/System\/DeviceType\/Profile\/(index\.jsp)?$/.test(u) ||
+          // Schedule EVENT pages (behind the Schedule Modify events grid): the grid's Add button
+          // redirectPosts to …/Schedules/Events/Add/ and an event row drills to …/Schedules/Events/Modify/
+          // — THREE section segments, so the 1-2 segment SP/Group patterns above miss them → cpHook
+          // native-navigated (FULL reload, observed 2026-07-06). Listed, the Add form's modal-fail fallback
+          // and the row drill both swap in-shell, and the form's ok/cancel self-POSTs ride cpFollow.
+          /\/commpilot\/(?:ServiceProvider|Group)\/Schedules\/Events\/(?:Add|Modify)\/(index\.jsp)?$/.test(u))
       );
     }
 
@@ -403,8 +409,15 @@
             if (doc.querySelector('td[width="82%"]')) return { doc: doc, html: html };
             var stub = cpExtractStub(doc);
             if (stub && stub.target && depth < 4) {
-              cpDbg("[pjax] following stub ->", stub.target);
-              return cpFollow(stub.target, stub.data, stub.token, depth + 1);
+              // Resolve a RELATIVE stub target against the REQUEST url, not the document. In the legacy
+              // full-page flow the stub document's location IS the POSTed url, so its redirectPost relatives
+              // resolve against it — fetch() instead resolves against OUR page. Live 2026-07-06: a successful
+              // Events/Add answers a stub → "../../Modify/index.jsp"; resolved against the hosting Schedule
+              // Modify page that hit /ServiceProvider/Modify/ → 404 → the post-add refresh fell to a full nav.
+              var st = stub.target;
+              try { st = new URL(st, new URL(u, location.href)).pathname; } catch (e) {}
+              cpDbg("[pjax] following stub ->", st);
+              return cpFollow(st, stub.data, stub.token, depth + 1);
             }
             return { doc: doc, html: html };
           });
@@ -1082,6 +1095,10 @@
         // server-paginated lists; the grid re-skins whatever the page renders) rather than filtering locally.
         legacySearch: (!document.getElementById("searchTable") && typeof window.doFind === "function")
       };
+      // SP/Group Schedules: auto-open the picker modal once the preload lands (Option A, 2026-07-06) —
+      // the list page is a redundant hop; the picker IS the page's UI, the grid behind it the fallback.
+      state.pickerAuto = /\/(ServiceProvider|Group)\/Schedules\/(index\.jsp)?$/
+        .test(document.documentElement.getAttribute("data-cp-path") || location.pathname);
       cpGridState = state;
       // Column structure read from the live legacy list NOW, so the FIRST loading skeleton can match the result
       // (same header titles + column layout) before any search has run. cpGridColConfig derives the count from
@@ -1236,9 +1253,77 @@
       var nt = doc && doc.getElementsByName("formtokenserial")[0];
       if (nt) { var ts = document.getElementsByName("formtokenserial"); for (var i = 0; i < ts.length; i++) ts[i].value = nt.value; }
     }
+    // ---- Schedules PICKER (Option A, user-picked 2026-07-06) --------------------------------------
+    // The Schedules list page is a redundant hop: entering it auto-opens this center-modal picker
+    // (schedule rows + New schedule). Picking a row drills straight to its events page via the row's
+    // own captured redirectPost; New schedule forwards to the grid's Add button (the existing modal-Add
+    // route, whose post-add re-entry rebuilds the list → the picker re-opens with the fresh row). The
+    // list page still builds underneath and stays fully functional — ✕/backdrop/Esc just close.
+    var cpPickEl = null;
+    function cpPickClose() {
+      if (!cpPickEl) return;
+      try { cpPickEl.remove(); } catch (e) {}
+      cpPickEl = null;
+      document.removeEventListener("keydown", cpPickKey, true);
+    }
+    function cpPickKey(e) { if (e.key === "Escape") { e.stopPropagation(); cpPickClose(); } }
+    function cpSchedulePicker(state) {
+      if (cpPickEl || cpModalEl) return;
+      var back = document.createElement("div"); back.className = "cp-modal-back";
+      var card = document.createElement("div"); card.className = "cp-modal cp-modal-pick";
+      var head = document.createElement("div"); head.className = "cp-modal-head";
+      head.innerHTML = '<span class="cp-modal-headico">' + (cpHeaderIcon("Schedules") || "") + '</span><span>Schedules</span>';
+      var x = document.createElement("button");
+      x.type = "button"; x.className = "cp-modal-x"; x.setAttribute("aria-label", "Close");
+      x.innerHTML = CP_SVG_X;
+      x.addEventListener("click", cpPickClose);
+      head.appendChild(x);
+      card.appendChild(head);
+      var list = document.createElement("div"); list.className = "cp-pick-list";
+      if (!state.all.length) {
+        var empty = document.createElement("div"); empty.className = "cp-pick-empty";
+        empty.textContent = "No schedules yet — create the first one below.";
+        list.appendChild(empty);
+      }
+      state.all.forEach(function (r) {
+        var row = document.createElement("button"); row.type = "button"; row.className = "cp-pick-row";
+        row.innerHTML =
+          '<span class="cp-pick-name">' + cpEsc(r.cells[0] || "") + '</span>' +
+          (r.cells[1] ? '<span class="cp-pick-pill">' + cpEsc(r.cells[1]) + '</span>' : '') +
+          '<span class="cp-pick-chev">' + CP_SVG_CHEVRIGHT + '</span>';
+        row.addEventListener("click", function () {
+          cpPickClose();
+          if (r.drill && typeof window.redirectPost === "function") window.redirectPost(r.drill.url, r.drill.params);
+        });
+        list.appendChild(row);
+      });
+      card.appendChild(list);
+      var foot = document.createElement("div"); foot.className = "cp-modal-foot cp-pick-foot";
+      var addB = document.createElement("button"); addB.type = "button"; addB.className = "cp-prof-btn cp-prof-primary";
+      addB.innerHTML = CP_SVG_PLUS + "<span>New schedule</span>";
+      addB.addEventListener("click", function () {
+        cpPickClose();
+        var real = state.wrap && state.wrap.querySelector(".cp-srch-actbtn");
+        if (real) real.click();
+      });
+      foot.appendChild(addB);
+      card.appendChild(foot);
+      back.appendChild(card);
+      back.addEventListener("mousedown", function (e) { if (e.target === back) cpPickClose(); });
+      document.addEventListener("keydown", cpPickKey, true);
+      document.body.appendChild(back);
+      cpPickEl = back;
+    }
+    // A navigation swap must never strand the picker over the NEXT page.
+    document.addEventListener("cp:reskin", cpPickClose);
+
     function cpModalAdd(state, url, params) {
       if (cpModalEl) return;
+      // listNav = the nav that ENTERED the hosting page, params included. The old data-cp-path string was
+      // enough for plain lists, but a Modify-hosted grid (Schedule Modify's events) needs the entity params
+      // (name/P_name/key/P_key) to re-enter — a bare POST to the Modify URL has no target schedule.
       cpModalCtx = { url: url, params: params || {}, state: state,
+                     listNav: cpLastNav ? { url: cpLastNav.url, params: cpLastNav.params || {} } : null,
                      listUrl: document.documentElement.getAttribute("data-cp-path") || location.pathname };
       cpModalEl = document.createElement("div");
       cpModalEl.className = "cp-modal-back";
@@ -1258,6 +1343,17 @@
         var cell = res.doc.querySelector("td.enduserbody") || res.doc.querySelector('td[width="82%"]');
         if (!cell) { cpModalClose(); cpHook(url, params || {}); return; }
         body.innerHTML = cell.innerHTML;
+        // Entity-CONTEXT hiddens (name/P_name/key/P_key…) sit in mainForm OUTSIDE the content cell, so the
+        // cell mount drops them and the ok POST loses its target (harmless for session-scoped Adds like
+        // Schedules; an Events Add needs its schedule). Copy them into the hidden body for serialization.
+        [].forEach.call(res.doc.querySelectorAll('input[type="hidden"]'), function (h) {
+          if (!h.name || h.name === "formtokenserial") return;
+          if (cell.contains(h)) return;                              // already in the mounted markup
+          if (body.querySelector('[name="' + h.name + '"]')) return; // dedupe (buttonClicked appears twice)
+          var c = document.createElement("input");
+          c.type = "hidden"; c.name = h.name; c.value = h.value;
+          body.appendChild(c);
+        });
         try { load.remove(); } catch (e) {}
         document.dispatchEvent(new CustomEvent("cp:modalform"));
       }).catch(function () { cpModalClose(); });
@@ -1283,32 +1379,50 @@
       });
       var okEl = cpModalEl.querySelector('input[name="ok"]');
       params.ok = okEl ? (okEl.value || "OK") : "OK";
+      // Signature field = the form's first visible named input (eventName / scheduleName…). Its reappearance
+      // in the response cell means the server re-rendered THIS form (= rejection) — needed because the Event
+      // family keeps ok/cancel OUTSIDE td.enduserbody, so the formAgain probe alone misses the re-render and
+      // a silent rejection read as success (live-diagnosed 2026-07-06: Error 4195 swallowed, "add adds nothing").
+      var sigEl = cpModalEl.querySelector('input[name][type="text"], input[name]:not([type]), textarea[name]');
+      var sigName = sigEl ? sigEl.name : null;
       var tokEl = document.getElementsByName("formtokenserial")[0];
       cpFollow(cpModalCtx.url, params, tokEl ? tokEl.value : null, 0).then(function (res) {
         if (!cpModalEl) return;
         var doc = res && res.doc;
         if (doc) cpModalTokenSync(doc);
-        // Success ⇒ the server did NOT re-render the same form (a good add answers with the list/stub; a
-        // validation failure re-renders the form — with its ok submit — plus an inline message).
+        // Success ⇒ the server did NOT re-render the same form (a good add answers with a stub that
+        // cpFollow follows to the fresh LIST page; a validation failure re-renders the form + an inline
+        // <td.error><span.Failure> message). NB do NOT probe for an ok button here: the stub-followed
+        // success landing (e.g. Schedule Modify hosting the events grid) has its OWN ok — the signature
+        // field is the re-render tell.
         var cell = doc && (doc.querySelector("td.enduserbody") || doc.querySelector('td[width="82%"]'));
-        var formAgain = cell && cell.querySelector('input[name="ok"]');
-        var failed = !!(res && res.err) || (res && res.auth === false) || !doc || !!formAgain;
+        var failSpan = doc && doc.querySelector("span.Failure, td.error");
+        var sigAgain = sigName && cell && cell.querySelector('[name="' + sigName + '"]');
+        var failed = !!(res && res.err) || (res && res.auth === false) || !doc || !!failSpan || !!sigAgain;
         if (!failed) {
           // Re-ENTER the list rather than re-running the search: BroadWorks keeps a session-scoped result
           // model built at list ENTRY, and find/findAll serve THAT — after a background add even Find All
           // returns the stale model until the list is re-entered (user repro: test/test2 schedules absent
           // until leaving + returning). The legacy flow never showed this because OK's response is itself
           // a fresh list entry — mirror it with a bare in-shell re-entry of the list page.
-          var lu = cpModalCtx.listUrl;
+          var ln = cpModalCtx.listNav, lu = cpModalCtx.listUrl;
           cpModalClose();
-          try { if (lu) cpHook(lu, {}); } catch (e) {}
+          // Prefer the full entry nav (params restore a Modify-hosted grid's entity context);
+          // the bare listUrl stays as the fallback for the plain-list case.
+          try { if (ln) cpHook(ln.url, ln.params); else if (lu) cpHook(lu, {}); } catch (e) {}
           return;
         }
         var msg = "The server didn't accept that — check the fields and try again.";
-        try {
-          var mtx = (cell ? cell.textContent : "").replace(/\s+/g, " ");
-          var em = /Error\s*\d+[^.!]*[.!]?/.exec(mtx);
-          if (em) msg = em[0].trim();
+        if (res && res.auth === false) msg = "Your session has expired — please sign in and try again.";
+        else try {
+          // Prefer the server's own failure line ("Failed to add: Error 4195 The start date and time …").
+          var ft = failSpan ? (failSpan.textContent || "").replace(/\s+/g, " ").trim() : "";
+          if (ft) msg = ft.slice(0, 180);
+          else {
+            var mtx = (cell ? cell.textContent : "").replace(/\s+/g, " ");
+            var em = /Error\s*\d+[^.!]*[.!]?/.exec(mtx);
+            if (em) msg = em[0].trim();
+          }
         } catch (e) {}
         cpModalEl.setAttribute("data-cp-err", msg);
         document.dispatchEvent(new CustomEvent("cp:modalerror"));
@@ -1335,6 +1449,10 @@
           if (tgt && /(^|\/)Add\/(index\.jsp)?$/.test(tgt.url)) {
             var mu = tgt.url.charAt(0) === "/" ? tgt.url
               : ((cpSearchLanding || location.pathname).replace(/[^/]*$/, "") + tgt.url);
+            // Normalize ".." segments (Schedule Modify's Add is "../Events/Add/index.jsp") — fetch would
+            // resolve them anyway, but the modal-fail fallback runs the string through isPjaxUrl, which
+            // only matches the CANONICAL path.
+            try { mu = new URL(mu, location.origin).pathname; } catch (e) {}
             cpModalAdd(state, mu, tgt.params);
           }
           else if (tgt && typeof window.redirectPost === "function") window.redirectPost(tgt.url, tgt.params);
@@ -1351,12 +1469,26 @@
     // selected, and ONE confirm modal; committing checks the matching legacy boxes and clicks Apply (a real
     // type=submit in mainForm → fires the submit event → rides pjax in-shell, same path as the Add/Import buttons).
     // See [[project-search-redesign]], [[feedback-everything-through-pjax]].
+    // Two legacy delete-checkbox namings: `checkbox_<colUuid>__DELIMITER__<rowKey>` (Tag Sets…) and the bare
+    // `checkbox_<rowKey>` (Schedule Modify's EVENTS list). The bare form is accepted ONLY under a "Delete"
+    // column header — other lists use bare checkbox_ columns for state (Xsi "Default") and must never grow
+    // delete UI ([[gotcha-tab-dialects-and-sbx-landmines]]).
+    function cpGridDelKey(state, cb) {
+      var n = cb.name || "";
+      if (n.indexOf("__DELIMITER__") !== -1) return n.split("__DELIMITER__")[1] || "";
+      if (n.indexOf("checkbox_") === 0) {
+        var td = cb.closest("td"), tbl = cb.closest("table");
+        var hd = td && tbl && tbl.rows.length ? tbl.rows[0].cells[td.cellIndex] : null;
+        if (hd && /^\s*delete\s*$/i.test(hd.textContent || "")) return n.slice("checkbox_".length);
+      }
+      return "";
+    }
     function cpGridSetupDelete(state) {
       state.delMap = {}; state.delSel = {}; state.delEnabled = false; state.delBtn = null;
       try {
-        var boxes = state.cell.querySelectorAll('input[type="checkbox"][name*="__DELIMITER__"]');
+        var boxes = state.cell.querySelectorAll('input[type="checkbox"][name*="__DELIMITER__"], input[type="checkbox"][name^="checkbox_"]');
         [].forEach.call(boxes, function (cb) {
-          var key = cb.name.split("__DELIMITER__")[1];
+          var key = cpGridDelKey(state, cb);
           if (key) state.delMap[key] = 1;   // presence ⇒ this row key is deletable (value unused)
         });
         state.delBtn = state.cell.querySelector('input[name="apply"]') ? "apply"
@@ -1421,9 +1553,11 @@
     function cpGridCommitDelete(state) {
       try {
         var sel = state.delSel || {}, any = false;
-        var boxes = state.cell.querySelectorAll('input[type="checkbox"][name*="__DELIMITER__"]');
+        var boxes = state.cell.querySelectorAll('input[type="checkbox"][name*="__DELIMITER__"], input[type="checkbox"][name^="checkbox_"]');
         [].forEach.call(boxes, function (cb) {
-          cb.checked = !!sel[cb.name.split("__DELIMITER__")[1]];
+          var key = cpGridDelKey(state, cb);
+          if (!key || !Object.prototype.hasOwnProperty.call(state.delMap, key)) return;   // not a delete box — don't touch
+          cb.checked = !!sel[key];
           if (cb.checked) any = true;
         });
         if (!any) return;
@@ -1750,6 +1884,12 @@
         state.cur = state.all.slice();
         state.page = 0;
         state.searched = true;
+        // Schedules picker (Option A): the FIRST preload of this page presents the picker instead of the
+        // grid; later loads (re-search, post-add re-entry rebuilds a NEW state so it re-opens there) skip.
+        if (state.pickerAuto && !state._pickerShown) {
+          state._pickerShown = true;
+          try { cpSchedulePicker(state); } catch (e) {}
+        }
         if (!state.all.length) {
           cpGridShowState(state, "nomatch");
           if (state.countN) state.countN.textContent = "0 results";

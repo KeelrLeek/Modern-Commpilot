@@ -3524,6 +3524,348 @@ function cpBuildScheduleAddRows(rows, cell) {
   return { controls: controls, sync: sync };
 }
 
+/* ---- Schedule EVENT Add/Modify (Option B two-pane popout, user-picked 2026-07-06) ----
+ * Left pane = event basics (name, all-day, start/end date+time); right = recurrence (recurs dropdown,
+ * per-type params, ends). Single-card contract so the full-page fallback still renders (panes stack).
+ * Dates get a popup CALENDAR, times a half-hour picker list; both write the legacy TEXT fields — the
+ * server parses the text (validate() never fills the hidden _month/_day/_year parts; legacy posts them
+ * empty too). Radios/checkboxes stay in the hidden raw markup and are forward-clicked. */
+var cpEvtPopWired = false;
+function cpEvtPopClose() {
+  document.querySelectorAll(".cp-evt-cal.open, .cp-evt-tlist.open").forEach(function (p) { p.classList.remove("open"); });
+}
+function cpEvtPopEnsure() {
+  if (cpEvtPopWired) return; cpEvtPopWired = true;
+  document.addEventListener("click", cpEvtPopClose);
+  // close on outside scroll (the fixed popup would drift off its anchor) — but NOT on scrolls
+  // originating inside the popup itself (wheeling through the time list fired this instantly)
+  window.addEventListener("scroll", function (e) {
+    var t = e.target;
+    if (t && t.nodeType === 1 && t.closest && t.closest(".cp-evt-tlist, .cp-evt-cal")) return;
+    cpEvtPopClose();
+  }, true);
+}
+function cpEvtCloseOthers() {   // closing peers before opening a popup (doc-click close is stopPropagation'd)
+  cpEvtPopClose(); cpProfCloseDd();
+  document.querySelectorAll(".cp-dd.open").forEach(function (dd) { dd.classList.remove("open"); });
+}
+function cpEvtPlace(pop, anchor) {
+  var r = anchor.getBoundingClientRect();
+  pop.style.top = (r.bottom + 4) + "px"; pop.style.left = r.left + "px";
+  pop.classList.add("open");
+  var pr = pop.getBoundingClientRect();
+  var drift = pr.left - r.left;                                  // [[gotcha-scrollbar-gutter-fixed-drift]]
+  var left = r.left - drift;
+  left = Math.min(left, window.innerWidth - pr.width - 8);       // clamp to the viewport's right edge
+  if (Math.abs(left - pr.left) > 0.5) pop.style.left = left + "px";
+  var over = pr.bottom - window.innerHeight + 8;                 // flip above the anchor when it clips bottom
+  if (over > 0) pop.style.top = Math.max(8, r.top - pr.height - 4) + "px";
+}
+function cpEvtPad(n) { return (n < 10 ? "0" : "") + n; }
+function cpEvtParseDate(v) {
+  var m = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\s*$/.exec(v || "");
+  return m ? { y: +m[3], m: +m[1] - 1, d: +m[2] } : null;
+}
+var CP_EVT_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+function cpEvtDateSlot(input, onPick) {
+  cpEvtPopEnsure();
+  var slot = document.createElement("span"); slot.className = "cp-evt-dslot";
+  cpProfInput(input); input.classList.add("cp-evt-date");
+  if (!input.placeholder) input.placeholder = "mm/dd/yyyy";
+  slot.appendChild(input);
+  var btn = document.createElement("button"); btn.type = "button"; btn.className = "cp-evt-calbtn";
+  btn.setAttribute("aria-label", "Pick a date"); btn.innerHTML = CP_PROF_CAL_SVG;
+  slot.appendChild(btn);
+  var pop = document.createElement("div"); pop.className = "cp-evt-cal"; slot.appendChild(pop);
+  var view = null;   // {y, m} of the displayed month
+  function pick(y, m, d) {
+    input.value = cpEvtPad(m + 1) + "/" + cpEvtPad(d) + "/" + y;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    cpEvtPopClose();
+    if (onPick) onPick();
+  }
+  function render() {
+    var sel = cpEvtParseDate(input.value), now = new Date();
+    pop.innerHTML = "";
+    var head = document.createElement("div"); head.className = "cp-evt-calhead";
+    var prev = document.createElement("button"); prev.type = "button"; prev.className = "cp-evt-calnav"; prev.textContent = "‹"; prev.setAttribute("aria-label", "Previous month");
+    var lbl = document.createElement("span"); lbl.className = "cp-evt-callbl"; lbl.textContent = CP_EVT_MONTHS[view.m] + " " + view.y;
+    var next = document.createElement("button"); next.type = "button"; next.className = "cp-evt-calnav"; next.textContent = "›"; next.setAttribute("aria-label", "Next month");
+    prev.addEventListener("click", function () { view.m--; if (view.m < 0) { view.m = 11; view.y--; } render(); });
+    next.addEventListener("click", function () { view.m++; if (view.m > 11) { view.m = 0; view.y++; } render(); });
+    head.appendChild(prev); head.appendChild(lbl); head.appendChild(next);
+    pop.appendChild(head);
+    var grid = document.createElement("div"); grid.className = "cp-evt-calgrid";
+    ["S", "M", "T", "W", "T", "F", "S"].forEach(function (d) {
+      var c = document.createElement("span"); c.className = "cp-evt-caldow"; c.textContent = d; grid.appendChild(c);
+    });
+    var first = new Date(view.y, view.m, 1).getDay();
+    var days = new Date(view.y, view.m + 1, 0).getDate();
+    var prevDays = new Date(view.y, view.m, 0).getDate();
+    for (var i = 0; i < 42; i++) {
+      var dnum, om = 0;   // om: -1 prev month, +1 next month
+      if (i < first) { dnum = prevDays - first + 1 + i; om = -1; }
+      else if (i - first < days) { dnum = i - first + 1; }
+      else { dnum = i - first - days + 1; om = 1; }
+      if (om === 1 && i % 7 === 0) break;   // stop at the first full trailing week
+      var y = view.y, mo = view.m + om;
+      if (mo < 0) { mo = 11; y--; } if (mo > 11) { mo = 0; y++; }
+      var b = document.createElement("button"); b.type = "button"; b.className = "cp-evt-calday" + (om ? " out" : "");
+      b.textContent = dnum;
+      if (!om && sel && sel.y === y && sel.m === mo && sel.d === dnum) b.classList.add("sel");
+      if (!om && now.getFullYear() === y && now.getMonth() === mo && now.getDate() === dnum) b.classList.add("today");
+      (function (yy, mm, dd) { b.addEventListener("click", function () { pick(yy, mm, dd); }); })(y, mo, dnum);
+      grid.appendChild(b);
+    }
+    pop.appendChild(grid);
+  }
+  btn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    var was = pop.classList.contains("open");
+    cpEvtCloseOthers();
+    if (was) return;
+    var sel = cpEvtParseDate(input.value), now = new Date();
+    view = sel ? { y: sel.y, m: sel.m } : { y: now.getFullYear(), m: now.getMonth() };
+    render();
+    cpEvtPlace(pop, slot);
+  });
+  pop.addEventListener("click", function (e) { e.stopPropagation(); });   // month nav keeps it open
+  return slot;
+}
+function cpEvtTimeSlot(timeI, ampmS) {
+  cpEvtPopEnsure();
+  var slot = document.createElement("span"); slot.className = "cp-evt-tslot";
+  cpProfInput(timeI); timeI.classList.add("cp-evt-time");
+  if (!timeI.placeholder) timeI.placeholder = "h:mm";
+  slot.appendChild(timeI);
+  var pop = document.createElement("div"); pop.className = "cp-evt-tlist"; slot.appendChild(pop);
+  function setAmpm(isPm) {
+    if (!ampmS) return;
+    [].some.call(ampmS.options, function (o) {
+      if (/p/i.test(o.text) === isPm) { ampmS.value = o.value; return true; }
+      return false;
+    });
+    ampmS.dispatchEvent(new Event("change", { bubbles: true }));   // resyncs the cp-dd label
+  }
+  for (var h = 0; h < 24; h++) {
+    [0, 30].forEach(function (mn) {
+      var isPm = h >= 12, lbl12 = ((h % 12) || 12) + ":" + cpEvtPad(mn);
+      var op = document.createElement("div"); op.className = "cp-evt-topt";
+      op.textContent = lbl12 + " " + (isPm ? "PM" : "AM");
+      op.setAttribute("data-v", lbl12);
+      op.addEventListener("click", function (e) {
+        e.stopPropagation();
+        timeI.value = lbl12; setAmpm(isPm);
+        timeI.dispatchEvent(new Event("input", { bubbles: true }));
+        timeI.dispatchEvent(new Event("change", { bubbles: true }));
+        cpEvtPopClose();
+      });
+      pop.appendChild(op);
+    });
+  }
+  timeI.addEventListener("click", function (e) {
+    e.stopPropagation();
+    var was = pop.classList.contains("open");
+    cpEvtCloseOthers();
+    if (was) return;
+    var cur = (timeI.value || "").trim();
+    [].forEach.call(pop.children, function (op) { op.classList.toggle("on", op.getAttribute("data-v") === cur); });
+    cpEvtPlace(pop, slot);
+    var on = pop.querySelector(".cp-evt-topt.on");
+    if (on) pop.scrollTop = Math.max(0, on.offsetTop - 60);
+  });
+  if (ampmS) slot.appendChild(ampmS);   // themed by enhanceSelects (.cp-prof-rowc select)
+  return slot;
+}
+function cpBuildScheduleEventRows(rowsWrap, cell) {
+  var nameI = cell.querySelector('input[name="eventName"]');
+  var recurS = cell.querySelector('select[name="recurType"]');
+  if (!nameI || !recurS) return null;
+  function C(n) { return cell.querySelector('[name="' + n + '"]'); }
+  function R(n) { return Array.prototype.slice.call(cell.querySelectorAll('input[name="' + n + '"]')); }
+  var controls = [], widgets = [], vis = [];
+  function ctl(el) { if (el && controls.indexOf(el) < 0) controls.push(el); return el; }
+  function reg(w) { if (w && w._sync) widgets.push(w); return w; }
+  function req(row, k) { var kk = row.querySelector(".cp-prof-k"); if (kk) kk.innerHTML = '<span class="cp-prof-req">*</span> ' + k; return row; }
+  function sub(t) { var s = document.createElement("div"); s.className = "cp-evt-sub"; s.textContent = t; rowsWrap.appendChild(s); return s; }
+  function bare(ctrl) {   // label-less row: just the control, keeping the row rhythm/borders
+    var row = document.createElement("div"); row.className = "cp-prof-row cp-prof-ctrlrow cp-evt-bare";
+    var slot = document.createElement("div"); slot.className = "cp-prof-rowc"; slot.appendChild(ctrl);
+    row.appendChild(slot); rowsWrap.appendChild(row);
+    return row;
+  }
+  function when(el, fn) { vis.push({ el: el, fn: fn }); return el; }
+  function mode() { var o = recurS.options[recurS.selectedIndex]; return o ? o.text.trim() : "Never"; }
+  function inline() {   // phrase: strings become muted text, elements drop in place
+    var w = document.createElement("span"); w.className = "cp-evt-inline";
+    [].forEach.call(arguments, function (a) {
+      if (typeof a === "string") { var s = document.createElement("span"); s.textContent = a; w.appendChild(s); }
+      else if (a) w.appendChild(a);
+    });
+    return w;
+  }
+  function num(name) { var el = C(name); if (!el) return null; cpProfInput(ctl(el)); el.classList.add("cp-evt-num"); return el; }
+  function radRow(radio, content) {
+    var row = document.createElement("div"); row.className = "cp-evt-radrow";
+    var dot = document.createElement("span"); dot.className = "cp-evt-rad";
+    row.appendChild(dot); row.appendChild(content);
+    ctl(radio);
+    row.addEventListener("click", function () { if (!radio.checked) { radio.click(); sync(); } });
+    row._sync = function () { row.classList.toggle("on", radio.checked); };
+    return reg(row);
+  }
+
+  var allDay = C("allDayEvent");
+  var sd = C("startDate"), st = C("startTime"), sa = C("startAmpm");
+  var ed = C("endDate"), et = C("endTime"), ea = C("endAmpm");
+
+  // ---- name ----
+  req(cpProfRow(rowsWrap, "Event name", "A unique name for this event.", cpProfInput(ctl(nameI))), "Event name");
+
+  // ---- When: [start date][time][AM/PM] → [end date][time][AM/PM], then the all-day toggle ----
+  sub("When");
+  var line = document.createElement("div"); line.className = "cp-evt-when";
+  var sT = null, eT = null;
+  if (sd) {
+    line.appendChild(cpEvtDateSlot(ctl(sd)));
+    if (st) { sT = cpEvtTimeSlot(ctl(st), sa ? ctl(sa) : null); line.appendChild(sT); }
+  }
+  var arrow = document.createElement("span"); arrow.className = "cp-evt-arrow"; arrow.textContent = "→";
+  line.appendChild(arrow);
+  if (ed) {
+    line.appendChild(cpEvtDateSlot(ctl(ed)));
+    if (et) { eT = cpEvtTimeSlot(ctl(et), ea ? ctl(ea) : null); line.appendChild(eT); }
+  }
+  bare(line);
+  if (allDay) {
+    cpProfRow(rowsWrap, "All day event", "Ignore times — the event covers whole days.",
+              reg(cpProfToggleEl(ctl(allDay), sync))).classList.add("cp-evt-siderow");
+  }
+
+  // ---- Repeats: segmented control over the recurType SELECT's options. The real select stays in the
+  // hidden raw markup (it serializes from there); buttons write its value + fire change. ----
+  sub("Repeats");
+  var seg = document.createElement("div"); seg.className = "cp-prof-seg cp-evt-seg";
+  [].forEach.call(recurS.options, function (o) {
+    var b = document.createElement("button"); b.type = "button"; b.className = "cp-prof-segbtn";
+    b.textContent = o.text.trim(); b._v = o.value;
+    b.addEventListener("click", function () {
+      recurS.value = b._v;
+      try { recurS.dispatchEvent(new Event("change", { bubbles: true })); } catch (e) {}
+      sync();
+    });
+    seg.appendChild(b);
+  });
+  seg._sync = function () { [].forEach.call(seg.children, function (b) { b.classList.toggle("cp-prof-segbtn-on", recurS.value === b._v); }); };
+  reg(seg); ctl(recurS);
+  bare(seg);
+
+  var dailyN = num("recurDailyInterval");
+  if (dailyN) when(bare(inline("Every", dailyN, "day(s)")), function () { return mode() === "Daily"; });
+
+  var weekN = num("recurWeeklyInterval");
+  if (weekN) {
+    var chips = document.createElement("span"); chips.className = "cp-evt-chips";
+    [["recurWeeklySunday", "S", "Sunday"], ["recurWeeklyMonday", "M", "Monday"], ["recurWeeklyTuesday", "T", "Tuesday"],
+     ["recurWeeklyWednesday", "W", "Wednesday"], ["recurWeeklyThursday", "T", "Thursday"], ["recurWeeklyFriday", "F", "Friday"],
+     ["recurWeeklySaturday", "S", "Saturday"]].forEach(function (d) {
+      var cb = C(d[0]); if (!cb) return;
+      ctl(cb);
+      var ch = document.createElement("button"); ch.type = "button"; ch.className = "cp-evt-chip";
+      ch.textContent = d[1]; ch.setAttribute("aria-label", d[2]);
+      ch.addEventListener("click", function () { cb.click(); sync(); });
+      ch._sync = function () { ch.classList.toggle("on", cb.checked); ch.setAttribute("aria-pressed", cb.checked ? "true" : "false"); };
+      reg(ch); chips.appendChild(ch);
+    });
+    when(bare(inline("Every", weekN, "week(s) on", chips)), function () { return mode() === "Weekly"; });
+  }
+
+  var monN = num("recurMonthlyInterval");
+  if (monN) {
+    when(bare(inline("Every", monN, "month(s)")), function () { return mode() === "Monthly"; });
+    var monR = R("recurMonthly");
+    if (monR.length === 2) {
+      var stack = document.createElement("div"); stack.className = "cp-evt-radstack";
+      stack.appendChild(radRow(monR[0], inline("Day", num("dayOfMonth"), "of the month")));
+      var dwim = C("dayOfWeekInMonth"), dw = C("dayOfWeek");
+      stack.appendChild(radRow(monR[1], inline("The", dwim ? ctl(dwim) : null, dw ? ctl(dw) : null)));
+      when(bare(stack), function () { return mode() === "Monthly"; });
+    }
+  }
+
+  var yrN = num("recurYearlyInterval");
+  if (yrN) {
+    when(bare(inline("Every", yrN, "year(s)")), function () { return mode() === "Yearly"; });
+    var yrR = R("recurYearly");
+    if (yrR.length === 2) {
+      var ystack = document.createElement("div"); ystack.className = "cp-evt-radstack";
+      var bdm = C("byDayMonth");
+      ystack.appendChild(radRow(yrR[0], inline("Day", num("dayOfMonthYear"), "of", bdm ? ctl(bdm) : null)));
+      var ydwim = C("dayOfWeekInMonthYear"), ydw = C("dayOfWeekYear"), bwm = C("byWeekMonth");
+      ystack.appendChild(radRow(yrR[1], inline("The", ydwim ? ctl(ydwim) : null, ydw ? ctl(ydw) : null, "of", bwm ? ctl(bwm) : null)));
+      when(bare(ystack), function () { return mode() === "Yearly"; });
+    }
+  }
+
+  // ---- Ends (only while recurring): inline radio flow — Never / After N times / By date ----
+  var endR = R("recurEnd");
+  if (endR.length === 3) {
+    when(sub("Ends"), function () { return mode() !== "Never"; });
+    var flow = document.createElement("div"); flow.className = "cp-evt-radflow";
+    flow.appendChild(radRow(endR[0], inline("Never")));
+    flow.appendChild(radRow(endR[1], inline("After", num("recurEndOccurrence"), "times")));
+    var red = C("recurEndDate");
+    flow.appendChild(radRow(endR[2], red
+      ? inline("By date", cpEvtDateSlot(ctl(red), function () { if (!endR[2].checked) { endR[2].click(); sync(); } }))
+      : inline("By date")));
+    when(bare(flow), function () { return mode() !== "Never"; });
+  }
+
+  function sync() {
+    try { enhanceSelects(); } catch (e) {}
+    widgets.forEach(function (w) { try { w._sync(); } catch (e) {} });
+    vis.forEach(function (v) { try { v.el.classList.toggle("cp-evt-hide", !v.fn()); } catch (e) {} });
+    var off = !!(allDay && allDay.checked);
+    if (sT) sT.classList.toggle("cp-evt-off", off);
+    if (eT) eT.classList.toggle("cp-evt-off", off);
+  }
+  // The SERVER reads only the hidden *_month/_day/_year and *_hour/_minute parts — the mm/dd/yyyy and
+  // h:mm TEXT is client-side only. The legacy submit handler runs validateForm() to copy text → hidden
+  // (calendar.js validateDate / validateTime.js); the modal bypasses those scripts, so with the parts
+  // empty every add fails "Error 4195: start must be before end" (start == end == 0:00). Replicate the
+  // exact legacy fills here; cpModalFormSkin calls prepare() before serializing.
+  function fillDate(input) {
+    if (!input) return;
+    var mo = C(input.name + "_month"), dy = C(input.name + "_day"), yr = C(input.name + "_year");
+    if (!mo || !dy || !yr) return;
+    var m = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})\s*$/.exec(input.value || "");
+    mo.value = m ? String(+m[1] - 1) : "";                                // 0-based month, like validateDate
+    dy.value = m ? m[2] : "";
+    yr.value = m ? (m[3].length === 4 ? m[3] : "20" + m[3]) : "";
+  }
+  function fillTime(input, ampm) {
+    if (!input) return;
+    var hh = C(input.name + "_hour"), mm = C(input.name + "_minute");
+    if (!hh || !mm) return;
+    var m = /^\s*(\d{1,2}):(\d{2})\s*$/.exec(input.value || "");
+    if (!m) { hh.value = ""; mm.value = ""; return; }
+    var h = +m[1];
+    var is24 = ((C("use24HourNotation") || {}).value === "true");
+    if (!is24 && ampm) {                                                  // options[0] = AM, like validateTime
+      var pm = ampm.selectedIndex > 0;
+      if (!pm && h === 12) h = 0;
+      else if (pm && h < 12) h += 12;
+    }
+    hh.value = String(h); mm.value = String(+m[2]);
+  }
+  function prepare() {
+    fillDate(sd); fillDate(ed); fillDate(C("recurEndDate"));
+    fillTime(st, sa); fillTime(et, ea);
+  }
+  return { controls: controls, sync: sync, prepare: prepare };
+}
+
 /* Page config — picks the row builder (+ card-header label/icon for single-card pages).
  * Returns null for any page that isn't a configured settings form. */
 function cpSettingsFormConfig(title, cell) {
@@ -3586,6 +3928,13 @@ function cpSettingsFormConfig(title, cell) {
   // SP Schedules Add (the modal-Add pilot) — shape-keyed on the scheduleName input.
   if (/^Schedule Add$/i.test(title) || cell.querySelector('input[name="scheduleName"]')) {
     return { label: "New schedule", icon: CP_PROF_CAL_SVG, build: cpBuildScheduleAddRows, okLabel: "Add" };
+  }
+  // Schedule EVENT Add/Modify (behind the Schedule Modify events grid's Add / row drill) — the Option C
+  // sectioned popout; shape-keyed on eventName + recurType so only the real event form matches. NB the
+  // fetched form has NO td.screenName, so in the modal `title` is "" and the header shows the label.
+  if (/^Event (Add|Modify)$/i.test(title) || (cell.querySelector('input[name="eventName"]') && cell.querySelector('select[name="recurType"]'))) {
+    return { label: "New event", icon: CP_PROF_CAL_SVG, build: cpBuildScheduleEventRows,
+             okLabel: /Modify/i.test(title) ? "Save" : "Add", modalClass: "cp-modal-c", deleteEntity: "event" };
   }
   // Identity/Device Profile Type Add — big device-type form (deviceType name + the deviceConfigOption master).
   if (/Identity\/Device Profile Type Add/i.test(title) || (cell.querySelector('input[name="deviceType"]') && cell.querySelector('input[name="deviceConfigOption"]'))) {
@@ -3735,6 +4084,7 @@ function cpModalFormSkin() {
     var title = snEl ? (snEl.textContent || "").trim() : "";
     var cfg = cpSettingsFormConfig(title, body);
     if (!cfg || cfg.multiCard || !cfg.build) { document.dispatchEvent(new CustomEvent("cp:modalform-fail")); return; }
+    if (cfg.modalClass) card.classList.add(cfg.modalClass);   // e.g. cp-modal-wide (Event Add two-pane)
 
     var head = document.createElement("div"); head.className = "cp-modal-head";
     var hIco = document.createElement("span"); hIco.className = "cp-modal-headico"; hIco.innerHTML = cfg.icon || "";
@@ -3762,6 +4112,7 @@ function cpModalFormSkin() {
       if (card.classList.contains("cp-modal-busy")) return;
       card.classList.add("cp-modal-busy");
       err.classList.remove("on");
+      if (res.prepare) { try { res.prepare(); } catch (e) {} }   // fill server-read hidden parts (see builder)
       document.dispatchEvent(new CustomEvent("cp:modalsubmit"));
     });
 
