@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.316";
+  var CP_PJAX_VERSION = "0.2.318";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -1095,10 +1095,13 @@
         // server-paginated lists; the grid re-skins whatever the page renders) rather than filtering locally.
         legacySearch: (!document.getElementById("searchTable") && typeof window.doFind === "function")
       };
-      // SP/Group Schedules: auto-open the picker modal once the preload lands (Option A, 2026-07-06) —
-      // the list page is a redundant hop; the picker IS the page's UI, the grid behind it the fallback.
-      state.pickerAuto = /\/(ServiceProvider|Group)\/Schedules\/(index\.jsp)?$/
-        .test(document.documentElement.getAttribute("data-cp-path") || location.pathname);
+      // SP/Group SCHEDULE MODIFY (the events host): present the page AS the events popup once the
+      // preload lands — the FALLBACK for anything that still lands here (reload recovery, a failed
+      // background fetch). The normal path never navigates: the Schedules LIST intercepts the row
+      // click and opens the background popup (state.schedList → cpEventsPopupBg).
+      var cpCurPagePath = document.documentElement.getAttribute("data-cp-path") || location.pathname;
+      state.pickerAuto = /\/(ServiceProvider|Group)\/Schedules\/Modify\//.test(cpCurPagePath);
+      state.schedList = /\/(ServiceProvider|Group)\/Schedules\/(index\.jsp)?$/.test(cpCurPagePath);
       cpGridState = state;
       // Column structure read from the live legacy list NOW, so the FIRST loading skeleton can match the result
       // (same header titles + column layout) before any search has run. cpGridColConfig derives the count from
@@ -1253,12 +1256,13 @@
       var nt = doc && doc.getElementsByName("formtokenserial")[0];
       if (nt) { var ts = document.getElementsByName("formtokenserial"); for (var i = 0; i < ts.length; i++) ts[i].value = nt.value; }
     }
-    // ---- Schedules PICKER (Option A, user-picked 2026-07-06) --------------------------------------
-    // The Schedules list page is a redundant hop: entering it auto-opens this center-modal picker
-    // (schedule rows + New schedule). Picking a row drills straight to its events page via the row's
-    // own captured redirectPost; New schedule forwards to the grid's Add button (the existing modal-Add
-    // route, whose post-add re-entry rebuilds the list → the picker re-opens with the fresh row). The
-    // list page still builds underneath and stays fully functional — ✕/backdrop/Esc just close.
+    // ---- Schedule EVENTS popup (user re-scope 2026-07-06: the Schedule Modify PAGE is defunct) ----
+    // The Schedules LIST stays the only real page. Drilling a schedule still swaps to Schedule Modify
+    // (so the proven grid/preload/add/delete machinery builds underneath), but that page is presented
+    // AS this popup: event rows (click = edit in the center modal), a per-row delete (the grid's
+    // confirm + commit), and Add event (the grid's own Add route). After any add/edit/delete the ok
+    // response re-enters the page → the grid rebuilds → the popup re-opens with fresh data. Closing
+    // (✕/Esc/backdrop) leaves the defunct page too — back to the Schedules list.
     var cpPickEl = null;
     function cpPickClose() {
       if (!cpPickEl) return;
@@ -1266,41 +1270,71 @@
       cpPickEl = null;
       document.removeEventListener("keydown", cpPickKey, true);
     }
-    function cpPickKey(e) { if (e.key === "Escape") { e.stopPropagation(); cpPickClose(); } }
-    function cpSchedulePicker(state) {
+    function cpPickCloseBack() {
+      if (!cpPickEl) return;
+      cpPickClose();
+      // Only NAVIGATE when the popup was covering the defunct Schedule Modify page (the on-page
+      // fallback path); the background popup floats over the Schedules LIST — closing just closes.
+      var p = document.documentElement.getAttribute("data-cp-path") || location.pathname;
+      if (/\/Schedules\/Modify\//.test(p)) { try { cpHook(p.replace(/Modify\/(index\.jsp)?$/, ""), {}); } catch (e) {} }
+    }
+    function cpPickKey(e) { if (e.key === "Escape") { e.stopPropagation(); cpPickCloseBack(); } }
+    function cpEventsPopup(state) {
       if (cpPickEl || cpModalEl) return;
+      var mf = document.querySelector('form[name="mainForm"]');
+      var schedName = "", schedType = "";
+      try {
+        schedName = (mf && mf.elements.scheduleName && mf.elements.scheduleName.value) || (mf && mf.elements.key && mf.elements.key.value) || "Schedule";
+        schedType = (mf && mf.elements.name && mf.elements.name.value) || "";   // name/P_name carry the TYPE (key/P_key the schedule)
+      } catch (e) {}
       var back = document.createElement("div"); back.className = "cp-modal-back";
       var card = document.createElement("div"); card.className = "cp-modal cp-modal-pick";
       var head = document.createElement("div"); head.className = "cp-modal-head";
-      head.innerHTML = '<span class="cp-modal-headico">' + (cpHeaderIcon("Schedules") || "") + '</span><span>Schedules</span>';
+      head.innerHTML = '<span class="cp-modal-headico">' + (cpHeaderIcon("Schedules") || "") + '</span>' +
+        '<span>' + cpEsc(schedName) + '</span>' +
+        (schedType ? '<span class="cp-pick-pill">' + cpEsc(schedType) + '</span>' : '');
       var x = document.createElement("button");
       x.type = "button"; x.className = "cp-modal-x"; x.setAttribute("aria-label", "Close");
       x.innerHTML = CP_SVG_X;
-      x.addEventListener("click", cpPickClose);
+      x.addEventListener("click", cpPickCloseBack);
       head.appendChild(x);
       card.appendChild(head);
       var list = document.createElement("div"); list.className = "cp-pick-list";
       if (!state.all.length) {
         var empty = document.createElement("div"); empty.className = "cp-pick-empty";
-        empty.textContent = "No schedules yet — create the first one below.";
+        empty.textContent = "No events yet — add the first one below.";
         list.appendChild(empty);
       }
       state.all.forEach(function (r) {
+        var key = cpGridRowKey(state, r);
         var row = document.createElement("button"); row.type = "button"; row.className = "cp-pick-row";
-        row.innerHTML =
-          '<span class="cp-pick-name">' + cpEsc(r.cells[0] || "") + '</span>' +
-          (r.cells[1] ? '<span class="cp-pick-pill">' + cpEsc(r.cells[1]) + '</span>' : '') +
-          '<span class="cp-pick-chev">' + CP_SVG_CHEVRIGHT + '</span>';
+        row.innerHTML = '<span class="cp-pick-name">' + cpEsc(r.cells[0] || "") + '</span>';
+        if (state.delEnabled && Object.prototype.hasOwnProperty.call(state.delMap, key)) {
+          var del = document.createElement("span"); del.className = "cp-pick-del";
+          del.setAttribute("role", "button"); del.setAttribute("aria-label", "Delete " + (r.cells[0] || ""));
+          del.innerHTML = CP_SVG_TRASH;
+          del.addEventListener("click", function (e) {
+            e.stopPropagation();
+            state.delSel = {}; state.delSel[key] = true;
+            cpGridOpenDelConfirm(state);   // stacks above (later in DOM); Delete commits via the grid's Apply path
+          });
+          row.appendChild(del);
+        }
+        var chev = document.createElement("span"); chev.className = "cp-pick-chev"; chev.innerHTML = CP_SVG_CHEVRIGHT;
+        row.appendChild(chev);
         row.addEventListener("click", function () {
-          cpPickClose();
-          if (r.drill && typeof window.redirectPost === "function") window.redirectPost(r.drill.url, r.drill.params);
+          cpPickClose();   // plain close (stay on the page) — the edit modal takes over
+          if (!r.drill) return;
+          var mu = r.drill.url || "";
+          try { mu = new URL(mu, location.href).pathname; } catch (e) {}
+          cpModalAdd(state, mu, r.drill.params || {});
         });
         list.appendChild(row);
       });
       card.appendChild(list);
       var foot = document.createElement("div"); foot.className = "cp-modal-foot cp-pick-foot";
       var addB = document.createElement("button"); addB.type = "button"; addB.className = "cp-prof-btn cp-prof-primary";
-      addB.innerHTML = CP_SVG_PLUS + "<span>New schedule</span>";
+      addB.innerHTML = CP_SVG_PLUS + "<span>Add event</span>";
       addB.addEventListener("click", function () {
         cpPickClose();
         var real = state.wrap && state.wrap.querySelector(".cp-srch-actbtn");
@@ -1309,20 +1343,177 @@
       foot.appendChild(addB);
       card.appendChild(foot);
       back.appendChild(card);
-      back.addEventListener("mousedown", function (e) { if (e.target === back) cpPickClose(); });
+      back.addEventListener("mousedown", function (e) { if (e.target === back) cpPickCloseBack(); });
       document.addEventListener("keydown", cpPickKey, true);
       document.body.appendChild(back);
       cpPickEl = back;
     }
-    // A navigation swap must never strand the picker over the NEXT page.
-    document.addEventListener("cp:reskin", cpPickClose);
+    // ---- BACKGROUND events popup (user follow-up 2026-07-06: never even navigate to Schedule
+    // Modify). Clicking a schedule row on the Schedules LIST fetches its Modify page in the BACKGROUND
+    // (the events table is server-rendered in the response — live-probed with zzCpProbeEvt: tr#Row1 in
+    // the raw HTML) and shows the popup right over the list, which never swaps out. Add/edit run the
+    // center form modal with an onDone that re-fetches this popup; delete replays the fetched
+    // mainForm + the row's checkbox + Apply. If the background fetch fails, fall back to the real
+    // navigation (the on-page popup above takes over there).
+    var cpPickReopen = null;   // re-open callback armed while a form modal is up (consumed on cancel)
+    function cpEventsPopupBg(state, listRow) {
+      if (cpPickEl || cpModalEl) return;
+      cpPickReopen = null;
+      var schedName = listRow.cells[0] || "Schedule", schedType = listRow.cells[1] || "";
+      var mu = (listRow.drill && listRow.drill.url) || "Modify/index.jsp";
+      try { mu = new URL(mu, location.href).pathname; } catch (e) {}
+      var mp = (listRow.drill && listRow.drill.params) || {};
+      var back = document.createElement("div"); back.className = "cp-modal-back";
+      var card = document.createElement("div"); card.className = "cp-modal cp-modal-pick";
+      var head = document.createElement("div"); head.className = "cp-modal-head";
+      head.innerHTML = '<span class="cp-modal-headico">' + (cpHeaderIcon("Schedules") || "") + '</span>' +
+        '<span>' + cpEsc(schedName) + '</span>' +
+        (schedType ? '<span class="cp-pick-pill">' + cpEsc(schedType) + '</span>' : '');
+      var x = document.createElement("button");
+      x.type = "button"; x.className = "cp-modal-x"; x.setAttribute("aria-label", "Close");
+      x.innerHTML = CP_SVG_X;
+      x.addEventListener("click", cpPickCloseBack);
+      head.appendChild(x);
+      card.appendChild(head);
+      var list = document.createElement("div"); list.className = "cp-pick-list";
+      list.innerHTML = '<div class="cp-pick-empty">Loading…</div>';
+      card.appendChild(list);
+      var foot = document.createElement("div"); foot.className = "cp-modal-foot cp-pick-foot";
+      var addB = document.createElement("button"); addB.type = "button"; addB.className = "cp-prof-btn cp-prof-primary";
+      addB.innerHTML = CP_SVG_PLUS + "<span>Add event</span>";
+      addB.disabled = true;
+      foot.appendChild(addB);
+      card.appendChild(foot);
+      back.appendChild(card);
+      back.addEventListener("mousedown", function (e) { if (e.target === back) cpPickCloseBack(); });
+      document.addEventListener("keydown", cpPickKey, true);
+      document.body.appendChild(back);
+      cpPickEl = back;
 
-    function cpModalAdd(state, url, params) {
+      var tokEl = document.getElementsByName("formtokenserial")[0];
+      cpFollow(mu, mp, tokEl ? tokEl.value : null, 0).then(function (res) {
+        if (cpPickEl !== back) return;   // closed / superseded while loading
+        if (!res || res.auth === false || res.err || !res.doc) {
+          cpPickClose();
+          if (listRow.drill && typeof window.redirectPost === "function") window.redirectPost(listRow.drill.url, listRow.drill.params);
+          return;
+        }
+        cpModalTokenSync(res.doc);   // the fetch rotated the single-use token — write the fresh one back
+        var rows = cpSearchParseRows(res.doc);
+        var delKeys = {};
+        [].forEach.call(res.doc.querySelectorAll('input[type="checkbox"][name^="checkbox_"], input[type="checkbox"][name*="__DELIMITER__"]'), function (cb) {
+          var k = cpGridDelKey(null, cb);
+          if (k) delKeys[k] = 1;
+        });
+        var reopen = function () { cpPickClose(); cpEventsPopupBg(state, listRow); };
+        list.innerHTML = "";
+        if (!rows.length) {
+          var empty = document.createElement("div"); empty.className = "cp-pick-empty";
+          empty.textContent = "No events yet — add the first one below.";
+          list.appendChild(empty);
+        }
+        rows.forEach(function (r) {
+          var key = r.cells[0] || "";
+          var row = document.createElement("button"); row.type = "button"; row.className = "cp-pick-row";
+          row.innerHTML = '<span class="cp-pick-name">' + cpEsc(key) + '</span>';
+          if (Object.prototype.hasOwnProperty.call(delKeys, key)) {
+            var del = document.createElement("span"); del.className = "cp-pick-del";
+            del.setAttribute("role", "button"); del.setAttribute("aria-label", "Delete " + key);
+            del.innerHTML = CP_SVG_TRASH;
+            del.addEventListener("click", function (e) {
+              e.stopPropagation();
+              cpPickConfirmDelete(key, function () { cpPickCommitDeleteBg(res.doc, mu, key, reopen); });
+            });
+            row.appendChild(del);
+          }
+          var chev = document.createElement("span"); chev.className = "cp-pick-chev"; chev.innerHTML = CP_SVG_CHEVRIGHT;
+          row.appendChild(chev);
+          row.addEventListener("click", function () {
+            if (!r.drill) return;
+            var eu = r.drill.url || "";
+            try { eu = new URL(eu, location.origin + mu).pathname; } catch (e) {}   // row drills are relative to the MODIFY page
+            cpPickReopen = reopen;
+            cpPickClose();
+            cpModalAdd(state, eu, r.drill.params || {}, reopen);
+          });
+          list.appendChild(row);
+        });
+        addB.disabled = false;
+        addB.addEventListener("click", function () {
+          var au = mu.replace(/Modify\/(index\.jsp)?$/, "Events/Add/index.jsp");
+          cpPickReopen = reopen;
+          cpPickClose();
+          cpModalAdd(state, au, mp, reopen);   // the Add form's context = the schedule drill params (live-proven)
+        });
+      }).catch(function () { cpPickClose(); });
+    }
+    // Single-event confirm (same look as the grid's delete modal, popup-local commit).
+    function cpPickConfirmDelete(name, onGo) {
+      var ov = document.createElement("div");
+      ov.className = "cp-srch-delmodal-ov";
+      ov.innerHTML =
+        '<div class="cp-srch-delmodal" role="dialog" aria-modal="true" aria-label="Confirm delete">' +
+          '<div class="cp-srch-delmodal-ico">' + CP_SVG_TRASH + '</div>' +
+          '<div class="cp-srch-delmodal-tt">Delete this event?</div>' +
+          '<div class="cp-srch-delmodal-sub">This permanently removes it and can’t be undone.</div>' +
+          '<div class="cp-srch-delmodal-names"><span>' + cpEsc(name) + '</span></div>' +
+          '<div class="cp-srch-delmodal-acts">' +
+            '<button type="button" class="cp-srch-delmodal-cancel">Cancel</button>' +
+            '<button type="button" class="cp-srch-delmodal-go">' + CP_SVG_TRASH + '<span>Delete</span></button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+      function close() { if (ov.parentNode) ov.parentNode.removeChild(ov); }
+      ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+      ov.querySelector(".cp-srch-delmodal-cancel").addEventListener("click", close);
+      ov.querySelector(".cp-srch-delmodal-go").addEventListener("click", function () { close(); onGo(); });
+    }
+    // Replays the legacy delete WITHOUT the page: the fetched Modify page's mainForm fields + the
+    // row's delete checkbox + Apply, POSTed with the LIVE token (cpModalTokenSync already wrote the
+    // fetched doc's rotated token into the page).
+    function cpPickCommitDeleteBg(doc, mu, key, done) {
+      var params = {};
+      [].forEach.call(doc.querySelectorAll('form[name="mainForm"] input, form[name="mainForm"] select, form[name="mainForm"] textarea'), function (el) {
+        if (!el.name || el.name === "formtokenserial") return;
+        var t = (el.type || "").toLowerCase();
+        if (t === "submit" || t === "button" || t === "image") return;
+        if ((t === "checkbox" || t === "radio") && !el.checked) return;
+        params[el.name] = el.value || "";
+      });
+      var cb = null;
+      [].forEach.call(doc.querySelectorAll('input[type="checkbox"][name^="checkbox_"], input[type="checkbox"][name*="__DELIMITER__"]'), function (el) {
+        if (cpGridDelKey(null, el) === key) cb = el;
+      });
+      if (!cb) return;
+      params[cb.name] = cb.value || "on";
+      params.apply = "Apply";
+      var tokEl = document.getElementsByName("formtokenserial")[0];
+      cpFollow(mu, params, tokEl ? tokEl.value : null, 0).then(function (res) {
+        if (res && res.doc) cpModalTokenSync(res.doc);
+        if (done) { try { done(); } catch (e) {} }
+      });
+    }
+    // A navigation swap must never strand the popup over the NEXT page.
+    document.addEventListener("cp:reskin", function () { cpPickReopen = null; cpPickClose(); });
+    // A form modal dismissed with Cancel/✕ brings the events popup back: the background popup via its
+    // armed reopen callback; the on-page fallback via the grid state. (setTimeout: the other
+    // cp:modalcancel listener, cpModalClose, must run first so cpModalEl clears.)
+    document.addEventListener("cp:modalcancel", function () {
+      setTimeout(function () {
+        if (cpModalEl || cpPickEl) return;
+        if (cpPickReopen) { var f = cpPickReopen; cpPickReopen = null; try { f(); } catch (e) {} return; }
+        if (cpGridState && cpGridState.pickerAuto && document.contains(cpGridState.wrap)) cpEventsPopup(cpGridState);
+      }, 0);
+    });
+
+    function cpModalAdd(state, url, params, onDone) {
       if (cpModalEl) return;
       // listNav = the nav that ENTERED the hosting page, params included. The old data-cp-path string was
       // enough for plain lists, but a Modify-hosted grid (Schedule Modify's events) needs the entity params
       // (name/P_name/key/P_key) to re-enter — a bare POST to the Modify URL has no target schedule.
-      cpModalCtx = { url: url, params: params || {}, state: state,
+      // onDone (optional): success callback that REPLACES the list re-entry — the background events
+      // popup refreshes itself instead of navigating.
+      cpModalCtx = { url: url, params: params || {}, state: state, onDone: onDone || null,
                      listNav: cpLastNav ? { url: cpLastNav.url, params: cpLastNav.params || {} } : null,
                      listUrl: document.documentElement.getAttribute("data-cp-path") || location.pathname };
       cpModalEl = document.createElement("div");
@@ -1405,8 +1596,10 @@
           // returns the stale model until the list is re-entered (user repro: test/test2 schedules absent
           // until leaving + returning). The legacy flow never showed this because OK's response is itself
           // a fresh list entry — mirror it with a bare in-shell re-entry of the list page.
-          var ln = cpModalCtx.listNav, lu = cpModalCtx.listUrl;
+          var ln = cpModalCtx.listNav, lu = cpModalCtx.listUrl, od = cpModalCtx.onDone;
           cpModalClose();
+          // A background-popup modal refreshes ITS caller instead of re-entering the list.
+          if (od) { try { od(); } catch (e) {} return; }
           // Prefer the full entry nav (params restore a Modify-hosted grid's entity context);
           // the bare listUrl stays as the fallback for the plain-list case.
           try { if (ln) cpHook(ln.url, ln.params); else if (lu) cpHook(lu, {}); } catch (e) {}
@@ -1884,11 +2077,12 @@
         state.cur = state.all.slice();
         state.page = 0;
         state.searched = true;
-        // Schedules picker (Option A): the FIRST preload of this page presents the picker instead of the
-        // grid; later loads (re-search, post-add re-entry rebuilds a NEW state so it re-opens there) skip.
+        // Events popup: the FIRST preload of a Schedule Modify page presents the popup (the page is
+        // defunct); later loads within the same build (re-search) skip — a post-add/edit/delete
+        // re-entry rebuilds a NEW state, so the popup re-opens there with fresh rows.
         if (state.pickerAuto && !state._pickerShown) {
           state._pickerShown = true;
-          try { cpSchedulePicker(state); } catch (e) {}
+          try { cpEventsPopup(state); } catch (e) {}
         }
         if (!state.all.length) {
           cpGridShowState(state, "nomatch");
@@ -2617,6 +2811,9 @@
         if (!rowEl) return;
         var idx = [].indexOf.call(rowEl.parentNode.children, rowEl) + state.page * state.perPage;
         var row = state.cur[idx];
+        // Schedules list: a schedule click opens the BACKGROUND events popup instead of navigating —
+        // the Schedule Modify page is defunct (user re-scope 2026-07-06).
+        if (row && row.drill && state.schedList) { cpEventsPopupBg(state, row); return; }
         if (row && row.drill && typeof redirectPost === "function") redirectPost(row.drill.url, row.drill.params);
       });
       // The +/− (Add/remove filter) and Search controls live INSIDE the criterion rows now (right of each row),

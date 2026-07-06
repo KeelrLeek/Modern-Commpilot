@@ -3931,10 +3931,13 @@ function cpSettingsFormConfig(title, cell) {
   }
   // Schedule EVENT Add/Modify (behind the Schedule Modify events grid's Add / row drill) — the Option C
   // sectioned popout; shape-keyed on eventName + recurType so only the real event form matches. NB the
-  // fetched form has NO td.screenName, so in the modal `title` is "" and the header shows the label.
+  // fetched form has NO td.screenName, so in the modal `title` is "" — Add/Modify is told apart by the
+  // eventName input carrying a value (a Modify form echoes the record; an Add form is blank).
   if (/^Event (Add|Modify)$/i.test(title) || (cell.querySelector('input[name="eventName"]') && cell.querySelector('select[name="recurType"]'))) {
-    return { label: "New event", icon: CP_PROF_CAL_SVG, build: cpBuildScheduleEventRows,
-             okLabel: /Modify/i.test(title) ? "Save" : "Add", modalClass: "cp-modal-c", deleteEntity: "event" };
+    var evIn = cell.querySelector('input[name="eventName"]');
+    var evEdit = /Modify/i.test(title) || !!(evIn && evIn.value);
+    return { label: evEdit ? "Edit event" : "New event", icon: CP_PROF_CAL_SVG, build: cpBuildScheduleEventRows,
+             okLabel: evEdit ? "Save" : "Add", modalClass: "cp-modal-c", deleteEntity: "event" };
   }
   // Identity/Device Profile Type Add — big device-type form (deviceType name + the deviceConfigOption master).
   if (/Identity\/Device Profile Type Add/i.test(title) || (cell.querySelector('input[name="deviceType"]') && cell.querySelector('input[name="deviceConfigOption"]'))) {
@@ -4083,6 +4086,12 @@ function cpModalFormSkin() {
     var snEl = body.querySelector("td.screenName");
     var title = snEl ? (snEl.textContent || "").trim() : "";
     var cfg = cpSettingsFormConfig(title, body);
+    // Fetched forms carry no td.screenName → title "". A MODIFY form's first visible named input already
+    // holds the record's name — use it so the edit modal is titled by what's being edited.
+    if (!title) {
+      var tIn = body.querySelector('input[name][type="text"], input[name]:not([type])');
+      if (tIn && tIn.value) title = tIn.value;
+    }
     if (!cfg || cfg.multiCard || !cfg.build) { document.dispatchEvent(new CustomEvent("cp:modalform-fail")); return; }
     if (cfg.modalClass) card.classList.add(cfg.modalClass);   // e.g. cp-modal-wide (Event Add two-pane)
 

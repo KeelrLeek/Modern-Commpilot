@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Modern CommPilot Skin",
-  "version": "0.2.316",
-  "version_name": "0.2.316-alpha",
+  "version": "0.2.318",
+  "version_name": "0.2.318-alpha",
   "description": "Cosmetic overlay that re-skins the CommPilot web app.",
   "icons": {},
   "permissions": ["storage", "declarativeNetRequest"],

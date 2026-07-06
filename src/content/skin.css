@@ -3758,8 +3758,15 @@ td.enduserbody:has(.cp-prof-card) {
 }
 .cp-pick-chev { display: inline-flex; line-height: 0; color: var(--cp-text-muted); }
 .cp-pick-chev svg { width: 14px; height: 14px; }
+.cp-pick-del {
+  display: inline-flex; line-height: 0; padding: 4px; border-radius: 5px;
+  color: var(--cp-text-muted); cursor: pointer;
+}
+.cp-pick-del:hover { color: #ef9aa1; background: rgba(224, 108, 117, 0.14); }
+.cp-pick-del svg { width: 14px; height: 14px; }
 .cp-pick-empty { padding: 18px 12px; text-align: center; color: var(--cp-text-muted); font: 600 12.5px/1.4 "Nunito", sans-serif; }
 .cp-pick-foot { justify-content: flex-start; }
+.cp-modal-head .cp-pick-pill { margin-left: 2px; }
 
 /* ---- Event Add modal (Option C, user-picked 2026-07-06 — replaced the two-pane Option B attempt):
    single 540px column with When / Repeats / Ends section subheads, a segmented recurs control, an
