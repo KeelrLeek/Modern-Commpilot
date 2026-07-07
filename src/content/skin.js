@@ -222,7 +222,8 @@ var CP_ITEM_ICONS = {
   "dial plan policy": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h4v4h-4z"/><path d="M10 3h4v4h-4z"/><path d="M17 3h4v4h-4z"/><path d="M3 10h4v4h-4z"/><path d="M10 10h4v4h-4z"/><path d="M17 10h4v4h-4z"/><path d="M10 17h4v4h-4z"/></svg>',
   "routing profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"/></svg>',
   "dialable caller id": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v10a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -10"/><path d="M7 10a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M15 8l2 0"/><path d="M15 12l2 0"/><path d="M7 16l10 0"/></svg>',
-  "carriers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M16.616 13.924a5 5 0 1 0 -9.23 0"/><path d="M20.307 15.469a9 9 0 1 0 -16.615 0"/><path d="M9 21l3 -9l3 9"/><path d="M10 19h4"/></svg>'
+  "carriers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M16.616 13.924a5 5 0 1 0 -9.23 0"/><path d="M20.307 15.469a9 9 0 1 0 -16.615 0"/><path d="M9 21l3 -9l3 9"/><path d="M10 19h4"/></svg>',
+  "assign domains": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.94 13.045a9 9 0 1 0 -8.953 7.955"/><path d="M3.6 9h16.8"/><path d="M3.6 15h9.4"/><path d="M11.5 3a17 17 0 0 0 0 18"/><path d="M12.5 3a16.991 16.991 0 0 1 2.529 10.294"/><path d="M16 22l5 -5"/><path d="M21 21.5v-4.5h-4.5"/></svg>'
 };
 function cpMenuItemIcon(title) {
   var t = (title || "").trim().toLowerCase();
@@ -4381,6 +4382,137 @@ function cpBuildDcidCriteriaRows(cell) {
   return { cards: [grid], controls: controls, sync: sync };
 }
 
+/* Assign Domains (SP, /Operator/ServiceProviders/AssignDomains/) — Option A: ONE wide two-pane
+ * picker card (matches the DCID pickers, [[project-assign-picker-pages]]). The available side is
+ * SEARCH-DRIVEN (the real findValue0 input is moved into the card; Search forwards the real submit);
+ * every move replays the domains.js protocol (toAdd/toRemove + action + requestSubmit → in-shell);
+ * moves STAGE server-side and commit only on Save/Apply — a sessionStorage pending flag survives the
+ * per-move re-render and drives both the amber staged-note and the shared action-bar dirty gate
+ * (via a detached latch checkbox: Save/Apply are pointer-events:none until .cp-prof-dirty). The
+ * `*`-suffixed default domain renders locked (server rejects removing it). */
+function cpBuildAssignDomainsRows(cell) {
+  var form = document.forms.mainForm;
+  if (!form) return null;
+  var avail = cell.querySelector('select[name="availableList"]');
+  var asgn = cell.querySelector('select[name="assignedList"]');
+  var toAdd = form.elements.toAdd, toRem = form.elements.toRemove, actI = form.elements.action;
+  if (!avail || !asgn || !toAdd || !toRem || !actI) return null;
+  var PENDKEY = "cp-assign-pending:" + location.pathname;
+
+  var card = cpProfCard("Domains", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.94 13.045a9 9 0 1 0 -8.953 7.955"/><path d="M3.6 9h16.8"/><path d="M3.6 15h9.4"/><path d="M11.5 3a17 17 0 0 0 0 18"/><path d="M12.5 3a16.991 16.991 0 0 1 2.529 10.294"/><path d="M16 22l5 -5"/><path d="M21 21.5v-4.5h-4.5"/></svg>');
+  card.card.classList.add("cp-prof-cardwide");
+  var wrap = document.createElement("div"); wrap.className = "cp-dl";
+
+  // Dirty latch: staged (uncommitted) moves must enable the shared Save/Apply gate even though no
+  // tracked control changes. Detached checkbox; flipped AFTER the shared snapshot (microtask).
+  var latch = document.createElement("input"); latch.type = "checkbox";
+  function clearPending() { try { sessionStorage.removeItem(PENDKEY); } catch (e) {} }
+  // Committing (Save/Apply) or leaving (Cancel) clears the staged flag — listen on the REAL buttons
+  // (our action bar forwards clicks to them).
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="ok"], input[name="apply"], input[name="cancel"]'), function (b) {
+    b.addEventListener("click", clearPending);
+  });
+
+  function fire(action, vals) {
+    if (!vals.length) return;
+    try { sessionStorage.setItem(PENDKEY, "1"); } catch (e) {}
+    toAdd.value = ""; toRem.value = "";
+    (action === "add" ? toAdd : toRem).value = vals.join(",");
+    actI.value = action;
+    wrap.classList.add("cp-dl-busy");
+    try { form.requestSubmit(); } catch (e) { wrap.classList.remove("cp-dl-busy"); }
+  }
+  function parseOpt(o) {
+    var t = (o.text || "").trim();
+    var m = /^(.*?)\s*\((Reseller|System)\)$/.exec(t);
+    var v = o.value || "";
+    return { value: v, name: m ? m[1] : t, tag: m ? m[2] : "", lock: v.charAt(v.length - 1) === "*" };
+  }
+  function pane(sel, lbl, isAssigned) {
+    var col = document.createElement("div");
+    var l = document.createElement("div"); l.className = "cp-dl-lbl";
+    var p = document.createElement("div"); p.className = "cp-dl-pane";
+    var items = Array.prototype.slice.call(sel.options).map(parseOpt).filter(function (o) { return o.name; });
+    l.textContent = lbl + " · " + items.length;
+    if (!items.length) {
+      var em = document.createElement("div"); em.className = "cp-dl-none";
+      em.textContent = isAssigned ? "None assigned" : "Search to list the reseller's domains";
+      p.appendChild(em);
+    }
+    items.forEach(function (o) {
+      var it = document.createElement("div"); it.className = "cp-dl-item" + (o.lock ? " cp-dl-locked" : "");
+      var nm = document.createElement("span"); nm.textContent = o.name.replace(/\*$/, ""); it.appendChild(nm);
+      if (o.lock) {
+        var lk = document.createElement("span"); lk.className = "cp-dl-tag cp-dl-lock";
+        lk.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px"><path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6z"/><path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0"/><path d="M8 11v-4a4 4 0 1 1 8 0v4"/></svg> default';
+        it.appendChild(lk);
+      } else if (o.tag) {
+        var tg = document.createElement("span"); tg.className = "cp-dl-tag"; tg.textContent = o.tag;
+        it.appendChild(tg);
+      }
+      it.setAttribute("data-cp-v", o.value);
+      if (!o.lock) it.addEventListener("click", function () { it.classList.toggle("cp-dl-sel"); });
+      p.appendChild(it);
+    });
+    col.appendChild(l); col.appendChild(p);
+    return { col: col, pane: p };
+  }
+  function vals(p, all) {
+    var sel = p.querySelectorAll(all ? ".cp-dl-item:not(.cp-dl-locked)" : ".cp-dl-sel");
+    return Array.prototype.slice.call(sel).map(function (it) { return it.getAttribute("data-cp-v"); });
+  }
+
+  var av = pane(avail, "Available", false), mt = pane(asgn, "Assigned", true);
+
+  // Search row: FULL-WIDTH above the panes (inside the left column it unbalanced the two sides —
+  // the assigned pane stretched to match the taller column). The REAL findValue0 is moved in; Enter
+  // must NOT default-submit (submitter would be ok = save) — forward the REAL search submit instead.
+  var srow = null;
+  var findV = cell.querySelector('input[name="findValue0"]');
+  var realSearch = cell.querySelector('input[name="search"]');
+  if (findV && realSearch) {
+    srow = document.createElement("div"); srow.className = "cp-dl-srch";
+    cpProfInput(findV); findV.placeholder = "Search available domains…";
+    var go = document.createElement("button"); go.type = "button"; go.className = "cp-dl-btn";
+    go.textContent = "Search";
+    function doSearch() { toAdd.value = ""; toRem.value = ""; actI.value = ""; realSearch.click(); }
+    go.addEventListener("click", doSearch);
+    findV.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); doSearch(); } });
+    srow.appendChild(findV); srow.appendChild(go);
+  }
+
+  var btns = document.createElement("div"); btns.className = "cp-dl-btns";
+  [["Assign →", function () { fire("add", vals(av.pane)); }],
+   ["← Unassign", function () { fire("remove", vals(mt.pane)); }],
+   ["Assign all", function () { fire("add", vals(av.pane, true)); }],
+   ["Unassign all", function () { fire("remove", vals(mt.pane, true)); }]].forEach(function (b) {
+    var el = document.createElement("button"); el.type = "button"; el.className = "cp-dl-btn";
+    el.textContent = b[0];
+    el.addEventListener("click", b[1]);
+    btns.appendChild(el);
+  });
+
+  wrap.classList.add("cp-dl-eq");
+  wrap.appendChild(av.col); wrap.appendChild(btns); wrap.appendChild(mt.col);
+  if (srow) card.rows.appendChild(srow);
+  card.rows.appendChild(wrap);
+  var note = document.createElement("div"); note.className = "cp-dl-note cp-dl-pend";
+  note.textContent = "Changes staged — Save or Apply to commit, Cancel to discard.";
+  card.rows.appendChild(note);
+
+  var pending = false;
+  try { pending = sessionStorage.getItem(PENDKEY) === "1"; } catch (e) {}
+  if (pending) {
+    note.classList.add("cp-dl-pend-on");
+    // The shared bar snapshots controls right after build — flip the latch a microtask later.
+    Promise.resolve().then(function () { latch.checked = true; latch.dispatchEvent(new Event("change")); });
+  }
+
+  var grid = document.createElement("div"); grid.className = "cp-prof-grid2";
+  grid.appendChild(card.card);
+  return { cards: [grid], controls: [latch] };
+}
+
 /* Carriers Add/Modify (SP) — carrier pre-selection (PIC) per country code: the countryCode select
  * (Add only; ~300 options — the site dropdown handles it) + the three PIC selects. SINGLE-card
  * standard form (same shape class as Routing Profile; PIC options come from system carrier
@@ -4494,6 +4626,10 @@ function cpSettingsFormConfig(title, cell) {
   // Dialable Caller ID (SP) — hybrid policy form + criteria list; shape-keyed on the radio pairs.
   if (/^Dialable Caller ID$/i.test(title) || (cell.querySelector('input[name="useSpCriteria"]') && cell.querySelector('input[name="nsFailureScreeningPolicy"]'))) {
     return { multiCard: true, build: cpBuildDialableCidRows };
+  }
+  // Assign Domains (SP) — the two-pane assign picker; shape-keyed on toAdd + availableList.
+  if (/^Assign Domains$/i.test(title) || (cell.querySelector('input[name="toAdd"]') && cell.querySelector('select[name="availableList"]'))) {
+    return { multiCard: true, build: cpBuildAssignDomainsRows, okLabel: "Save" };
   }
   // Carriers Add/Modify (SP) — PIC selection form; shape-keyed on the intraLataPIC select.
   if (/^Carriers (Add|Modify)$/i.test(title) || cell.querySelector('select[name="intraLataPIC"]')) {

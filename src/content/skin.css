@@ -4054,3 +4054,27 @@ input.cp-dpp-map.cp-prof-input {
 .cp-dl-btn:hover { background: rgba(110, 76, 150, 0.2) !important; border-color: rgba(110, 76, 150, 0.55) !important; }
 .cp-dl-busy { opacity: 0.55; pointer-events: none; }
 .cp-dl-note { padding: 0 14px 12px; color: var(--cp-text-muted); font: 600 11.5px/1.4 "Nunito", sans-serif; }
+
+/* ---- Assign Domains picker extras (Option A, 0.2.328): search row above the available pane,
+   origin tags, the locked default domain, and the staged-changes note. ---- */
+.cp-dl-srch { display: flex; gap: 7px; margin: 0 0 8px; }
+.cp-dl-srch .cp-prof-input { flex: 1; min-width: 0; }
+.cp-dl-item { display: flex; align-items: center; gap: 7px; }
+.cp-dl-item > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-dl-tag {
+  margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 3px;
+  font: 700 10px/1 "Nunito", sans-serif; color: var(--cp-text-muted);
+  background: rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 3px 7px;
+}
+.cp-dl-lock { color: #e5c07b; background: rgba(229, 192, 123, 0.12); }
+.cp-dl-item.cp-dl-locked { cursor: default; }
+.cp-dl-item.cp-dl-locked:hover { background: transparent; }
+.cp-dl-pend { display: none; color: #e5c07b; }
+.cp-dl-pend.cp-dl-pend-on { display: block; }
+
+/* Assign Domains 0.2.329 de-jank: search row spans the card above the panes; both panes equal
+   fixed height (no stretch mismatch); labels sit on one baseline; buttons truly centered. */
+.cp-dl-srch { padding: 12px 14px 0; margin: 0; }
+.cp-dl-eq { align-items: start; }
+.cp-dl-eq .cp-dl-pane { height: 220px; max-height: 220px; }
+.cp-dl-eq .cp-dl-btns { height: 220px; margin-top: 18px; justify-content: center; }
