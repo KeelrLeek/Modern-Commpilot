@@ -220,7 +220,9 @@ var CP_ITEM_ICONS = {
   "schedules": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/><path d="M8 15h2v2h-2z"/></svg>',
   "call processing policies": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M6 4v4"/><path d="M6 12v8"/><path d="M10 16a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M12 4v10"/><path d="M12 18v2"/><path d="M16 7a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M18 4v1"/><path d="M18 9v11"/></svg>',
   "dial plan policy": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h4v4h-4z"/><path d="M10 3h4v4h-4z"/><path d="M17 3h4v4h-4z"/><path d="M3 10h4v4h-4z"/><path d="M10 10h4v4h-4z"/><path d="M17 10h4v4h-4z"/><path d="M10 17h4v4h-4z"/></svg>',
-  "routing profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"/></svg>'
+  "routing profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"/></svg>',
+  "dialable caller id": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v10a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -10"/><path d="M7 10a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M15 8l2 0"/><path d="M15 12l2 0"/><path d="M7 16l10 0"/></svg>',
+  "carriers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M16.616 13.924a5 5 0 1 0 -9.23 0"/><path d="M20.307 15.469a9 9 0 1 0 -16.615 0"/><path d="M9 21l3 -9l3 9"/><path d="M10 19h4"/></svg>'
 };
 function cpMenuItemIcon(title) {
   var t = (title || "").trim().toLowerCase();
@@ -231,6 +233,8 @@ function cpMenuItemIcon(title) {
   if (/^device management (tag sets|regions)( (add|add tag|modify|modify tag))?$/.test(t)) t = "device management tag sets";  // Tag Sets list/Modify + Add/Add Tag/Modify Tag + Regions Add → list icon (tags)
   if (/^domains add$/.test(t)) t = "domains";   // Add form → list icon (world-www)
   if (/^xsi policy profile usage$/.test(t)) t = "xsi policy profile";   // row drill's Usage grid → list icon (api)
+  if (/^dialable caller id criteria (add|modify)$/.test(t)) t = "dialable caller id";   // criteria form → page icon (id)
+  if (/^carriers (add|modify)$/.test(t)) t = "carriers";   // PIC form → list icon (broadcast tower)
   return CP_ITEM_ICONS[t] || "";
 }
 
@@ -1128,7 +1132,13 @@ function revealResultsBox() {
  * (wrapResultsBox → suppressEmptyResults/pagination/footer, all keyed off .cp-results-box) must not
  * claim them, or the form gets hidden behind a "No results" empty state (live 2026-07-06). */
 function cpIsHybridFormPage() {
-  return !!document.querySelector('input[name="reqAccCode"]');
+  // Dial Plan Policy (form + embedded codes list) — keyed on its policy toggle.
+  if (document.querySelector('input[name="reqAccCode"]')) return true;
+  // Assign-picker pages (Assign Domains & family): a search form + available/assigned dual list.
+  // NOT a results list — the list pipeline (and pjax's grid, gated separately in cpIsGridListPage)
+  // must stay off so the pick-list form stays visible.
+  if (document.querySelector('input[name="toAdd"]') && document.querySelector('select[name="availableList"]')) return true;
+  return false;
 }
 function wrapResultsBox() {
   if (cpGridOn()) return;
@@ -2518,8 +2528,19 @@ function cpBuildProfileRows(rowsWrap, cell) {
  * (checked + disabled) back into the visuals, and dims the toggles under
  * "System" (the custom options only apply under "Reseller"). */
 function cpBuildDapRows(rowsWrap, cell) {
-  var sysR = cell.querySelector('input[name="useSystemSettings"][value="true"]');
-  var resR = cell.querySelector('input[name="useSystemSettings"][value="false"]');
+  // The settings-source radio pair is named for the PARENT level being inherited from — reseller
+  // page = useSystemSettings, SP page = useResellerSettings, group page = useServiceProviderSettings
+  // (found live 2026-07-07: the SP page rendered RAW because this builder only knew the reseller
+  // name). value "true" = inherit the parent's policy, "false" = define a custom one at this level.
+  var SRC = [
+    ["useSystemSettings", "Use system settings", "Inherit the platform default onboarding policy.", "Use reseller settings", "reseller"],
+    ["useResellerSettings", "Use reseller settings", "Inherit the reseller's onboarding policy.", "Use service provider settings", "service provider"],
+    ["useServiceProviderSettings", "Use service provider settings", "Inherit the service provider's onboarding policy.", "Use group settings", "group"]
+  ];
+  var src = null;
+  for (var si = 0; si < SRC.length; si++) { if (cell.querySelector('input[name="' + SRC[si][0] + '"]')) { src = SRC[si]; break; } }
+  var sysR = src && cell.querySelector('input[name="' + src[0] + '"][value="true"]');
+  var resR = src && cell.querySelector('input[name="' + src[0] + '"][value="false"]');
   var allowC = cell.querySelector('input[name="allowActivationRequestByUser"]');
   var emailC = cell.querySelector('input[name="sendActivationCodeInEmail"]');
   if (!sysR || !resR || !allowC || !emailC) return null;
@@ -2541,7 +2562,7 @@ function cpBuildDapRows(rowsWrap, cell) {
   var srcRow = document.createElement("div"); srcRow.className = "cp-prof-row cp-prof-srcrow";
   var srcK = document.createElement("div"); srcK.className = "cp-prof-k"; srcK.textContent = "Settings source"; srcRow.appendChild(srcK);
   var srcD = document.createElement("div"); srcD.className = "cp-prof-d";
-  srcD.textContent = "Choose where this reseller's activation-code onboarding policy comes from."; srcRow.appendChild(srcD);
+  srcD.textContent = "Choose where this " + src[4] + "'s activation-code onboarding policy comes from."; srcRow.appendChild(srcD);
   var choices = document.createElement("div"); choices.className = "cp-prof-choices"; srcRow.appendChild(choices);
   function mkChoice(t, d, radio) {
     var c = document.createElement("div"); c.className = "cp-prof-choice";
@@ -2553,8 +2574,8 @@ function cpBuildDapRows(rowsWrap, cell) {
     c.addEventListener("click", function () { radio.click(); sync(); });
     return c;
   }
-  var cSys = mkChoice("Use system settings", "Inherit the platform default onboarding policy.", sysR);
-  var cRes = mkChoice("Use reseller settings", "Define a custom policy with the options below.", resR);
+  var cSys = mkChoice(src[1], src[2], sysR);
+  var cRes = mkChoice(src[3], "Define a custom policy with the options below.", resR);
   choices.appendChild(cSys); choices.appendChild(cRes);
   rowsWrap.appendChild(srcRow);
 
@@ -4144,6 +4165,242 @@ function cpBuildAccessCodeRows(rowsWrap, cell) {
   return { controls: controls, sync: sync };
 }
 
+/* Dialable Caller ID (SP) — hybrid: policy form + embedded criteria list. The criteria table uses
+ * listHeader (NOT listSortHeader) so the list pipeline never claims this page; no hybrid gate needed
+ * (see [[project-dialable-callerid]]). Cards: policy (source seg + screening dropdown) + criteria
+ * list (rows re-rendered à la Dial Plan Policy's codes card; Add/Edit navigate FULL-PAGE via the
+ * cp:cpnav bridge — the criteria form is too big for the center modal). */
+function cpBuildDialableCidRows(cell) {
+  function R(name) { return Array.prototype.slice.call(cell.querySelectorAll('input[name="' + name + '"]')); }
+  var src = R("useSpCriteria"), pol = R("nsFailureScreeningPolicy");
+  if (src.length !== 2 || pol.length !== 3) return null;
+  cpProfDdEnsure();
+  var ICONS = {
+    pol: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v10a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -10"/><path d="M7 10a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M15 8l2 0"/><path d="M15 12l2 0"/><path d="M7 16l10 0"/></svg>',
+    list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l11 0"/><path d="M9 12l11 0"/><path d="M9 18l11 0"/><path d="M5 6l0 .01"/><path d="M5 12l0 .01"/><path d="M5 18l0 .01"/></svg>'
+  };
+  var widgets = [], controls = [];
+  function reg(w) { if (w && w._sync) widgets.push(w); return w; }
+  function ctl(el) { if (el && controls.indexOf(el) < 0) controls.push(el); return el; }
+  function sync() { widgets.forEach(function (w) { try { w._sync(); } catch (e) {} }); }
+  function nav(url, params) {
+    var root = document.documentElement;
+    root.setAttribute("data-cp-nav-url", url);
+    root.setAttribute("data-cp-nav-params", JSON.stringify(params || {}));
+    document.dispatchEvent(new CustomEvent("cp:cpnav"));
+  }
+
+  // --- Caller ID policy ---
+  var cPol = cpProfCard("Caller ID policy", ICONS.pol);
+  // Value true = SP criteria, false = System — label by VALUE, not DOM order.
+  var sTrue = src.filter(function (r) { return r.value === "true"; })[0] || src[0];
+  var sFalse = src.filter(function (r) { return r.value === "false"; })[0] || src[1];
+  [sFalse, sTrue].forEach(ctl);
+  cpProfRow(cPol.rows, "Criteria source", "System uses the platform-wide criteria; Service provider uses this page's list.",
+    reg(cpProfSeg([sFalse, sTrue], ["System", "Service provider"], null, sync)));
+  var polByVal = {};
+  pol.forEach(function (r) { ctl(r); polByVal[r.value] = r; });
+  var polOrder = ["Display Received Caller ID", "Restrict Number", "Restrict Name And Number"].map(function (v) { return polByVal[v]; }).filter(Boolean);
+  if (polOrder.length === 3) {
+    cpProfRow(cPol.rows, "Screening failure policy", "What the called party sees when network screening fails.",
+      reg(cpProfDropdown(polOrder, ["Show the received caller ID", "Hide the caller's number", "Hide the caller's name and number"], sync)));
+  }
+
+  // --- Criteria (the embedded legacy list, re-rendered as card rows) ---
+  var cList = cpProfCard("Criteria", ICONS.list);
+  var list = document.createElement("div"); list.className = "cp-dpp-list";
+  var trs = Array.prototype.slice.call(cell.querySelectorAll('tr[id^="Row"]'));
+  if (!trs.length) {
+    var empty = document.createElement("div"); empty.className = "cp-dpp-empty";
+    empty.textContent = "No criteria yet — add the first one below.";
+    list.appendChild(empty);
+  }
+  trs.forEach(function (tr) {
+    var links = Array.prototype.slice.call(tr.querySelectorAll("a.tableLink")).map(function (a) { return (a.textContent || "").trim(); });
+    var tds = Array.prototype.slice.call(tr.children).map(function (td) { return (td.textContent || "").replace(/\s+/g, " ").trim(); });
+    var name = links[0] || tds.filter(Boolean)[0] || "";
+    if (!name) return;
+    var m = /redirectPost\s*\(\s*['"]([^'"]+)['"]\s*,\s*(\{[\s\S]*?\})\s*\)/.exec(tr.innerHTML);
+    var drill = null;
+    if (m) {
+      var params = {}, re = /(\w+)\s*:\s*['"]([^'"]*)['"]/g, mm;
+      while ((mm = re.exec(m[2]))) params[mm[1]] = mm[2].replace(/\\u002F/g, "/");
+      drill = { url: m[1].replace(/\\u002F/g, "/"), params: params };
+    }
+    var row = document.createElement("button"); row.type = "button"; row.className = "cp-dpp-row";
+    var nm = document.createElement("span"); nm.className = "cp-dpp-code"; nm.textContent = name;
+    row.appendChild(nm);
+    // Description + prefix digits: whichever non-name text cells the row carries.
+    var rest = tds.filter(function (t) { return t && t !== name && !/^(Edit)$/i.test(t); });
+    if (rest[0]) { var ds = document.createElement("span"); ds.className = "cp-dpp-desc"; ds.textContent = rest[0]; row.appendChild(ds); }
+    if (rest[1]) { var pf = document.createElement("span"); pf.className = "cp-pick-pill"; pf.textContent = rest[1]; row.appendChild(pf); }
+    // Inline priority input (validatePriorities.js edits priorities on THIS page) — move the real input.
+    var prI = tr.querySelector('input[type="text"]');
+    if (prI) {
+      ctl(prI); cpProfInput(prI); prI.classList.add("cp-cpp-num");
+      prI.addEventListener("click", function (e) { e.stopPropagation(); });
+      row.appendChild(prI);
+    }
+    var chev = document.createElement("span"); chev.className = "cp-dpp-chev";
+    chev.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6l-6 6"/></svg>';
+    row.appendChild(chev);
+    row.addEventListener("click", function () { if (drill) nav(drill.url, drill.params); });
+    list.appendChild(row);
+  });
+  var foot = document.createElement("div"); foot.className = "cp-dpp-foot";
+  var addB = document.createElement("button"); addB.type = "button"; addB.className = "cp-prof-btn cp-prof-primary";
+  addB.innerHTML = CP_PROF_CHECK_SVG + "<span>Add criteria</span>";
+  addB.addEventListener("click", function () { nav("Add/index.jsp", {}); });
+  foot.appendChild(addB);
+  cList.rows.appendChild(list);
+  cList.rows.appendChild(foot);
+  // System source ⇒ the SP criteria list is inert — dim the card (mirror of the CPP dependent-dim).
+  reg({ _sync: function () { cList.card.classList.toggle("cp-prof-dim", !sTrue.checked); } });
+
+  var grid = document.createElement("div"); grid.className = "cp-prof-grid2";
+  [cPol.card, cList.card].forEach(function (c) { grid.appendChild(c); });
+  sync();
+  return { cards: [grid], controls: controls, sync: sync };
+}
+
+/* Dialable Caller ID Criteria Add/Modify — the big criteria form. Identity + category toggles +
+ * TWO dual pick-lists (Option A, user-picked). The pick-lists follow the legacy simplePickList
+ * protocol: every move is a SERVER ROUND-TRIP — set the hidden action (addCT/removeCT/addACI/
+ * removeACI) + <ct|aci>Index (comma-joined option VALUES), then form.requestSubmit() so the pjax
+ * submit interceptor replays it in-shell (the page's own DCL button wiring is dead after a swap —
+ * see [[project-dialable-callerid]]). The response echoes the typed fields back and re-renders the
+ * moved lists; cp:reskin rebuilds these cards. */
+function cpBuildDualPickCard(title, icon, form, availSel, matchedSel, idxName, addAct, remAct, noun) {
+  var card = cpProfCard(title, icon);
+  var idxI = form.querySelector('input[name="' + idxName + '"]') || document.querySelector('input[name="' + idxName + '"]');
+  var actI = form.querySelector('input[name="action"]') || document.querySelector('input[name="action"]');
+  var wrap = document.createElement("div"); wrap.className = "cp-dl";
+  function opts(sel) {
+    return Array.prototype.slice.call(sel.options).filter(function (o) { return (o.text || "").trim(); });
+  }
+  function fire(action, values) {
+    if (!values.length || !idxI || !actI) return;
+    actI.value = action;
+    idxI.value = values.join(",");
+    wrap.classList.add("cp-dl-busy");
+    try { form.requestSubmit(); } catch (e) { wrap.classList.remove("cp-dl-busy"); }
+  }
+  function pane(sel, lbl) {
+    var col = document.createElement("div");
+    var l = document.createElement("div"); l.className = "cp-dl-lbl"; l.textContent = lbl;
+    var p = document.createElement("div"); p.className = "cp-dl-pane";
+    var items = opts(sel);
+    if (!items.length) {
+      var em = document.createElement("div"); em.className = "cp-dl-none"; em.textContent = "None";
+      p.appendChild(em);
+    }
+    items.forEach(function (o) {
+      var it = document.createElement("div"); it.className = "cp-dl-item";
+      it.textContent = o.text.trim();
+      it.setAttribute("data-cp-v", o.value);
+      it.addEventListener("click", function () { it.classList.toggle("cp-dl-sel"); });
+      p.appendChild(it);
+    });
+    col.appendChild(l); col.appendChild(p);
+    return { col: col, pane: p, count: items.length };
+  }
+  var av = pane(availSel, "Available"), mt = pane(matchedSel, "Matching");
+  function selVals(p) {
+    return Array.prototype.slice.call(p.querySelectorAll(".cp-dl-sel")).map(function (it) { return it.getAttribute("data-cp-v"); });
+  }
+  function allVals(p) {
+    return Array.prototype.slice.call(p.querySelectorAll(".cp-dl-item")).map(function (it) { return it.getAttribute("data-cp-v"); });
+  }
+  var btns = document.createElement("div"); btns.className = "cp-dl-btns";
+  [["Add →", function () { fire(addAct, selVals(av.pane)); }],
+   ["← Remove", function () { fire(remAct, selVals(mt.pane)); }],
+   ["Add all", function () { fire(addAct, allVals(av.pane)); }],
+   ["Remove all", function () { fire(remAct, allVals(mt.pane)); }]].forEach(function (b) {
+    var el = document.createElement("button"); el.type = "button"; el.className = "cp-dl-btn";
+    el.textContent = b[0];
+    el.addEventListener("click", b[1]);
+    btns.appendChild(el);
+  });
+  wrap.appendChild(av.col); wrap.appendChild(btns); wrap.appendChild(mt.col);
+  card.rows.appendChild(wrap);
+  var note = document.createElement("div"); note.className = "cp-dl-note";
+  note.textContent = mt.count + " matched · " + av.count + " available " + noun;
+  card.rows.appendChild(note);
+  card.card.classList.add("cp-prof-cardwide");
+  return card;
+}
+function cpBuildDcidCriteriaRows(cell) {
+  var nameI = cell.querySelector('input[name="name"]');
+  var availCT = cell.querySelector('select[name="availableCTList"]');
+  var matchedCT = cell.querySelector('select[name="matchedCTList"]');
+  if (!nameI || !availCT || !matchedCT) return null;
+  var form = nameI.form || document.forms.mainForm;
+  var ICONS = {
+    id: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v10a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -10"/><path d="M7 10a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M15 8l2 0"/><path d="M15 12l2 0"/><path d="M7 16l10 0"/></svg>',
+    cats: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6h-6z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6h-6z"/><path d="M17 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/></svg>',
+    ct: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2"/></svg>',
+    aci: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2"/><path d="M15 5h6"/><path d="M18.5 2.5v5"/></svg>'
+  };
+  var widgets = [], controls = [];
+  function reg(w) { if (w && w._sync) widgets.push(w); return w; }
+  function ctl(el) { if (el && controls.indexOf(el) < 0) controls.push(el); return el; }
+  function sync() { widgets.forEach(function (w) { try { w._sync(); } catch (e) {} }); }
+  function req(row, k) { var kk = row.querySelector(".cp-prof-k"); if (kk) kk.innerHTML = '<span class="cp-prof-req">*</span> ' + k; return row; }
+
+  var cId = cpProfCard("Criteria", ICONS.id);
+  req(cpProfRow(cId.rows, "Name", "A unique name for this criteria entry.", cpProfInput(ctl(nameI))), "Name");
+  var descI = cell.querySelector('input[name="description"]');
+  if (descI) cpProfRow(cId.rows, "Description", "A note about what this criteria matches.", cpProfInput(ctl(descI)));
+  var pfxI = cell.querySelector('input[name="prefixDigits"]');
+  if (pfxI) { ctl(pfxI); cpProfInput(pfxI); pfxI.classList.add("cp-cpp-num"); cpProfRow(cId.rows, "Prefix digits", "Digits the dialed number must start with to match.", pfxI); }
+
+  var cCat = cpProfCard("Match categories", ICONS.cats);
+  [["local", "Local", "Calls within the local calling area."],
+   ["national", "National", "Domestic long-distance calls."],
+   ["interlata", "Interlata", "Calls between LATAs."],
+   ["intralata", "Intralata", "Calls within a LATA."],
+   ["international", "International", "Calls to other countries."],
+   ["privateCat", "Private", "Calls in the private number category."],
+   ["emergency", "Emergency", "Emergency service calls."],
+   ["other", "Other", "Calls not covered by the other categories."]].forEach(function (t) {
+    var cb = cell.querySelector('input[name="' + t[0] + '"]');
+    if (cb) { ctl(cb); cpProfRow(cCat.rows, t[1], t[2], reg(cpProfToggleEl(cb, sync))); }
+  });
+
+  var cCT = cpBuildDualPickCard("Match configurable call types", ICONS.ct, form, availCT, matchedCT, "ctIndex", "addCT", "removeCT", "call types");
+  var cards = [cId.card, cCat.card, cCT.card];
+  var availAci = cell.querySelector('select[name="availableAciList"]');
+  var matchedAci = cell.querySelector('select[name="matchedAciList"]');
+  if (availAci && matchedAci) {
+    cards.push(cpBuildDualPickCard("Match alternate call indicators", ICONS.aci, form, availAci, matchedAci, "aciIndex", "addACI", "removeACI", "indicators").card);
+  }
+
+  var grid = document.createElement("div"); grid.className = "cp-prof-grid2";
+  cards.forEach(function (c) { grid.appendChild(c); });
+  sync();
+  return { cards: [grid], controls: controls, sync: sync };
+}
+
+/* Carriers Add/Modify (SP) — carrier pre-selection (PIC) per country code: the countryCode select
+ * (Add only; ~300 options — the site dropdown handles it) + the three PIC selects. SINGLE-card
+ * standard form (same shape class as Routing Profile; PIC options come from system carrier
+ * definitions and may legitimately be just "None"). */
+function cpBuildCarrierRows(rowsWrap, cell) {
+  var intra = cell.querySelector('select[name="intraLataPIC"]');
+  if (!intra) return null;
+  var controls = [];
+  function ctl(el) { if (el && controls.indexOf(el) < 0) controls.push(el); return el; }
+  function req(row, k) { var kk = row.querySelector(".cp-prof-k"); if (kk) kk.innerHTML = '<span class="cp-prof-req">*</span> ' + k; return row; }
+  var cc = cell.querySelector('select[name="countryCode"]');
+  if (cc) req(cpProfRow(rowsWrap, "Country code", "The dialing country code these carrier selections apply to.", cpProfInput(ctl(cc))), "Country code");
+  cpProfRow(rowsWrap, "Intra-LATA carrier", "Pre-subscribed carrier for calls within a LATA.", cpProfInput(ctl(intra)));
+  var inter = cell.querySelector('select[name="interLataPIC"]');
+  if (inter) cpProfRow(rowsWrap, "Inter-LATA carrier", "Pre-subscribed carrier for calls between LATAs.", cpProfInput(ctl(inter)));
+  var intl = cell.querySelector('select[name="internationalPIC"]');
+  if (intl) cpProfRow(rowsWrap, "International carrier", "Pre-subscribed carrier for international calls.", cpProfInput(ctl(intl)));
+  return { controls: controls };
+}
+
 /* Routing Profile (SP) — a single dropdown: which network routing profile applies to this service
  * provider's calls. SINGLE-card form (Option A); the select is the real legacy control (moved into
  * the row; the site select styling themes it). */
@@ -4228,6 +4485,20 @@ function cpSettingsFormConfig(title, cell) {
     var evEdit = /Modify/i.test(title) || !!(evIn && evIn.value);
     return { label: evEdit ? "Edit event" : "New event", icon: CP_PROF_CAL_SVG, build: cpBuildScheduleEventRows,
              okLabel: evEdit ? "Save" : "Add", modalClass: "cp-modal-c", deleteEntity: "event" };
+  }
+  // Dialable Caller ID Criteria Add/Modify (SP) — the big criteria form; shape-keyed on the pick-lists.
+  if (/^Dialable Caller ID Criteria (Add|Modify)$/i.test(title) || cell.querySelector('select[name="availableCTList"]')) {
+    var dcEdit = /Modify/i.test(title) || !!(cell.querySelector('input[name="name"]') && cell.querySelector('input[name="name"]').value);
+    return { multiCard: true, build: cpBuildDcidCriteriaRows, okLabel: dcEdit ? "Save" : "Add", deleteEntity: "criteria" };
+  }
+  // Dialable Caller ID (SP) — hybrid policy form + criteria list; shape-keyed on the radio pairs.
+  if (/^Dialable Caller ID$/i.test(title) || (cell.querySelector('input[name="useSpCriteria"]') && cell.querySelector('input[name="nsFailureScreeningPolicy"]'))) {
+    return { multiCard: true, build: cpBuildDialableCidRows };
+  }
+  // Carriers Add/Modify (SP) — PIC selection form; shape-keyed on the intraLataPIC select.
+  if (/^Carriers (Add|Modify)$/i.test(title) || cell.querySelector('select[name="intraLataPIC"]')) {
+    return { label: "Carrier selection", icon: CP_ITEM_ICONS["carriers"], build: cpBuildCarrierRows,
+             okLabel: /Modify/i.test(title) ? "Save" : "Add", deleteEntity: "carrier entry" };
   }
   // Routing Profile (SP) — one dropdown (Option A standard card); shape-keyed on the select.
   if (/^Routing Profile$/i.test(title) || cell.querySelector('select[name="routingProfile"]')) {

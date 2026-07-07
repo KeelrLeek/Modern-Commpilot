@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.323";
+  var CP_PJAX_VERSION = "0.2.327";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -314,6 +314,12 @@
           // → a FULL page load on drill-in AND a native POST that degraded the single-use token → /Login/.
           // Pjax-handle it so cpFollow threads the rotating token and follows the stub to Modify/ in-shell.
           u.indexOf("/Admins/modify.jsp") !== -1 ||
+          // SP-scoped ASSIGN pages live under the Operator scope (Assign Domains =
+          // /Operator/ServiceProviders/AssignDomains/). Unlisted → the console card full-loaded AND every
+          // search/move/OK posted natively. The page's search + pick-list moves ride the submit
+          // interceptor once listed (the move buttons themselves are re-wired by the assign-picker click
+          // handler below — their DCL wiring dies on an in-shell swap).
+          u.indexOf("/Operator/ServiceProviders/AssignDomains/") !== -1 ||
           // Device-management IMPORT pages live under the Operator/System scope (e.g. Device Families' Import =
           // /Operator/System/DeviceFamilies/Import/index.jsp), NOT /Reseller/. Unlisted → the list's Import button
           // redirectPost'd there, cpHook saw a non-pjax url and NATIVE-navigated → a FULL page reload (legacy
@@ -813,6 +819,9 @@
     // list page lights up; a transport failure falls back to the legacy table (cpGridFallback), so untested
     // pages degrade gracefully rather than strand the user.
     function cpIsGridListPage() {
+      // Assign-picker pages (Assign Domains & family) carry #searchTable (the available-side search)
+      // but are NOT results lists — the dual pick-list must stay visible, so the grid never claims them.
+      if (document.querySelector('input[name="toAdd"]') && document.querySelector('select[name="availableList"]')) return false;
       if (document.getElementById("searchTable")) return true;
       if (!cpSearchDescriptor(document)) return false;
       return !!(document.querySelector('#findKey0, select[name="findKey"]') &&
@@ -883,7 +892,9 @@
       "schedules": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/><path d="M8 15h2v2h-2z"/></svg>',
       "call processing policies": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M6 4v4"/><path d="M6 12v8"/><path d="M10 16a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M12 4v10"/><path d="M12 18v2"/><path d="M16 7a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M18 4v1"/><path d="M18 9v11"/></svg>',
       "dial plan policy": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h4v4h-4z"/><path d="M10 3h4v4h-4z"/><path d="M17 3h4v4h-4z"/><path d="M3 10h4v4h-4z"/><path d="M10 10h4v4h-4z"/><path d="M17 10h4v4h-4z"/><path d="M10 17h4v4h-4z"/></svg>',
-      "routing profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"/></svg>'
+      "routing profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"/></svg>',
+      "dialable caller id": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v10a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -10"/><path d="M7 10a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M15 8l2 0"/><path d="M15 12l2 0"/><path d="M7 16l10 0"/></svg>',
+      "carriers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M16.616 13.924a5 5 0 1 0 -9.23 0"/><path d="M20.307 15.469a9 9 0 1 0 -16.615 0"/><path d="M9 21l3 -9l3 9"/><path d="M10 19h4"/></svg>'
     };
     // Mirrors skin.js cpMenuItemIcon's normalization so the list AND the Modify grid (Tags/Regions) headers resolve
     // to the tags icon, not just the bare list title.
@@ -894,6 +905,8 @@
       if (/^domains add$/.test(t)) t = "domains";
       if (/^xsi policy profile usage$/.test(t)) t = "xsi policy profile";
       if (/^schedule (modify|add)$/.test(t)) t = "schedules";
+      if (/^dialable caller id criteria (add|modify)$/.test(t)) t = "dialable caller id";
+      if (/^carriers (add|modify)$/.test(t)) t = "carriers";
       return CP_HDR_ICONS[t] || "";
     }
 
@@ -1511,6 +1524,18 @@
       if (!u) return;
       try { u = new URL(u, location.href).pathname; } catch (e) {}
       cpModalAdd(null, u, p);
+    });
+    // Generic FULL-PAGE nav bridge (same attribute mechanism as cp:dppmodal, but rides cpHook
+    // instead of the modal — for skin-built buttons whose target is a whole page, e.g. the Dialable
+    // Caller ID criteria Add/Edit; the legacy buttons' own DCL wiring dies after an in-shell swap).
+    document.addEventListener("cp:cpnav", function () {
+      var root = document.documentElement;
+      var u = root.getAttribute("data-cp-nav-url");
+      var p = {};
+      try { p = JSON.parse(root.getAttribute("data-cp-nav-params") || "{}"); } catch (e) {}
+      root.removeAttribute("data-cp-nav-url"); root.removeAttribute("data-cp-nav-params");
+      if (!u) return;
+      window.redirectPost(u, p);
     });
     // A navigation swap must never strand the popup over the NEXT page.
     document.addEventListener("cp:reskin", function () { cpPickReopen = null; cpPickClose(); });
@@ -3655,8 +3680,20 @@
         // owning /Reseller list. Covers the admin Add/Modify AND the Operator/System DeviceType Add/Modify forms.
         var _p = location.pathname, _list = null;
         if (/\/Reseller\/Admins\/(Add|[Mm]odify)/.test(_p)) _list = "/commpilot/Reseller/Admins/";
+        else if (/\/(ServiceProvider|Group)\/(DialableCallerID|Carriers)\/(Add|[Mm]odify)/.test(_p)) _list = _p.replace(/(DialableCallerID|Carriers)\/.*$/, "$1/");
         else { var _dm = _p.match(/\/commpilot\/Operator\/System\/(DeviceType)\/(?:Add|[Mm]odify|Profile)\//); if (_dm) _list = "/commpilot/Reseller/" + _dm[1] + "/"; }
-        if (!_list) return;
+        if (!_list) {
+          // Assign-picker pages: Cancel's goBack() is DCL-wired (dead after an in-shell swap) and the
+          // return context is history anyway — go back in-shell.
+          if (/\/Operator\/ServiceProviders\/Assign/.test(_p)) {
+            var ttA = e.target;
+            var btnA = ttA && (ttA.name === "cancel" ? ttA : (ttA.closest ? ttA.closest('input[name="cancel"]') : null));
+            if (!btnA) return;
+            e.preventDefault(); e.stopImmediatePropagation();
+            window.history.back();
+          }
+          return;
+        }
         var tt = e.target;
         var btn = tt && (tt.name === "cancel" ? tt : (tt.closest ? tt.closest('input[name="cancel"], button[name="cancel"]') : null));
         if (!btn) return;
@@ -3664,6 +3701,44 @@
         cpDbg("[pjax] form Cancel -> list", _list);
         window.redirectPost(_list, {});
       } catch (err) {}
+    }, true);
+
+    // Assign-picker pages (Assign Domains & family): the 4 move buttons are DCL-wired
+    // (getElementById(button_<uuid>).addEventListener → addDomain/removeDomain/… → form.submit()),
+    // which BOTH dies after an in-shell swap AND native-POSTs on a full load. Re-wire them here:
+    // replicate the Scripts/domains.js protocol (toAdd/toRemove = comma-joined selected option
+    // VALUES; action = add/remove; assigned values ending "*" are the default domain and can't be
+    // removed) and requestSubmit() so the submit interceptor above replays it in-shell. Capturing +
+    // stopImmediatePropagation pre-empts the legacy listener when it IS alive (full load) so the
+    // move can't double-submit.
+    document.addEventListener("click", function (e) {
+      try {
+        var form = document.forms.mainForm;
+        if (!form || !form.elements.toAdd || !form.elements.availableList) return;
+        var t = e.target;
+        var b = t && t.closest ? t.closest('input[type="button"]') : null;
+        if (!b) return;
+        var label = (b.value || "").replace(/\s+/g, " ").trim();
+        var all = /All/i.test(label);
+        var isAdd = /^Add/i.test(label), isRem = /^Remove/i.test(label);
+        if (!isAdd && !isRem) return;
+        e.preventDefault(); e.stopImmediatePropagation();
+        var list = isAdd ? form.elements.availableList : form.elements.assignedList;
+        if (!list) return;
+        var vals = [];
+        for (var i = 0; i < list.options.length; i++) {
+          var o = list.options[i];
+          if (!all && !o.selected) continue;
+          var v = o.value || "";
+          if (!v.trim()) continue;
+          if (isRem && v.charAt(v.length - 1) === "*") continue;   // default domain — not removable
+          vals.push(v);
+        }
+        if (!vals.length) return;
+        form.elements[isAdd ? "toAdd" : "toRemove"].value = vals.join(",");
+        form.elements.action.value = isAdd ? "add" : "remove";
+        form.requestSubmit();
+      } catch (err) { console.warn("[pjax] assign-pick move", err); }
     }, true);
 
     window.addEventListener("keydown", function (e) {
