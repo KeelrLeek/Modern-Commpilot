@@ -9,5 +9,8 @@
   { "id": 4, "priority": 2, "action": { "type": "allow" },
     "condition": { "regexFilter": "^https://[^/]+/commpilot/Common/styles\\.css", "resourceTypes": ["main_frame"], "requestMethods": ["get"] } },
   { "id": 5, "priority": 2, "action": { "type": "allow" },
-    "condition": { "regexFilter": "^https://[^/]+/commpilot/servlet/Login", "resourceTypes": ["main_frame"], "requestMethods": ["get"] } }
+    "condition": { "regexFilter": "^https://[^/]+/commpilot/servlet/Login", "resourceTypes": ["main_frame"], "requestMethods": ["get"] } },
+  { "id": 6, "priority": 2,
+    "action": { "type": "redirect", "redirect": { "regexSubstitution": "\\1/commpilot/Scripts/validateNone.js" } },
+    "condition": { "regexFilter": "^(https://[^/]+)/commpilot/[A-Za-z]+/IMRNsManagement/validate\\.js", "resourceTypes": ["script"], "requestMethods": ["get"] } }
 ]

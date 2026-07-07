@@ -223,7 +223,8 @@ var CP_ITEM_ICONS = {
   "routing profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"/></svg>',
   "dialable caller id": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v10a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -10"/><path d="M7 10a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M15 8l2 0"/><path d="M15 12l2 0"/><path d="M7 16l10 0"/></svg>',
   "carriers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M16.616 13.924a5 5 0 1 0 -9.23 0"/><path d="M20.307 15.469a9 9 0 1 0 -16.615 0"/><path d="M9 21l3 -9l3 9"/><path d="M10 19h4"/></svg>',
-  "assign domains": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.94 13.045a9 9 0 1 0 -8.953 7.955"/><path d="M3.6 9h16.8"/><path d="M3.6 15h9.4"/><path d="M11.5 3a17 17 0 0 0 0 18"/><path d="M12.5 3a16.991 16.991 0 0 1 2.529 10.294"/><path d="M16 22l5 -5"/><path d="M21 21.5v-4.5h-4.5"/></svg>'
+  "assign domains": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.94 13.045a9 9 0 1 0 -8.953 7.955"/><path d="M3.6 9h16.8"/><path d="M3.6 15h9.4"/><path d="M11.5 3a17 17 0 0 0 0 18"/><path d="M12.5 3a16.991 16.991 0 0 1 2.529 10.294"/><path d="M16 22l5 -5"/><path d="M21 21.5v-4.5h-4.5"/></svg>',
+  "imrns": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2"/><path d="M15 9l5 -5"/><path d="M15 5l0 4l4 0"/></svg>'
 };
 function cpMenuItemIcon(title) {
   var t = (title || "").trim().toLowerCase();
@@ -236,6 +237,8 @@ function cpMenuItemIcon(title) {
   if (/^xsi policy profile usage$/.test(t)) t = "xsi policy profile";   // row drill's Usage grid → list icon (api)
   if (/^dialable caller id criteria (add|modify)$/.test(t)) t = "dialable caller id";   // criteria form → page icon (id)
   if (/^carriers (add|modify)$/.test(t)) t = "carriers";   // PIC form → list icon (broadcast tower)
+  if (/^assign xsi policy profile$/.test(t)) t = "xsi policy profile";   // assign page → the api icon
+  if (/^assign imrns$/.test(t)) t = "imrns";   // assign form → list icon (phone-incoming)
   return CP_ITEM_ICONS[t] || "";
 }
 
@@ -4513,6 +4516,271 @@ function cpBuildAssignDomainsRows(cell) {
   return { cards: [grid], controls: [latch] };
 }
 
+/* Assign Xsi Policy Profile (SP) — a TABBED page (Service provider / Groups / Users), lowercase
+ * tabSubmit dialect: each tab is its own URL (…/AssignXsiPolicyProfile/<Level>/) and the legacy
+ * switch posts the full form to self with tabPage = a RELATIVE url ('../Group/'). Option A: level
+ * tab PILLS above the card; a pill click replays the switch per the documented SAFE dialect —
+ * {tabPage} ONLY to self, via the cp:cpnav bridge (full-form replay = accidental-modify Error
+ * 27233, see [[gotcha-tab-dialects-and-sbx-landmines]]; the Xsi tab endpoints are sbx
+ * session-killers, so the switch is verified on apps01 only). Each tab's form = one profileName
+ * select. */
+function cpBuildXsiAssignRows(cell) {
+  var tabPageI = cell.querySelector('input[name="tabPage"]') || document.querySelector('input[name="tabPage"]');
+  var profSel = cell.querySelector('select[name="profileName"]');
+  var avail = cell.querySelector('select[name="availableList"]');
+  var asgn = cell.querySelector('select[name="assignedList"]');
+  if (!tabPageI || (!profSel && !(avail && asgn))) return null;
+  var form = document.forms.mainForm;
+
+  var LVLS = [
+    { key: "ServiceProvider", label: "Service provider" },
+    { key: "Group", label: "Groups" },
+    { key: "User", label: "Users" }
+  ];
+  // The other tabs' relative targets come from the page's own tabSubmit wiring; the level whose
+  // target is MISSING is the current tab (the URL can be cosmetically stale after a switch —
+  // detect from content, never location).
+  var scripts = Array.prototype.slice.call(document.querySelectorAll("script:not([src])")).map(function (s) { return s.textContent || ""; }).join("\n");
+  var targets = {};
+  var re = /tabSubmit\(\s*'([^']+)'\s*\)/g, m;
+  while ((m = re.exec(scripts))) {
+    var segM = /(ServiceProvider|Group|User)/.exec(m[1]);
+    if (segM) targets[segM[1]] = m[1];
+  }
+  var lvl = profSel ? "ServiceProvider" : (LVLS.filter(function (L) { return !targets[L.key]; })[0] || LVLS[1]).key;
+  // The TRUE self URL for this tab (posts must hit the tab's own endpoint — the address bar can lag).
+  var base = (document.documentElement.getAttribute("data-cp-path") || location.pathname);
+  var selfUrl = base.replace(/(AssignXsiPolicyProfile)\/[A-Za-z]*\/?(index\.jsp)?$/, "$1/" + lvl + "/");
+
+  function collectForm(extra) {
+    var params = extra || {};
+    if (form) {
+      for (var i = 0; i < form.elements.length; i++) {
+        var el = form.elements[i];
+        if (!el.name || el.name === "formtokenserial" || params.hasOwnProperty(el.name)) continue;
+        if (el.type === "submit" || el.type === "button") continue;
+        if ((el.type === "checkbox" || el.type === "radio") && !el.checked) continue;
+        params[el.name] = el.value;
+      }
+    }
+    return params;
+  }
+  function nav(url, params) {
+    var root = document.documentElement;
+    root.setAttribute("data-cp-nav-url", url);
+    root.setAttribute("data-cp-nav-params", JSON.stringify(params || {}));
+    document.dispatchEvent(new CustomEvent("cp:cpnav"));
+  }
+
+  var pills = document.createElement("div"); pills.className = "cp-tabpills";
+  LVLS.forEach(function (L) {
+    var p = document.createElement("button"); p.type = "button";
+    p.className = "cp-tabpill" + (L.key === lvl ? " cp-tabpill-on" : "");
+    p.textContent = L.label;
+    if (L.key !== lvl) {
+      // Replay what legacy tabSubmit actually posts: the FULL form + tabPage, to the CURRENT tab's
+      // true endpoint (tabPage-only = OCI 6004; wrong endpoint after a stale-URL switch = 500).
+      p.addEventListener("click", function () {
+        var tgt = targets[L.key];
+        if (!tgt) return;
+        nav(selfUrl, collectForm({ tabPage: tgt }));
+      });
+    }
+    pills.appendChild(p);
+  });
+
+  var card = cpProfCard("Xsi policy profile", CP_ITEM_ICONS["xsi policy profile"]);
+  var controls = [];
+
+  if (profSel) {
+    // --- Service provider tab: one dropdown ---
+    cpProfRow(card.rows, "Service provider profile", "The Xsi policy profile applied at the service-provider level.", cpProfInput(profSel));
+    controls.push(profSel);
+  } else {
+    // --- Group / User tab: dual pick-list + default selection (xsiPolicyProfile.js protocol:
+    // action=add/remove + toAdd/toRemove; action=setDefault + defaultProfile; full-form submits
+    // staged server-side, committed on Save/Apply — same latch pattern as Assign Domains) ---
+    var defI = form && form.elements.defaultProfile;
+    var actI = form && form.elements.action;
+    var toAddI = form && form.elements.toAdd, toRemI = form && form.elements.toRemove;
+    var PENDKEY = "cp-assign-pending:" + selfUrl;
+    var latch = document.createElement("input"); latch.type = "checkbox";
+    controls.push(latch);
+    Array.prototype.forEach.call(document.querySelectorAll('input[name="ok"], input[name="apply"], input[name="cancel"]'), function (b) {
+      b.addEventListener("click", function () { try { sessionStorage.removeItem(PENDKEY); } catch (e) {} });
+    });
+    var wrap = document.createElement("div"); wrap.className = "cp-dl cp-dl-eq";
+    function fire(extra) {
+      try { sessionStorage.setItem(PENDKEY, "1"); } catch (e) {}
+      if (toAddI) toAddI.value = extra.toAdd || "";
+      if (toRemI) toRemI.value = extra.toRemove || "";
+      if (defI && extra.defaultProfile != null) defI.value = extra.defaultProfile;
+      if (actI) actI.value = extra.action;
+      wrap.classList.add("cp-dl-busy");
+      try { form.requestSubmit(); } catch (e) { wrap.classList.remove("cp-dl-busy"); }
+    }
+    function parseOpt(o) {
+      var t = (o.text || "").trim();
+      var isDef = /\(Default\)$/.test(t);
+      return { value: o.value || "", name: t.replace(/\(Default\)$/, "").trim(), isDef: isDef };
+    }
+    function pane(sel, lbl) {
+      var col = document.createElement("div");
+      var l = document.createElement("div"); l.className = "cp-dl-lbl";
+      var p = document.createElement("div"); p.className = "cp-dl-pane";
+      var items = Array.prototype.slice.call(sel.options).map(parseOpt).filter(function (o) { return o.name; });
+      l.textContent = lbl + " · " + items.length;
+      if (!items.length) {
+        var em = document.createElement("div"); em.className = "cp-dl-none"; em.textContent = "None";
+        p.appendChild(em);
+      }
+      items.forEach(function (o) {
+        var it = document.createElement("div"); it.className = "cp-dl-item";
+        var nm = document.createElement("span"); nm.textContent = o.name; it.appendChild(nm);
+        if (o.isDef) { var tg = document.createElement("span"); tg.className = "cp-dl-tag cp-dl-lock"; tg.textContent = "default"; it.appendChild(tg); }
+        it.setAttribute("data-cp-v", o.value);
+        it.addEventListener("click", function () { it.classList.toggle("cp-dl-sel"); });
+        p.appendChild(it);
+      });
+      col.appendChild(l); col.appendChild(p);
+      return { col: col, pane: p };
+    }
+    function vals(p, all) {
+      return Array.prototype.slice.call(p.querySelectorAll(all ? ".cp-dl-item" : ".cp-dl-sel")).map(function (it) { return it.getAttribute("data-cp-v"); });
+    }
+    var av = pane(avail, "Available"), mt = pane(asgn, "Assigned");
+    var btns = document.createElement("div"); btns.className = "cp-dl-btns";
+    [["Assign →", function () { var v = vals(av.pane); if (v.length) fire({ action: "add", toAdd: v.join(",") }); }],
+     ["← Unassign", function () { var v = vals(mt.pane); if (v.length) fire({ action: "remove", toRemove: v.join(",") }); }],
+     ["Assign all", function () { var v = vals(av.pane, true); if (v.length) fire({ action: "add", toAdd: v.join(",") }); }],
+     ["Unassign all", function () { var v = vals(mt.pane, true); if (v.length) fire({ action: "remove", toRemove: v.join(",") }); }]].forEach(function (b) {
+      var el = document.createElement("button"); el.type = "button"; el.className = "cp-dl-btn";
+      el.textContent = b[0];
+      el.addEventListener("click", b[1]);
+      btns.appendChild(el);
+    });
+    wrap.appendChild(av.col); wrap.appendChild(btns); wrap.appendChild(mt.col);
+    card.rows.appendChild(wrap);
+    // Default row: the current default (from the assigned option's "(Default)" suffix) + set-default
+    // for the selected assigned profile.
+    var curDef = Array.prototype.slice.call(asgn.options).map(parseOpt).filter(function (o) { return o.isDef; })[0];
+    var defRow = document.createElement("div"); defRow.className = "cp-dl-defrow";
+    var defLbl = document.createElement("span"); defLbl.className = "cp-dl-note";
+    defLbl.textContent = "Default profile: " + (curDef ? curDef.name : "none");
+    var defBtn = document.createElement("button"); defBtn.type = "button"; defBtn.className = "cp-dl-btn";
+    defBtn.textContent = "Set selected as default";
+    defBtn.addEventListener("click", function () {
+      var v = vals(mt.pane);
+      if (v.length === 1) fire({ action: "setDefault", defaultProfile: v[0] });
+    });
+    defRow.appendChild(defLbl); defRow.appendChild(defBtn);
+    card.rows.appendChild(defRow);
+    var note = document.createElement("div"); note.className = "cp-dl-note cp-dl-pend";
+    note.textContent = "Changes staged — Save or Apply to commit, Cancel to discard.";
+    card.rows.appendChild(note);
+    var pending = false;
+    try { pending = sessionStorage.getItem(PENDKEY) === "1"; } catch (e) {}
+    if (pending) {
+      note.classList.add("cp-dl-pend-on");
+      Promise.resolve().then(function () { latch.checked = true; latch.dispatchEvent(new Event("change")); });
+    }
+    card.card.classList.add("cp-prof-cardwide");
+  }
+
+  return { cards: [pills, card.card], controls: controls };
+}
+
+/* Assign IMRNs (SP, IMRNsManagement/Add) — THREE panes: Available ranges → [Add >] → Available
+ * IMRNs → [Add/Remove(+all)] → Assign. ⚠ The page's ENTIRE wiring lives in its per-page validate.js,
+ * which apps-sbx cannot serve (503 — a SESSION-KILLING landmine, defused by DNR rule 6 redirecting
+ * it to Scripts/validateNone.js). So: available↔assign moves use the family-standard protocol
+ * (action=add/remove + toAdd/toRemove + requestSubmit — same verbs as simplePickList/domains/
+ * xsiPolicyProfile); the RANGES button forwards the real PICKLIST_addFirstNumbers (its verb is
+ * unknowable here — works wherever legacy works). Moves are unverifiable on sbx (no data, no
+ * script) — VERIFY ON apps01. */
+function cpBuildImrnAssignRows(rowsWrap, cell) {
+  var first = cell.querySelector('select[name="firstList"]');
+  var avail = cell.querySelector('select[name="assignedList"]');
+  var asgn = cell.querySelector('select[name="unassignList"]');
+  if (!first || !avail || !asgn) return null;
+  // The OWNING form (in the center modal this is the FETCHED form, not the page's mainForm).
+  var form = first.form || document.forms.mainForm;
+  if (!form || !form.elements.toAdd) return null;
+  var toAddI = form.elements.toAdd, toRemI = form.elements.toRemove, actI = form.elements.action;
+  // Per-move server round-trips have no in-MODAL refresh path (and no data exists on sbx to
+  // exercise them) — in the modal, moves stay disabled until the panes carry data AND the
+  // full-page flow has been verified on a healthy host.
+  var inModal = !!(cell.closest && cell.closest(".cp-modal"));
+
+  var wrap = document.createElement("div"); wrap.className = "cp-dl cp-dl-eq cp-dl-3";
+  function fire(action, addVals, remVals) {
+    if (inModal) return;
+    toAddI.value = addVals || "";
+    if (toRemI) toRemI.value = remVals || "";
+    if (actI) actI.value = action;
+    wrap.classList.add("cp-dl-busy");
+    try { form.requestSubmit(); } catch (e) { wrap.classList.remove("cp-dl-busy"); }
+  }
+  function pane(sel, lbl, empty) {
+    var col = document.createElement("div");
+    var l = document.createElement("div"); l.className = "cp-dl-lbl";
+    var p = document.createElement("div"); p.className = "cp-dl-pane";
+    var items = Array.prototype.slice.call(sel.options).filter(function (o) { return (o.text || "").trim(); });
+    l.textContent = lbl + " · " + items.length;
+    if (!items.length) { var em = document.createElement("div"); em.className = "cp-dl-none"; em.textContent = empty; p.appendChild(em); }
+    items.forEach(function (o) {
+      var it = document.createElement("div"); it.className = "cp-dl-item";
+      it.textContent = o.text.trim();
+      it.setAttribute("data-cp-v", o.value);
+      it.addEventListener("click", function () { it.classList.toggle("cp-dl-sel"); });
+      p.appendChild(it);
+    });
+    col.appendChild(l); col.appendChild(p);
+    return { col: col, pane: p };
+  }
+  function vals(p, all) {
+    return Array.prototype.slice.call(p.querySelectorAll(all ? ".cp-dl-item" : ".cp-dl-sel")).map(function (it) { return it.getAttribute("data-cp-v"); });
+  }
+  var rg = pane(first, "Available ranges", "No IMRN ranges defined");
+  var av = pane(avail, "Available IMRNs", "Pick a range to list its numbers");
+  var mt = pane(asgn, "Assign", "None selected");
+
+  // Ranges → available: the legacy button's own handler (verb unknown on this host — forward it).
+  var realFirst = document.getElementById("PICKLIST_addFirstNumbers");
+  var b1 = document.createElement("div"); b1.className = "cp-dl-btns";
+  var fb = document.createElement("button"); fb.type = "button"; fb.className = "cp-dl-btn";
+  fb.textContent = "List →";
+  fb.addEventListener("click", function () {
+    // Mirror the selection onto the REAL select so the legacy handler (where alive) reads it.
+    var v = vals(rg.pane);
+    Array.prototype.forEach.call(first.options, function (o) { o.selected = v.indexOf(o.value) !== -1; });
+    if (realFirst) realFirst.click();
+  });
+  b1.appendChild(fb);
+
+  var b2 = document.createElement("div"); b2.className = "cp-dl-btns";
+  [["Assign →", function () { var v = vals(av.pane); if (v.length) fire("add", v.join(","), ""); }],
+   ["← Remove", function () { var v = vals(mt.pane); if (v.length) fire("remove", "", v.join(",")); }],
+   ["Assign all", function () { var v = vals(av.pane, true); if (v.length) fire("add", v.join(","), ""); }],
+   ["Remove all", function () { var v = vals(mt.pane, true); if (v.length) fire("remove", "", v.join(",")); }]].forEach(function (b) {
+    var el = document.createElement("button"); el.type = "button"; el.className = "cp-dl-btn";
+    el.textContent = b[0];
+    el.addEventListener("click", b[1]);
+    b2.appendChild(el);
+  });
+
+  wrap.appendChild(rg.col); wrap.appendChild(b1); wrap.appendChild(av.col); wrap.appendChild(b2); wrap.appendChild(mt.col);
+  rowsWrap.appendChild(wrap);
+  var hasData = first.options.length + avail.options.length + asgn.options.length > 0 &&
+    Array.prototype.some.call(first.options, function (o) { return (o.text || "").trim(); });
+  if (!hasData) {
+    var note = document.createElement("div"); note.className = "cp-dl-note";
+    note.textContent = "No IMRN ranges are defined on this system yet — the pool is empty.";
+    rowsWrap.appendChild(note);
+  }
+  return { controls: [] };
+}
+
 /* Carriers Add/Modify (SP) — carrier pre-selection (PIC) per country code: the countryCode select
  * (Add only; ~300 options — the site dropdown handles it) + the three PIC selects. SINGLE-card
  * standard form (same shape class as Routing Profile; PIC options come from system carrier
@@ -4626,6 +4894,17 @@ function cpSettingsFormConfig(title, cell) {
   // Dialable Caller ID (SP) — hybrid policy form + criteria list; shape-keyed on the radio pairs.
   if (/^Dialable Caller ID$/i.test(title) || (cell.querySelector('input[name="useSpCriteria"]') && cell.querySelector('input[name="nsFailureScreeningPolicy"]'))) {
     return { multiCard: true, build: cpBuildDialableCidRows };
+  }
+  // Assign Xsi Policy Profile (SP) — tabbed page: SP tab = profileName dropdown, Group/User tabs =
+  // dual pick-list + default. Shape-keyed on tabPage + either form flavor.
+  if (/^Assign Xsi Policy Profile$/i.test(title) ||
+      (cell.querySelector('input[name="tabPage"]') && (cell.querySelector('select[name="profileName"]') || cell.querySelector('select[name="availableList"]')))) {
+    return { multiCard: true, build: cpBuildXsiAssignRows, okLabel: "Save" };
+  }
+  // Assign IMRNs (SP) — the three-pane range/number picker; shape-keyed on firstList + unassignList.
+  // SINGLE-card so the list's Add button opens it in the CENTER MODAL (cpModalAdd rejects multiCard).
+  if (/^Assign IMRNs$/i.test(title) || (cell.querySelector('select[name="firstList"]') && cell.querySelector('select[name="unassignList"]'))) {
+    return { label: "Assign IMRNs", icon: CP_ITEM_ICONS["imrns"], build: cpBuildImrnAssignRows, okLabel: "Assign", modalClass: "cp-modal-w" };
   }
   // Assign Domains (SP) — the two-pane assign picker; shape-keyed on toAdd + availableList.
   if (/^Assign Domains$/i.test(title) || (cell.querySelector('input[name="toAdd"]') && cell.querySelector('select[name="availableList"]'))) {

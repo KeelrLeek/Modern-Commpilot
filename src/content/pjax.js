@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.329";
+  var CP_PJAX_VERSION = "0.2.336";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -137,6 +137,18 @@
   // is built; powers the breadcrumb current-pill MEGA menu. PERSISTED to sessionStorage so it survives a reload
   // — otherwise landing on a sub-page after reload/recovery (no console rebuilt) leaves the menu empty.
   var cpLevelPages = (function () { try { return JSON.parse(sessionStorage.getItem("cp-level-pages")) || {}; } catch (e) { return {}; } })();
+  // Consecutive server-5xx streak across navs (reset on any successful swap). Two in a row on this
+  // host almost always means the session is DEAD (once killed, it echoes 500s on every POST —
+  // measured repeatedly 2026-07-07) — surface ONE "session expired" banner with a sign-in action
+  // instead of stacking identical server-error banners.
+  var cpErr5xxStreak = 0;
+  // Client-only idle watchdog (ZERO network — keep-alive pings are proven session-killers on this
+  // host, see [[gotcha-idle-connection-drop-dead-click]]; never reintroduce them). The sandbox
+  // expires idle sessions around ~20 min (controlled measurement 2026-07-07: 24 idle minutes,
+  // 0 requests sent, next click bounced to Login). Warn passively at 18 min so the sign-in prompt
+  // isn't a surprise; the banner clears on the next successful swap.
+  var cpLastSwapAt = Date.now();
+  var CP_IDLE_WARN_MS = 18 * 60 * 1000;
   var cpCrumbDd = null;    // the live breadcrumb dropdown element + its teardown, if open.
   var cpGridState = null;  // the redesigned search GRID's live state (data/sort/page/cols), if active.
   // Count of token-bearing POSTs currently in flight (cpFollow / cpFollowFrame). The grid's broad search
@@ -262,6 +274,27 @@
     } catch (e) {}
     return true;
   };
+
+  // Idle watchdog tick — PURELY CLIENT-SIDE (no network, ever; see cpLastSwapAt above). Past the
+  // threshold, show one passive warning so the user expects the sign-in prompt; cleared on the next
+  // successful swap.
+  setInterval(function () {
+    try {
+      if (Date.now() - cpLastSwapAt < CP_IDLE_WARN_MS) return;
+      if (document.getElementById("cp-idle-warn")) return;
+      var bc = document.querySelector('td[width="82%"]');
+      if (!bc || location.pathname.indexOf("/Login/") !== -1) return;
+      var mins = Math.round((Date.now() - cpLastSwapAt) / 60000);
+      var b = document.createElement("div");
+      b.id = "cp-idle-warn";
+      b.className = "cp-alert cp-alert-warning";
+      b.innerHTML =
+        '<div class="cp-alert-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>' +
+        '<div class="cp-alert-content"><div class="cp-alert-title">Idle for ' + mins + ' minutes</div>' +
+        '<div class="cp-alert-body">This system expires idle sessions after about 20 minutes — your next action may ask you to sign in again.</div></div>';
+      bc.insertBefore(b, bc.firstChild);
+    } catch (e) {}
+  }, 60000);
 
   // Auto-init on pages that already have window.redirectPost (non-login).
   // On login pages, cpPjaxInit is deferred until __cpPjaxMorphed triggers it
@@ -895,7 +928,8 @@
       "routing profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"/></svg>',
       "dialable caller id": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v10a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -10"/><path d="M7 10a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M15 8l2 0"/><path d="M15 12l2 0"/><path d="M7 16l10 0"/></svg>',
       "carriers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M16.616 13.924a5 5 0 1 0 -9.23 0"/><path d="M20.307 15.469a9 9 0 1 0 -16.615 0"/><path d="M9 21l3 -9l3 9"/><path d="M10 19h4"/></svg>',
-      "assign domains": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.94 13.045a9 9 0 1 0 -8.953 7.955"/><path d="M3.6 9h16.8"/><path d="M3.6 15h9.4"/><path d="M11.5 3a17 17 0 0 0 0 18"/><path d="M12.5 3a16.991 16.991 0 0 1 2.529 10.294"/><path d="M16 22l5 -5"/><path d="M21 21.5v-4.5h-4.5"/></svg>'
+      "assign domains": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.94 13.045a9 9 0 1 0 -8.953 7.955"/><path d="M3.6 9h16.8"/><path d="M3.6 15h9.4"/><path d="M11.5 3a17 17 0 0 0 0 18"/><path d="M12.5 3a16.991 16.991 0 0 1 2.529 10.294"/><path d="M16 22l5 -5"/><path d="M21 21.5v-4.5h-4.5"/></svg>',
+      "imrns": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2"/><path d="M15 9l5 -5"/><path d="M15 5l0 4l4 0"/></svg>'
     };
     // Mirrors skin.js cpMenuItemIcon's normalization so the list AND the Modify grid (Tags/Regions) headers resolve
     // to the tags icon, not just the bare list title.
@@ -908,6 +942,8 @@
       if (/^schedule (modify|add)$/.test(t)) t = "schedules";
       if (/^dialable caller id criteria (add|modify)$/.test(t)) t = "dialable caller id";
       if (/^carriers (add|modify)$/.test(t)) t = "carriers";
+      if (/^assign xsi policy profile$/.test(t)) t = "xsi policy profile";
+      if (/^assign imrns$/.test(t)) t = "imrns";
       return CP_HDR_ICONS[t] || "";
     }
 
@@ -3323,8 +3359,23 @@
                 // Styled in-page banner (reuses skin.css .cp-alert) instead of window.alert — the native alert
                 // BLOCKS the page (and automation) and looks off-theme. Auto-dismisses; page state untouched.
                 try {
+                  cpErr5xxStreak++;
                   var _bc = document.querySelector('td[width="82%"]');
-                  if (_bc) {
+                  if (_bc && cpErr5xxStreak >= 2) {
+                    // Second 5xx in a row — the session is almost certainly dead (this host echoes
+                    // 500s on every request once it kills a session). One actionable banner instead
+                    // of a stack of identical server-error ones.
+                    Array.prototype.forEach.call(_bc.querySelectorAll(".cp-alert"), function (a) { try { a.remove(); } catch (e) {} });
+                    var _sb = document.createElement("div");
+                    _sb.className = "cp-alert cp-alert-warning";
+                    _sb.innerHTML =
+                      '<div class="cp-alert-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>' +
+                      '<div class="cp-alert-content"><div class="cp-alert-title">Session expired</div>' +
+                      '<div class="cp-alert-body">The server is rejecting requests — the sandbox has most likely timed out your session. Sign in again to continue where you left off.</div></div>' +
+                      '<button type="button" class="cp-alert-act">Sign in</button>';
+                    _sb.querySelector(".cp-alert-act").addEventListener("click", function () { location.assign("/commpilot/Login/"); });
+                    _bc.insertBefore(_sb, _bc.firstChild);
+                  } else if (_bc) {
                     var _bn = document.createElement("div");
                     _bn.className = "cp-alert cp-alert-error";
                     _bn.innerHTML =
@@ -3566,6 +3617,11 @@
               // history update, so location.pathname is still the PREVIOUS page inside them. skin.js's
               // pathname-keyed form dispatch (the notification-email family) reads this attribute first.
               try { document.documentElement.setAttribute("data-cp-path", url); } catch (e) {}
+              // Successful swap: the session is alive — reset the dead-session streak, stamp the
+              // idle watchdog, and clear a stale idle-warning banner.
+              cpErr5xxStreak = 0;
+              cpLastSwapAt = Date.now();
+              try { var _iw = document.getElementById("cp-idle-warn"); if (_iw) _iw.remove(); } catch (e) {}
               document.dispatchEvent(new CustomEvent("cp:reskin"));
               cpDbg("[pjax] reskin dispatched");
               var canonical = url;
@@ -3594,6 +3650,20 @@
                     liveCell.querySelector('select[name="findKey0"], #searchTable')) {
                   canonical = cpFormOrigin;
                   document.documentElement.setAttribute("data-cp-path", canonical);
+                }
+              } catch (e) {}
+              // Tabbed assign pages (lowercase tabSubmit dialect): a tab switch POSTs to the CURRENT
+              // tab's URL with tabPage=<relative target> and the response renders the TARGET tab.
+              // Canonicalize to the target's URL or every subsequent self-post hits the WRONG tab
+              // endpoint (live 2026-07-07: the Xsi Users switch posted Group fields to the SP
+              // endpoint → OCI validation error 6004 / 500).
+              try {
+                if (/\/AssignXsiPolicyProfile\//.test(url) && params && params.tabPage) {
+                  var _xm = /(ServiceProvider|Group|User)/.exec(String(params.tabPage));
+                  if (_xm) {
+                    canonical = url.replace(/(AssignXsiPolicyProfile)\/[A-Za-z]+\/?(index\.jsp)?$/, "$1/" + _xm[1] + "/");
+                    document.documentElement.setAttribute("data-cp-path", canonical);
+                  }
                 }
               } catch (e) {}
               try {
@@ -3681,12 +3751,12 @@
         // owning /Reseller list. Covers the admin Add/Modify AND the Operator/System DeviceType Add/Modify forms.
         var _p = location.pathname, _list = null;
         if (/\/Reseller\/Admins\/(Add|[Mm]odify)/.test(_p)) _list = "/commpilot/Reseller/Admins/";
-        else if (/\/(ServiceProvider|Group)\/(DialableCallerID|Carriers)\/(Add|[Mm]odify)/.test(_p)) _list = _p.replace(/(DialableCallerID|Carriers)\/.*$/, "$1/");
+        else if (/\/(ServiceProvider|Group)\/(DialableCallerID|Carriers|IMRNsManagement)\/(Add|[Mm]odify)/.test(_p)) _list = _p.replace(/(DialableCallerID|Carriers|IMRNsManagement)\/.*$/, "$1/");
         else { var _dm = _p.match(/\/commpilot\/Operator\/System\/(DeviceType)\/(?:Add|[Mm]odify|Profile)\//); if (_dm) _list = "/commpilot/Reseller/" + _dm[1] + "/"; }
         if (!_list) {
-          // Assign-picker pages: Cancel's goBack() is DCL-wired (dead after an in-shell swap) and the
-          // return context is history anyway — go back in-shell.
-          if (/\/Operator\/ServiceProviders\/Assign/.test(_p)) {
+          // Assign-picker + tabbed assign pages: Cancel's goBack() is DCL-wired (dead after an
+          // in-shell swap) and the return context is history anyway — go back in-shell.
+          if (/\/Operator\/ServiceProviders\/Assign/.test(_p) || /\/(ServiceProvider|Group)\/AssignXsiPolicyProfile\//.test(_p)) {
             var ttA = e.target;
             var btnA = ttA && (ttA.name === "cancel" ? ttA : (ttA.closest ? ttA.closest('input[name="cancel"]') : null));
             if (!btnA) return;
