@@ -219,7 +219,8 @@ var CP_ITEM_ICONS = {
   "meet-me profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4"/><path d="M3 8a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -8"/></svg>',
   "schedules": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/><path d="M8 15h2v2h-2z"/></svg>',
   "call processing policies": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M6 4v4"/><path d="M6 12v8"/><path d="M10 16a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M12 4v10"/><path d="M12 18v2"/><path d="M16 7a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M18 4v1"/><path d="M18 9v11"/></svg>',
-  "dial plan policy": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h4v4h-4z"/><path d="M10 3h4v4h-4z"/><path d="M17 3h4v4h-4z"/><path d="M3 10h4v4h-4z"/><path d="M10 10h4v4h-4z"/><path d="M17 10h4v4h-4z"/><path d="M10 17h4v4h-4z"/></svg>'
+  "dial plan policy": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h4v4h-4z"/><path d="M10 3h4v4h-4z"/><path d="M17 3h4v4h-4z"/><path d="M3 10h4v4h-4z"/><path d="M10 10h4v4h-4z"/><path d="M17 10h4v4h-4z"/><path d="M10 17h4v4h-4z"/></svg>',
+  "routing profile": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"/></svg>'
 };
 function cpMenuItemIcon(title) {
   var t = (title || "").trim().toLowerCase();
@@ -4143,6 +4144,18 @@ function cpBuildAccessCodeRows(rowsWrap, cell) {
   return { controls: controls, sync: sync };
 }
 
+/* Routing Profile (SP) — a single dropdown: which network routing profile applies to this service
+ * provider's calls. SINGLE-card form (Option A); the select is the real legacy control (moved into
+ * the row; the site select styling themes it). */
+function cpBuildRoutingProfileRows(rowsWrap, cell) {
+  var sel = cell.querySelector('select[name="routingProfile"]');
+  if (!sel) return null;
+  cpProfRow(rowsWrap, "Routing profile",
+    "The network routing profile applied to this service provider's calls. None uses the system default routing.",
+    cpProfInput(sel));
+  return { controls: [sel] };
+}
+
 /* Page config — picks the row builder (+ card-header label/icon for single-card pages).
  * Returns null for any page that isn't a configured settings form. */
 function cpSettingsFormConfig(title, cell) {
@@ -4215,6 +4228,10 @@ function cpSettingsFormConfig(title, cell) {
     var evEdit = /Modify/i.test(title) || !!(evIn && evIn.value);
     return { label: evEdit ? "Edit event" : "New event", icon: CP_PROF_CAL_SVG, build: cpBuildScheduleEventRows,
              okLabel: evEdit ? "Save" : "Add", modalClass: "cp-modal-c", deleteEntity: "event" };
+  }
+  // Routing Profile (SP) — one dropdown (Option A standard card); shape-keyed on the select.
+  if (/^Routing Profile$/i.test(title) || cell.querySelector('select[name="routingProfile"]')) {
+    return { label: "Routing profile", icon: CP_ITEM_ICONS["routing profile"], build: cpBuildRoutingProfileRows };
   }
   // Call Processing Policies (SP/Group) — 7 fieldsets → the two-column card grid (Option A).
   if (/^Call Processing Policies$/i.test(title) || (cell.querySelector('input[name="clidPolicy"]') && cell.querySelector('input[name="mediaPolicy"]'))) {
