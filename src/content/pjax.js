@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.336";
+  var CP_PJAX_VERSION = "0.2.346";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -748,7 +748,7 @@
       // re-dispatch DOMContentLoaded to run the page's OWN fill, then POLL the (hidden) markup until the rows are
       // populated, harvest, and filter CLIENT-SIDE. criteria[0].key = column index ("0"/"1"/"2" = legacy findKey
       // option values); op "1"/"2"/"4" = Starts With / Contains / Equal To (findOp option values).
-      if (!document.getElementById("searchTable") && descLive) {
+      if (!opts.ctx && !document.getElementById("searchTable") && descLive) {
         var aFilter = function (all) {
           if (!(criteria && criteria.length && criteria[0].value != null && criteria[0].value !== "")) return all;
           var colIdx = parseInt(criteria[0].key, 10); if (isNaN(colIdx)) colIdx = 0;
@@ -790,10 +790,18 @@
       }
 
       // mainForm transport (Groups/Users) — empty criteria ⇒ ALL rows; pagination loop via page.jsp below.
-      var landing = location.origin + location.pathname;   // mainForm posts to the current list URL
-      var form = document.querySelector('form[name="mainForm"]');
-      var params = {};
-      if (form) new URLSearchParams(new FormData(form)).forEach(function (v, k) { params[k] = v; });
+      // opts.ctx = a REMOTE list's context ({landing, baseParams} — a background-fetched page's mainForm,
+      // via cpUxpRemoteCtx): searches then run against THAT list instead of the live page (0.2.342, the
+      // export's Users-list cross-reference). The rotating token still comes from the LIVE inputs.
+      var landing, params = {};
+      if (opts.ctx) {
+        landing = opts.ctx.landing;
+        for (var bk in opts.ctx.baseParams) if (Object.prototype.hasOwnProperty.call(opts.ctx.baseParams, bk)) params[bk] = opts.ctx.baseParams[bk];
+      } else {
+        landing = location.origin + location.pathname;   // mainForm posts to the current list URL
+        var form = document.querySelector('form[name="mainForm"]');
+        if (form) new URLSearchParams(new FormData(form)).forEach(function (v, k) { params[k] = v; });
+      }
       if (criteria && criteria.length) {
         Object.keys(params).forEach(function (k) { if (/^find(Key|Op|Value)\d+$/.test(k)) delete params[k]; });
         criteria.forEach(function (c, i) {
@@ -814,6 +822,7 @@
         var totalPages = po ? po.total : 1;
         var all = cpSearchParseRows(res.doc);
         var nt = res.doc.getElementsByName("formtokenserial")[0]; if (nt && nt.value) { tok = nt.value; cpWriteToken(tok); }
+        if (opts.onDoc) { try { opts.onDoc(res.doc); } catch (e) {} }   // raw fetched doc (the export's own cell parse — [[cpExportUsers]])
         var tooMany = cpSearchTooMany(res.doc);
         if (tooMany) return { headers: headers, rows: [], totalPages: 1, desc: desc, tooMany: true, matchCount: tooMany.count };
         if (opts.onPage) { try { opts.onPage(all.slice(), 0, totalPages); } catch (e) {} }
@@ -829,6 +838,7 @@
                 if (!r2 || !r2.doc) { console.warn("[search] page", p, "failed"); return; }
                 var pr = cpSearchParseRows(r2.doc);
                 var nt2 = r2.doc.getElementsByName("formtokenserial")[0]; if (nt2 && nt2.value) { tok = nt2.value; cpWriteToken(tok); }
+                if (opts.onDoc) { try { opts.onDoc(r2.doc); } catch (e) {} }
                 all = all.concat(pr);
                 if (opts.onPage) { try { opts.onPage(pr, p, totalPages); } catch (e) {} }
               });
@@ -887,6 +897,7 @@
     var CP_SVG_FUNNEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5z"/></svg>';
     var CP_SVG_ID = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.8"/><path d="M5.4 16c.5-1.7 5.7-1.7 6.2 0M14 9.5h4M14 13h4"/></svg>';
     var CP_SVG_SEARCHOFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M4 4 18 18"/></svg>';
+    var CP_SVG_DL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>';
     // List-page header glyphs — MIRRORS skin.js CP_ITEM_ICONS (the menu-card/sidebar registry). pjax is MAIN
     // world and can't read skin.js's copy, so the same item SVGs live here for the search-page header. Keep both
     // in sync (see [[project-submenu-icons]]). Title-keyed (lowercased); no entry ⇒ header keeps the accent bar.
@@ -1294,6 +1305,526 @@
         cpExportComponent(tgt.component, tgt.contextPath, tgt.pagePath, tgt.tokenName);
       } catch (e) {}
     }, true);
+    // ---- EXPORT ALL USERS (0.2.337) — one-click CSV of an entire list page's population. Built for the
+    // Group Directory (Group > Utilities > Group Directory: Name/User ID/Phone/Extension/Department/Mobile/
+    // E-mail/…) but generic over any grid list whose criteria fields include an enumerable Department
+    // (Group > Users too). The server caps a single search (~1000, Error 4027), so the engine first tries
+    // ONE blank search (small groups: done in a single pass) and, when the server refuses, tiles the
+    // population DEPARTMENT BY DEPARTMENT via cpResolveFieldMeta's option list (each department stays under
+    // the cap) — the same technique as the manual workflow this replaces, minus the hours. STRICTLY
+    // SEQUENTIAL: every search threads the rotating single-use formtokenserial through cpListSearch/cpFollow
+    // (concurrency would race the token → logout, same hazard as the deep sweep). Rows are parsed from the
+    // RAW fetched docs (cpListSearch opts.onDoc) with a per-<td> reader that PRESERVES EMPTY CELLS — the
+    // a.tableLink cell parse the grid uses can drop link-less empties (Mobile/E-mail/YahooID are often
+    // blank on the directory), which would shift columns in the CSV. Download = blob + <a download>, never
+    // a /commpilot/ GET nav (the DNR recovery redirect eats those — [[gotcha-export-blob-download]]).
+    var cpUxpEl = null;
+    function cpUxpClose() {
+      document.removeEventListener("keydown", cpUxpKey, true);
+      if (cpUxpEl) { try { cpUxpEl.remove(); } catch (e) {} }
+      cpUxpEl = null;
+    }
+    function cpUxpKey(e) {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      var c = cpUxpEl && cpUxpEl._cpCancel;
+      if (c) { try { c(); } catch (x) {} } else cpUxpClose();
+    }
+    // The criteria fields the export engine can drive, by label. first+id ⇒ the PROVEN deep-sweep combo
+    // (First-Name prefix buckets + a User-ID cross-check pass — the same method the Users grid's "Load all"
+    // uses, 100% coverage live-verified); dept alone ⇒ the department-by-department fallback.
+    function cpUxpFields(state) {
+      var find = function (re) {
+        var f = (state.fieldOpts || []).filter(function (o) { return re.test((o.label || "").trim()); });
+        return f.length ? f[0] : null;
+      };
+      return { first: find(/^first\s*name$/i), id: find(/^user\s*id$/i), dept: find(/^department$/i) };
+    }
+    // Safe special chars for name buckets — the common name punctuation, WITHOUT the SQL wildcards (% _):
+    // on silently-capping lists there is no matchCount, so the deep sweep's no-progress guard can't detect a
+    // server-ignored wildcard and "%" would recurse the whole population to max depth.
+    var CP_UXP_SPECIALS = "'-.,&()@#$!^*+=<>?/:;~".split("");
+    // Child prefixes for an over-cap bucket. Numeric User-ID prefixes stay digit-only (phone-number IDs);
+    // after a space only name chars follow (never two spaces — the proven anti-spiral rule); otherwise the
+    // full alphanumeric set, plus space+punctuation for names (catches "M Sandeep"-style first names).
+    function cpUxpKids(prefix, idMode) {
+      var set;
+      if (idMode && /^[0-9]+$/.test(prefix)) set = CP_SWEEP_DIGITS;
+      else if (/\s$/.test(prefix)) set = CP_SWEEP_BASE;
+      else set = idMode ? CP_SWEEP_BASE : CP_SWEEP_BASE.concat([" "]).concat(CP_UXP_SPECIALS);
+      return set.map(function (c) { return prefix + c; });
+    }
+    // A text-ish field for the blank "everything" probe. NOT the enumerated Department/Trunk selects — the
+    // live legacy form can hold a REAL selection in findValue0 (the dept dropdown defaults to its first
+    // department), so posting the form as-is would run a department search, not a show-all.
+    function cpUxpBlankField(state) {
+      var f = (state.fieldOpts || []).filter(function (o) { return o.value && !/department|trunk/i.test(o.label || ""); });
+      return f.length ? f[0] : ((state.fieldOpts || [])[0] || null);
+    }
+    // Per-row cell parse that KEEPS empty cells. Prefer the a.tableLink-bearing <td>s when they account for
+    // every header column (the Users/Groups list shape). Link-less tables (Group Directory rows aren't
+    // clickable) interleave SPACER <td>s between the data cells — verified live on /Group/CompanyDir/:
+    // 19 tds = width="20" lead + 9 data + width="0" spacer after each. Drop the width="0" spacers, then
+    // trim empty width-attributed padding from the edges until the header count fits.
+    function cpUxpParseDoc(doc, out) {
+      if (!out.headers) { var h = cpSearchHeaders(doc); if (h && h.length) out.headers = h; }
+      var hn = out.headers ? out.headers.length : 0;
+      var txt = function (td) {
+        var t = (td.textContent || "").replace(/\s+/g, " ").trim();
+        if (!t && td.querySelector("img")) t = "✓";   // boolean columns render a checkmark image
+        return t;
+      };
+      // Link cells (Users list): the <td> ALSO holds an inline <script> wiring the drill-in, so td.textContent
+      // is a ~580-char script blob. Read the a.tableLink ANCHOR text instead (the clean cell value); img→✓.
+      var linkTxt = function (td) {
+        var a = td.querySelector("a.tableLink");
+        var t = a ? (a.textContent || "").replace(/\s+/g, " ").trim() : "";
+        if (!t && td.querySelector("img")) t = "✓";
+        return t;
+      };
+      var raw = 0;   // rows seen in THIS doc before dedupe — the caller's bucket-size signal (silent-cap detection)
+      doc.querySelectorAll('tr[id^="Row"]').forEach(function (tr) {
+        var tds = [].filter.call(tr.children, function (td) { return td.tagName === "TD"; });
+        var linkTds = tds.filter(function (td) { return td.querySelector("a.tableLink"); });
+        var cells;
+        if (hn && linkTds.length === hn) cells = linkTds.map(linkTxt);
+        else {
+          var dataTds = tds.filter(function (td) { return td.getAttribute("width") !== "0"; });
+          while (hn && dataTds.length > hn && dataTds[0].getAttribute("width") && !txt(dataTds[0])) dataTds.shift();
+          while (hn && dataTds.length > hn && dataTds[dataTds.length - 1].getAttribute("width") && !txt(dataTds[dataTds.length - 1])) dataTds.pop();
+          cells = dataTds.map(txt);
+          if (hn) {
+            while (cells.length > hn && !cells[cells.length - 1]) cells.pop();
+            while (cells.length > hn && !cells[0]) cells.shift();
+          }
+        }
+        if (!cells.some(function (c) { return c; })) return;
+        raw++;
+        var key = cells.join("\u0001");
+        if (out.seen[key]) return;   // dedupe (buckets overlap across sweep passes)
+        out.seen[key] = 1;
+        out.rows.push(cells);
+      });
+      return raw;
+    }
+    // ---- Minimal XLSX writer (0.2.341; report-sourced 0.2.344) — store-only ZIP + inline-string OOXML,
+    // zero libraries (MV3 content script, no bundler). Styling = Trifecta LIGHT (user-approved): purple
+    // #5A2D82 header (white bold Calibri 11), faint purple #F6F2FA banding, thin #DDD borders, ALL cells
+    // CENTERED, frozen header, NO autofilter dropdowns, auto-fit column widths, orange "All Users" tab /
+    // purple department tabs. Numeric cells without leading zeros are real numbers (no green triangles);
+    // leading-zero values ("01660") stay text.
+    var cpCrcT = null;
+    function cpCrc32(b) {
+      if (!cpCrcT) { cpCrcT = []; for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); cpCrcT[n] = c >>> 0; } }
+      var crc = 0xFFFFFFFF;
+      for (var i = 0; i < b.length; i++) crc = cpCrcT[(crc ^ b[i]) & 0xFF] ^ (crc >>> 8);
+      return (crc ^ 0xFFFFFFFF) >>> 0;
+    }
+    // STORE-method ZIP → Uint8Array. files: [{name, data(string|Uint8Array)}].
+    function cpZipBytes(files) {
+      var enc = new TextEncoder(), parts = [], cd = [], off = 0;
+      var u16 = function (v) { return [v & 255, (v >> 8) & 255]; };
+      var u32 = function (v) { return [v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255]; };
+      files.forEach(function (f) {
+        var nb = enc.encode(f.name), data = (typeof f.data === "string") ? enc.encode(f.data) : f.data;
+        var crc = cpCrc32(data);
+        var lh = new Uint8Array([].concat([80, 75, 3, 4], u16(20), u16(0), u16(0), u16(0), u16(0), u32(crc), u32(data.length), u32(data.length), u16(nb.length), u16(0)));
+        parts.push(lh, nb, data);
+        cd.push({ nb: nb, crc: crc, sz: data.length, off: off });
+        off += lh.length + nb.length + data.length;
+      });
+      var cdParts = [], cdSize = 0;
+      cd.forEach(function (c) {
+        var h = new Uint8Array([].concat([80, 75, 1, 2], u16(20), u16(20), u16(0), u16(0), u16(0), u16(0), u32(c.crc), u32(c.sz), u32(c.sz), u16(c.nb.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(c.off)));
+        cdParts.push(h, c.nb); cdSize += h.length + c.nb.length;
+      });
+      var end = new Uint8Array([].concat([80, 75, 5, 6], u16(0), u16(0), u16(files.length), u16(files.length), u32(cdSize), u32(off), u16(0)));
+      // Flatten to one Uint8Array (needed so an xlsx can be nested inside the outer .zip).
+      var total = 0, all = parts.concat(cdParts, [end]);
+      all.forEach(function (p) { total += p.length; });
+      var buf = new Uint8Array(total), pos = 0;
+      all.forEach(function (p) { buf.set(p, pos); pos += p.length; });
+      return buf;
+    }
+    function cpZipStore(files, mime) { return new Blob([cpZipBytes(files)], { type: mime || "application/zip" }); }
+    function cpXmlEsc(v) {
+      return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function cpColRef(i) { var s = ""; i++; while (i > 0) { var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = (i - m - 1) / 26; } return s; }
+    // Styles: 0 default · 1 header (purple fill, white bold, centered) · 2 data (centered, bordered) ·
+    // 3 banded (centered, bordered, faint-purple fill). All centered per user request.
+    var CP_XLSX_STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font>' +
+      '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts>' +
+      '<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
+      '<fill><patternFill patternType="solid"><fgColor rgb="FF5A2D82"/></patternFill></fill>' +
+      '<fill><patternFill patternType="solid"><fgColor rgb="FFF6F2FA"/></patternFill></fill></fills>' +
+      '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>' +
+      '<border><left style="thin"><color rgb="FFDDDDDD"/></left><right style="thin"><color rgb="FFDDDDDD"/></right><top style="thin"><color rgb="FFDDDDDD"/></top><bottom style="thin"><color rgb="FFDDDDDD"/></bottom><diagonal/></border></borders>' +
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+      '<cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+      '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>' +
+      '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>' +
+      '<xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf></cellXfs>' +
+      '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+    function cpXlsxSheetXml(sheet) {
+      var cols = "";
+      (sheet.widths || []).forEach(function (w, i) { cols += '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; });
+      var row = function (r, cells, band) {
+        var s = (r === 1) ? 1 : (band ? 3 : 2);
+        var o = '<row r="' + r + '">';
+        for (var i = 0; i < cells.length; i++) {
+          var ref = cpColRef(i) + r, v = cells[i];
+          if (v == null || v === "") o += '<c r="' + ref + '" s="' + s + '"/>';
+          else if (r > 1 && /^[1-9]\d{0,14}$/.test(v)) o += '<c r="' + ref + '" s="' + s + '"><v>' + v + "</v></c>";
+          else o += '<c r="' + ref + '" s="' + s + '" t="inlineStr"><is><t xml:space="preserve">' + cpXmlEsc(v) + "</t></is></c>";
+        }
+        return o + "</row>";
+      };
+      var body = [row(1, sheet.headers, false)];
+      sheet.rows.forEach(function (rr, i) { body.push(row(i + 2, rr, i % 2 === 1)); });
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (sheet.tabColor ? '<sheetPr><tabColor rgb="' + sheet.tabColor + '"/></sheetPr>' : "") +
+        '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+        (cols ? "<cols>" + cols + "</cols>" : "") +
+        "<sheetData>" + body.join("") + "</sheetData></worksheet>";   // NO autoFilter — user asked for no header dropdowns
+    }
+    function cpXlsxBuild(sheets) {   // sheets: [{name, headers, rows, widths, tabColor}] → Uint8Array (xlsx bytes)
+      var files = [], overrides = "", wbSheets = "", rels = "";
+      sheets.forEach(function (s, i) {
+        var n = i + 1;
+        files.push({ name: "xl/worksheets/sheet" + n + ".xml", data: cpXlsxSheetXml(s) });
+        overrides += '<Override PartName="/xl/worksheets/sheet' + n + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+        wbSheets += '<sheet name="' + cpXmlEsc(s.name) + '" sheetId="' + n + '" r:id="rId' + n + '"/>';
+        rels += '<Relationship Id="rId' + n + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + n + '.xml"/>';
+      });
+      files.push({ name: "[Content_Types].xml", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' + overrides +
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>' });
+      files.push({ name: "_rels/.rels", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' });
+      files.push({ name: "xl/workbook.xml", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' + wbSheets + "</sheets></workbook>" });
+      files.push({ name: "xl/_rels/workbook.xml.rels", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + rels +
+        '<Relationship Id="rId' + (sheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' });
+      files.push({ name: "xl/styles.xml", data: CP_XLSX_STYLES });
+      return cpZipBytes(files);
+    }
+    // Excel sheet names: ≤31 chars, no []:*?/\ — sanitize + dedupe (truncation collisions get " (2)"…).
+    function cpXlsxSheetName(label, used) {
+      var n = String(label || "Sheet").replace(/[\[\]:*?\/\\]/g, " ").replace(/\s+/g, " ").trim().replace(/^'+|'+$/g, "");
+      if (!n) n = "Sheet";
+      if (n.length > 31) n = n.slice(0, 31).trim();
+      var base = n, k = 2;
+      while (used[n.toLowerCase()]) { var suf = " (" + k + ")"; n = base.slice(0, 31 - suf.length).trim() + suf; k++; }
+      used[n.toLowerCase()] = 1;
+      return n;
+    }
+    // Auto-fit column widths from content (Excel char units): max(header, cells) + padding, clamped.
+    function cpUxpWidths(headers, rows) {
+      return headers.map(function (h, i) {
+        var mx = String(h == null ? "" : h).length;
+        for (var r = 0; r < rows.length; r++) { var v = rows[r][i]; var l = v == null ? 0 : String(v).length; if (l > mx) mx = l; }
+        return Math.min(60, Math.max(9, mx + 2.5));
+      });
+    }
+
+    // ---- Group Directory DETAIL report (0.2.344) — the FULL-DATA source (the truncated list can't give full
+    // emails; see [[gotcha-group-directory-detail-report]]). POST /commpilot/servlet/ClientBGListServlet with
+    // xslURL=bglist_detail.xsl + the live mainForm + a criterion; response = a <row><col> XML island with 25
+    // full columns. Run PER DEPARTMENT (each stays under the ~1000 cap), broad if a group has no departments.
+    var CP_UXP_REPORT_URL = "/commpilot/servlet/ClientBGListServlet";
+    function cpUxpDecodeEnt(s) {
+      return String(s).replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'").replace(/&apos;/g, "'").replace(/&#(\d+);/g, function (m, n) { return String.fromCharCode(+n); })
+        .replace(/&amp;/g, "&");
+    }
+    function cpUxpParseReport(txt) {
+      // The data island may be raw <row> or HTML-escaped inside a <textarea>; if no raw rows, decode & retry.
+      var scan = function (s) {
+        var headings = (s.match(/<colHeading>([\s\S]*?)<\/colHeading>/g) || []).map(function (m) { return cpUxpDecodeEnt(m.replace(/<\/?colHeading>/g, "").trim()); });
+        var rows = (s.match(/<row>[\s\S]*?<\/row>/g) || []).map(function (rx) {
+          return (rx.match(/<col\/>|<col>[\s\S]*?<\/col>/g) || []).map(function (c) { return c === "<col/>" ? "" : cpUxpDecodeEnt(c.replace(/<\/?col>/g, "").trim()); });
+        });
+        return { headings: headings, rows: rows };
+      };
+      var out = scan(txt);
+      if (!out.rows.length && /&lt;row&gt;/.test(txt)) out = scan(cpUxpDecodeEnt(txt));
+      return out;
+    }
+    function cpUxpReportFetch(deptValue) {
+      var form = document.querySelector('form[name="mainForm"]');
+      var params = new URLSearchParams();
+      if (form) new URLSearchParams(new FormData(form)).forEach(function (v, k) {
+        if (!/^find(Key|Op|Value)\d+$/.test(k) && k !== "rowNum" && k !== "xslURL") params.set(k, v);
+      });
+      params.set("xslURL", "bglist_detail.xsl");
+      params.set("rowNum", "0");
+      params.set("findKey0", deptValue != null ? "ExactUserDepartment" : "UserLastName");
+      params.set("findOp0", deptValue != null ? "EQUAL_TO" : "STARTS_WITH");
+      params.set("findValue0", deptValue != null ? deptValue : "");
+      var tokEl = document.getElementsByName("formtokenserial")[0];
+      if (tokEl) params.set("formtokenserial", tokEl.value);
+      return fetch(location.origin + CP_UXP_REPORT_URL, {
+        method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        credentials: "same-origin", redirect: "manual", body: params.toString()
+      }).then(function (r) {
+        if (r.type === "opaqueredirect" || r.status === 0 || r.status >= 300) return { auth: false };
+        return r.text().then(function (txt) { return cpUxpParseReport(txt); });
+      });
+    }
+    // Row TYPE: a populated "Service Name" ⇒ a service instance (Hunt Group / Call Center / Auto Attendant /
+    // Voice Portal / …) — the entries "Users only" drops. Empty ⇒ a real user (or a conference-room virtual
+    // user, which stays). iName/iLast used only to LABEL rooms nicely.
+    function cpUxpRowType(r, iSvc, iLast, iName) {
+      var svc = (iSvc >= 0 ? r[iSvc] : "") || "";
+      svc = svc.trim();
+      if (svc) return { type: svc, isService: true };
+      var last = (iLast >= 0 ? r[iLast] : "") || "";
+      var nm = (iName >= 0 ? r[iName] : "") || "";
+      if (/^room$/i.test(last.trim()) || /conference room|conf\.?\s*room/i.test(nm)) return { type: "Conference Room", isService: false };
+      return { type: "User", isService: false };
+    }
+    function cpUxpDownloadBlob(blob, fname) {
+      var u = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = u; a.download = fname;
+      document.body.appendChild(a); a.click();
+      setTimeout(function () { try { a.remove(); URL.revokeObjectURL(u); } catch (x) {} }, 4000);
+    }
+    // Assemble BOTH workbooks from the report rows, filter by mode, package as ONE .zip.
+    //  FULL  = All Users sheet + a tab per department; columns = Name(First Last) + Type + all 25 report cols.
+    //  Phone Directory (customer) = department tabs only; Name(First Last)/Number/Extension/Department/Email/Notes.
+    // mode "users" drops service instances (Service Name populated); "all" keeps everything.
+    function cpUxpBuildFiles(data, groupName, mode) {
+      var hs = data.headings || [];
+      var idx = function (re) { for (var i = 0; i < hs.length; i++) if (re.test(hs[i])) return i; return -1; };
+      var iName = idx(/^name$/i), iNum = idx(/^number$/i), iExt = idx(/^extension$/i), iMob = idx(/^mobile$/i),
+          iMail = idx(/e-?mail/i), iDept = idx(/^department$/i), iFirst = idx(/^first name$/i),
+          iLast = idx(/^last name$/i), iSvc = idx(/service name/i);
+      var firstLast = function (r) {
+        var f = (iFirst >= 0 ? r[iFirst] : "") || "", l = (iLast >= 0 ? r[iLast] : "") || "";
+        f = f.trim(); l = l.trim();
+        if (f || l) return (f + " " + l).trim();
+        var nm = (iName >= 0 ? r[iName] : "") || "", ci = nm.indexOf(",");
+        return ci >= 0 ? (nm.slice(ci + 1) + " " + nm.slice(0, ci)).trim() : nm;
+      };
+      // Classify + optionally filter.
+      var typed = data.rows.map(function (r) { var t = cpUxpRowType(r, iSvc, iLast, iName); return { r: r, type: t.type, isService: t.isService }; });
+      var counts = { total: typed.length, users: 0, service: 0, byType: {} };
+      typed.forEach(function (x) { if (x.isService) counts.service++; else counts.users++; counts.byType[x.type] = (counts.byType[x.type] || 0) + 1; });
+      var kept = (mode === "users") ? typed.filter(function (x) { return !x.isService; }) : typed;
+      // Sort by first name then last (A→Z).
+      kept.sort(function (a, b) { var ka = firstLast(a.r).toLowerCase(), kb = firstLast(b.r).toLowerCase(); return ka < kb ? -1 : ka > kb ? 1 : 0; });
+      // Group by department.
+      var byDept = {}, deptNames = [];
+      kept.forEach(function (x) { var d = ((iDept >= 0 ? x.r[iDept] : "") || "").trim() || "No Department"; if (!byDept[d]) { byDept[d] = []; deptNames.push(d); } byDept[d].push(x); });
+      deptNames.sort(function (a, b) { a = a.toLowerCase(); b = b.toLowerCase(); return a < b ? -1 : a > b ? 1 : 0; });
+
+      // FULL columns: Name(First Last), Type, then every report column except the original Name.
+      var fullHeaders = ["Name", "Type"].concat(hs.filter(function (h, i) { return i !== iName; }));
+      var fullRow = function (x) { var base = [firstLast(x.r), x.type]; hs.forEach(function (h, i) { if (i !== iName) base.push(x.r[i] || ""); }); return base; };
+      var custHeaders = ["Name", "Number", "Extension", "Department", "Email Address", "Notes"];
+      var custRow = function (x) { return [firstLast(x.r), iNum >= 0 ? x.r[iNum] : "", iExt >= 0 ? x.r[iExt] : "", iDept >= 0 ? x.r[iDept] : "", iMail >= 0 ? x.r[iMail] : "", ""]; };
+
+      var allFullRows = kept.map(fullRow), allCustRows = kept.map(custRow);
+      var fullW = cpUxpWidths(fullHeaders, allFullRows), custW = cpUxpWidths(custHeaders, allCustRows);
+      // Notes is a blank write-in column — auto-width would collapse it to the header; give it plenty of
+      // room so the customer can type without expanding it. (Both files: whichever has a "Notes" column.)
+      var wideNotes = function (headers, widths) { var i = headers.indexOf("Notes"); if (i >= 0) widths[i] = 60; };
+      wideNotes(fullHeaders, fullW); wideNotes(custHeaders, custW);
+      var used1 = {}, sheetsFull = [{ name: cpXlsxSheetName("All Users", used1), headers: fullHeaders, rows: allFullRows, widths: fullW, tabColor: "FFF58025" }];
+      deptNames.forEach(function (d) { sheetsFull.push({ name: cpXlsxSheetName(d, used1), headers: fullHeaders, rows: byDept[d].map(fullRow), widths: fullW, tabColor: "FF5A2D82" }); });
+      var used2 = {}, sheetsCust = [];
+      deptNames.forEach(function (d) { sheetsCust.push({ name: cpXlsxSheetName(d, used2), headers: custHeaders, rows: byDept[d].map(custRow), widths: custW, tabColor: "FF5A2D82" }); });
+
+      var d2 = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; };
+      var stamp = d2.getFullYear() + "-" + p(d2.getMonth() + 1) + "-" + p(d2.getDate());
+      var safe = (groupName || "").replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || "group";
+      var fullName = "Users Export FULL - " + safe + " - " + stamp + ".xlsx";
+      var custName = "Phone Directory - " + safe + " - " + stamp + ".xlsx";
+      var zip = cpZipStore([
+        { name: fullName, data: cpXlsxBuild(sheetsFull) },
+        { name: custName, data: cpXlsxBuild(sheetsCust) }
+      ]);
+      return {
+        depts: deptNames.length, counts: counts, kept: kept.length,
+        zipBlob: zip, zipName: "Users Export - " + safe + " - " + stamp + ".zip",
+        fileNames: [fullName, custName]
+      };
+    }
+
+    function cpExportUsers(state) {
+      if (cpUxpEl) return;
+      var deptField = cpUxpFields(state).dept;   // the Department criteria field (composite-keyed)
+      var ac = (typeof AbortController !== "undefined") ? new AbortController()
+        : { signal: { aborted: false }, abort: function () { this.signal.aborted = true; } };
+      if (state._sweepAbort) { try { state._sweepAbort.abort(); } catch (e) {} }
+      state._sweepAbort = ac;
+      var mode = "users";
+      var acc = { headings: null, rows: [], seenUid: {} };
+      var CP_UXP_CAPWARN = 950;   // a single department report at/over this may be server-capped
+      var capWarns = [];
+
+      var opt = function (val, checked, title, desc) {
+        return '<label class="cp-uxp-opt"><input type="radio" name="cp-uxp-mode" value="' + val + '"' + (checked ? " checked" : "") + '/>' +
+          '<span class="cp-uxp-optt"><b>' + title + '</b><span>' + desc + '</span></span></label>';
+      };
+      var back = document.createElement("div");
+      back.className = "cp-modal-back";
+      back.innerHTML =
+        '<div class="cp-modal cp-uxp">' +
+          '<div class="cp-modal-head"><span class="cp-uxp-ico">' + CP_SVG_DL + '</span><span>Export directory</span>' +
+            '<span class="cp-uxp-x" title="Cancel and close">' + CP_SVG_X + '</span></div>' +
+          '<div class="cp-uxp-body">' +
+            '<div class="cp-uxp-h">What should the export include?</div>' +
+            '<div class="cp-uxp-opts">' +
+              opt("users", true, "Users only", "Real people and conference rooms. Hunt groups, call centers, auto attendants and other service lines are dropped.") +
+              opt("all", false, "Everything", "Every directory entry, including hunt groups, call centers, auto attendants and voice ports. The full file tags each row’s type.") +
+            '</div>' +
+            '<div class="cp-uxp-anim cp-uxp-hide">' +
+              '<div class="cp-uxp-lens">' + CP_SVG_SEARCH + '</div>' +
+            '</div>' +
+            '<div class="cp-srch-sweep-barwrap cp-uxp-barwrap cp-uxp-hide"><div class="cp-srch-sweep-fill"></div></div>' +
+            '<div class="cp-uxp-n cp-uxp-hide">0</div>' +
+            '<div class="cp-uxp-sub cp-uxp-hide"></div>' +
+            '<div class="cp-uxp-warns"></div>' +
+            '<div class="cp-uxp-note cp-uxp-hide">Keep this tab open and don’t reload while the export runs.</div>' +
+            '<div class="cp-uxp-btns">' +
+              '<button type="button" class="cp-srch-actbtn cp-uxp-start">' + CP_SVG_DL + '<span>Start export</span></button>' +
+              '<button type="button" class="cp-srch-actbtn cp-uxp-dl cp-uxp-hide">' + CP_SVG_DL + '<span>Download .zip</span></button>' +
+              '<button type="button" class="cp-srch-actbtn sec cp-uxp-cancel">Cancel</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(back);
+      cpUxpEl = back;
+      document.addEventListener("keydown", cpUxpKey, true);
+      var hEl = back.querySelector(".cp-uxp-h"), nEl = back.querySelector(".cp-uxp-n"),
+          subEl = back.querySelector(".cp-uxp-sub"), warnEl = back.querySelector(".cp-uxp-warns"),
+          fillEl = back.querySelector(".cp-srch-sweep-fill"), dlBtn = back.querySelector(".cp-uxp-dl"),
+          cancelBtn = back.querySelector(".cp-uxp-cancel"), startBtn = back.querySelector(".cp-uxp-start"),
+          lensEl = back.querySelector(".cp-uxp-lens");
+      var setH = function (t) { hEl.textContent = t; };
+      var setSub = function (t) { subEl.textContent = t; };
+      var setBar = function (f) { fillEl.style.width = Math.round(f * 100) + "%"; };
+      var setN = function () { nEl.textContent = acc.rows.length.toLocaleString() + " entries"; };
+      var addWarn = function (t) { warnEl.classList.add("on"); var d2 = document.createElement("div"); d2.textContent = t; warnEl.appendChild(d2); };
+      var halted = function () { return ac.signal.aborted; };
+      var running = true;
+      var settle = function () { running = false; if (state._sweepAbort === ac) state._sweepAbort = null; };
+      var cancel = function () { if (running) { try { ac.abort(); } catch (e) {} settle(); } cpUxpClose(); };
+      back._cpCancel = cancel;
+      back.querySelector(".cp-uxp-x").addEventListener("click", cancel);
+      cancelBtn.addEventListener("click", function () { if (running) cancel(); else cpUxpClose(); });
+      var groupNameNow = function () {
+        var segs = document.querySelectorAll(".cp-breadcrumb .cp-bc-seg");
+        return segs.length ? (segs[segs.length - 1].textContent || "").trim() : (state.entity || "");
+      };
+      var built = null;
+      var ensureBuild = function () {
+        if (!built && acc.rows.length) { try { built = cpUxpBuildFiles(acc, groupNameNow(), mode); } catch (e) { addWarn("Workbook build failed: " + e); } }
+        return built;
+      };
+      var downloadZip = function () { if (ensureBuild()) cpUxpDownloadBlob(built.zipBlob, built.zipName); };
+      dlBtn.addEventListener("click", downloadZip);
+
+      var finished = false;
+      function finish() {
+        if (halted() || finished) return;
+        finished = true; settle();
+        setH("Building Excel files…"); setBar(1); setSub("");
+        setTimeout(function () { try { finishBuild(); } catch (e) { addWarn("Workbook build failed: " + e); cancelBtn.textContent = "Close"; } }, 40);
+      }
+      function finishBuild() {
+        if (!ensureBuild()) { setH("Export stopped"); addWarn("No rows to export."); cancelBtn.textContent = "Close"; return; }
+        downloadZip();
+        var c = built.counts;
+        setH("Export complete");
+        nEl.textContent = built.kept.toLocaleString() + (mode === "users" ? " users exported" : " entries exported");
+        setSub(built.depts + " departments · " + built.zipName);
+        addWarn("Breakdown: " + c.total.toLocaleString() + " directory entries = " + c.users.toLocaleString() +
+          " users (incl. conference rooms) + " + c.service.toLocaleString() + " service lines" +
+          (mode === "users" ? " — service lines EXCLUDED." : " — everything included."));
+        var typeBits = Object.keys(c.byType).filter(function (k) { return k !== "User" && k !== "Conference Room"; })
+          .sort(function (a, b) { return c.byType[b] - c.byType[a]; })
+          .map(function (k) { return k + ": " + c.byType[k].toLocaleString(); });
+        if (typeBits.length) addWarn("Service lines by type — " + typeBits.join(", ") + ".");
+        capWarns.forEach(function (w) { addWarn(w); });
+        dlBtn.classList.remove("cp-uxp-hide");
+        cancelBtn.textContent = "Close";
+      }
+      function fail(msg) {
+        if (halted()) return;
+        settle();
+        setH("Export stopped"); addWarn(msg);
+        if (acc.rows.length) { var sp = dlBtn.querySelector("span"); if (sp) sp.textContent = "Download partial .zip"; dlBtn.classList.remove("cp-uxp-hide"); }
+        cancelBtn.textContent = "Close";
+      }
+      // Accumulate a report result (dedupe by User Id across departments).
+      function absorb(res, label) {
+        if (!acc.headings && res.headings && res.headings.length) acc.headings = res.headings;
+        var iUid = acc.headings ? acc.headings.map(function (h) { return h.toLowerCase(); }).indexOf("user id") : -1;
+        var added = 0;
+        (res.rows || []).forEach(function (r) {
+          var uid = (iUid >= 0 ? (r[iUid] || "") : "").trim().toLowerCase();
+          var key = uid || ("row:" + r.join("~|~"));
+          if (acc.seenUid[key]) return;
+          acc.seenUid[key] = 1; acc.rows.push(r); added++;
+        });
+        if (added >= CP_UXP_CAPWARN) capWarns.push("“" + label + "” returned " + added.toLocaleString() + " rows — may have hit the server cap; some entries could be missing.");
+      }
+      // Department loop.
+      var deptList = null, di = 0;
+      function stepDept() {
+        if (halted()) return;
+        if (di >= deptList.length) { finish(); return; }
+        var d = deptList[di++];
+        setSub("Department " + di + " / " + deptList.length + "  ·  " + d.label);
+        setBar(0.05 + 0.9 * (di / deptList.length));
+        cpUxpReportFetch(d.value).then(function (res) {
+          if (halted()) return;
+          if (res && res.auth === false) { fail("Session bounce fetching “" + d.label + "” — please sign in again, then retry."); return; }
+          absorb(res, d.label);
+          setN();
+          stepDept();
+        }).catch(function (e) { if (!halted()) fail("Report for “" + d.label + "” failed (" + String((e && e.message) || e) + ")."); });
+      }
+      function runBroad() {
+        setH("Fetching the directory…"); setBar(0.4);
+        cpUxpReportFetch(null).then(function (res) {
+          if (halted()) return;
+          if (res && res.auth === false) { fail("Session bounce fetching the directory — please sign in again, then retry."); return; }
+          absorb(res, "all");
+          setN();
+          if (built === null && acc.rows.length >= CP_UXP_CAPWARN) addWarn("The broad report returned " + acc.rows.length.toLocaleString() + " rows — if the group is very large, run it on a page that has departments.");
+          finish();
+        }).catch(function (e) { if (!halted()) fail("Directory report failed (" + String((e && e.message) || e) + ")."); });
+      }
+      startBtn.addEventListener("click", function () {
+        var r = back.querySelector('input[name="cp-uxp-mode"]:checked');
+        mode = r ? r.value : "users";
+        back.querySelector(".cp-uxp-opts").classList.add("cp-uxp-hide");
+        startBtn.classList.add("cp-uxp-hide");
+        [".cp-uxp-anim", ".cp-uxp-barwrap", ".cp-uxp-n", ".cp-uxp-sub", ".cp-uxp-note"].forEach(function (s) { var el2 = back.querySelector(s); if (el2) el2.classList.remove("cp-uxp-hide"); });
+        try { if (lensEl && lensEl.animate) lensEl.animate([{ transform: "scale(1)" }, { transform: "scale(1.09)" }, { transform: "scale(1)" }], { duration: 1700, iterations: Infinity, easing: "ease-in-out" }); } catch (e) {}
+        setH("Reading the department list…"); setBar(0.03);
+        // Enumerate departments (composite-keyed) from the live search form, then report per department.
+        var deptFieldVal = deptField ? deptField.value : null;
+        var meta = deptFieldVal ? cpResolveFieldMeta(deptFieldVal) : null;
+        deptList = (meta && meta.options ? meta.options : []).filter(function (o) { return String(o.value) !== ""; });
+        if (deptList.length) { setH("Fetching the directory, department by department…"); stepDept(); }
+        else runBroad();
+      });
+    }
+
     // ---- Center-modal Add (Option A, user-picked 2026-07-04). pjax owns the HOST: fetch the Add form in
     // the background (token threaded, same engine as cpLeafSave), mount its raw markup (kept hidden by CSS)
     // inside the modal, let skin.js dress it (cp:modalform → cp-prof rows + Add/Cancel), background-POST on
@@ -1735,6 +2266,17 @@
         });
         host.appendChild(btn);
       });
+      // Export (0.2.344): Group Directory ONLY — the full-data export is sourced from that page's Detail
+      // report (ClientBGListServlet + bglist_detail.xsl), run per department. Not meaningful on other lists.
+      if (/\/Group\/CompanyDir\//.test(location.pathname) && document.getElementById("searchTable")) {
+        var xb = document.createElement("button");
+        xb.type = "button";
+        xb.className = "cp-srch-actbtn sec cp-uxp-open";
+        xb.title = "Download the full group directory (two Excel files, zipped) — full emails, by department";
+        xb.innerHTML = CP_SVG_DL + "<span>Export</span>";
+        xb.addEventListener("click", function () { cpExportUsers(state); });
+        host.appendChild(xb);
+      }
     }
     // MULTI-SELECT DELETE (Option B, user-picked 2026-06-26). BroadSoft list pages with a delete column expose a
     // hidden per-row checkbox `checkbox_…__DELIMITER__<rowKey>` — present ONLY for deletable rows (e.g. reseller-
