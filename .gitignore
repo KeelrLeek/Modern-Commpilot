@@ -9,6 +9,7 @@ Thumbs.db
 .DS_Store
 node_modules/
 tests/*.png
+dev-preview/*.log
 native/*.exe
 
 # Chrome-generated when loading the extension

@@ -1,14 +1,17 @@
 # CommPilot PJAX route audit
 
-Live sandbox account, Edge with the unpacked preview extension. A **PJAX pass** means the destination rendered with HTTP 200 and the top-level document marker stayed the same. Opening a form here does not submit or save it. The visual, live-updating tally is at `http://127.0.0.1:8766/pjax-route-audit.html`; this note preserves the first walkthrough only. The current extension build is 0.3.8, with 680 discovered routes passing and all 174 discovered subpages scanned for further controls.
+Live sandbox account, Edge with the unpacked preview extension. A **PJAX pass** means the destination rendered with HTTP 200 and the top-level document marker stayed the same. Opening a form here does not submit or save it. The visual, live-updating tally is at `http://127.0.0.1:8766/pjax-route-audit.html`. The current extension build is 0.3.9, with 821 discovered routes passing and all 174 discovered subpages scanned for further controls.
 
 ## Tally
 
 | Check | Passed | Needs PJAX or repair | Not yet checked |
 | --- | ---: | ---: | ---: |
-| Distinct destination routes | 10 | 0 | Inventory in progress |
-| Search actions | 2 | 0 | More list types |
-| Back/Forward flows | 2 | 0 | More entity levels |
+| Discovered destination and interaction routes | 821 | 0 | More routes may be discovered |
+| Search/Find views | 143 | 0 | 0 discovered views |
+| Sorting views, including Back replay | 8 | 0 | 0 discovered views |
+| Paging views, including Back replay | 2 | 0 | 0 discovered views |
+| Transfer control views | 0 verified | 0 | 10 discovered views |
+| Form action views | 0 verified | 0 | 657 discovered views |
 
 ## Checked live
 
@@ -31,8 +34,8 @@ Live sandbox account, Edge with the unpacked preview extension. A **PJAX pass** 
 
 ## To check next
 
-- Search, sorting, and paging variations across list pages.
+- Transfer controls, including import/export and file upload/download behavior.
 - Configuration saves and other state-changing form submissions using the test account.
-- Native file upload/download and production account behavior.
+- Production account behavior.
 
 The sandbox intermittently returned HTTP 500 or bounced to Login after repeated sign-ins during the audit. Those attempts were not counted as PJAX passes or route failures. A fresh test-profile cookie session restored normal navigation.

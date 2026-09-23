@@ -13,6 +13,7 @@ const level = process.argv[2] || 'Call Center';
 const onlyFolder = process.argv[3] || '';
 const onlyLabel = process.argv[4] || '';
 const force = process.env.BW_AUDIT_FORCE === '1';
+const maxReconnects = Math.max(1, Number(process.env.BW_MAX_RECONNECTS || 10));
 const levels = new Set(['Reseller', 'Service Provider', 'Group', 'User',
   'Auto Attendant', 'Hunt Group', 'Call Center']);
 if (!levels.has(level)) throw new Error(`Unknown level: ${level}`);
@@ -23,6 +24,8 @@ function saveAudit(audit) {
   fs.writeFileSync(auditPath, JSON.stringify(audit, null, 2) + '\n');
 }
 const routePath = (url, base) => new URL(url, base).pathname;
+const sameViewPath = (left, right) =>
+  String(left || '').replace(/\/index\.jsp$/, '/') === String(right || '').replace(/\/index\.jsp$/, '/');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const pjaxLog = [];
 const tokenIds = new Map();
@@ -64,7 +67,7 @@ async function clickPath(page, selector, expected) {
 async function clickFolder(page, folder) {
   if ((await page.title()).trim() === folder &&
       await page.locator('td[width="82%"]').count()) return;
-  await page.locator('a.leftnavfolder').filter({ hasText: new RegExp(`^\\s*${folder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`) }).click();
+  await page.locator('a.leftnavfolder, a.leftnavfolderopen').filter({ hasText: new RegExp(`^\\s*${folder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`) }).click();
   await page.waitForFunction(expected => location.pathname === '/commpilot/Common/folder_contents.jsp' &&
     document.title.trim() === expected && !!document.querySelector('td[width="82%"]'),
   folder, { timeout: 25000 });
@@ -72,9 +75,17 @@ async function clickFolder(page, folder) {
 async function gotoLogin(page) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      await page.goto('https://apps-sbx.avpaas.io/commpilot/Login/', { waitUntil: 'domcontentloaded' });
+      await page.goto('https://apps-sbx.avpaas.io/commpilot/Login/',
+        { waitUntil: 'commit', timeout: 15000 });
       return;
     } catch (error) {
+      const state = await page.evaluate(() => ({ path: location.pathname,
+        title: document.title.trim(), savedSignIns: document.querySelectorAll('button.bw-saved-account-name').length,
+        hasContent: !!document.querySelector('td[width="82%"]') })).catch(() => null);
+      console.log(JSON.stringify({ event: 'login-navigation-retry', attempt: attempt + 1,
+        error: error.message.slice(0, 140), state }));
+      if (state?.path === '/commpilot/Common/folder_contents.jsp' &&
+          state.title === 'Profile' && state.hasContent) return;
       if (attempt === 2) throw error;
       await delay(600);
     }
@@ -84,6 +95,8 @@ async function login(page) {
   if (new URL(page.url()).pathname !== '/commpilot/Login/') {
     await gotoLogin(page);
   }
+  if (new URL(page.url()).pathname === '/commpilot/Common/folder_contents.jsp' &&
+      (await page.title()).trim() === 'Profile') return;
   await page.locator('button.bw-saved-account-name').first().click();
   try {
     await page.waitForFunction(() => location.pathname === '/commpilot/Common/folder_contents.jsp' &&
@@ -282,6 +295,156 @@ async function captureActionTargets(page) {
   });
 }
 
+async function captureDynamicControls(page) {
+  return page.evaluate(() => {
+    const cell = document.querySelector('td[width="82%"]');
+    const totals = { search: 0, sort: 0, paging: 0, tabs: 0, transfer: 0, submit: 0 };
+    if (!cell) return totals;
+    for (const element of cell.querySelectorAll('a, button, input[type="button"], input[type="submit"], input[type="image"]')) {
+      if (!element.getClientRects().length) continue;
+      const label = (element.innerText || element.value || element.title || element.alt || '').trim();
+      const id = element.id || '';
+      const href = element.getAttribute('href') || '';
+      const handler = element.getAttribute('onclick') || '';
+      const formAction = element.closest('form')?.getAttribute('action') || '';
+      const text = `${label} ${id} ${href} ${handler} ${formAction}`;
+      if (/\b(?:search|find|findAll)\b|^search\d+$/i.test(text)) totals.search++;
+      if (/\b(?:sort|doSort)\b|\/sort\.jsp/i.test(text)) totals.sort++;
+      const pagingAction = `${id} ${href} ${handler}`;
+      if (/\bdoPage\b|\/page\.jsp/i.test(pagingAction) ||
+          /^(?:(?:first|last|next|previous|prev)(?:\s+page)?|page\s+\d+|[‹›«»<>])$/i.test(label))
+        totals.paging++;
+      const tabAction = `${id} ${href} ${handler}`;
+      if (element.getAttribute('role') === 'tab' ||
+          /(?:^|\s)(?:tab|tablink|tab-button)(?:\s|$)/i.test(element.className || '') ||
+          /\btab(?:Submit|Page)?\b/i.test(tabAction)) totals.tabs++;
+      if (/\b(?:upload|download|export|import)\b/i.test(text)) totals.transfer++;
+      if (/^(?:save|ok|apply|cancel|delete|remove|add|create|submit)$/i.test(label) ||
+          element.getAttribute('type') === 'submit') totals.submit++;
+    }
+    return totals;
+  });
+}
+
+async function verifySortControl(page, audit, record, area, wanted) {
+  let sort = null;
+  for (const candidate of await page.locator('td[width="82%"] a.listSortHeader').all()) {
+    if (await candidate.isVisible()) { sort = candidate; break; }
+  }
+  record.interactionChecks ||= {};
+  if (!sort) {
+    record.interactionChecks.sort = { status: 'no-trigger' };
+    saveAudit(audit);
+    console.log(JSON.stringify({ event: 'sort-probe', area, label: record.label,
+      status: 'no-trigger' }));
+    return 'continue';
+  }
+  const trigger = (await sort.innerText()).trim();
+  const before = await page.evaluate(() => ({ count: window.__bwReskinCount || 0,
+    historyLength: history.length, nav: history.state?.cpNav?.url || null }));
+  const sortResponse = page.waitForResponse(item => item.request().method() === 'POST' &&
+    /\/commpilot\/Common\/sort\.jsp$/.test(routePath(item.url(), page.url())),
+  { timeout: 12000 }).catch(() => null);
+  await sort.click();
+  const found = await sortResponse;
+  await page.waitForFunction(count => (window.__bwReskinCount || 0) > count ||
+    location.pathname === '/commpilot/Login/', before.count, { timeout: 12000 }).catch(() => {});
+  const after = await page.evaluate(() => ({ path: location.pathname,
+    title: document.title, count: window.__bwReskinCount || 0,
+    historyLength: history.length, nav: history.state?.cpNav?.url || null,
+    sameDocument: window.__bwTestDocMarker === window.__bwAuditMarker,
+    hasContent: !!document.querySelector('td[width="82%"]'),
+    alert: !!document.querySelector('.cp-alert-error') })).catch(() => null);
+  const sorted = found?.status() === 200 && sameViewPath(after?.path, wanted) &&
+    after.sameDocument && after.count > before.count && after.hasContent && !after.alert;
+  let backStatus = 'pending';
+  if (sorted) {
+    try {
+      await page.goBack();
+      const restored = await page.waitForFunction(({ path, count }) =>
+        location.pathname.replace(/\/index\.jsp$/, '/') === path.replace(/\/index\.jsp$/, '/') &&
+          (window.__bwReskinCount || 0) > count &&
+          !!document.querySelector('td[width="82%"]'),
+      { path: wanted, count: after.count }, { timeout: 15000 }).then(() => true).catch(() => false);
+      backStatus = restored ? 'pass' : 'needs';
+    } catch { backStatus = 'needs'; }
+  }
+  record.interactionChecks.sort = { status: sorted && backStatus === 'pass' ? 'pass' :
+    after?.path === '/commpilot/Login/' ? 'pending' : 'needs',
+  trigger, responsePath: found ? routePath(found.url(), page.url()) : null,
+  httpStatus: found?.status() || null, sameDocument: after?.sameDocument === true,
+  reskinned: !!after && after.count > before.count, backStatus };
+  saveAudit(audit);
+  console.log(JSON.stringify({ event: 'sort-probe', area, label: record.label,
+    before, after, ...record.interactionChecks.sort }));
+  return record.interactionChecks.sort.status === 'pass' ? 'continue' :
+    record.interactionChecks.sort.status === 'pending' ? 'session' : 'gap';
+}
+
+async function verifyPagingControl(page, audit, record, area, wanted) {
+  const controls = await page.locator('td[width="82%"] a, td[width="82%"] button, ' +
+    'td[width="82%"] input[type="button"], td[width="82%"] input[type="submit"]').all();
+  let paging = null;
+  for (const label of ['Next', 'Last']) {
+    for (const candidate of controls) {
+      if (!await candidate.isVisible() || !await candidate.isEnabled()) continue;
+      const text = (await candidate.evaluate(element =>
+        (element.innerText || element.value || element.title || '').trim())).trim();
+      if (text.toLowerCase() === label.toLowerCase()) { paging = candidate; break; }
+    }
+    if (paging) break;
+  }
+  record.interactionChecks ||= {};
+  if (!paging) {
+    record.interactionChecks.paging = { status: 'no-trigger' };
+    saveAudit(audit);
+    console.log(JSON.stringify({ event: 'paging-probe', area, label: record.label,
+      status: 'no-trigger' }));
+    return 'continue';
+  }
+  const trigger = await paging.evaluate(element =>
+    (element.innerText || element.value || element.title || '').trim());
+  const before = await page.evaluate(() => ({ count: window.__bwReskinCount || 0,
+    historyLength: history.length, nav: history.state?.cpNav?.url || null }));
+  const pageResponse = page.waitForResponse(item => item.request().method() === 'POST' &&
+    /\/commpilot\/Common\/page\.jsp$/.test(routePath(item.url(), page.url())),
+  { timeout: 12000 }).catch(() => null);
+  await paging.click();
+  const found = await pageResponse;
+  await page.waitForFunction(count => (window.__bwReskinCount || 0) > count ||
+    location.pathname === '/commpilot/Login/', before.count, { timeout: 12000 }).catch(() => {});
+  const after = await page.evaluate(() => ({ path: location.pathname,
+    title: document.title, count: window.__bwReskinCount || 0,
+    historyLength: history.length, nav: history.state?.cpNav?.url || null,
+    sameDocument: window.__bwTestDocMarker === window.__bwAuditMarker,
+    hasContent: !!document.querySelector('td[width="82%"]'),
+    alert: !!document.querySelector('.cp-alert-error') })).catch(() => null);
+  const paged = found?.status() === 200 && sameViewPath(after?.path, wanted) &&
+    after.sameDocument && after.count > before.count && after.hasContent && !after.alert;
+  let backStatus = 'pending';
+  if (paged) {
+    try {
+      await page.goBack();
+      const restored = await page.waitForFunction(({ path, count }) =>
+        location.pathname.replace(/\/index\.jsp$/, '/') === path.replace(/\/index\.jsp$/, '/') &&
+          (window.__bwReskinCount || 0) > count &&
+          !!document.querySelector('td[width="82%"]'),
+      { path: wanted, count: after.count }, { timeout: 15000 }).then(() => true).catch(() => false);
+      backStatus = restored ? 'pass' : 'needs';
+    } catch { backStatus = 'needs'; }
+  }
+  record.interactionChecks.paging = { status: paged && backStatus === 'pass' ? 'pass' :
+    after?.path === '/commpilot/Login/' ? 'pending' : 'needs',
+  trigger, responsePath: found ? routePath(found.url(), page.url()) : null,
+  httpStatus: found?.status() || null, sameDocument: after?.sameDocument === true,
+  reskinned: !!after && after.count > before.count, backStatus };
+  saveAudit(audit);
+  console.log(JSON.stringify({ event: 'paging-probe', area, label: record.label,
+    before, after, ...record.interactionChecks.paging }));
+  return record.interactionChecks.paging.status === 'pass' ? 'continue' :
+    record.interactionChecks.paging.status === 'pending' ? 'session' : 'gap';
+}
+
 function descendantDepthLimit() {
   return Math.min(8, Math.max(1, Number(process.env.BW_MAX_DESCENDANT_DEPTH || 4)));
 }
@@ -294,6 +457,14 @@ function needsSubpageWork(audit, area, item, depth = 0, seen = new Set()) {
   if (depth >= descendantDepthLimit() ||
       (isCanonicalAction(item.path) && process.env.BW_VERIFY_ACTION_COMMON !== '1')) return false;
   if (item.backPending) return true;
+  if (process.env.BW_DISCOVER_DYNAMIC === '1' && !item.dynamicScanned) return true;
+  if (process.env.BW_SEARCH_SUBPAGES === '1' && (item.dynamicControls?.search || 0) > 0 &&
+      !(item.searchCheck?.status === 'pass' && item.searchCheck.reskinned === true &&
+        item.searchCheck.backStatus === 'pass')) return true;
+  if (process.env.BW_VERIFY_SORT === '1' && (item.dynamicControls?.sort || 0) > 0 &&
+      item.interactionChecks?.sort?.status !== 'pass') return true;
+  if (process.env.BW_VERIFY_PAGING === '1' && (item.dynamicControls?.paging || 0) > 0 &&
+      item.interactionChecks?.paging?.status !== 'pass') return true;
   if (!item.controlScanned) return true;
   const sourcePath = item.path.includes('/DefaultConfig/Nested/Configuration/') ?
     new URL('../Files/', new URL(item.path, 'https://audit.invalid')).pathname : item.path;
@@ -409,9 +580,15 @@ async function verifyInnerTarget(page, audit, area, sourcePath, parentLabel, inn
   if (session) return 'session';
   if (status === 'needs') return 'gap';
   if (scanDescendants) {
+    if (process.env.BW_DISCOVER_DYNAMIC === '1') {
+      record.dynamicControls = await captureDynamicControls(page);
+      record.dynamicScanned = true;
+    }
     const rowTargets = state.path === sourcePath ? [] : await captureRowTargets(page);
     const actionScan = state.path === sourcePath ? { candidates: 0, targets: [] } :
       await captureActionTargets(page);
+    if (record.dynamicControls && actionScan.targets.some(child => isCanonicalAction(routePath(child.url, page.url()))))
+      record.dynamicControls.sort = Math.max(1, record.dynamicControls.sort);
     const children = [...rowTargets, ...actionScan.targets];
     const unique = new Map();
     for (const child of children) {
@@ -443,6 +620,175 @@ async function verifyInnerTarget(page, audit, area, sourcePath, parentLabel, inn
         if (outcome !== 'continue') return outcome;
       }
     }
+  }
+  if (process.env.BW_SEARCH_SUBPAGES === '1' && (record.dynamicControls?.search || 0) > 0 &&
+      !(record.searchCheck?.status === 'pass' && record.searchCheck.reskinned === true &&
+        record.searchCheck.backStatus === 'pass')) {
+    const searchCandidates = page.locator('td[width="82%"] #search0, td[width="82%"] #findButton, ' +
+      'td[width="82%"] input[type="submit"][id^="search" i], ' +
+      'td[width="82%"] input[type="submit"][value="Find" i], ' +
+      'td[width="82%"] input[type="submit"][value="Search" i]');
+    let search = null;
+    for (const candidate of await searchCandidates.all()) {
+      if (await candidate.isVisible()) { search = candidate; break; }
+    }
+    if (search) {
+      const trigger = /find/i.test(await search.getAttribute('value') || '') ? 'Find' :
+        (await search.getAttribute('id') || 'Search');
+      const beforeSearchPath = new URL(page.url()).pathname;
+      const beforeSearchHistory = await page.evaluate(() => ({
+        navPath: history.state?.cpNav?.url || null, length: history.length }));
+      if (process.env.BW_TRACE_HISTORY === '1') await page.evaluate(() => {
+        if (window.__bwHistoryTrace) return;
+        window.__bwHistoryTrace = [];
+        const push = history.pushState, replace = history.replaceState;
+        history.pushState = function (historyState, title, url) {
+          window.__bwHistoryTrace.push({ type: 'push', path: String(url || location.pathname),
+            navPath: historyState?.cpNav?.url || null });
+          return push.apply(this, arguments);
+        };
+        history.replaceState = function (historyState, title, url) {
+          window.__bwHistoryTrace.push({ type: 'replace', path: String(url || location.pathname),
+            navPath: historyState?.cpNav?.url || null });
+          return replace.apply(this, arguments);
+        };
+        window.addEventListener('popstate', event => window.__bwHistoryTrace.push({
+          type: 'pop', path: location.pathname, navPath: event.state?.cpNav?.url || null }), true);
+      });
+      const reskinStart = await page.evaluate(() => window.__bwReskinCount || 0);
+      const searchResponse = page.waitForResponse(item => item.request().method() === 'POST' &&
+        (routePath(item.url(), page.url()) === beforeSearchPath ||
+          routePath(item.url(), page.url()) === wanted ||
+          /^\/commpilot\/Common\/(?:find|findAll|page)\.jsp$/.test(routePath(item.url(), page.url()))),
+      { timeout: 12000 }).catch(() => null);
+      await search.click();
+      const found = await searchResponse;
+      await page.waitForFunction(count => (window.__bwReskinCount || 0) > count ||
+        location.pathname === '/commpilot/Login/' || !!document.querySelector('.cp-alert-error'),
+      reskinStart, { timeout: 12000 }).catch(() => {});
+      const searchState = await page.evaluate(count => ({ path: location.pathname,
+        title: document.title.trim(), sameDocument: window.__bwTestDocMarker === window.__bwNestedMarker,
+        reskinned: (window.__bwReskinCount || 0) > count,
+        hasContent: !!document.querySelector('td[width="82%"]') }), reskinStart).catch(() => null);
+      const unavailable = !found || found.status() >= 500 ||
+        searchState?.path === '/commpilot/Login/' || searchState?.title === 'Login';
+      record.searchCheck = { status: unavailable ? 'pending' : found.status() === 200 &&
+        searchState?.sameDocument && searchState?.reskinned && searchState?.hasContent ? 'pass' : 'needs',
+        trigger, responsePath: found ? routePath(found.url(), page.url()) : null,
+        httpStatus: found?.status() || null, finalPath: searchState?.path || null,
+        sameDocument: searchState?.sameDocument === true, reskinned: searchState?.reskinned === true,
+        backStatus: 'pending' };
+      if (record.searchCheck.responsePath) {
+        let interaction = audit.routes.find(item => item.kind === 'interaction' && item.area === area &&
+          item.sourcePath === wanted && item.path === record.searchCheck.responsePath);
+        if (!interaction) {
+          interaction = { id: `discovered-${audit.routes.length + 1}`, kind: 'interaction', area,
+            label: `${record.label} › ${/find/i.test(trigger) ? 'Find' : 'Search'}`,
+            sourcePath: wanted, path: record.searchCheck.responsePath, method: 'POST', status: 'pending' };
+          audit.routes.push(interaction);
+        }
+        interaction.status = record.searchCheck.status;
+        interaction.detail = `HTTP ${record.searchCheck.httpStatus || 'none'}; ` +
+          (record.searchCheck.sameDocument ? 'same document' : 'document changed');
+      }
+      saveAudit(audit);
+      console.log(JSON.stringify({ event: 'subpage-search-probe', area, label: record.label,
+        path: wanted, beforeSearchHistory,
+        afterSearchHistory: await page.evaluate(() => ({ navPath: history.state?.cpNav?.url || null,
+          length: history.length, trace: window.__bwHistoryTrace || [] })).catch(() => null),
+        ...record.searchCheck }));
+      if (record.searchCheck.status !== 'pass')
+        return record.searchCheck.status === 'pending' ? 'session' : 'gap';
+      const searchBackStart = await page.evaluate(() => window.__bwReskinCount || 0).catch(() => null);
+      if (searchBackStart === null) return 'session';
+      try { await page.goBack(); } catch (error) {
+        console.log(JSON.stringify({ event: 'subpage-search-back', area, label: record.label,
+          status: 'navigation-error', error: error.message }));
+        return 'session';
+      }
+      const restored = await page.waitForFunction(({ before, parent, count }) =>
+        (location.pathname === before || location.pathname === parent) &&
+          (window.__bwReskinCount || 0) > count && !!document.querySelector('td[width="82%"]'),
+      { before: beforeSearchPath, parent: sourcePath, count: searchBackStart },
+      { timeout: 20000 }).then(() => true).catch(() => false);
+      console.log(JSON.stringify({ event: 'subpage-search-back', area, label: record.label,
+        status: restored ? 'pass' : 'pending', beforeSearchPath, sourcePath,
+        finalPath: new URL(page.url()).pathname,
+        pageState: await page.evaluate(() => ({ title: document.title,
+          navPath: history.state?.cpNav?.url || null,
+          hasFind: !!document.querySelector('td[width="82%"] #findButton'),
+          hasSearch: !!document.querySelector('td[width="82%"] #search0'),
+          bodyLength: document.querySelector('td[width="82%"]')?.innerText?.length || 0,
+          reskins: window.__bwReskinCount || 0,
+          trace: window.__bwHistoryTrace || [] })).catch(() => null) }));
+      if (!restored) {
+        record.searchCheck.backStatus = 'needs';
+        saveAudit(audit);
+        return 'session';
+      }
+      // A shared Find result can add a state-less intermediate history entry.
+      // Walk each Back step until the parent is actually restored in-shell.
+      for (let step = 0; step < 4 && new URL(page.url()).pathname !== sourcePath; step++) {
+        const count = await page.evaluate(() => window.__bwReskinCount || 0).catch(() => null);
+        if (count === null) return 'session';
+        const parentResponse = page.waitForResponse(item => item.request().method() === 'POST' &&
+          routePath(item.url(), page.url()) === sourcePath, { timeout: 8000 }).catch(() => null);
+        try { await page.goBack(); } catch { return 'session'; }
+        const ready = await page.waitForFunction(({ before, parent, start }) =>
+          (location.pathname === before || location.pathname === parent) &&
+            (window.__bwReskinCount || 0) > start && !!document.querySelector('td[width="82%"]'),
+        { before: beforeSearchPath, parent: sourcePath, start: count },
+        { timeout: 12000 }).then(() => true).catch(() => false);
+        const path = new URL(page.url()).pathname;
+        console.log(JSON.stringify({ event: 'subpage-search-parent-back', area,
+          label: record.label, step: step + 1, path, ready,
+          status: path === sourcePath ? (await parentResponse)?.status() || null : null }));
+        if (!ready || (path !== beforeSearchPath && path !== sourcePath)) {
+          record.searchCheck.backStatus = 'needs';
+          saveAudit(audit);
+          return 'session';
+        }
+      }
+      if (new URL(page.url()).pathname === sourcePath) {
+        record.searchCheck.backStatus = 'pass';
+        record.backPending = false;
+        const nestedFlow = audit.flows.find(item => item.label ===
+          `${area} ${parentLabel} nested Back replay`);
+        if (nestedFlow) nestedFlow.status = 'pass';
+        saveAudit(audit);
+        return 'continue';
+      }
+      record.searchCheck.backStatus = 'needs';
+      saveAudit(audit);
+      return 'session';
+    } else {
+      record.searchCheck = { status: 'no-trigger' };
+      saveAudit(audit);
+      console.log(JSON.stringify({ event: 'subpage-search-probe', area, label: record.label,
+        path: wanted, status: 'no-trigger' }));
+      if (process.env.BW_INSPECT_SUBPAGE_CONTROLS === '1') {
+        const controls = await page.evaluate(() =>
+          [...document.querySelectorAll('td[width="82%"] a, td[width="82%"] button, td[width="82%"] input[type="button"], td[width="82%"] input[type="submit"]')]
+            .filter(element => element.getClientRects().length)
+            .map(element => ({ tag: element.tagName,
+              label: (element.innerText || element.value || element.title || '').trim().slice(0, 70),
+              id: element.id || '', type: element.type || '', href: element.getAttribute('href') || '',
+              onclick: String(element.onclick || element.getAttribute('onclick') || '').slice(0, 130),
+              formAction: element.closest('form')?.getAttribute('action') || '' })));
+        console.log(JSON.stringify({ event: 'subpage-search-controls', area,
+          label: record.label, path: wanted, controls }));
+      }
+    }
+  }
+  if (process.env.BW_VERIFY_SORT === '1' && (record.dynamicControls?.sort || 0) > 0 &&
+      record.interactionChecks?.sort?.status !== 'pass') {
+    const sortOutcome = await verifySortControl(page, audit, record, area, wanted);
+    if (sortOutcome !== 'continue') return sortOutcome;
+  }
+  if (process.env.BW_VERIFY_PAGING === '1' && (record.dynamicControls?.paging || 0) > 0 &&
+      record.interactionChecks?.paging?.status !== 'pass') {
+    const pagingOutcome = await verifyPagingControl(page, audit, record, area, wanted);
+    if (pagingOutcome !== 'continue') return pagingOutcome;
   }
   const backReskinStart = await page.evaluate(() => window.__bwReskinCount || 0).catch(() => null);
   if (backReskinStart === null) return 'session';
@@ -538,25 +884,94 @@ async function testTarget(page, target, folder) {
       title: /<title[^>]*>([^<]*)<\/title>/i.exec(html)?.[1] || '' };
   }
   let searchedRows = false;
+  let searchCheck = null;
   if (process.env.BW_DISCOVER_DEEP === '1' && status === 'pass') {
-    if (process.env.BW_SEARCH_ROWS === '1') {
-      const search = page.locator('td[width="82%"] #search0').first();
+    if (process.env.BW_INSPECT_SORT === '1') {
+      result.sortControls = await page.evaluate(() =>
+        [...document.querySelectorAll('td[width="82%"] a')]
+          .filter(element => element.getClientRects().length &&
+            [...document.scripts].some(script => (script.textContent || '').includes(element.id) &&
+              /sort\.jsp|doSort/i.test(script.textContent || '')))
+          .map(element => ({ label: element.innerText.trim(), id: element.id,
+            html: element.outerHTML.slice(0, 400),
+            scripts: [...document.scripts].map(script => script.textContent || '')
+              .filter(source => source.includes(element.id)).map(source => source.slice(0, 800)) })));
+    }
+    if (process.env.BW_SEARCH_ROWS === '1' && process.env.BW_SEARCH_SUBPAGES !== '1') {
+      const search = page.locator('td[width="82%"] #search0, td[width="82%"] #findButton, ' +
+        'td[width="82%"] input[type="submit"][value="Find" i], ' +
+        'td[width="82%"] input[type="submit"][value="Search" i]').first();
       if (await search.count() && await search.isVisible()) {
+        const searchId = /find/i.test(await search.getAttribute('value') || '') ? 'Find' :
+          (await search.getAttribute('id') || 'Search');
+        if (process.env.BW_INSPECT_SEARCH_RESPONSE === '1') {
+          const control = await search.evaluate(element => ({ tag: element.tagName,
+            html: element.outerHTML.slice(0, 450), formAction: element.closest('form')?.getAttribute('action') || '',
+            formMethod: element.closest('form')?.getAttribute('method') || '',
+            formTarget: element.closest('form')?.getAttribute('target') || '',
+            formEnctype: element.closest('form')?.getAttribute('enctype') || '',
+            clickHandler: String(element.onclick || '').slice(0, 250),
+            hook: String(window.redirectPost || '').slice(0, 80),
+            directSubmitBridge: String(HTMLFormElement.prototype.submit || '').slice(0, 80),
+            formControls: [...(element.closest('form')?.elements || [])].map(item => ({ name: item.name, type: item.type })) }));
+          console.log(JSON.stringify({ event: 'search-control', area: `${level} / ${folder}`,
+            label: target.label, control }));
+        }
         const searchResponse = page.waitForResponse(item => item.request().method() === 'POST' &&
-          routePath(item.url(), page.url()) === wanted, { timeout: 10000 }).catch(() => null);
+          (routePath(item.url(), page.url()) === wanted ||
+            /^\/commpilot\/Common\/(?:find|findAll|page)\.jsp$/.test(routePath(item.url(), page.url()))),
+        { timeout: 10000 }).catch(() => null);
+        const searchReskinStart = await page.evaluate(() => window.__bwReskinCount || 0);
+        if (process.env.BW_TRACE_REQUESTS === '1') await page.evaluate(() => {
+          if (window.__bwSearchSubmitTrace) return;
+          window.__bwSearchSubmitTrace = true;
+          const submit = HTMLFormElement.prototype.submit;
+          HTMLFormElement.prototype.submit = function () {
+            console.warn('[audit] direct form submit action=' + (this.getAttribute('action') || '') +
+              ' method=' + (this.getAttribute('method') || '') + ' target=' + (this.getAttribute('target') || ''));
+            return submit.apply(this, arguments);
+          };
+          document.addEventListener('submit', event => console.warn('[audit] submit event action=' +
+            (event.target.getAttribute('action') || '') + ' prevented=' + event.defaultPrevented), true);
+        });
         await search.click();
         const found = await searchResponse;
+        if (process.env.BW_INSPECT_SEARCH_RESPONSE === '1' && found) {
+          const html = await found.text().catch(() => '');
+          const names = [...new Set([...new URLSearchParams(found.request().postData() || '').keys()])]
+            .filter(name => name !== 'formtokenserial');
+          console.log(JSON.stringify({ event: 'search-response', area: `${level} / ${folder}`,
+            label: target.label, path: routePath(found.url(), page.url()), status: found.status(),
+            length: html.length, title: /<title[^>]*>([^<]*)<\/title>/i.exec(html)?.[1] || '',
+            contentCell: /<td[^>]*width=["']?82%/i.test(html),
+            redirects: [...html.matchAll(/redirectPost\s*\(\s*['"]([^'"]+)/g)].slice(0, 5).map(match => match[1]),
+            hasLoginText: /Please login again|not authorized to access the system/i.test(html),
+            requestFieldNames: names }));
+        }
         searchedRows = true;
-        await page.waitForFunction(() => document.querySelectorAll('a[id^="Row"]').length > 0,
-          null, { timeout: 3500 }).catch(() => {});
+        await page.waitForFunction(count => (window.__bwReskinCount || 0) > count ||
+          location.pathname === '/commpilot/Login/' || !!document.querySelector('.cp-alert-error'),
+        searchReskinStart, { timeout: 10000 }).catch(() => {});
         const rowLinks = await page.locator('td[width="82%"] a[id^="Row"]').count();
+        const searchState = await page.evaluate(reskinStart => ({ path: location.pathname,
+          title: document.title.trim(),
+          sameDocument: window.__bwTestDocMarker === window.__bwAuditMarker,
+          reskinned: (window.__bwReskinCount || 0) > reskinStart,
+          hasContent: !!document.querySelector('td[width="82%"]') }), searchReskinStart).catch(() => null);
+        const searchSession = !found || found.status() >= 500 ||
+          searchState?.path === '/commpilot/Login/' || searchState?.title === 'Login';
+        searchCheck = { status: searchSession ? 'pending' : found.status() === 200 &&
+          searchState?.sameDocument && searchState?.reskinned && searchState?.hasContent ? 'pass' : 'needs',
+          trigger: searchId || 'Search', responsePath: found ? routePath(found.url(), page.url()) : null,
+          httpStatus: found?.status() || null, finalPath: searchState?.path || null,
+          sameDocument: searchState?.sameDocument === true,
+          reskinned: searchState?.reskinned === true, rowLinks };
         console.log(JSON.stringify({ event: 'search-probe', area: `${level} / ${folder}`,
-          label: target.label, status: found?.status() || null,
-          finalPath: new URL(page.url()).pathname, rowLinks }));
-      }
+          label: target.label, ...searchCheck }));
+      } else searchCheck = { status: 'no-trigger' };
     }
     if (process.env.BW_INSPECT_CONTROLS === '1') {
-    result.innerControls = await page.evaluate(() => [...document.querySelectorAll('td[width="82%"] a, td[width="82%"] button, td[width="82%"] input[type="submit"]')]
+    result.innerControls = await page.evaluate(() => [...document.querySelectorAll('td[width="82%"] a, td[width="82%"] button, td[width="82%"] input[type="button"], td[width="82%"] input[type="submit"]')]
       .filter(element => element.getClientRects().length)
       .map(element => ({ tag: element.tagName, label: (element.innerText || element.value || element.title || '').trim().slice(0, 80),
         id: element.id || '', href: element.getAttribute('href') || '',
@@ -565,9 +980,9 @@ async function testTarget(page, target, folder) {
         onclick: String(element.onclick || element.getAttribute('onclick') || '').slice(0, 180) }))
       .filter(item => item.label || item.id || item.href));
     }
-    result.innerTargets = await captureRowTargets(page);
+    result.innerTargets = searchedRows ? [] : await captureRowTargets(page);
   }
-  if (process.env.BW_DISCOVER_ACTIONS === '1' && status === 'pass') {
+  if (process.env.BW_DISCOVER_ACTIONS === '1' && status === 'pass' && !searchedRows) {
     if (process.env.BW_INSPECT_ACTION === '1') result.actionContext = await page.evaluate(() => ({
       base: document.baseURI, baseTag: document.querySelector('base')?.getAttribute('href') || '',
       path: location.pathname,
@@ -580,6 +995,11 @@ async function testTarget(page, target, folder) {
     const actionScan = await captureActionTargets(page);
     result.actionCandidates = actionScan.candidates;
     result.actionTargets = actionScan.targets;
+  }
+  if (process.env.BW_DISCOVER_DYNAMIC === '1' && status === 'pass') {
+    result.dynamicControls = await captureDynamicControls(page);
+    if (result.actionTargets?.some(action => isCanonicalAction(routePath(action.url, page.url()))))
+      result.dynamicControls.sort = Math.max(1, result.dynamicControls.sort);
   }
   const audit = loadAudit();
   const area = `${level} / ${folder}`;
@@ -601,6 +1021,25 @@ async function testTarget(page, target, folder) {
     response ? `HTTP ${response.status()}` : (error || 'No response');
   if (result.innerTargets) record.deepScanned = true;
   if (result.actionTargets) record.controlScanned = true;
+  if (result.dynamicControls) {
+    record.dynamicControls = result.dynamicControls;
+    record.dynamicScanned = true;
+  }
+  if (searchCheck) {
+    record.searchCheck = searchCheck;
+    if (searchCheck.responsePath) {
+      let interaction = audit.routes.find(item => item.kind === 'interaction' && item.area === area &&
+        item.sourcePath === wanted && item.path === searchCheck.responsePath);
+      if (!interaction) {
+        interaction = { id: `discovered-${audit.routes.length + 1}`, kind: 'interaction', area,
+          label: `${target.label} › ${/find/i.test(searchCheck.trigger) ? 'Find' : 'Search'}`,
+          sourcePath: wanted, path: searchCheck.responsePath, method: 'POST', status: 'pending' };
+        audit.routes.push(interaction);
+      }
+      interaction.status = searchCheck.status;
+      interaction.detail = `HTTP ${searchCheck.httpStatus || 'none'}; ${searchCheck.sameDocument ? 'same document' : 'document changed'}`;
+    }
+  }
   if (result.innerTargets) {
     for (const inner of result.innerTargets) {
       const innerPath = routePath(inner.url, page.url());
@@ -656,11 +1095,24 @@ async function testTarget(page, target, folder) {
       if (outcome !== 'continue') return outcome;
     }
   }
+  if (process.env.BW_VERIFY_SORT === '1' && status === 'pass' &&
+      (record.dynamicControls?.sort || 0) > 0 &&
+      record.interactionChecks?.sort?.status !== 'pass') {
+    const sortOutcome = await verifySortControl(page, audit, record, area, wanted);
+    if (sortOutcome !== 'continue') return sortOutcome;
+  }
+  if (process.env.BW_VERIFY_PAGING === '1' && status === 'pass' &&
+      (record.dynamicControls?.paging || 0) > 0 &&
+      record.interactionChecks?.paging?.status !== 'pass') {
+    const pagingOutcome = await verifyPagingControl(page, audit, record, area, wanted);
+    if (pagingOutcome !== 'continue') return pagingOutcome;
+  }
   if (searchedRows) {
-    await clickFolder(page, folder);
+    if (searchCheck?.status === 'pending') return 'session';
+    try { await clickFolder(page, folder); } catch { return 'session'; }
     record.backPending = false;
     saveAudit(audit);
-    return 'continue';
+    return searchCheck?.status === 'pass' ? 'continue' : searchCheck?.status === 'pending' ? 'session' : 'gap';
   }
   if (result.finalPath !== start) {
     const tokenBeforeBack = process.env.BW_TRACE_TOKENS === '1' ?
@@ -711,6 +1163,15 @@ async function testTarget(page, target, folder) {
     executablePath: edge, headless: process.env.BW_VISIBLE !== '1', viewport: null,
     args: [`--disable-extensions-except=${root}`, `--load-extension=${root}`]
   });
+  if (process.env.BW_TRACE_REQUESTS === '1') await context.addInitScript(() => {
+    window.addEventListener('submit', event => console.warn('[audit] earliest submit event action=' +
+      (event.target.getAttribute('action') || '') + ' prevented=' + event.defaultPrevented), true);
+    const nativeSubmit = HTMLFormElement.prototype.submit;
+    HTMLFormElement.prototype.submit = function () {
+      console.warn('[audit] earliest direct submit action=' + (this.getAttribute('action') || ''));
+      return nativeSubmit.apply(this, arguments);
+    };
+  });
   if (process.env.BW_CP_DEBUG === '1') await context.addInitScript(() =>
     localStorage.setItem('cpDebug', '1'));
   const oldPages = context.pages();
@@ -744,7 +1205,7 @@ async function testTarget(page, target, folder) {
   });
   if (process.env.BW_TRACE_REQUESTS === '1') page.on('response', response => {
     const request = response.request();
-    if (request.method() !== 'POST' || !response.url().includes('/commpilot/')) return;
+    if (request.method() !== 'POST') return;
     const sent = new URLSearchParams(request.postData() || '');
     console.log(JSON.stringify({ event: 'post', path: routePath(response.url(), page.url()),
       status: response.status(), token: tokenId(sent.get('formtokenserial')),
@@ -757,7 +1218,7 @@ async function testTarget(page, target, folder) {
       try { await enterLevel(page); }
       catch (error) {
         reconnects++;
-        if (reconnects >= 10) throw error;
+        if (reconnects >= maxReconnects) throw error;
         console.log(JSON.stringify({ event: 'entry-reconnect', level, count: reconnects,
           at: error.stack?.split('\n').slice(1, 3).map(line => line.trim()) }));
         await gotoLogin(page);
@@ -800,8 +1261,20 @@ async function testTarget(page, target, folder) {
               needsSubpageWork(deepAudit, item.area, item));
           const needsActions = process.env.BW_DISCOVER_ACTIONS === '1' &&
             (!known?.controlScanned || (process.env.BW_VERIFY_ACTIONS === '1' && pendingAction));
+          const needsDynamic = process.env.BW_DISCOVER_DYNAMIC === '1' && !known?.dynamicScanned;
+          const needsSearch = process.env.BW_SEARCH_ROWS === '1' &&
+            process.env.BW_SEARCH_SUBPAGES !== '1' &&
+            (known?.dynamicControls?.search || 0) > 0 &&
+            (known?.searchCheck?.status !== 'pass' ||
+              (known?.searchCheck?.status === 'pass' && known.searchCheck.reskinned !== true));
+          const needsSort = process.env.BW_VERIFY_SORT === '1' &&
+            (known?.dynamicControls?.sort || 0) > 0 &&
+            known?.interactionChecks?.sort?.status !== 'pass';
+          const needsPaging = process.env.BW_VERIFY_PAGING === '1' &&
+            (known?.dynamicControls?.paging || 0) > 0 &&
+            known?.interactionChecks?.paging?.status !== 'pass';
           if (known?.status === 'pass' && !force && !known.backPending &&
-              !needsActions && !needsDescendants &&
+              !needsActions && !needsDescendants && !needsDynamic && !needsSearch && !needsSort && !needsPaging &&
               (process.env.BW_DISCOVER_DEEP !== '1' || (known.deepScanned && !pendingInner))) continue;
           const outcome = await testTarget(page, target, folder);
           if (outcome === 'gap') { console.log(JSON.stringify({ event: 'needs-fix', level, folder, label: target.label })); return; }
@@ -813,7 +1286,7 @@ async function testTarget(page, target, folder) {
       }
       if (!restart) break;
       reconnects++;
-      if (reconnects >= 10) throw new Error('Sandbox session bounced ten times; stopping for inspection');
+      if (reconnects >= maxReconnects) throw new Error(`Sandbox session bounced ${maxReconnects} times; stopping for inspection`);
       console.log(JSON.stringify({ event: 'session-reconnect', count: reconnects }));
       await gotoLogin(page);
     }

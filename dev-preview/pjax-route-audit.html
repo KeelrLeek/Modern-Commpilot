@@ -22,8 +22,16 @@
     .progress > span { height: 100%; }
     .progress .pass { background: var(--green); }.progress .needs { background: var(--red); }.progress .pending { background: var(--amber); }
     .progress-label { margin-top: 8px; font-size: 13px; }
+    .breakdown { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+    .breakdown span { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; color: var(--muted); font-size: 12px; }
+    .breakdown b { color: var(--fg); }
+    .interaction-queue { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 9px; margin: 13px 0 0; }
+    .interaction-queue button { text-align: left; border-radius: 11px; padding: 12px; }
+    .interaction-queue strong { display: block; margin-top: 4px; font-size: 20px; color: var(--amber); font-variant-numeric: tabular-nums; }
+    .interaction-queue small { color: var(--muted); font-size: 11px; }
     .depth-progress { margin-top: 12px; }
     .scan-note { display: block; margin-top: 4px; color: var(--amber); font-size: 11px; font-weight: 650; }
+    .control-note { display: block; margin-top: 4px; color: var(--blue); font-size: 11px; }
     .scope { margin: 18px 0 0; padding: 14px 16px; border: 1px solid var(--amber); border-radius: 12px; background: var(--panel); line-height: 1.45; }
     .scope b { color: var(--amber); }.scope small { color: var(--muted); display: block; margin-top: 3px; }
     .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 8px; }
@@ -47,12 +55,12 @@
     .flow[data-status="needs"] { border-color: var(--red); color: var(--red); }
     .flow[data-status="needs"]::before { content: "!"; color: var(--red); }
     .empty { color: var(--muted); padding: 22px 0; }
-    @media (max-width: 680px) { main { padding: 20px 14px 36px; } .metrics { grid-template-columns: repeat(2,minmax(0,1fr)); } .routes { grid-template-columns: 1fr; } }
+    @media (max-width: 680px) { main { padding: 20px 14px 36px; } .metrics { grid-template-columns: repeat(2,minmax(0,1fr)); } .interaction-queue { grid-template-columns: repeat(2,minmax(0,1fr)); } .routes { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
 <main>
-  <header><div><h1>CommPilot PJAX coverage</h1><p>Live sandbox route checks · headless Edge · 0.3.8 development build</p></div><p id="updated"></p></header>
+  <header><div><h1>CommPilot PJAX coverage</h1><p>Live sandbox route checks · headless Edge · 0.3.9 development build</p></div><p id="updated"></p></header>
   <div class="scope" id="file-notice" style="display:none" role="status"><b>This file view cannot load the live tally.</b><small><a href="http://127.0.0.1:8766/pjax-route-audit.html">Open the live dashboard</a> to see the numbers update as routes are checked.</small></div>
   <div class="scope" role="status"><b id="scope-summary">Sitewide routes left to check: unknown</b><small id="inventory">Scanning top-level folders and account submenus. Counts below cover only routes discovered so far.</small></div>
   <section class="metrics" aria-label="Route tally">
@@ -90,11 +98,35 @@
   </section>
   <div class="progress depth-progress" role="img" id="subpages-progress" aria-label="Discovered subpages checked for further navigation controls"></div>
   <p class="progress-label" id="subpages-progress-label"></p>
+  <h2>List and form interactions</h2>
+  <section class="metrics" aria-label="Interaction inventory tally">
+    <div class="metric pass"><strong id="dynamic-scanned">—</strong><span>Pages inventoried for search, paging, tabs, and forms</span></div>
+    <div class="metric pending"><strong id="dynamic-remaining">—</strong><span>Pages awaiting interaction inventory</span></div>
+    <div class="metric"><strong id="dynamic-pages">—</strong><span>Pages with dynamic controls</span></div>
+    <div class="metric"><strong id="dynamic-matches">—</strong><span>Control category matches found</span></div>
+  </section>
+  <div class="progress depth-progress" role="img" id="dynamic-progress" aria-label="Pages inventoried for dynamic controls"></div>
+  <p class="progress-label" id="dynamic-progress-label"></p>
+  <div class="breakdown" id="dynamic-breakdown" aria-label="Dynamic control categories"></div>
+  <h2>Search and Find checks</h2>
+  <section class="metrics" aria-label="Search interaction tally">
+    <div class="metric pass"><strong id="search-passed">—</strong><span>Views with a live Search or Find PJAX pass</span></div>
+    <div class="metric pending"><strong id="search-remaining">—</strong><span>Views awaiting a Search or Find check</span></div>
+    <div class="metric"><strong id="search-total">—</strong><span>Views with discovered search controls</span></div>
+    <div class="metric"><strong id="search-unavailable">—</strong><span>Views needing manual trigger review</span></div>
+  </section>
+  <div class="progress depth-progress" role="img" id="search-progress" aria-label="Search and Find checks completed"></div>
+  <p class="progress-label" id="search-progress-label"></p>
+  <h2>Next interaction checks</h2>
+  <p>Discovered views awaiting a live PJAX check. Form actions need safe test data before submission.</p>
+  <div class="interaction-queue" id="interaction-queue" aria-label="Remaining interaction families"></div>
   <nav class="filters" aria-label="Filter routes">
     <button type="button" data-filter="all" aria-pressed="true">All</button>
     <button type="button" data-filter="unscanned" aria-pressed="false">Row/Edit next</button>
     <button type="button" data-filter="controls" aria-pressed="false">Controls next</button>
     <button type="button" data-filter="subpages" aria-pressed="false">Subpages next</button>
+    <button type="button" data-filter="dynamic" aria-pressed="false">Interactions next</button>
+    <button type="button" data-filter="search" aria-pressed="false">Search next</button>
     <button type="button" data-filter="pending" aria-pressed="false">Check next</button>
     <button type="button" data-filter="needs" aria-pressed="false">Needs PJAX</button>
     <button type="button" data-filter="pass" aria-pressed="false">Passed</button>
@@ -103,9 +135,11 @@
   <h2>Other checks</h2><div class="flows" id="flows"></div>
 </main>
 <script>
-  const state = { filter: 'all', signature: '' };
+  const state = { filter: 'all', signature: '', data: null };
   const statusNames = { pass: 'PJAX', needs: 'Needs work', pending: 'Next' };
   const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  const dynamicSummary = route => Object.entries(route.dynamicControls || {}).filter(([, count]) => count > 0)
+    .map(([kind, count]) => `${kind} ${count}`).join(' · ');
   function render(data) {
     const routes = (data.routes || []).filter(route => route.kind !== 'duplicate');
     const count = status => routes.filter(route => route.status === status).length;
@@ -130,6 +164,27 @@
     const controlsRemaining = menuRoutes.length - controlsScanned;
     const subpageRoutes = routes.filter(route => ['nested', 'action', 'descendant'].includes(route.kind) &&
       !/^\/commpilot\/Common\/(?:sort|page|find|findAll)\.jsp$/.test(route.path));
+    const dynamicRoutes = [...menuRoutes, ...subpageRoutes];
+    const dynamicScanned = dynamicRoutes.filter(route => route.dynamicScanned).length;
+    const dynamicRemaining = dynamicRoutes.length - dynamicScanned;
+    const dynamicCount = route => Object.values(route.dynamicControls || {}).reduce((sum, value) => sum + (Number(value) || 0), 0);
+    const dynamicPages = dynamicRoutes.filter(route => dynamicCount(route) > 0).length;
+    const dynamicMatches = dynamicRoutes.reduce((sum, route) => sum + dynamicCount(route), 0);
+    const dynamicCategories = ['search', 'sort', 'paging', 'tabs', 'transfer', 'submit'];
+    const searchViews = dynamicRoutes.filter(route => (route.dynamicControls?.search || 0) > 0);
+    const searchVerified = route => route.searchCheck?.status === 'pass' &&
+      route.searchCheck.reskinned === true &&
+      (!['nested', 'action', 'descendant'].includes(route.kind) || route.searchCheck.backStatus === 'pass');
+    const searchPassed = searchViews.filter(searchVerified).length;
+    const searchUnavailable = searchViews.filter(route => route.searchCheck?.status === 'no-trigger').length;
+    const searchRemaining = searchViews.length - searchPassed;
+    const nextKinds = [
+      ['sort', 'Sorting'], ['paging', 'Paging'], ['tabs', 'Tabs'],
+      ['transfer', 'Transfers'], ['submit', 'Form actions']
+    ];
+    const uncheckedKind = (route, kind) => (route.dynamicControls?.[kind] || 0) > 0 &&
+      route.interactionChecks?.[kind]?.status !== 'pass';
+    const nextViews = dynamicRoutes.filter(route => nextKinds.some(([kind]) => uncheckedKind(route, kind)));
     const subpagesScanned = subpageRoutes.filter(route => route.controlScanned).length;
     const subpagesRemaining = subpageRoutes.length - subpagesScanned;
     document.getElementById('controls-scanned').textContent = controlsScanned;
@@ -144,22 +199,44 @@
     document.getElementById('subpages-total').textContent = subpageRoutes.length;
     document.getElementById('subpages-progress').innerHTML = `<span class="pass" style="width:${subpageRoutes.length ? (100 * subpagesScanned / subpageRoutes.length).toFixed(2) : 0}%"></span><span class="pending" style="width:${subpageRoutes.length ? (100 * subpagesRemaining / subpageRoutes.length).toFixed(2) : 0}%"></span>`;
     document.getElementById('subpages-progress-label').textContent = `${subpagesScanned} of ${subpageRoutes.length} discovered subpages checked for further navigation controls`;
-    document.getElementById('scope-summary').textContent = `${deepRemaining + controlsRemaining + subpagesRemaining} known page scans remain · total sitewide routes unknown`;
+    document.getElementById('dynamic-scanned').textContent = dynamicScanned;
+    document.getElementById('dynamic-remaining').textContent = dynamicRemaining;
+    document.getElementById('dynamic-pages').textContent = dynamicPages;
+    document.getElementById('dynamic-matches').textContent = dynamicMatches;
+    document.getElementById('dynamic-progress').innerHTML = `<span class="pass" style="width:${dynamicRoutes.length ? (100 * dynamicScanned / dynamicRoutes.length).toFixed(2) : 0}%"></span><span class="pending" style="width:${dynamicRoutes.length ? (100 * dynamicRemaining / dynamicRoutes.length).toFixed(2) : 0}%"></span>`;
+    document.getElementById('dynamic-progress-label').textContent = `${dynamicScanned} of ${dynamicRoutes.length} pages inventoried for list and form interactions`;
+    document.getElementById('dynamic-breakdown').innerHTML = dynamicCategories.map(kind =>
+      `<span>${kind[0].toUpperCase() + kind.slice(1)} <b>${dynamicRoutes.reduce((sum, route) => sum + (Number(route.dynamicControls?.[kind]) || 0), 0)}</b></span>`).join('');
+    document.getElementById('search-passed').textContent = searchPassed;
+    document.getElementById('search-remaining').textContent = searchRemaining;
+    document.getElementById('search-total').textContent = searchViews.length;
+    document.getElementById('search-unavailable').textContent = searchUnavailable;
+    document.getElementById('search-progress').innerHTML = `<span class="pass" style="width:${searchViews.length ? (100 * searchPassed / searchViews.length).toFixed(2) : 0}%"></span><span class="pending" style="width:${searchViews.length ? (100 * searchRemaining / searchViews.length).toFixed(2) : 0}%"></span>`;
+    document.getElementById('search-progress-label').textContent = `${searchPassed} of ${searchViews.length} discovered search views passed a live PJAX check`;
+    document.getElementById('interaction-queue').innerHTML = nextKinds.map(([kind, label]) => {
+      const views = dynamicRoutes.filter(route => (route.dynamicControls?.[kind] || 0) > 0);
+      const passed = views.filter(route => route.interactionChecks?.[kind]?.status === 'pass').length;
+      return `<button type="button" data-interaction="${kind}" aria-pressed="${state.filter === kind}"><span>${label}</span><strong>${passed} / ${views.length}</strong><small>passed · ${views.length - passed} remaining</small></button>`;
+    }).join('');
+    document.getElementById('scope-summary').textContent = `${deepRemaining + controlsRemaining + subpagesRemaining + dynamicRemaining + searchRemaining} known page and search checks remain · ${nextViews.length} views have other interaction checks pending · total sitewide routes unknown`;
     document.getElementById('depth-progress').innerHTML = `<span class="pass" style="width:${menuRoutes.length ? (100 * deepScanned / menuRoutes.length).toFixed(2) : 0}%"></span><span class="pending" style="width:${menuRoutes.length ? (100 * deepRemaining / menuRoutes.length).toFixed(2) : 0}%"></span>`;
     document.getElementById('depth-progress-label').textContent = `${deepScanned} of ${menuRoutes.length} menu pages checked for row and Edit links`;
     const byLevel = [...new Set(folders.map(item => item.level))].map(level => `${level}: ${folders.filter(item => item.level === level).length} folders`).join(' · ');
-    document.getElementById('inventory').textContent = `${folders.length} folders scanned; ${(data.inventory?.sidebarVerifiedLevels || []).length} of 7 account sidebars verified${byLevel ? ' · ' + byLevel : ''}. Counts cover discovered routes; deeper controls remain under audit.`;
+    document.getElementById('inventory').textContent = `${folders.length} folders scanned; ${(data.inventory?.sidebarVerifiedLevels || []).length} of 7 account sidebars verified${byLevel ? ' · ' + byLevel : ''}. Counts cover discovered routes; dynamic interactions and state-changing forms remain under audit.`;
     const width = amount => routes.length ? (100 * amount / routes.length).toFixed(2) + '%' : '0%';
     document.getElementById('progress').innerHTML = `<span class="pass" style="width:${width(passed)}"></span><span class="needs" style="width:${width(needs)}"></span><span class="pending" style="width:${width(pending)}"></span>`;
     document.getElementById('progress-label').textContent = `${passed} of ${routes.length} discovered routes verified · site inventory still in progress`;
     const visible = routes.filter(route => state.filter === 'all' ||
       (state.filter === 'unscanned' ? isMenuRoute(route) && !route.deepScanned :
         state.filter === 'controls' ? isMenuRoute(route) && !route.controlScanned :
-          state.filter === 'subpages' ? subpageRoutes.includes(route) && !route.controlScanned : route.status === state.filter));
+          state.filter === 'subpages' ? subpageRoutes.includes(route) && !route.controlScanned :
+            state.filter === 'dynamic' ? dynamicRoutes.includes(route) && !route.dynamicScanned :
+              state.filter === 'search' ? searchViews.includes(route) && !searchVerified(route) :
+                nextKinds.some(([kind]) => state.filter === kind) ? uncheckedKind(route, state.filter) : route.status === state.filter));
     const areas = [...new Set(visible.map(route => route.area))];
     document.getElementById('groups').innerHTML = areas.length ? areas.map(area => {
       const subset = visible.filter(route => route.area === area);
-      return `<section class="group"><div class="group-title"><h2>${escapeHtml(area)}</h2><span>${subset.length} route${subset.length === 1 ? '' : 's'}</span></div><div class="routes">${subset.map(route => `<div class="route" data-status="${route.status}"><span class="dot" aria-hidden="true"></span><div><b>${escapeHtml(route.label)}</b>${isMenuRoute(route) && !route.deepScanned ? '<span class="scan-note">Row/Edit scan next</span>' : ''}${isMenuRoute(route) && !route.controlScanned ? '<span class="scan-note">Control scan next</span>' : ''}${subpageRoutes.includes(route) && !route.controlScanned ? '<span class="scan-note">Subpage scan next</span>' : ''}<code>${escapeHtml(route.path)}</code></div><span class="tag">${statusNames[route.status]}</span></div>`).join('')}</div></section>`;
+      return `<section class="group"><div class="group-title"><h2>${escapeHtml(area)}</h2><span>${subset.length} route${subset.length === 1 ? '' : 's'}</span></div><div class="routes">${subset.map(route => `<div class="route" data-status="${route.status}"><span class="dot" aria-hidden="true"></span><div><b>${escapeHtml(route.label)}</b>${isMenuRoute(route) && !route.deepScanned ? '<span class="scan-note">Row/Edit scan next</span>' : ''}${isMenuRoute(route) && !route.controlScanned ? '<span class="scan-note">Control scan next</span>' : ''}${subpageRoutes.includes(route) && !route.controlScanned ? '<span class="scan-note">Subpage scan next</span>' : ''}${dynamicRoutes.includes(route) && !route.dynamicScanned ? '<span class="scan-note">Interaction inventory next</span>' : ''}${searchViews.includes(route) && !searchVerified(route) ? '<span class="scan-note">Search PJAX check next</span>' : ''}${dynamicSummary(route) ? `<span class="control-note">${escapeHtml(dynamicSummary(route))}</span>` : ''}<code>${escapeHtml(route.path)}</code></div><span class="tag">${statusNames[route.status]}</span></div>`).join('')}</div></section>`;
     }).join('') : '<p class="empty">No routes in this status yet.</p>';
     document.getElementById('flows').innerHTML = (data.flows || []).map(flow => `<span class="flow" data-status="${escapeHtml(flow.status || 'pending')}">${escapeHtml(flow.label)}</span>`).join('');
   }
@@ -168,15 +245,18 @@
       const response = await fetch('pjax-route-audit.json?fresh=' + Date.now(), { cache: 'no-store' });
       const data = await response.json();
       const signature = JSON.stringify(data);
-      if (signature !== state.signature) { state.signature = signature; render(data); }
+      if (signature !== state.signature) { state.signature = signature; state.data = data; render(data); }
     } catch { document.getElementById('updated').textContent = 'Audit data unavailable'; }
   }
   if (location.protocol === 'file:') document.getElementById('file-notice').style.display = 'block';
-  document.querySelectorAll('[data-filter]').forEach(button => button.addEventListener('click', () => {
-    state.filter = button.dataset.filter;
-    document.querySelectorAll('[data-filter]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
-    refresh();
-  }));
+  document.addEventListener('click', event => {
+    const button = event.target.closest('[data-filter], [data-interaction]');
+    if (!button) return;
+    state.filter = button.dataset.filter || button.dataset.interaction;
+    document.querySelectorAll('[data-filter]').forEach(item =>
+      item.setAttribute('aria-pressed', String(item.dataset.filter === state.filter)));
+    if (state.data) render(state.data);
+  });
   refresh(); setInterval(refresh, 2000);
 </script>
 </body>

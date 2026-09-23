@@ -188,6 +188,66 @@ test('Scheduled Reports Add resolves its legacy relative target to the real form
   }
 });
 
+test('Scheduled Reports Search follows its malformed root stub within the folder', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const posts = [];
+    const list = '/commpilot/Group/CCScheduledReports/';
+    const index = '/commpilot/Group/CCScheduledReports/index.jsp';
+    const stub = '<!doctype html><html><body><input name="formtokenserial" value="token-2">' +
+      '<script>redirectPost("\\u002Findex.jsp", {buttonClicked:"search"});</script></body></html>';
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (route.request().method() === 'POST') posts.push(pathname);
+      const body = route.request().method() !== 'POST' ? start : pathname === list ? stub : next;
+      return route.fulfill({ status: 200, contentType: 'text/html', body });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + list, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; window.redirectPost(location.pathname, { search: 'Search' }); });
+    await page.getByText('Address settings').waitFor();
+    assert.deepEqual(posts, [list, index]);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+    assert.equal(await page.evaluate(() => location.pathname), list);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('Back replays a Find landing whose history entry lost its PJAX state', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const posts = [];
+    const landing = '/commpilot/User/Schedules/';
+    const find = '/commpilot/Common/find.jsp';
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (route.request().method() === 'POST') posts.push(pathname);
+      const body = route.request().method() === 'POST' && pathname === find ? next : start;
+      return route.fulfill({ status: 200, contentType: 'text/html', body });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + landing, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => {
+      window.initialDocument = document;
+      window.redirectPost('/commpilot/Common/find.jsp', {});
+      history.replaceState(null, '', location.pathname);
+    });
+    await page.getByText('Address settings').waitFor();
+    await page.goBack();
+    await page.getByText('Original page').waitFor();
+    assert.deepEqual(posts, [find, landing]);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+    assert.equal(await page.evaluate(() => history.state?.cpNav?.url), landing);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('Group Members search keeps its form POST in shell and uses the rotated token', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });

@@ -18,8 +18,14 @@ fs.mkdirSync(profile, { recursive: true });
     args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`]
   });
   const page = context.pages()[0] || await context.newPage();
-  await page.goto('https://apps-sbx.avpaas.io/commpilot/Login/', { waitUntil: 'domcontentloaded' });
-  console.log('Visible Edge preview opened with BroadWorks Enhancer 0.3.8.');
+  try {
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Login/',
+      { waitUntil: 'domcontentloaded', timeout: 30000 });
+  } catch (error) {
+    // Keep the window available for inspecting a failed or stalled login.
+    console.log('CommPilot login did not finish loading: ' + error.message.split('\n')[0]);
+  }
+  console.log('Visible Edge preview opened with BroadWorks Enhancer.');
   await new Promise(resolve => context.on('close', resolve));
 })().catch(error => {
   console.error(error.message);

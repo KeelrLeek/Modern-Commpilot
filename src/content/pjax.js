@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.8-native";
+  var CP_PJAX_VERSION = "0.3.9-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -117,6 +117,7 @@
   // "Add/index.jsp") would resolve to /Common/Add/index.jsp → 404. We resolve such relative navs against this
   // landing instead. Captured at search time (when location is still the real landing). See [[gotcha-relative-nav-after-search]].
   var cpSearchLanding = null;
+  var cpSearchLandingNav = null;
   // The LIST a form page (Add/Import/Modify) was OPENED from — recorded at form-open time in cpHook, when
   // location is still the list. A form's action POSTs to the FORM endpoint but the server answers with the
   // LIST screen (no redirect stub), stranding the address bar on the form URL: the grid's next search then
@@ -481,6 +482,11 @@
               // Events/Add answers a stub → "../../Modify/index.jsp"; resolved against the hosting Schedule
               // Modify page that hit /ServiceProvider/Modify/ → 404 → the post-add refresh fell to a full nav.
               var st = stub.target;
+              // Scheduled Reports Search answers with "\u002Findex.jsp" (an absolute /index.jsp).
+              // That root endpoint returns 403; its list handler lives under this folder.
+              if (st === "/index.jsp" &&
+                  /^\/commpilot\/Group\/CCScheduledReports\/(?:index\.jsp)?$/.test(new URL(u, location.href).pathname))
+                st = "/commpilot/Group/CCScheduledReports/index.jsp";
               try { st = new URL(st, new URL(u, location.href)).pathname; } catch (e) {}
               cpDbg("[pjax] following stub ->", st);
               return cpFollow(st, stub.data, stub.token, depth + 1);
@@ -3938,6 +3944,10 @@
             if ((url.indexOf("/Common/find.jsp") !== -1 || url.indexOf("/Common/findAll.jsp") !== -1) &&
                 !/\/commpilot\/Common\/(find|findAll|page|sort)\.jsp/.test(location.pathname)) {
               cpSearchLanding = location.pathname;
+              // Some legacy Find pages insert a state-less history entry. Keep
+              // the exact landing POST so Back can replay that entry in-shell.
+              cpSearchLandingNav = history.state && history.state.cpNav && history.state.cpNav.url ?
+                { url: history.state.cpNav.url, params: history.state.cpNav.params || {} } : null;
             }
           } catch (e) {}
           // A real navigation (drill-in, reload replay, sidebar click) supersedes any in-flight grid search OR
@@ -4552,6 +4562,12 @@
     window.addEventListener("popstate", function (e) {
       try {
         var nav = e.state && e.state.cpNav;
+        if ((!nav || !nav.url) && cpSearchLandingNav &&
+            location.pathname === cpSearchLanding &&
+            document.documentElement.getAttribute("data-cp-path") !== location.pathname) {
+          nav = cpSearchLandingNav;
+          cpDbg("[pjax] popstate missing state → replay search landing", nav.url);
+        }
         if (!nav || !nav.url) return;
         cpPopReplaying = true;
         cpDbg("[pjax] popstate → replay", nav.url);
