@@ -3,39 +3,17 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
 const { chromium } = require('playwright-core');
 
 const root = path.resolve(__dirname, '..');
 const edge = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
-const helperExe = path.join(process.env.LOCALAPPDATA || '', 'BroadWorksEnhancer', 'CredentialHost', 'BroadWorksCredentialHost.exe');
-const enabled = process.platform === 'win32' && fs.existsSync(edge) && fs.existsSync(helperExe);
 const origin = 'https://apps-sbx.avpaas.io';
 
-function host(message) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(helperExe, [], { stdio: ['pipe', 'pipe', 'pipe'] });
-    const chunks = [];
-    child.stdout.on('data', chunk => chunks.push(chunk));
-    child.on('error', reject);
-    child.on('close', code => {
-      if (code !== 0) return reject(new Error('Native helper exited with code ' + code));
-      const bytes = Buffer.concat(chunks);
-      if (bytes.length < 4) return reject(new Error('Native helper returned no message'));
-      resolve(JSON.parse(bytes.subarray(4, 4 + bytes.readUInt32LE(0)).toString('utf8')));
-    });
-    const payload = Buffer.from(JSON.stringify({ origin, ...message }), 'utf8');
-    const frame = Buffer.alloc(4 + payload.length);
-    frame.writeUInt32LE(payload.length, 0);
-    payload.copy(frame, 4);
-    child.stdin.end(frame);
-  });
-}
-
-test('saved login supports PIN sign-in and removal through the browser', { skip: !enabled }, async () => {
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'bw-saved-test-'));
+test('encrypted vault stores ciphertext and supports PIN sign-in', { skip: !fs.existsSync(edge) }, async () => {
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'bw-vault-test-'));
   const username = 'codex-dummy-' + Date.now();
   const secret = 'disposable-test-password';
+  const vaultPassword = 'test only strong vault passphrase 2026';
   let context;
   try {
     context = await chromium.launchPersistentContext(profile, {
@@ -57,12 +35,32 @@ test('saved login supports PIN sign-in and removal through the browser', { skip:
     const page = await context.newPage();
     await page.goto(origin + '/commpilot/Login/');
     await page.getByRole('button', { name: 'Saved sign-ins' }).click();
+    await page.getByLabel('Vault password', { exact: true }).fill(vaultPassword);
+    await page.getByLabel('Confirm vault password').fill(vaultPassword);
+    await page.getByRole('button', { name: 'Create vault' }).click();
     await page.getByRole('button', { name: 'Add login' }).click();
     await page.getByLabel('User ID').fill(username);
-    await page.getByLabel('Password').fill(secret);
+    await page.getByLabel('Password', { exact: true }).fill(secret);
     await page.getByLabel('Quick PIN (optional)').fill('2468');
     await page.getByRole('button', { name: 'Save login' }).click();
     await page.getByRole('button', { name: username }).waitFor();
+
+    const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
+    const stored = await worker.evaluate(() => new Promise(resolve =>
+      chrome.storage.local.get('bwEncryptedVaultV1', resolve)));
+    const diskValue = JSON.stringify(stored);
+    assert.ok(stored.bwEncryptedVaultV1?.data, 'vault ciphertext must be persisted');
+    for (const value of [username, secret, vaultPassword, '2468']) {
+      assert.equal(diskValue.includes(value), false, 'plaintext must not appear in storage');
+    }
+
+    await page.getByRole('button', { name: 'Lock saved sign-ins' }).click();
+    await page.getByRole('button', { name: 'Unlock', exact: true }).waitFor();
+    await page.getByLabel('Vault password', { exact: true }).fill('incorrect vault password');
+    await page.getByRole('button', { name: 'Unlock', exact: true }).click();
+    await page.getByText('Incorrect vault password.').waitFor();
+    await page.getByLabel('Vault password', { exact: true }).fill(vaultPassword);
+    await page.getByRole('button', { name: 'Unlock', exact: true }).click();
     await page.getByRole('button', { name: username }).click();
     await page.getByLabel('Quick PIN', { exact: true }).fill('1111');
     await page.getByRole('button', { name: 'Sign in' }).click();
@@ -78,9 +76,5 @@ test('saved login supports PIN sign-in and removal through the browser', { skip:
   } finally {
     await context?.close();
     fs.rmSync(profile, { recursive: true, force: true });
-    const result = await host({ op: 'list' });
-    for (const account of result.profiles || []) {
-      if (account.user === username) await host({ op: 'remove', id: account.id });
-    }
   }
 });

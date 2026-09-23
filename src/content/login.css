@@ -59,7 +59,7 @@ body#loginBody .bw-saved-button {
 }
 body#loginBody .bw-saved-primary { background: #238eaf; color: #fff; }
 body#loginBody .bw-saved-button:disabled { opacity: .55; cursor: default; }
-body#loginBody .bw-saved-remove { border: 0; background: transparent; color: #777; cursor: pointer; }
+body#loginBody .bw-saved-remove { margin-left: 10px; padding: 4px; border: 0; background: transparent; color: #777; cursor: pointer; }
 @media (max-width: 815px) {
   body#loginBody { justify-content: flex-start !important; }
   body#loginBody > form[name="loginForm"] { margin: 8px !important; }

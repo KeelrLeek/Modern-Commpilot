@@ -47,9 +47,8 @@ test('native login is centered with a collapsed saved sign-ins drawer', async ()
     await page.locator('.bw-saved-trigger').focus();
     await page.keyboard.press('Enter');
     await page.locator('.bw-saved-panel').waitFor({ state: 'visible' });
-    await page.getByRole('button', { name: 'Add login' }).click();
-    await page.getByRole('button', { name: 'Save login' }).click();
-    await page.getByText('Enter User ID and Password.').waitFor();
+    await page.getByRole('button', { name: 'Create vault' }).click();
+    await page.getByText('Use at least 12 characters for the vault password.').waitFor();
     assert.equal(await page.evaluate(() => window.loginClicks || 0), 0);
   } finally {
     await context?.close();
@@ -57,19 +56,13 @@ test('native login is centered with a collapsed saved sign-ins drawer', async ()
   }
 });
 
-test('credential bridge accepts only the known HTTPS login page', () => {
+test('encrypted vault accepts requests only from the known HTTPS login page', () => {
   const code = fs.readFileSync(path.join(root, 'src/bg/credential-bridge.js'), 'utf8');
   let handler;
-  const forwarded = [];
   const sandbox = {
-    URL,
-    Set,
+    URL, Set, TextEncoder, TextDecoder,
     chrome: { runtime: {
-      onMessage: { addListener: callback => { handler = callback; } },
-      sendNativeMessage: (host, message, callback) => {
-        forwarded.push({ host, message });
-        callback({ ok: true, found: false });
-      }
+      onMessage: { addListener: callback => { handler = callback; } }
     } }
   };
   vm.runInNewContext(code, sandbox);
@@ -79,16 +72,10 @@ test('credential bridge accepts only the known HTTPS login page', () => {
     { tab: {}, url: 'https://evil.example/commpilot/Login/' }, result => reply.push(result));
   handler({ kind: 'bwCredential', op: 'list' },
     { tab: {}, url: 'https://apps-sbx.avpaas.io/commpilot/User/Profile/' }, result => reply.push(result));
-  assert.equal(forwarded.length, 0);
-  handler({ kind: 'bwCredential', op: 'list', origin: 'https://evil.example' },
+  handler({ kind: 'bwCredential', op: 'unrecognized' },
     { tab: {}, url: 'https://apps-sbx.avpaas.io/commpilot/Login/' }, result => reply.push(result));
-  assert.equal(forwarded.length, 1);
-  assert.equal(forwarded[0].message.origin, 'https://apps-sbx.avpaas.io');
-  handler({ kind: 'bwCredential', op: 'add', user: 'test', password: 'secret', pin: '123' },
-    { tab: {}, url: 'https://apps-sbx.avpaas.io/commpilot/Login/' }, result => reply.push(result));
-  assert.equal(forwarded.length, 1, 'short PIN must never reach the native helper');
-  handler({ kind: 'bwCredential', op: 'list' },
-    { tab: {}, url: 'https://apps-sbx.avpaas.io/commpilot/Login/' }, result => reply.push(result));
-  assert.equal(forwarded.length, 2);
-  assert.equal(forwarded[1].message.op, 'list');
+  assert.equal(reply.length, 3);
+  assert.ok(reply.every(result => result.ok === false));
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
+  assert.equal(manifest.permissions.includes('nativeMessaging'), false);
 });

@@ -18,7 +18,7 @@ fs.mkdirSync(profile, { recursive: true });
   });
   const page = context.pages()[0] || await context.newPage();
   await page.goto('https://apps-sbx.avpaas.io/commpilot/Login/', { waitUntil: 'domcontentloaded' });
-  console.log('Visible Edge preview opened with BroadWorks Enhancer 0.3.2.');
+  console.log('Visible Edge preview opened with BroadWorks Enhancer 0.3.3.');
   await new Promise(resolve => context.on('close', resolve));
 })().catch(error => {
   console.error(error.message);

@@ -1,4 +1,4 @@
-// Cisco's form stays intact; saved passwords are handled by the Windows helper.
+// Cisco's form stays intact; the extension stores an encrypted login vault.
 (function () {
   if (window !== window.top || !/^\/commpilot\/Login\/?$/i.test(location.pathname)) return;
 
@@ -40,15 +40,15 @@
       try {
         if (typeof browser !== "undefined") {
           browser.runtime.sendMessage(message).then(done).catch(function () {
-            done({ ok: false, error: "Windows credential helper is unavailable" });
+            done({ ok: false, error: "Saved sign-ins are unavailable" });
           });
         } else {
           chrome.runtime.sendMessage(message, function (result) {
             done(chrome.runtime.lastError ?
-              { ok: false, error: "Windows credential helper is unavailable" } : result);
+              { ok: false, error: "Saved sign-ins are unavailable" } : result);
           });
         }
-      } catch (_) { done({ ok: false, error: "Windows credential helper is unavailable" }); }
+      } catch (_) { done({ ok: false, error: "Saved sign-ins are unavailable" }); }
     }
 
     var section = el("section", "bw-saved-login");
@@ -90,13 +90,58 @@
       note("Loading saved sign-ins…");
       request("list", null, function (result) {
         if (!result || !result.ok) {
-          note(result && result.error || "Windows credential helper is unavailable", true);
-          showList([]);
+          note(result && result.error || "Saved sign-ins are unavailable", true);
+          body.replaceChildren();
+        } else if (result.locked) {
+          note("");
+          showVaultGate(!!result.hasVault);
         } else {
           note("");
           showList(Array.isArray(result.profiles) ? result.profiles : []);
         }
       });
+    }
+    function showVaultGate(hasVault) {
+      var create = !hasVault;
+      body.replaceChildren(el("div", "bw-saved-heading",
+        create ? "Create encrypted saved sign-ins" : "Unlock saved sign-ins"));
+      var passLabel = el("label", "bw-saved-label", "Vault password");
+      var passField = field("password", create ? "At least 12 characters" : "Vault password",
+        create ? "new-password" : "current-password");
+      passLabel.appendChild(passField);
+      body.appendChild(passLabel);
+      var confirmField;
+      if (create) {
+        var confirmLabel = el("label", "bw-saved-label", "Confirm vault password");
+        confirmField = field("password", "Repeat vault password", "new-password");
+        confirmLabel.appendChild(confirmField);
+        body.appendChild(confirmLabel);
+      }
+      body.appendChild(el("p", "bw-saved-help", create
+        ? "This password encrypts your saved logins. You will need it after restarting the browser."
+        : "Enter this once per browser session to open your encrypted logins."));
+      var action = btn(create ? "Create vault" : "Unlock", "bw-saved-button bw-saved-primary");
+      action.addEventListener("click", function () {
+        var secret = passField.value;
+        if (create && secret.length < 12) {
+          note("Use at least 12 characters for the vault password.", true); return;
+        }
+        if (create && secret !== confirmField.value) {
+          note("Vault passwords do not match.", true); return;
+        }
+        if (!secret) { note("Enter your vault password.", true); return; }
+        action.disabled = true;
+        note(create ? "Creating encrypted vault…" : "Unlocking saved sign-ins…");
+        request(create ? "initialize" : "unlockVault", { passphrase: secret }, function (result) {
+          action.disabled = false;
+          passField.value = "";
+          if (confirmField) confirmField.value = "";
+          if (result && result.ok) loadProfiles();
+          else note(result && result.error || "Could not open the vault.", true);
+        });
+      });
+      body.appendChild(action);
+      passField.focus();
     }
     function showList(profiles) {
       body.replaceChildren(el("div", "bw-saved-heading", "Saved sign-ins"));
@@ -111,6 +156,14 @@
       var add = btn("Add login", "bw-saved-button bw-saved-primary");
       add.addEventListener("click", showAdd);
       body.appendChild(add);
+      var lock = btn("Lock saved sign-ins", "bw-saved-remove");
+      lock.addEventListener("click", function () {
+        request("lockVault", null, function (result) {
+          if (result && result.ok) loadProfiles();
+          else note(result && result.error || "Could not lock saved sign-ins.", true);
+        });
+      });
+      body.appendChild(lock);
     }
     function showAccount(profile) {
       note("");
@@ -139,6 +192,7 @@
         note("Opening saved login…");
         request("unlock", { id: profile.id, pin: pin }, function (result) {
           signIn.disabled = false;
+          if (result && result.locked) { loadProfiles(); return; }
           if (!result || !result.ok) {
             note(result && result.error || "Could not open saved login.", true);
             if (pinField) { pinField.value = ""; pinField.focus(); }
@@ -152,9 +206,10 @@
       });
       var remove = btn("Remove", "bw-saved-remove");
       remove.addEventListener("click", function () {
-        if (!window.confirm("Remove this saved login from Windows Credential Manager?")) return;
+        if (!window.confirm("Remove this saved login?")) return;
         remove.disabled = true;
         request("remove", { id: profile.id }, function (result) {
+          if (result && result.locked) { loadProfiles(); return; }
           if (result && result.ok) loadProfiles();
           else { remove.disabled = false; note(result && result.error || "Could not remove saved login.", true); }
         });
@@ -182,7 +237,7 @@
       pinField.maxLength = 8;
       pinLabel.appendChild(pinField);
       body.append(idLabel, passwordLabel, pinLabel);
-      body.appendChild(el("p", "bw-saved-help", "Saved in Windows Credential Manager. A PIN opens this login quickly."));
+      body.appendChild(el("p", "bw-saved-help", "Encrypted in this browser. The optional PIN works after the vault is unlocked."));
       var save = btn("Save login", "bw-saved-button bw-saved-primary");
       save.addEventListener("click", function () {
         var id = idField.value.trim();
@@ -194,6 +249,7 @@
         note("Saving login…");
         request("add", { user: id, password: secret, pin: pin }, function (result) {
           save.disabled = false;
+          if (result && result.locked) { loadProfiles(); return; }
           if (!result || !result.ok) {
             note(result && result.error || "Could not save login.", true);
             return;
