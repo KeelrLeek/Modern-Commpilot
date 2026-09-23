@@ -281,7 +281,7 @@
   }
 
   function enhanceSelect(select) {
-    if (select.closest(".bw-search-popover, .bw-menu-search") ||
+    if (select.closest(".bw-search-popover, .bw-menu-search, .bw-saved-login") ||
         select.multiple || select.size > 1) return;
     let info = selectInfo.get(select);
     if (info) {

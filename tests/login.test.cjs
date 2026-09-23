@@ -12,7 +12,7 @@ const chromePath = process.env.CHROME_PATH || [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 ].find(fs.existsSync);
 
-test('native login is centered with a collapsed saved sign-ins drawer', async () => {
+test('native login is centered with saved sign-ins and no setup password', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'bw-login-test-'));
   let context;
@@ -47,8 +47,8 @@ test('native login is centered with a collapsed saved sign-ins drawer', async ()
     await page.locator('.bw-saved-trigger').focus();
     await page.keyboard.press('Enter');
     await page.locator('.bw-saved-panel').waitFor({ state: 'visible' });
-    await page.getByRole('button', { name: 'Create vault' }).click();
-    await page.getByText('Use at least 12 characters for the vault password.').waitFor();
+    await page.getByRole('button', { name: 'Add login' }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Create vault' }).count(), 0);
     assert.equal(await page.evaluate(() => window.loginClicks || 0), 0);
   } finally {
     await context?.close();

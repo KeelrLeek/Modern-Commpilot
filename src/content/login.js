@@ -1,4 +1,4 @@
-// Cisco's form stays intact; the extension stores an encrypted login vault.
+// Cisco's form stays intact; saved sign-ins use extension-origin encrypted storage.
 (function () {
   if (window !== window.top || !/^\/commpilot\/Login\/?$/i.test(location.pathname)) return;
 
@@ -10,6 +10,11 @@
     var login = form.querySelector("td.logintext3 a");
     if (!user || !password || !login) return;
     var remember = form.elements.namedItem("rememberPass");
+    var userInteracted = false;
+    [user, password, login].forEach(function (control) {
+      control.addEventListener("input", function () { userInteracted = true; }, true);
+      control.addEventListener("click", function () { userInteracted = true; }, true);
+    });
     if (remember) {
       remember.checked = false;
       remember.disabled = true;
@@ -86,58 +91,60 @@
       status.textContent = message || "";
       status.classList.toggle("bw-saved-error", !!error);
     }
+    function openPanel() {
+      panel.hidden = false;
+      trigger.setAttribute("aria-expanded", "true");
+      marker.textContent = "▾";
+    }
+    function performSignIn(profile, pin, action, pinField) {
+      action.disabled = true;
+      note("Opening saved login…");
+      request("unlock", { id: profile.id, pin: pin }, function (result) {
+        action.disabled = false;
+        if (!result || !result.ok) {
+          note(result && result.error || "Could not open saved login.", true);
+          if (pinField) { pinField.value = ""; pinField.focus(); }
+          return;
+        }
+        user.value = result.user || "";
+        password.value = result.password || "";
+        if (pinField) pinField.value = "";
+        login.click();
+      });
+    }
     function loadProfiles() {
       note("Loading saved sign-ins…");
       request("list", null, function (result) {
         if (!result || !result.ok) {
           note(result && result.error || "Saved sign-ins are unavailable", true);
           body.replaceChildren();
-        } else if (result.locked) {
+        } else if (result.needsMigration) {
           note("");
-          showVaultGate(!!result.hasVault);
+          showMigration();
         } else {
           note("");
           showList(Array.isArray(result.profiles) ? result.profiles : []);
         }
       });
     }
-    function showVaultGate(hasVault) {
-      var create = !hasVault;
-      body.replaceChildren(el("div", "bw-saved-heading",
-        create ? "Create encrypted saved sign-ins" : "Unlock saved sign-ins"));
-      var passLabel = el("label", "bw-saved-label", "Vault password");
-      var passField = field("password", create ? "At least 12 characters" : "Vault password",
-        create ? "new-password" : "current-password");
+    function showMigration() {
+      body.replaceChildren(el("div", "bw-saved-heading", "Update saved sign-ins"));
+      var passLabel = el("label", "bw-saved-label", "Previous vault password");
+      var passField = field("password", "Previous vault password", "current-password");
       passLabel.appendChild(passField);
       body.appendChild(passLabel);
-      var confirmField;
-      if (create) {
-        var confirmLabel = el("label", "bw-saved-label", "Confirm vault password");
-        confirmField = field("password", "Repeat vault password", "new-password");
-        confirmLabel.appendChild(confirmField);
-        body.appendChild(confirmLabel);
-      }
-      body.appendChild(el("p", "bw-saved-help", create
-        ? "This password encrypts your saved logins. You will need it after restarting the browser."
-        : "Enter this once per browser session to open your encrypted logins."));
-      var action = btn(create ? "Create vault" : "Unlock", "bw-saved-button bw-saved-primary");
+      body.appendChild(el("p", "bw-saved-help", "Enter this once to move sign-ins from the previous version."));
+      var action = btn("Update", "bw-saved-button bw-saved-primary");
       action.addEventListener("click", function () {
         var secret = passField.value;
-        if (create && secret.length < 12) {
-          note("Use at least 12 characters for the vault password.", true); return;
-        }
-        if (create && secret !== confirmField.value) {
-          note("Vault passwords do not match.", true); return;
-        }
-        if (!secret) { note("Enter your vault password.", true); return; }
+        if (!secret) { note("Enter your previous vault password.", true); return; }
         action.disabled = true;
-        note(create ? "Creating encrypted vault…" : "Unlocking saved sign-ins…");
-        request(create ? "initialize" : "unlockVault", { passphrase: secret }, function (result) {
+        note("Updating saved sign-ins…");
+        request("migrate", { passphrase: secret }, function (result) {
           action.disabled = false;
           passField.value = "";
-          if (confirmField) confirmField.value = "";
           if (result && result.ok) loadProfiles();
-          else note(result && result.error || "Could not open the vault.", true);
+          else note(result && result.error || "Could not update saved sign-ins.", true);
         });
       });
       body.appendChild(action);
@@ -150,20 +157,12 @@
         var row = el("div", "bw-saved-account");
         var pick = btn(String(profile.user || "Saved login"), "bw-saved-account-name");
         pick.addEventListener("click", function () { showAccount(profile); });
-        row.append(pick, el("span", "bw-saved-account-hint", profile.hasPin ? "PIN" : ""));
+        row.append(pick, el("span", "bw-saved-account-hint", profile.hasPin ? "PIN" : "Automatic"));
         body.appendChild(row);
       });
       var add = btn("Add login", "bw-saved-button bw-saved-primary");
       add.addEventListener("click", showAdd);
       body.appendChild(add);
-      var lock = btn("Lock saved sign-ins", "bw-saved-remove");
-      lock.addEventListener("click", function () {
-        request("lockVault", null, function (result) {
-          if (result && result.ok) loadProfiles();
-          else note(result && result.error || "Could not lock saved sign-ins.", true);
-        });
-      });
-      body.appendChild(lock);
     }
     function showAccount(profile) {
       note("");
@@ -172,8 +171,8 @@
       body.replaceChildren(back, el("div", "bw-saved-heading", String(profile.user || "Saved login")));
       var pinField;
       if (profile.hasPin) {
-        var pinLabel = el("label", "bw-saved-label", "Quick PIN");
-        pinField = field("password", "4–8 digit PIN", "off");
+        var pinLabel = el("label", "bw-saved-label", "Four-digit PIN");
+        pinField = field("password", "Four-digit PIN", "off");
         pinField.inputMode = "numeric";
         pinField.maxLength = 8;
         pinLabel.appendChild(pinField);
@@ -184,32 +183,17 @@
       signIn.addEventListener("click", function () {
         var pin = pinField ? pinField.value : "";
         if (profile.hasPin && !/^[0-9]{4,8}$/.test(pin)) {
-          note("Enter your 4–8 digit PIN.", true);
+          note("Enter your PIN.", true);
           pinField.focus();
           return;
         }
-        signIn.disabled = true;
-        note("Opening saved login…");
-        request("unlock", { id: profile.id, pin: pin }, function (result) {
-          signIn.disabled = false;
-          if (result && result.locked) { loadProfiles(); return; }
-          if (!result || !result.ok) {
-            note(result && result.error || "Could not open saved login.", true);
-            if (pinField) { pinField.value = ""; pinField.focus(); }
-            return;
-          }
-          user.value = result.user || "";
-          password.value = result.password || "";
-          if (pinField) pinField.value = "";
-          login.click(); // Cisco's own handler sets its hidden UserID and submits.
-        });
+        performSignIn(profile, pin, signIn, pinField);
       });
       var remove = btn("Remove", "bw-saved-remove");
       remove.addEventListener("click", function () {
         if (!window.confirm("Remove this saved login?")) return;
         remove.disabled = true;
         request("remove", { id: profile.id }, function (result) {
-          if (result && result.locked) { loadProfiles(); return; }
           if (result && result.ok) loadProfiles();
           else { remove.disabled = false; note(result && result.error || "Could not remove saved login.", true); }
         });
@@ -217,6 +201,7 @@
       actions.append(signIn, remove);
       body.appendChild(actions);
       if (pinField) pinField.focus();
+      else signIn.click();
     }
     function showAdd() {
       note("");
@@ -231,25 +216,31 @@
       var passwordField = field("password", "Password", "new-password");
       passwordField.value = password.value;
       passwordLabel.appendChild(passwordField);
-      var pinLabel = el("label", "bw-saved-label", "Quick PIN (optional)");
-      var pinField = field("password", "4–8 digits", "off");
+      var modeLabel = el("label", "bw-saved-label", "Sign-in option");
+      var modeField = el("select", "bw-saved-input");
+      [["pin", "Ask for a four-digit PIN"], ["auto", "Sign in automatically"]].forEach(function (option) {
+        var item = el("option", "", option[1]); item.value = option[0]; modeField.appendChild(item);
+      });
+      modeLabel.appendChild(modeField);
+      var pinLabel = el("label", "bw-saved-label", "Four-digit PIN");
+      var pinField = field("password", "Four digits", "off");
       pinField.inputMode = "numeric";
-      pinField.maxLength = 8;
+      pinField.maxLength = 4;
       pinLabel.appendChild(pinField);
-      body.append(idLabel, passwordLabel, pinLabel);
-      body.appendChild(el("p", "bw-saved-help", "Encrypted in this browser. The optional PIN works after the vault is unlocked."));
+      modeField.addEventListener("change", function () { pinLabel.hidden = modeField.value !== "pin"; });
+      body.append(idLabel, passwordLabel, modeLabel, pinLabel);
+      body.appendChild(el("p", "bw-saved-help", "Automatic sign-in starts when this page opens if it is your only saved account."));
       var save = btn("Save login", "bw-saved-button bw-saved-primary");
       save.addEventListener("click", function () {
         var id = idField.value.trim();
         var secret = passwordField.value;
         var pin = pinField.value;
         if (!id || !secret) { note("Enter User ID and Password.", true); return; }
-        if (pin && !/^[0-9]{4,8}$/.test(pin)) { note("PIN must be 4–8 digits.", true); return; }
+        if (modeField.value === "pin" && !/^[0-9]{4}$/.test(pin)) { note("PIN must be four digits.", true); return; }
         save.disabled = true;
         note("Saving login…");
-        request("add", { user: id, password: secret, pin: pin }, function (result) {
+        request("add", { user: id, password: secret, mode: modeField.value, pin: pin }, function (result) {
           save.disabled = false;
-          if (result && result.locked) { loadProfiles(); return; }
           if (!result || !result.ok) {
             note(result && result.error || "Could not save login.", true);
             return;
@@ -267,6 +258,30 @@
       trigger.setAttribute("aria-expanded", String(!panel.hidden));
       marker.textContent = panel.hidden ? "▸" : "▾";
       if (!panel.hidden) loadProfiles();
+    });
+    // One automatic account signs in on arrival. More than one account needs a choice.
+    request("list", null, function (result) {
+      if (!result || !result.ok) return;
+      if (result.needsMigration) { openPanel(); showMigration(); return; }
+      var profiles = Array.isArray(result.profiles) ? result.profiles : [];
+      if (!profiles.length) return;
+      var recentLogout = false, recentAttempt = false;
+      try {
+        recentLogout = Date.now() - Number(sessionStorage.getItem("bwManualLogoutAt") || 0) < 60000;
+        recentAttempt = Date.now() - Number(sessionStorage.getItem("bwAutoLoginAttempt") || 0) < 60000;
+      } catch (_) {}
+      if (profiles.length === 1 && profiles[0].mode === "auto" &&
+          !userInteracted && !recentLogout && !recentAttempt &&
+          !/logout/i.test(document.referrer || "") &&
+          !document.querySelector(".loginerror, .errorMessage, [class*=loginError]")) {
+        try { sessionStorage.setItem("bwAutoLoginAttempt", String(Date.now())); } catch (_) {}
+        var action = btn("Sign in", "bw-saved-button bw-saved-primary");
+        performSignIn(profiles[0], "", action);
+      } else {
+        openPanel();
+        showList(profiles);
+        if (profiles.length === 1 && profiles[0].hasPin) showAccount(profiles[0]);
+      }
     });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", setup, { once: true });

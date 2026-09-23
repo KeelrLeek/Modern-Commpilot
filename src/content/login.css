@@ -23,7 +23,8 @@ body#loginBody .bw-saved-login {
   font: 12px Arial, Helvetica, sans-serif;
 }
 body#loginBody .bw-saved-login button,
-body#loginBody .bw-saved-login input { font: inherit; }
+body#loginBody .bw-saved-login input,
+body#loginBody .bw-saved-login select { font: inherit; }
 body#loginBody .bw-saved-trigger {
   display: block; width: 100%; padding: 7px 11px;
   border: 0; border-radius: 5px; background: #fff;
@@ -51,6 +52,7 @@ body#loginBody .bw-saved-input {
   box-sizing: border-box; display: block; width: 100%; margin-top: 3px;
   padding: 4px 6px; border: 1px solid #9ba8ad; background: #fff; color: #272727;
 }
+body#loginBody .bw-saved-label[hidden] { display: none !important; }
 body#loginBody .bw-saved-help { margin: 8px 0; color: #737373; }
 body#loginBody .bw-saved-actions { display: flex; align-items: center; gap: 13px; }
 body#loginBody .bw-saved-button {
