@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.7-native";
+  var CP_PJAX_VERSION = "0.3.8-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -154,6 +154,9 @@
   // measured repeatedly 2026-07-07) — surface ONE "session expired" banner with a sign-in action
   // instead of stacking identical server-error banners.
   var cpErr5xxStreak = 0;
+  // A rejected follow can replay page scripts that immediately try the same navigation again.
+  // Once token recovery has failed, make a single sign-in transition instead of posting in a loop.
+  var cpSessionRedirecting = false;
   // Client-only idle watchdog (ZERO network — keep-alive pings are proven session-killers on this
   // host, see [[gotcha-idle-connection-drop-dead-click]]; never reintroduce them). The sandbox
   // expires idle sessions around ~20 min (controlled measurement 2026-07-07: 24 idle minutes,
@@ -491,7 +494,7 @@
     // Harvest a FRESH valid app token in-place (the one GET-allowed, session-aware endpoint) — mirrors
     // stubguard's cpHarvestOnce trust rule EXACTLY: trust the token ONLY when servlet/Login hands back an
     // app redirect (redirectPost -> folder_contents), never the login form's own token. Resolves null when
-    // the session is genuinely dead (bounce/opaqueredirect/no-stub) → caller falls back to a real nav.
+    // the session is genuinely dead (bounce/opaqueredirect/no-stub) → caller opens sign-in once.
     // redirect:"manual" so a dead-session http:// Login bounce resolves as opaqueredirect (null) with NO
     // connect-src violation. Used by cpHook to recover a still-alive-but-token-stale nav in place instead of
     // hard-logging-out. See [[gotcha-idle-connection-drop-dead-click]].
@@ -4044,14 +4047,20 @@
                       console.warn("[pjax] follow unusable, token not rotated — harvested a fresh token, re-attempting nav in place");
                       cpHook(url, params, true);
                     } else {
-                      console.warn("[pjax] no content cell after follow + harvest empty (session dead?) — real navigation fallback");
-                      _orig.call(window, url, params);
+                      if (!cpSessionRedirecting) {
+                        cpSessionRedirecting = true;
+                        console.warn("[pjax] no content cell after follow + harvest empty — opening sign-in");
+                        location.replace("/commpilot/Login/");
+                      }
                     }
                   });
                   return;
                 }
-                console.warn("[pjax] no content cell after follow — real navigation fallback");
-                _orig.call(window, url, params);
+                if (!cpSessionRedirecting) {
+                  cpSessionRedirecting = true;
+                  console.warn("[pjax] no content cell after follow — opening sign-in");
+                  location.replace("/commpilot/Login/");
+                }
                 return;
               }
               var doc = res.doc;

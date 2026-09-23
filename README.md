@@ -6,16 +6,16 @@ This branch combines the original BroadWorks Enhancer controls with the PJAX tra
 
 - The original dropdown search, green/red On/Off labels, and breadcrumb Copy User ID / Copy Extension controls. Large native dropdowns now render only the visible options, keeping searches responsive even with over 18,000 matches.
 - PJAX navigation for reseller, service-provider, group, user, and Operator pages, including deeper settings trees; folder menus; list find/sort/page requests; and entity drill-in.
-- Form-token rotation, bounded redirect-stub following, iframe transport for navigation-only entity pages, in-place server-error handling, back/forward replay that preserves Forward after an iframe drill-in, and same-origin reload recovery.
+- Form-token rotation, bounded redirect-stub following, iframe transport for navigation-only entity pages, in-place server-error handling, back/forward replay that preserves Forward after an iframe drill-in, and same-origin reload recovery. A rejected navigation with no recoverable session token opens sign-in once instead of repeatedly posting it.
 - Direct legacy form submissions stay in the PJAX shell, including Device Configuration's automatic Files page; Scheduled Reports Add resolves to its actual form path.
 - PJAX refreshes the actual CommPilot breadcrumb cell and reattaches its native link handlers after each swap, preserving the full Reseller → Service Provider → Group → Users → User trail.
 - Native CommPilot styling. The only added CSS styles the requested controls and small PJAX error notices.
 - The existing Cisco login form is centered. Its logo, background image, fields, and submit logic remain intact. The old **Remember Password** row is removed. A compact **Saved sign-ins** drawer sits below the Cisco panel.
 - You can save multiple sign-ins per BroadWorks host. Each account can sign in automatically or ask for a four-digit PIN. With one automatic account, visiting the login page signs in immediately; with several accounts, the page shows an account chooser. A single PIN account opens its PIN prompt. Saved passwords are AES-256-GCM ciphertext in extension storage. A non-extractable encryption key persists in extension IndexedDB so automatic sign-in works after browser restart. The PIN gates use of an account but is not a strong encryption secret.
 
-A page outside the current PJAX route matcher continues through CommPilot's original navigation. The live sandbox audit currently covers 49 folders at the Reseller, Service Provider, Group, User, Auto Attendant, Hunt Group, and Call Center levels. It has checked 488 menu pages for row/Edit links and other navigation controls; 640 discovered routes currently pass same-document PJAX checks. Controls inside those subpages, configuration saves, and production behavior still need further validation.
+A page outside the current PJAX route matcher continues through CommPilot's original navigation. The live sandbox audit covers 49 folders at the Reseller, Service Provider, Group, User, Auto Attendant, Hunt Group, and Call Center levels. It has checked 488 menu pages for row/Edit links and other navigation controls, plus all 174 currently discovered subpages for further controls. All 680 discovered routes pass same-document PJAX checks. Search, sort, and paging variations, configuration saves, and production behavior still need further validation.
 
-The live visual route inventory and pass/fail tally are in `dev-preview/pjax-route-audit.html` when running `python dev-preview/server.py`. It tracks menu routes, row/Edit drill-ins, other controls, and live sidebar verification separately; controls inside subpages are still being audited.
+The live visual route inventory and pass/fail tally are in `dev-preview/pjax-route-audit.html` when running `python dev-preview/server.py`. Open it over `http://127.0.0.1:8766/pjax-route-audit.html` for the updating tally. It tracks menu routes, row/Edit drill-ins, other controls, subpage controls, and live sidebar verification separately.
 
 ## Live local preview
 
@@ -23,7 +23,7 @@ In the source checkout, run `python dev-preview/server.py` and open `http://127.
 
 ## Install this preview
 
-Extract [BroadWorks-Enhancer-PJAX-Preview-0.3.7.zip](release/BroadWorks-Enhancer-PJAX-Preview-0.3.7.zip). Chrome or Edge: open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder. Firefox: open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select `manifest.json`. Disable the stable BroadWorks Enhancer while testing this preview to avoid duplicate controls. No helper or separate installer is needed.
+Extract [BroadWorks-Enhancer-PJAX-Preview-0.3.8.zip](release/BroadWorks-Enhancer-PJAX-Preview-0.3.8.zip). Chrome or Edge: open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder. Firefox: open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select `manifest.json`. Disable the stable BroadWorks Enhancer while testing this preview to avoid duplicate controls. No helper or separate installer is needed.
 
 On the login page, open **Saved sign-ins**, choose **Add login**, enter your User ID and Password, and select **Sign in automatically** or **Ask for a four-digit PIN**. Later, choose an account if you have several saved. A PIN account asks for its PIN before using Cisco's original Login handler. Use **Remove** to delete a saved account. Saving is per BroadWorks host. Recent manual logout and login errors suppress an immediate automatic retry to avoid sign-in loops. Accounts saved by version 0.3.3 can be moved into this version by entering the previous vault password once.
 

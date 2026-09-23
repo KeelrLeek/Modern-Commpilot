@@ -88,6 +88,31 @@ test('PJAX leaves the current page intact after a server error', async () => {
   await browser.close();
 });
 
+test('an expired session opens sign-in once without replaying the rejected POST', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    let posts = 0;
+    const loginPage = '<!doctype html><html><head><title>Login</title></head><body>Sign in</body></html>';
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      if (route.request().method() === 'POST') posts++;
+      const body = new URL(route.request().url()).pathname === '/commpilot/Reseller/Groups/' ?
+        start : loginPage;
+      return route.fulfill({ status: 200, contentType: 'text/html', body });
+    });
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Reseller/Groups/',
+      { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => window.redirectPost('/commpilot/Reseller/Admins/', {}));
+    await page.waitForURL('**/commpilot/Login/');
+    assert.equal(posts, 1);
+    assert.equal(await page.title(), 'Login');
+  } finally {
+    await browser.close();
+  }
+});
+
 test('PJAX retains navigation coverage across the existing page families', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });

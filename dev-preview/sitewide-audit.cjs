@@ -162,6 +162,41 @@ async function verifySidebarInventory(page) {
     added, verifiedLevels: audit.inventory.sidebarVerifiedLevels.length }));
 }
 
+async function captureRowTargets(page) {
+  return page.evaluate(() => {
+    const cell = document.querySelector('td[width="82%"]');
+    if (!cell) return [];
+    const original = window.redirectPost;
+    const found = [];
+    const preventAnchor = event => { if (event.target.closest?.('a')) event.preventDefault(); };
+    const preventSubmit = event => { event.preventDefault(); event.stopImmediatePropagation(); };
+    window.redirectPost = (url, params) => { found.push({ url, params: params || {} }); return false; };
+    document.addEventListener('click', preventAnchor, true);
+    document.addEventListener('submit', preventSubmit, true);
+    try {
+      for (const link of cell.querySelectorAll('a[id]')) {
+        const rowLink = /^Row\d+Col1$/.test(link.id);
+        const editLink = /^link_/.test(link.id) &&
+          /^(?:edit|view|details|modify|profile|open)$/i.test((link.innerText || '').trim());
+        if (!rowLink && !editLink) continue;
+        const before = found.length;
+        link.click();
+        if (found.length > before) {
+          found[found.length - 1].label = rowLink ? 'Row detail' :
+            (link.innerText || link.title || link.id).trim().slice(0, 80);
+          found[found.length - 1].id = link.id;
+          found[found.length - 1].method = 'POST';
+        }
+      }
+    } finally {
+      window.redirectPost = original;
+      document.removeEventListener('click', preventAnchor, true);
+      document.removeEventListener('submit', preventSubmit, true);
+    }
+    return found;
+  });
+}
+
 async function captureActionTargets(page) {
   return page.evaluate(() => {
     const cell = document.querySelector('td[width="82%"]');
@@ -247,11 +282,38 @@ async function captureActionTargets(page) {
   });
 }
 
-async function verifyInnerTarget(page, audit, area, sourcePath, parentLabel, inner) {
+function descendantDepthLimit() {
+  return Math.min(8, Math.max(1, Number(process.env.BW_MAX_DESCENDANT_DEPTH || 4)));
+}
+
+function isCanonicalAction(path) {
+  return /^\/commpilot\/Common\/(?:sort|page|find|findAll)\.jsp$/.test(path);
+}
+
+function needsSubpageWork(audit, area, item, depth = 0, seen = new Set()) {
+  if (depth >= descendantDepthLimit() ||
+      (isCanonicalAction(item.path) && process.env.BW_VERIFY_ACTION_COMMON !== '1')) return false;
+  if (item.backPending) return true;
+  if (!item.controlScanned) return true;
+  const sourcePath = item.path.includes('/DefaultConfig/Nested/Configuration/') ?
+    new URL('../Files/', new URL(item.path, 'https://audit.invalid')).pathname : item.path;
+  if (seen.has(sourcePath)) return false;
+  const nextSeen = new Set(seen);
+  nextSeen.add(sourcePath);
+  return audit.routes.some(child => child.kind === 'descendant' && child.area === area &&
+    child.sourcePath === sourcePath && child.method !== 'GET' &&
+    (child.status !== 'pass' || needsSubpageWork(audit, area, child, depth + 1, nextSeen)));
+}
+
+async function verifyInnerTarget(page, audit, area, sourcePath, parentLabel, inner, depth = 0) {
   const wanted = routePath(inner.url, page.url());
-  const record = audit.routes.find(item => (item.kind === 'nested' || item.kind === 'action') && item.sourcePath === sourcePath &&
+  const record = audit.routes.find(item => ['nested', 'action', 'descendant'].includes(item.kind) && item.sourcePath === sourcePath &&
     item.path === wanted && item.area === area);
-  if (!record || (record.status === 'pass' && process.env.BW_FORCE_NESTED !== '1')) return 'continue';
+  const scanDescendants = process.env.BW_DISCOVER_DESCENDANTS === '1' && record &&
+    (!record.controlScanned || (process.env.BW_VERIFY_DESCENDANTS === '1' &&
+      needsSubpageWork(audit, area, record, depth)));
+  if (!record || (record.status === 'pass' && process.env.BW_FORCE_NESTED !== '1' &&
+      !scanDescendants)) return 'continue';
   await page.evaluate(() => {
     window.__bwNestedMarker = window.__bwTestDocMarker;
     if (!window.__bwReskinProbe) {
@@ -292,16 +354,17 @@ async function verifyInnerTarget(page, audit, area, sourcePath, parentLabel, inn
   const canonical = returnPage ? routePath(returnPage.startsWith('/commpilot') ? returnPage :
     `/commpilot${returnPage.startsWith('/') ? '' : '/'}${returnPage}`, page.url()) : null;
   const expected = autoFollow || canonical || wanted;
-  if (response?.status() === 200) await page.waitForFunction(({ pathname, samePage }) =>
-    (location.pathname === pathname && (!samePage ||
-      window.__bwReskinCount > window.__bwNestedReskinStart)) ||
-    document.title.trim() === 'Login', { pathname: expected, samePage: expected === sourcePath },
+  if (response?.status() === 200) await page.waitForFunction(pathname =>
+    (location.pathname === pathname &&
+      window.__bwReskinCount > window.__bwNestedReskinStart) ||
+    document.title.trim() === 'Login', expected,
   { timeout: 12000 }).catch(() => {});
   let state = null, stateError = null;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       state = await page.evaluate(() => ({ path: location.pathname, title: document.title.trim(),
         sameDocument: window.__bwTestDocMarker === window.__bwNestedMarker,
+        reskinned: window.__bwReskinCount > window.__bwNestedReskinStart,
         hasContent: !!document.querySelector('td[width="82%"]') }));
       break;
     } catch (error) { stateError = error.message; await delay(250); }
@@ -314,8 +377,9 @@ async function verifyInnerTarget(page, audit, area, sourcePath, parentLabel, inn
     (state?.path === wanted || (autoFollow && state?.path === autoFollow) ||
       (canonical && state?.path === canonical &&
         await page.evaluate(() => window.__bwReskinCount > window.__bwNestedReskinStart).catch(() => false))) &&
-    state.sameDocument && state.hasContent ? 'pass' : 'needs';
+    state.sameDocument && state.reskinned && state.hasContent ? 'pass' : 'needs';
   record.status = status;
+  record.backPending = status === 'pass';
   record.detail = response ? `HTTP ${response.status()}` +
     (status === 'pass' && autoFollow ? `; auto-followed to ${autoFollow}` : '') +
     (status === 'pass' && canonical ? `; canonicalized to ${canonical}` : '') : 'No response';
@@ -344,9 +408,47 @@ async function verifyInnerTarget(page, audit, area, sourcePath, parentLabel, inn
   }
   if (session) return 'session';
   if (status === 'needs') return 'gap';
+  if (scanDescendants) {
+    const rowTargets = state.path === sourcePath ? [] : await captureRowTargets(page);
+    const actionScan = state.path === sourcePath ? { candidates: 0, targets: [] } :
+      await captureActionTargets(page);
+    const children = [...rowTargets, ...actionScan.targets];
+    const unique = new Map();
+    for (const child of children) {
+      const childPath = routePath(child.url, page.url());
+      if (childPath === state.path || childPath === sourcePath ||
+          !childPath.startsWith('/commpilot/') || unique.has(childPath)) continue;
+      unique.set(childPath, child);
+      if (!audit.routes.some(item => item.sourcePath === state.path &&
+          item.path === childPath && item.area === area)) {
+        audit.routes.push({ id: `discovered-${audit.routes.length + 1}`, kind: 'descendant',
+          area, label: `${parentLabel} › ${inner.label || 'Detail'} › ${child.label || 'Open'}`,
+          path: childPath, sourcePath: state.path, method: child.method || 'POST',
+          status: 'pending' });
+      }
+    }
+    record.controlScanned = true;
+    record.controlCandidates = actionScan.candidates;
+    saveAudit(audit);
+    console.log(JSON.stringify({ event: 'descendant-scan', area, parent: parentLabel,
+      path: state.path, depth, rowTargets: rowTargets.length,
+      actionCandidates: actionScan.candidates, routes: unique.size }));
+    if (process.env.BW_VERIFY_DESCENDANTS === '1') {
+      for (const child of unique.values()) {
+        const childPath = routePath(child.url, page.url());
+        if (child.method === 'GET' ||
+            (isCanonicalAction(childPath) && process.env.BW_VERIFY_ACTION_COMMON !== '1')) continue;
+        const outcome = await verifyInnerTarget(page, audit, area, state.path,
+          `${parentLabel} › ${inner.label || 'Detail'}`, child, depth + 1);
+        if (outcome !== 'continue') return outcome;
+      }
+    }
+  }
+  const backReskinStart = await page.evaluate(() => window.__bwReskinCount || 0).catch(() => null);
+  if (backReskinStart === null) return 'session';
   const backResponsePromise = page.waitForResponse(item => item.request().method() === 'POST' &&
     routePath(item.url(), page.url()) === sourcePath, { timeout: 15000 }).catch(() => null);
-  await page.goBack();
+  try { await page.goBack(); } catch { return 'session'; }
   const backResponse = await backResponsePromise;
   console.log(JSON.stringify({ event: 'nested-back', area, parent: parentLabel,
     expected: sourcePath, status: backResponse?.status() || null,
@@ -359,10 +461,15 @@ async function verifyInnerTarget(page, audit, area, sourcePath, parentLabel, inn
     saveAudit(audit);
     return 'session';
   }
-  await waitPath(page, sourcePath);
+  const backReady = await page.waitForFunction(({ pathname, count }) => location.pathname === pathname &&
+    window.__bwReskinCount > count && !!document.querySelector('td[width="82%"]'),
+  { pathname: sourcePath, count: backReskinStart }, { timeout: 20000 }).then(() => true).catch(() => false);
+  if (!backReady) return 'session';
   const nestedFlow = audit.flows.find(item => item.label ===
     `${area} ${parentLabel} nested Back replay`);
   if (nestedFlow) { nestedFlow.status = 'pass'; saveAudit(audit); }
+  record.backPending = false;
+  saveAudit(audit);
   return 'continue';
 }
 
@@ -375,6 +482,12 @@ async function testTarget(page, target, folder) {
   await page.evaluate(() => {
     window.__bwTestDocMarker ||= Math.random().toString(36).slice(2);
     window.__bwAuditMarker = window.__bwTestDocMarker;
+    if (!window.__bwReskinProbe) {
+      window.__bwReskinProbe = true;
+      window.__bwReskinCount = 0;
+      document.addEventListener('cp:reskin', () => { window.__bwReskinCount++; });
+    }
+    window.__bwAuditReskinStart = window.__bwReskinCount;
   });
   const responsePromise = page.waitForResponse(response => response.request().method() === 'POST' &&
     routePath(response.url(), page.url()) === wanted, { timeout: 15000 }).catch(() => null);
@@ -382,16 +495,20 @@ async function testTarget(page, target, folder) {
   try { await page.evaluate(item => window.redirectPost(item.url, item.params), target); }
   catch (failure) { error = failure.message; }
   const response = await responsePromise;
-  if (response?.status() === 200) await page.waitForFunction(origin => location.pathname !== origin ||
-    !!document.querySelector('.cp-alert-error'), start, { timeout: 12000 }).catch(() => {});
+  if (response?.status() === 200) await page.waitForFunction(pathname =>
+    (location.pathname === pathname &&
+      window.__bwReskinCount > window.__bwAuditReskinStart) ||
+    document.title.trim() === 'Login' || !!document.querySelector('.cp-alert-error'),
+  wanted, { timeout: 12000 }).catch(() => {});
   const state = await page.evaluate(() => ({ path: location.pathname,
     title: document.title.trim(),
     sameDocument: window.__bwTestDocMarker === window.__bwAuditMarker,
+    reskinned: window.__bwReskinCount > window.__bwAuditReskinStart,
     hasContent: !!document.querySelector('td[width="82%"]'),
     alert: !!document.querySelector('.cp-alert-error') })).catch(() => null);
   const loginDocument = state?.path === '/commpilot/Login/' || state?.title === 'Login';
   const status = loginDocument ? 'pending' :
-    response?.status() === 200 && state?.sameDocument && state?.hasContent &&
+    response?.status() === 200 && state?.sameDocument && state?.reskinned && state?.hasContent &&
     !state?.alert ? 'pass' : response?.status() === 200 ? 'needs' : 'pending';
   const result = { level, folder, label: target.label, path: wanted, status,
     httpStatus: response?.status() || null, finalPath: state?.path || routePath(page.url(), page.url()),
@@ -448,31 +565,7 @@ async function testTarget(page, target, folder) {
         onclick: String(element.onclick || element.getAttribute('onclick') || '').slice(0, 180) }))
       .filter(item => item.label || item.id || item.href));
     }
-    result.innerTargets = await page.evaluate(() => {
-      const cell = document.querySelector('td[width="82%"]');
-      const original = window.redirectPost;
-      const found = [];
-      const preventSubmit = event => { event.preventDefault(); event.stopImmediatePropagation(); };
-      document.addEventListener('submit', preventSubmit, true);
-      window.redirectPost = (url, params) => { found.push({ url, params: params || {} }); return false; };
-      try {
-        for (const link of cell.querySelectorAll('a[id]')) {
-          const rowLink = /^Row\d+Col1$/.test(link.id);
-          const editLink = /^link_/.test(link.id) &&
-            /^(?:edit|view|details|modify|profile|open)$/i.test((link.innerText || '').trim());
-          if (!rowLink && !editLink) continue;
-          const before = found.length;
-          link.click();
-          if (found.length > before) found[found.length - 1].label =
-            rowLink ? 'Row detail' : (link.innerText || link.title || link.id).trim().slice(0, 80);
-          if (found.length > before) found[found.length - 1].id = link.id;
-        }
-      } finally {
-        window.redirectPost = original;
-        document.removeEventListener('submit', preventSubmit, true);
-      }
-      return found;
-    });
+    result.innerTargets = await captureRowTargets(page);
   }
   if (process.env.BW_DISCOVER_ACTIONS === '1' && status === 'pass') {
     if (process.env.BW_INSPECT_ACTION === '1') result.actionContext = await page.evaluate(() => ({
@@ -501,6 +594,7 @@ async function testTarget(page, target, folder) {
   if (record.attempts.length > 12) record.attempts.shift();
   const hadReload = record.attempts.some(attempt => attempt.status === 'needs' && !attempt.sameDocument);
   record.status = status;
+  record.backPending = status === 'pass' && result.finalPath !== start;
   record.flakyHistory = hadReload && status === 'pass';
   record.detail = record.flakyHistory ?
     'PJAX passed; an earlier rapid sequence landed on Login' :
@@ -562,13 +656,20 @@ async function testTarget(page, target, folder) {
       if (outcome !== 'continue') return outcome;
     }
   }
-  if (searchedRows) { await clickFolder(page, folder); return 'continue'; }
+  if (searchedRows) {
+    await clickFolder(page, folder);
+    record.backPending = false;
+    saveAudit(audit);
+    return 'continue';
+  }
   if (result.finalPath !== start) {
     const tokenBeforeBack = process.env.BW_TRACE_TOKENS === '1' ?
       await page.locator('[name="formtokenserial"]').first().inputValue().catch(() => '') : '';
+    const backReskinStart = await page.evaluate(() => window.__bwReskinCount || 0).catch(() => null);
+    if (backReskinStart === null) return 'session';
     const backResponsePromise = page.waitForResponse(item => item.request().method() === 'POST' &&
       routePath(item.url(), page.url()) === start, { timeout: 15000 }).catch(() => null);
-    await page.goBack();
+    try { await page.goBack(); } catch { return 'session'; }
     const backResponse = await backResponsePromise;
     if (process.env.BW_TRACE_TOKENS === '1') {
       const backToken = new URLSearchParams(backResponse?.request().postData() || '').get('formtokenserial');
@@ -589,12 +690,18 @@ async function testTarget(page, target, folder) {
         status: backResponse?.status() || null, after: new URL(page.url()).pathname }));
       return 'session';
     }
-    await page.waitForFunction(({ pathname, title }) => location.pathname === pathname &&
-      document.title.trim() === title && document.documentElement.getAttribute('data-cp-path') === pathname,
-    { pathname: start, title: folder }, { timeout: 20000 }).catch(() => {});
+    const backReady = await page.waitForFunction(({ pathname, title, count }) => location.pathname === pathname &&
+      document.title.trim() === title &&
+      document.documentElement.getAttribute('data-cp-path') === pathname &&
+      window.__bwReskinCount > count,
+    { pathname: start, title: folder, count: backReskinStart }, { timeout: 20000 })
+      .then(() => true).catch(() => false);
+    if (!backReady) return 'session';
     if (new URL(page.url()).pathname === '/commpilot/Login/') return 'session';
     const backFlow = audit.flows.find(item => item.label === `${level} ${folder} Back replay`);
     if (backFlow) { backFlow.status = 'pass'; saveAudit(audit); }
+    record.backPending = false;
+    saveAudit(audit);
   }
   return 'continue';
 }
@@ -687,9 +794,14 @@ async function testTarget(page, target, folder) {
             item.status !== 'pass' && item.method === 'POST' &&
             (process.env.BW_VERIFY_ACTION_COMMON === '1' ||
               !/^\/commpilot\/Common\/(?:sort|page|find|findAll)\.jsp$/.test(item.path)));
+          const needsDescendants = process.env.BW_DISCOVER_DESCENDANTS === '1' &&
+            deepAudit.routes.some(item => (item.kind === 'nested' || item.kind === 'action') &&
+              item.area === `${level} / ${folder}` && item.sourcePath === wanted &&
+              needsSubpageWork(deepAudit, item.area, item));
           const needsActions = process.env.BW_DISCOVER_ACTIONS === '1' &&
             (!known?.controlScanned || (process.env.BW_VERIFY_ACTIONS === '1' && pendingAction));
-          if (known?.status === 'pass' && !force && !needsActions &&
+          if (known?.status === 'pass' && !force && !known.backPending &&
+              !needsActions && !needsDescendants &&
               (process.env.BW_DISCOVER_DEEP !== '1' || (known.deepScanned && !pendingInner))) continue;
           const outcome = await testTarget(page, target, folder);
           if (outcome === 'gap') { console.log(JSON.stringify({ event: 'needs-fix', level, folder, label: target.label })); return; }

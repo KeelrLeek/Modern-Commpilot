@@ -52,7 +52,8 @@
 </head>
 <body>
 <main>
-  <header><div><h1>CommPilot PJAX coverage</h1><p>Live sandbox route checks · headless Edge · 0.3.7 development build</p></div><p id="updated"></p></header>
+  <header><div><h1>CommPilot PJAX coverage</h1><p>Live sandbox route checks · headless Edge · 0.3.8 development build</p></div><p id="updated"></p></header>
+  <div class="scope" id="file-notice" style="display:none" role="status"><b>This file view cannot load the live tally.</b><small><a href="http://127.0.0.1:8766/pjax-route-audit.html">Open the live dashboard</a> to see the numbers update as routes are checked.</small></div>
   <div class="scope" role="status"><b id="scope-summary">Sitewide routes left to check: unknown</b><small id="inventory">Scanning top-level folders and account submenus. Counts below cover only routes discovered so far.</small></div>
   <section class="metrics" aria-label="Route tally">
     <div class="metric"><strong id="discovered">—</strong><span>Discovered routes</span></div>
@@ -80,10 +81,20 @@
   </section>
   <div class="progress depth-progress" role="img" id="controls-progress" aria-label="Menu pages checked for other navigation controls"></div>
   <p class="progress-label" id="controls-progress-label"></p>
+  <h2>Inside discovered subpages</h2>
+  <section class="metrics" aria-label="Subpage control scan tally">
+    <div class="metric pass"><strong id="subpages-scanned">—</strong><span>Subpages checked for further controls</span></div>
+    <div class="metric pending"><strong id="subpages-remaining">—</strong><span>Subpages awaiting this scan</span></div>
+    <div class="metric"><strong id="subpages-found">—</strong><span>Further routes found</span></div>
+    <div class="metric"><strong id="subpages-total">—</strong><span>Discovered subpages to inspect</span></div>
+  </section>
+  <div class="progress depth-progress" role="img" id="subpages-progress" aria-label="Discovered subpages checked for further navigation controls"></div>
+  <p class="progress-label" id="subpages-progress-label"></p>
   <nav class="filters" aria-label="Filter routes">
     <button type="button" data-filter="all" aria-pressed="true">All</button>
     <button type="button" data-filter="unscanned" aria-pressed="false">Row/Edit next</button>
     <button type="button" data-filter="controls" aria-pressed="false">Controls next</button>
+    <button type="button" data-filter="subpages" aria-pressed="false">Subpages next</button>
     <button type="button" data-filter="pending" aria-pressed="false">Check next</button>
     <button type="button" data-filter="needs" aria-pressed="false">Needs PJAX</button>
     <button type="button" data-filter="pass" aria-pressed="false">Passed</button>
@@ -117,13 +128,23 @@
     document.getElementById('folders-scanned').textContent = folders.length;
     const controlsScanned = menuRoutes.filter(route => route.controlScanned).length;
     const controlsRemaining = menuRoutes.length - controlsScanned;
+    const subpageRoutes = routes.filter(route => ['nested', 'action', 'descendant'].includes(route.kind) &&
+      !/^\/commpilot\/Common\/(?:sort|page|find|findAll)\.jsp$/.test(route.path));
+    const subpagesScanned = subpageRoutes.filter(route => route.controlScanned).length;
+    const subpagesRemaining = subpageRoutes.length - subpagesScanned;
     document.getElementById('controls-scanned').textContent = controlsScanned;
     document.getElementById('controls-remaining').textContent = controlsRemaining;
     document.getElementById('controls-found').textContent = routes.filter(route => route.kind === 'action').length;
     document.getElementById('sidebar-verified').textContent = `${(data.inventory?.sidebarVerifiedLevels || []).length}/7`;
     document.getElementById('controls-progress').innerHTML = `<span class="pass" style="width:${menuRoutes.length ? (100 * controlsScanned / menuRoutes.length).toFixed(2) : 0}%"></span><span class="pending" style="width:${menuRoutes.length ? (100 * controlsRemaining / menuRoutes.length).toFixed(2) : 0}%"></span>`;
     document.getElementById('controls-progress-label').textContent = `${controlsScanned} of ${menuRoutes.length} menu pages checked for other navigation controls`;
-    document.getElementById('scope-summary').textContent = `${deepRemaining + controlsRemaining} known page scans remain · total sitewide routes unknown`;
+    document.getElementById('subpages-scanned').textContent = subpagesScanned;
+    document.getElementById('subpages-remaining').textContent = subpagesRemaining;
+    document.getElementById('subpages-found').textContent = routes.filter(route => route.kind === 'descendant').length;
+    document.getElementById('subpages-total').textContent = subpageRoutes.length;
+    document.getElementById('subpages-progress').innerHTML = `<span class="pass" style="width:${subpageRoutes.length ? (100 * subpagesScanned / subpageRoutes.length).toFixed(2) : 0}%"></span><span class="pending" style="width:${subpageRoutes.length ? (100 * subpagesRemaining / subpageRoutes.length).toFixed(2) : 0}%"></span>`;
+    document.getElementById('subpages-progress-label').textContent = `${subpagesScanned} of ${subpageRoutes.length} discovered subpages checked for further navigation controls`;
+    document.getElementById('scope-summary').textContent = `${deepRemaining + controlsRemaining + subpagesRemaining} known page scans remain · total sitewide routes unknown`;
     document.getElementById('depth-progress').innerHTML = `<span class="pass" style="width:${menuRoutes.length ? (100 * deepScanned / menuRoutes.length).toFixed(2) : 0}%"></span><span class="pending" style="width:${menuRoutes.length ? (100 * deepRemaining / menuRoutes.length).toFixed(2) : 0}%"></span>`;
     document.getElementById('depth-progress-label').textContent = `${deepScanned} of ${menuRoutes.length} menu pages checked for row and Edit links`;
     const byLevel = [...new Set(folders.map(item => item.level))].map(level => `${level}: ${folders.filter(item => item.level === level).length} folders`).join(' · ');
@@ -133,11 +154,12 @@
     document.getElementById('progress-label').textContent = `${passed} of ${routes.length} discovered routes verified · site inventory still in progress`;
     const visible = routes.filter(route => state.filter === 'all' ||
       (state.filter === 'unscanned' ? isMenuRoute(route) && !route.deepScanned :
-        state.filter === 'controls' ? isMenuRoute(route) && !route.controlScanned : route.status === state.filter));
+        state.filter === 'controls' ? isMenuRoute(route) && !route.controlScanned :
+          state.filter === 'subpages' ? subpageRoutes.includes(route) && !route.controlScanned : route.status === state.filter));
     const areas = [...new Set(visible.map(route => route.area))];
     document.getElementById('groups').innerHTML = areas.length ? areas.map(area => {
       const subset = visible.filter(route => route.area === area);
-      return `<section class="group"><div class="group-title"><h2>${escapeHtml(area)}</h2><span>${subset.length} route${subset.length === 1 ? '' : 's'}</span></div><div class="routes">${subset.map(route => `<div class="route" data-status="${route.status}"><span class="dot" aria-hidden="true"></span><div><b>${escapeHtml(route.label)}</b>${isMenuRoute(route) && !route.deepScanned ? '<span class="scan-note">Row/Edit scan next</span>' : ''}${isMenuRoute(route) && !route.controlScanned ? '<span class="scan-note">Control scan next</span>' : ''}<code>${escapeHtml(route.path)}</code></div><span class="tag">${statusNames[route.status]}</span></div>`).join('')}</div></section>`;
+      return `<section class="group"><div class="group-title"><h2>${escapeHtml(area)}</h2><span>${subset.length} route${subset.length === 1 ? '' : 's'}</span></div><div class="routes">${subset.map(route => `<div class="route" data-status="${route.status}"><span class="dot" aria-hidden="true"></span><div><b>${escapeHtml(route.label)}</b>${isMenuRoute(route) && !route.deepScanned ? '<span class="scan-note">Row/Edit scan next</span>' : ''}${isMenuRoute(route) && !route.controlScanned ? '<span class="scan-note">Control scan next</span>' : ''}${subpageRoutes.includes(route) && !route.controlScanned ? '<span class="scan-note">Subpage scan next</span>' : ''}<code>${escapeHtml(route.path)}</code></div><span class="tag">${statusNames[route.status]}</span></div>`).join('')}</div></section>`;
     }).join('') : '<p class="empty">No routes in this status yet.</p>';
     document.getElementById('flows').innerHTML = (data.flows || []).map(flow => `<span class="flow" data-status="${escapeHtml(flow.status || 'pending')}">${escapeHtml(flow.label)}</span>`).join('');
   }
@@ -149,6 +171,7 @@
       if (signature !== state.signature) { state.signature = signature; render(data); }
     } catch { document.getElementById('updated').textContent = 'Audit data unavailable'; }
   }
+  if (location.protocol === 'file:') document.getElementById('file-notice').style.display = 'block';
   document.querySelectorAll('[data-filter]').forEach(button => button.addEventListener('click', () => {
     state.filter = button.dataset.filter;
     document.querySelectorAll('[data-filter]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));

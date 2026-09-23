@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-23 21:00",
+  "updated": "2026-09-23 21:33",
   "note": "Live sandbox scan. Totals are for discovered routes so far, not the entire CommPilot site.",
   "inventory": {
     "complete": false,
@@ -311,6 +311,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:19:09.141Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -343,12 +349,25 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:30:00.387Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:30:52.443Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
       "detail": "HTTP 200",
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "group-schedules",
@@ -383,6 +402,30 @@
         },
         {
           "at": "2026-09-23T20:44:08.497Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:10:23.272Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:10:56.457Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:18:54.205Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:14.161Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -440,11 +483,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:26.520Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "reseller-enterprises",
@@ -594,12 +644,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:27.670Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "reseller-activation",
@@ -718,12 +775,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:13.983Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-21",
@@ -816,12 +880,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:15.022Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-23",
@@ -878,12 +949,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:17.023Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-25",
@@ -1033,12 +1111,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:18.126Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-30",
@@ -1064,12 +1149,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:19.194Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-31",
@@ -1101,12 +1193,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:20.703Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-32",
@@ -1411,12 +1510,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:12.528Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-42",
@@ -1504,12 +1610,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:14.806Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-45",
@@ -1597,12 +1710,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:17.258Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-48",
@@ -1628,12 +1748,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:19.327Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-49",
@@ -1659,12 +1786,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:21.416Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-50",
@@ -1783,12 +1917,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:23.570Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-54",
@@ -1969,12 +2110,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:27.090Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-60",
@@ -2124,12 +2272,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:29.257Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-65",
@@ -2161,12 +2316,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:31.414Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-66",
@@ -2409,12 +2571,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:34.124Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-74",
@@ -2564,12 +2733,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:36.859Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-79",
@@ -2595,12 +2771,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:38.970Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-80",
@@ -2911,12 +3094,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:42.193Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-90",
@@ -3159,6 +3349,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:14.306Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -3187,6 +3383,12 @@
         },
         {
           "at": "2026-09-23T20:35:58.944Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:16.238Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -3500,6 +3702,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:18.304Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -3596,6 +3804,12 @@
         },
         {
           "at": "2026-09-23T20:36:16.838Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:19.277Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -3754,6 +3968,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:20.278Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -3878,6 +4098,48 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:21.403Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:45.182Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:15:10.247Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:17:32.328Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:17:56.446Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:18:19.653Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:25:43.804Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -3906,6 +4168,12 @@
         },
         {
           "at": "2026-09-23T20:36:35.574Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:01.403Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -3940,6 +4208,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:02.383Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -3954,12 +4228,6 @@
       "path": "/commpilot/Group/Auto_Attendant/",
       "status": "pass",
       "attempts": [
-        {
-          "at": "2026-09-23T19:49:44.929Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
         {
           "at": "2026-09-23T19:54:00.546Z",
           "status": "pass",
@@ -4001,6 +4269,36 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:11:17.108Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:11:50.074Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:12:08.511Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:12:26.690Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:04.985Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -4032,6 +4330,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:03.677Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -4060,6 +4364,12 @@
         },
         {
           "at": "2026-09-23T20:36:51.291Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:04.679Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -4125,6 +4435,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:05.669Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -4187,6 +4503,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:09.113Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -4215,6 +4537,12 @@
         },
         {
           "at": "2026-09-23T20:37:03.175Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:13.817Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -4311,6 +4639,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:16.167Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -4370,6 +4704,12 @@
         },
         {
           "at": "2026-09-23T20:37:12.205Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:19.796Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -4435,6 +4775,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:23.261Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -4497,6 +4843,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:26.739Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -4534,6 +4886,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:28.803Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -4565,6 +4923,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:32.920Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -4593,6 +4957,12 @@
         },
         {
           "at": "2026-09-23T20:37:53.948Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:35.106Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -4658,6 +5028,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:37.075Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -4689,6 +5065,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:38.944Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -4717,6 +5099,12 @@
         },
         {
           "at": "2026-09-23T20:38:04.106Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:40.925Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -4813,6 +5201,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:42.753Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -4844,6 +5238,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:44.871Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -4872,6 +5272,12 @@
         },
         {
           "at": "2026-09-23T20:38:17.291Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:45.784Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -4937,6 +5343,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:46.803Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -4999,6 +5411,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:49.847Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -5033,6 +5451,12 @@
         },
         {
           "at": "2026-09-23T20:42:05.306Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:51.863Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -5098,6 +5522,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:59.758Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -5126,6 +5556,12 @@
         },
         {
           "at": "2026-09-23T20:39:00.420Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:01.128Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -5188,6 +5624,12 @@
         },
         {
           "at": "2026-09-23T20:39:04.178Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:02.956Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -5382,6 +5824,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:03.927Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -5444,6 +5892,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:05.135Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -5472,6 +5926,12 @@
         },
         {
           "at": "2026-09-23T20:42:07.571Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:05.977Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -5723,6 +6183,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:07.272Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -5791,6 +6257,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:08.404Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -5819,6 +6291,12 @@
         },
         {
           "at": "2026-09-23T20:42:37.804Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:10.893Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -6023,12 +6501,6 @@
       "status": "pass",
       "attempts": [
         {
-          "at": "2026-09-23T20:14:35.114Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
           "at": "2026-09-23T20:15:07.850Z",
           "status": "pass",
           "httpStatus": 200,
@@ -6090,6 +6562,12 @@
         },
         {
           "at": "2026-09-23T20:45:48.490Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:11.853Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -6837,6 +7315,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:10.242Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -6896,6 +7380,12 @@
         },
         {
           "at": "2026-09-23T20:49:55.734Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:12.366Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -6961,6 +7451,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:14.478Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -6989,6 +7485,12 @@
         },
         {
           "at": "2026-09-23T20:49:58.881Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:16.622Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -7023,6 +7525,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:18.731Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -7051,6 +7559,12 @@
         },
         {
           "at": "2026-09-23T20:50:00.480Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:21.268Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -7085,6 +7599,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:23.313Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -7113,6 +7633,12 @@
         },
         {
           "at": "2026-09-23T20:50:02.127Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:25.407Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -7147,6 +7673,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:27.553Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -7175,6 +7707,12 @@
         },
         {
           "at": "2026-09-23T20:50:04.268Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:29.605Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -7519,6 +8057,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:32.169Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -7584,6 +8128,12 @@
         },
         {
           "at": "2026-09-23T21:00:00.133Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:35.462Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -8182,6 +8732,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:41.540Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -8210,6 +8766,12 @@
         },
         {
           "at": "2026-09-23T20:51:02.429Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:45.843Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -8668,6 +9230,12 @@
         },
         {
           "at": "2026-09-23T21:00:28.473Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:48.189Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -9167,6 +9735,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:53.292Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -9195,6 +9769,12 @@
         },
         {
           "at": "2026-09-23T20:52:45.546Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:55.824Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -10004,12 +10584,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:50.037Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-313",
@@ -10128,12 +10715,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:52.251Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-317",
@@ -10165,12 +10759,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:54.424Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-318",
@@ -10289,12 +10890,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:04.970Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-322",
@@ -10351,12 +10959,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:07.119Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
       "flakyHistory": false,
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-324",
@@ -10444,6 +11059,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:19:13.035Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -10472,6 +11093,12 @@
         },
         {
           "at": "2026-09-23T20:42:47.553Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:19:16.998Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -10509,6 +11136,36 @@
         },
         {
           "at": "2026-09-23T20:42:48.391Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:19:20.844Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:23:34.106Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:23:56.434Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:24:20.282Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:24:46.195Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -10636,6 +11293,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:19:47.962Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -10664,6 +11327,12 @@
         },
         {
           "at": "2026-09-23T20:42:51.655Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:19:51.637Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -10766,6 +11435,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:19:55.361Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:25:02.870Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -10794,6 +11475,12 @@
         },
         {
           "at": "2026-09-23T20:43:15.898Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:20:19.225Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -10878,12 +11565,25 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:31:19.009Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:02.599Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
       "detail": "HTTP 200",
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-341",
@@ -10934,12 +11634,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:03.501Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
       "detail": "HTTP 200",
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-343",
@@ -11209,12 +11916,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:04.952Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
       "detail": "HTTP 200",
       "deepScanned": true,
-      "controlScanned": true
+      "controlScanned": true,
+      "backPending": false
     },
     {
       "id": "discovered-354",
@@ -12065,6 +12779,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:23.051Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -12093,6 +12813,12 @@
         },
         {
           "at": "2026-09-23T20:54:33.520Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:23.872Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -12158,6 +12884,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:24.719Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -12186,6 +12918,12 @@
         },
         {
           "at": "2026-09-23T20:54:58.040Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:25.531Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -12220,6 +12958,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:26.738Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -12251,6 +12995,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:27.534Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -12279,6 +13029,12 @@
         },
         {
           "at": "2026-09-23T20:55:02.401Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:28.373Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -12688,6 +13444,12 @@
         },
         {
           "at": "2026-09-23T20:55:14.812Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:30.785Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -13377,6 +14139,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:44.304Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -13399,6 +14167,12 @@
         },
         {
           "at": "2026-09-23T20:56:04.082Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:45.781Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -13452,6 +14226,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:47.276Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -13474,6 +14254,12 @@
         },
         {
           "at": "2026-09-23T20:56:07.835Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:48.813Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -13502,6 +14288,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:50.422Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -13524,6 +14316,12 @@
         },
         {
           "at": "2026-09-23T20:56:10.629Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:52.011Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -14242,6 +15040,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:54.832Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -14621,6 +15425,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:11.580Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -14680,6 +15490,12 @@
         },
         {
           "at": "2026-09-23T20:54:17.666Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:13.052Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -14934,6 +15750,12 @@
         },
         {
           "at": "2026-09-23T20:55:26.977Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:31.980Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -15286,6 +16108,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:57.006Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -15632,8 +16460,34 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:11:17.177Z",
+          "status": "pending",
+          "httpStatus": 302,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:11:50.358Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:12:08.755Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:05.235Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 4
     },
     {
       "id": "discovered-496",
@@ -15650,8 +16504,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:17.564Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-497",
@@ -15668,8 +16530,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:18.559Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-498",
@@ -15686,8 +16556,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:20.495Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-499",
@@ -15704,8 +16582,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:05.923Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 4
     },
     {
       "id": "discovered-500",
@@ -15722,8 +16608,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:10.468Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-501",
@@ -15740,8 +16634,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:16.977Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-502",
@@ -15758,8 +16660,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:52.109Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 7
     },
     {
       "id": "discovered-503",
@@ -15776,8 +16686,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:00.013Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-504",
@@ -15794,8 +16712,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:09.461Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-505",
@@ -15807,12 +16733,6 @@
       "status": "pass",
       "detail": "HTTP 200; auto-followed to /commpilot/Group/DefaultConfig/Nested/Files/",
       "attempts": [
-        {
-          "at": "2026-09-23T20:12:17.739Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
         {
           "at": "2026-09-23T20:12:36.050Z",
           "status": "pass",
@@ -15878,8 +16798,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:12.322Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 3
     },
     {
       "id": "discovered-506",
@@ -15912,8 +16840,46 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:19:21.473Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:23:34.750Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:23:57.060Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:24:20.911Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:24:46.819Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:24:49.408Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-508",
@@ -15930,8 +16896,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:18.389Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-509",
@@ -15948,8 +16923,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:21.012Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 5
     },
     {
       "id": "discovered-510",
@@ -15966,8 +16950,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:28.033Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-511",
@@ -15984,8 +16977,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:24.135Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-512",
@@ -16002,8 +17004,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:27.583Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-513",
@@ -16020,8 +17031,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:44.398Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 3
     },
     {
       "id": "discovered-514",
@@ -16048,8 +17068,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:56.029Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 3
     },
     {
       "id": "discovered-516",
@@ -16066,8 +17095,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:53.801Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-517",
@@ -16085,8 +17122,22 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:10:23.846Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:18:54.406Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-518",
@@ -16104,8 +17155,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:14.423Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-519",
@@ -16123,8 +17182,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:15.543Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-520",
@@ -16142,8 +17209,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:19.578Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 3
     },
     {
       "id": "discovered-521",
@@ -16161,8 +17236,52 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:21.668Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:45.862Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:15:10.887Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:17:32.981Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:17:57.110Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:18:20.306Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:25:44.032Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 3
     },
     {
       "id": "discovered-522",
@@ -16180,8 +17299,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:01.638Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 3
     },
     {
       "id": "discovered-523",
@@ -16199,8 +17326,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:02.623Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-524",
@@ -16218,8 +17353,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:12:26.957Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-525",
@@ -16237,8 +17380,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:03.922Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-526",
@@ -16256,8 +17407,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:04.916Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-527",
@@ -16275,8 +17434,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:08.372Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-528",
@@ -16294,8 +17461,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:11.849Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-529",
@@ -16313,8 +17488,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:15.362Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-530",
@@ -16332,8 +17515,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:21.305Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-531",
@@ -16351,8 +17542,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:24.729Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-532",
@@ -16370,8 +17569,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:28.110Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-533",
@@ -16395,8 +17602,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:29.106Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 4
     },
     {
       "id": "discovered-534",
@@ -16414,8 +17629,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:30.931Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 3
     },
     {
       "id": "discovered-535",
@@ -16433,8 +17656,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:34.411Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-536",
@@ -16452,8 +17683,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:36.301Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-537",
@@ -16471,8 +17710,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:37.357Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-538",
@@ -16490,8 +17737,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:40.199Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-539",
@@ -16509,8 +17764,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:41.103Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-540",
@@ -16528,8 +17791,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:44.095Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-541",
@@ -16547,8 +17818,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:45.133Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-542",
@@ -16566,8 +17845,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:46.089Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-543",
@@ -16585,8 +17872,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:47.971Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-544",
@@ -16604,8 +17899,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:50.955Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-545",
@@ -16623,8 +17926,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:55.914Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-546",
@@ -16642,8 +17953,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:56.358Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 3
     },
     {
       "id": "discovered-547",
@@ -16661,8 +17980,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:59.019Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-548",
@@ -16680,8 +18007,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:00.402Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-549",
@@ -16699,8 +18034,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:02.235Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-550",
@@ -16718,8 +18061,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:03.159Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-551",
@@ -16737,8 +18088,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:57.730Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-552",
@@ -16756,8 +18115,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:26:58.221Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-553",
@@ -16801,8 +18168,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:04.262Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-555",
@@ -16820,8 +18195,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:05.332Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-556",
@@ -16839,8 +18222,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:06.168Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-557",
@@ -16858,8 +18249,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:07.574Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-558",
@@ -16877,8 +18276,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:09.852Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-559",
@@ -16902,8 +18309,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:10.227Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-560",
@@ -16921,8 +18336,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:11.141Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-561",
@@ -16940,8 +18363,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:27:13.202Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-562",
@@ -16959,8 +18390,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:19:10.940Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-563",
@@ -16978,8 +18417,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:19:14.905Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-564",
@@ -16997,8 +18444,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:19:18.830Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-565",
@@ -17016,8 +18471,40 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:19:23.946Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:23:35.935Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:23:58.203Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:24:22.068Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:24:48.159Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-566",
@@ -17035,8 +18522,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:19:49.686Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-567",
@@ -17054,8 +18549,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:19:53.336Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-568",
@@ -17073,8 +18576,22 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:19:55.983Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:25:03.109Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-569",
@@ -17098,8 +18615,22 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:19:57.179Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:25:03.488Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-570",
@@ -17117,8 +18648,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:20:19.920Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 4
     },
     {
       "id": "discovered-571",
@@ -17136,8 +18675,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:14.209Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-572",
@@ -17161,8 +18709,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:15.760Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-573",
@@ -17180,8 +18737,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:16.166Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-574",
@@ -17199,8 +18765,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:17.240Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-575",
@@ -17218,8 +18793,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:19.421Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-576",
@@ -17237,8 +18821,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:19.839Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-577",
@@ -17262,8 +18855,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:24.366Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-578",
@@ -17281,8 +18883,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:24.847Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-579",
@@ -17300,8 +18911,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:26.855Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-580",
@@ -17319,8 +18939,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:28.575Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-581",
@@ -17338,8 +18967,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:13.097Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-582",
@@ -17357,8 +18995,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:15.515Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-583",
@@ -17376,8 +19023,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:17.729Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-584",
@@ -17395,8 +19051,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:19.804Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-585",
@@ -17414,8 +19079,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:21.896Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-586",
@@ -17433,8 +19107,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:25.419Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-587",
@@ -17452,8 +19135,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:29.784Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 3
     },
     {
       "id": "discovered-588",
@@ -17477,8 +19169,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:31.944Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-589",
@@ -17496,8 +19197,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:34.672Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-590",
@@ -17515,8 +19225,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:37.339Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-591",
@@ -17534,8 +19253,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:39.487Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-592",
@@ -17553,8 +19281,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:47.867Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-593",
@@ -17572,8 +19309,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:50.643Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-594",
@@ -17591,8 +19337,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:52.770Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-595",
@@ -17610,8 +19365,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:02.229Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-596",
@@ -17629,8 +19393,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:03.264Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-597",
@@ -17648,8 +19421,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:05.467Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-598",
@@ -17667,8 +19449,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:33:07.685Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 4
     },
     {
       "id": "discovered-599",
@@ -17686,8 +19477,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:10.766Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-600",
@@ -17705,8 +19504,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:12.872Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-601",
@@ -17724,8 +19531,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:15.005Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-602",
@@ -17743,8 +19558,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:17.130Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-603",
@@ -17762,8 +19585,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:19.263Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-604",
@@ -17781,8 +19612,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:21.763Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-605",
@@ -17800,8 +19639,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:23.818Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-606",
@@ -17819,8 +19666,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:25.971Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-607",
@@ -17838,8 +19693,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:28.056Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-608",
@@ -17857,8 +19720,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:30.114Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-609",
@@ -17876,8 +19747,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:32.643Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-610",
@@ -17895,8 +19774,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:37.151Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-611",
@@ -17920,8 +19807,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:39.390Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-612",
@@ -17945,8 +19840,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:42.003Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-613",
@@ -17964,8 +19867,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:44.216Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-614",
@@ -17983,8 +19894,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:46.373Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-615",
@@ -18008,8 +19927,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:49.767Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-616",
@@ -18027,8 +19954,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:50.747Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-617",
@@ -18046,8 +19981,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:29:56.295Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-618",
@@ -18065,8 +20008,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:30:01.157Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 1
     },
     {
       "id": "discovered-619",
@@ -18084,8 +20035,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:02.808Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-620",
@@ -18103,8 +20063,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:03.708Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-621",
@@ -18122,8 +20091,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:04.131Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-622",
@@ -18141,8 +20119,17 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:32:05.149Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "backPending": false,
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-623",
@@ -18160,8 +20147,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:11.941Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-624",
@@ -18179,8 +20174,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:13.555Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-625",
@@ -18198,8 +20201,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:23.248Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-626",
@@ -18217,8 +20228,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:24.080Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-627",
@@ -18236,8 +20255,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:24.902Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-628",
@@ -18255,8 +20282,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:26.097Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-629",
@@ -18274,8 +20309,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:26.916Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-630",
@@ -18293,8 +20336,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:27.729Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-631",
@@ -18312,8 +20363,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:29.582Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-632",
@@ -18331,8 +20390,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:30.974Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-633",
@@ -18350,8 +20417,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:32.158Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-634",
@@ -18369,8 +20444,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:44.710Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-635",
@@ -18388,8 +20471,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:46.158Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-636",
@@ -18407,8 +20498,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:47.648Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-637",
@@ -18426,8 +20525,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:49.209Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-638",
@@ -18445,8 +20552,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:50.857Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-639",
@@ -18464,8 +20579,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:52.396Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
     },
     {
       "id": "discovered-640",
@@ -18483,8 +20606,16 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:55.157Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     },
     {
       "id": "discovered-641",
@@ -18502,8 +20633,941 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:28:57.327Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
-      ]
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-642",
+      "kind": "descendant",
+      "area": "Group / Services",
+      "label": "Auto Attendant › Row detail › Profile",
+      "path": "/commpilot/Group/Auto_Attendant/Modify/index.jsp",
+      "sourcePath": "/commpilot/Group/Auto_Attendant/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:11:50.632Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-643",
+      "kind": "descendant",
+      "area": "Group / Services",
+      "label": "Auto Attendant › Row detail › Announcement Repository",
+      "path": "/commpilot/User/AnnouncementRepository/Audio/",
+      "sourcePath": "/commpilot/Group/Auto_Attendant/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:11:50.887Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:05.439Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
+    },
+    {
+      "id": "discovered-644",
+      "kind": "descendant",
+      "area": "Group / Services",
+      "label": "Auto Attendant › Row detail › Assign Services",
+      "path": "/commpilot/User/Services/",
+      "sourcePath": "/commpilot/Group/Auto_Attendant/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:12:08.957Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
+    },
+    {
+      "id": "discovered-645",
+      "kind": "descendant",
+      "area": "Group / Services",
+      "label": "Auto Attendant › Row detail › Assign Xsi Policy Profile",
+      "path": "/commpilot/User/AssignXsiPolicyProfile/",
+      "sourcePath": "/commpilot/Group/Auto_Attendant/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:12:09.208Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-646",
+      "kind": "descendant",
+      "area": "Group / Services",
+      "label": "Auto Attendant › Row detail › Announcement Repository › Add",
+      "path": "/commpilot/User/AnnouncementRepository/Add/index.jsp",
+      "sourcePath": "/commpilot/User/AnnouncementRepository/Audio/",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:11:51.053Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:05.620Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-647",
+      "kind": "descendant",
+      "area": "Group / Resources",
+      "label": "Existing User Services › View Users › Row detail",
+      "path": "/commpilot/Group/ExistingUserServices/User/index.jsp",
+      "sourcePath": "/commpilot/Group/ExistingUserServices/Nested/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:14:22.653Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:14:46.608Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:15:11.688Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:17:33.730Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:17:57.856Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:18:21.029Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:25:44.344Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 7
+    },
+    {
+      "id": "discovered-648",
+      "kind": "descendant",
+      "area": "Group / Resources",
+      "label": "Existing User Services › View Users › Row detail › Profile",
+      "path": "/commpilot/User/Profile/",
+      "sourcePath": "/commpilot/Group/ExistingUserServices/User/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:14:23.097Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-649",
+      "kind": "descendant",
+      "area": "Group / Resources",
+      "label": "Existing User Services › View Users › Row detail › Announcement Repository",
+      "path": "/commpilot/User/AnnouncementRepository/Audio/",
+      "sourcePath": "/commpilot/Group/ExistingUserServices/User/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:14:23.384Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
+    },
+    {
+      "id": "discovered-650",
+      "kind": "descendant",
+      "area": "Group / Resources",
+      "label": "Existing User Services › View Users › Row detail › Schedules",
+      "path": "/commpilot/User/Schedules/",
+      "sourcePath": "/commpilot/Group/ExistingUserServices/User/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:14:47.148Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:15:12.237Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:17:34.233Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:17:58.381Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:18:21.548Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T21:25:44.536Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 3
+    },
+    {
+      "id": "discovered-651",
+      "kind": "descendant",
+      "area": "Group / Resources",
+      "label": "Existing User Services › View Users › Row detail › Assign Services",
+      "path": "/commpilot/User/Services/",
+      "sourcePath": "/commpilot/Group/ExistingUserServices/User/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:14:48.699Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 4
+    },
+    {
+      "id": "discovered-652",
+      "kind": "descendant",
+      "area": "Group / Resources",
+      "label": "Existing User Services › View Users › Row detail › Assign Call Centers",
+      "path": "/commpilot/User/AssignCallCenters/",
+      "sourcePath": "/commpilot/Group/ExistingUserServices/User/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:15:12.926Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
+    },
+    {
+      "id": "discovered-653",
+      "kind": "descendant",
+      "area": "Group / Resources",
+      "label": "Existing User Services › View Users › Row detail › Assign Route Point Supervisors",
+      "path": "/commpilot/User/AgentSupervisors/",
+      "sourcePath": "/commpilot/Group/ExistingUserServices/User/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:17:34.963Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
+    },
+    {
+      "id": "discovered-654",
+      "kind": "descendant",
+      "area": "Group / Resources",
+      "label": "Existing User Services › View Users › Row detail › Assign Xsi Policy Profile",
+      "path": "/commpilot/User/AssignXsiPolicyProfile/",
+      "sourcePath": "/commpilot/Group/ExistingUserServices/User/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:17:59.048Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-655",
+      "kind": "descendant",
+      "area": "Group / Resources",
+      "label": "Existing User Services › View Users › Row detail › Announcement Repository › Add",
+      "path": "/commpilot/User/AnnouncementRepository/Add/index.jsp",
+      "sourcePath": "/commpilot/User/AnnouncementRepository/Audio/",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:14:23.569Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-656",
+      "kind": "descendant",
+      "area": "Group / Resources",
+      "label": "Existing User Services › View Users › Row detail › Schedules › Add",
+      "path": "/commpilot/User/Schedules/Add/index.jsp",
+      "sourcePath": "/commpilot/User/Schedules/",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:14:47.619Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-657",
+      "kind": "descendant",
+      "area": "Group / Resources",
+      "label": "Existing User Services › View Users › Row detail › Schedules › Schedule Name",
+      "path": "/commpilot/Common/sort.jsp",
+      "sourcePath": "/commpilot/User/Schedules/",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200; canonicalized to /commpilot/User/Schedules/",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:25:44.731Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-658",
+      "kind": "descendant",
+      "area": "Group / Services",
+      "label": "Hunt Group › Row detail › Profile",
+      "path": "/commpilot/Group/Hunt_Group/Modify/index.jsp",
+      "sourcePath": "/commpilot/Group/Hunt_Group/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:26:06.211Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
+    },
+    {
+      "id": "discovered-659",
+      "kind": "descendant",
+      "area": "Group / Services",
+      "label": "Hunt Group › Row detail › Announcement Repository",
+      "path": "/commpilot/User/AnnouncementRepository/Audio/",
+      "sourcePath": "/commpilot/Group/Hunt_Group/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:26:06.734Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
+    },
+    {
+      "id": "discovered-660",
+      "kind": "descendant",
+      "area": "Group / Services",
+      "label": "Hunt Group › Row detail › Assign Services",
+      "path": "/commpilot/User/Services/",
+      "sourcePath": "/commpilot/Group/Hunt_Group/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:26:07.167Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
+    },
+    {
+      "id": "discovered-661",
+      "kind": "descendant",
+      "area": "Group / Services",
+      "label": "Hunt Group › Row detail › Assign Xsi Policy Profile",
+      "path": "/commpilot/User/AssignXsiPolicyProfile/",
+      "sourcePath": "/commpilot/Group/Hunt_Group/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:26:07.614Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-662",
+      "kind": "descendant",
+      "area": "Group / Services",
+      "label": "Voice Portal › Row detail › Profile",
+      "path": "/commpilot/Group/VoicePortal/Modify/index.jsp",
+      "sourcePath": "/commpilot/Group/VoicePortal/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:26:18.518Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-663",
+      "kind": "descendant",
+      "area": "Group / Services",
+      "label": "Voice Portal › Row detail › Assign Services",
+      "path": "/commpilot/User/Services/",
+      "sourcePath": "/commpilot/Group/VoicePortal/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:26:18.897Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
+    },
+    {
+      "id": "discovered-664",
+      "kind": "descendant",
+      "area": "Group / Call Center",
+      "label": "Call Centers › Row detail › Profile",
+      "path": "/commpilot/Group/Call_Center/AddModify/index.jsp",
+      "sourcePath": "/commpilot/Group/Call_Center/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:26:52.385Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-665",
+      "kind": "descendant",
+      "area": "Group / Call Center",
+      "label": "Call Centers › Row detail › Agents",
+      "path": "/commpilot/Group/Call_Center/Agents/",
+      "sourcePath": "/commpilot/Group/Call_Center/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:26:52.831Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
+    },
+    {
+      "id": "discovered-666",
+      "kind": "descendant",
+      "area": "Group / Call Center",
+      "label": "Call Centers › Row detail › Announcement Repository",
+      "path": "/commpilot/User/AnnouncementRepository/Audio/",
+      "sourcePath": "/commpilot/Group/Call_Center/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:26:53.220Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
+    },
+    {
+      "id": "discovered-667",
+      "kind": "descendant",
+      "area": "Group / Call Center",
+      "label": "Call Centers › Row detail › Supervisors",
+      "path": "/commpilot/Group/Call_Center/Supervisors/",
+      "sourcePath": "/commpilot/Group/Call_Center/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:26:54.027Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 3
+    },
+    {
+      "id": "discovered-668",
+      "kind": "descendant",
+      "area": "Group / Call Center",
+      "label": "Call Centers › Row detail › Announcements",
+      "path": "/commpilot/User/Announcements/Entrance/",
+      "sourcePath": "/commpilot/Group/Call_Center/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:26:54.445Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-669",
+      "kind": "descendant",
+      "area": "Group / Call Center",
+      "label": "Call Centers › Row detail › Assign Services",
+      "path": "/commpilot/User/Services/",
+      "sourcePath": "/commpilot/Group/Call_Center/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:26:54.840Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 2
+    },
+    {
+      "id": "discovered-670",
+      "kind": "descendant",
+      "area": "Group / Call Center",
+      "label": "Call Centers › Row detail › Assign Xsi Policy Profile",
+      "path": "/commpilot/User/AssignXsiPolicyProfile/",
+      "sourcePath": "/commpilot/Group/Call_Center/EditRedirect/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:26:55.222Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-671",
+      "kind": "descendant",
+      "area": "Group / Call Center",
+      "label": "Call Centers › Row detail › Announcement Repository › Add",
+      "path": "/commpilot/User/AnnouncementRepository/Add/index.jsp",
+      "sourcePath": "/commpilot/User/AnnouncementRepository/Audio/",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:26:53.414Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-672",
+      "kind": "descendant",
+      "area": "Group / Call Center",
+      "label": "Call Centers › Report Templates › Add",
+      "path": "/commpilot/Group/ReportTemplates/Add/index.jsp",
+      "sourcePath": "/commpilot/Group/ReportTemplates/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:26:57.062Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-673",
+      "kind": "descendant",
+      "area": "Group / Call Center",
+      "label": "Call Centers › Report Templates › Report Template Name",
+      "path": "/commpilot/Common/sort.jsp",
+      "sourcePath": "/commpilot/Group/ReportTemplates/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200; canonicalized to /commpilot/Group/ReportTemplates/",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:26:57.463Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 3
+    },
+    {
+      "id": "discovered-674",
+      "kind": "descendant",
+      "area": "Group / Utilities",
+      "label": "Device Configuration › Edit › Row detail",
+      "path": "/commpilot/Group/DefaultConfig/Nested/Files/Modify/index.jsp",
+      "sourcePath": "/commpilot/Group/DefaultConfig/Nested/Files/",
+      "method": "POST",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:27:12.516Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-675",
+      "kind": "descendant",
+      "area": "Service Provider / Utilities",
+      "label": "Device Configuration › Edit › Row detail",
+      "path": "/commpilot/ServiceProvider/DefaultConfig/Nested/Files/Modify/index.jsp",
+      "sourcePath": "/commpilot/ServiceProvider/DefaultConfig/Nested/Files/",
+      "method": "POST",
+      "status": "pass",
+      "backPending": false,
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:32:45.978Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-676",
+      "kind": "descendant",
+      "area": "Service Provider / Profile",
+      "label": "Schedules › Row detail › Add",
+      "path": "/commpilot/ServiceProvider/Schedules/Events/Add/index.jsp",
+      "sourcePath": "/commpilot/ServiceProvider/Schedules/Modify/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "backPending": false,
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:32:57.566Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-677",
+      "kind": "descendant",
+      "area": "Service Provider / Profile",
+      "label": "Schedules › Row detail › Event Name",
+      "path": "/commpilot/Common/sort.jsp",
+      "sourcePath": "/commpilot/ServiceProvider/Schedules/Modify/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "backPending": false,
+      "detail": "HTTP 200; canonicalized to /commpilot/ServiceProvider/Schedules/Modify/",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:32:58.609Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 3
+    },
+    {
+      "id": "discovered-678",
+      "kind": "descendant",
+      "area": "Service Provider / Profile",
+      "label": "Schedules › Row detail › Event Name › Add",
+      "path": "/commpilot/ServiceProvider/Schedules/Events/Add/index.jsp",
+      "sourcePath": "/commpilot/ServiceProvider/Schedules/Modify/",
+      "method": "POST",
+      "status": "pass",
+      "backPending": false,
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:32:59.140Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-679",
+      "kind": "descendant",
+      "area": "Service Provider / Profile",
+      "label": "Schedules › Row detail › Event Name › Event Name",
+      "path": "/commpilot/Common/sort.jsp",
+      "sourcePath": "/commpilot/ServiceProvider/Schedules/Modify/",
+      "method": "POST",
+      "status": "pass",
+      "backPending": false,
+      "detail": "HTTP 200; canonicalized to /commpilot/ServiceProvider/Schedules/Modify/",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:33:00.174Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-680",
+      "kind": "descendant",
+      "area": "Reseller / Resources",
+      "label": "Device Management Tag Sets › Edit › Row detail",
+      "path": "/commpilot/Operator/System/DeviceTags/Modify/TagSet/Modify/index.jsp",
+      "sourcePath": "/commpilot/Operator/System/DeviceTags/Modify/TagSet/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "backPending": false,
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:33:22.222Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
+    },
+    {
+      "id": "discovered-681",
+      "kind": "descendant",
+      "area": "Reseller / Resources",
+      "label": "Device Management Tag Sets › Edit › Add",
+      "path": "/commpilot/Operator/System/DeviceTags/Modify/TagSet/Add/index.jsp",
+      "sourcePath": "/commpilot/Operator/System/DeviceTags/Modify/TagSet/index.jsp",
+      "method": "POST",
+      "status": "pass",
+      "backPending": false,
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T21:33:23.696Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ],
+      "controlScanned": true,
+      "controlCandidates": 0
     }
   ],
   "flows": [
@@ -18597,6 +21661,18 @@
     },
     {
       "label": "Hunt Group Incoming Calls Back replay",
+      "status": "pass"
+    },
+    {
+      "label": "Group / Profile Schedules nested Back replay",
+      "status": "pass"
+    },
+    {
+      "label": "Group / Services Auto Attendant › Row detail nested Back replay",
+      "status": "pass"
+    },
+    {
+      "label": "Group / Resources Existing User Services › View Users › Row detail nested Back replay",
       "status": "pass"
     }
   ]
