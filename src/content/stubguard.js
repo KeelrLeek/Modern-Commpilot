@@ -1,4 +1,4 @@
-// Same-origin reload recovery + single-navigation login.
+// Same-origin reload recovery for the native CommPilot interface.
 //
 // Why this shape: the app is POST-only — any main-frame GET that reaches a
 // session-aware endpoint invalidates the session's token state (replaying
@@ -10,16 +10,7 @@
 // to /commpilot/Common/styles.css: a static same-origin file with no
 // session logic. Content scripts inject there; this script recognizes the
 // interstitial and re-POSTs the last meaningful navigation with the stored
-// formtokenserial (bridged from chrome.storage by cloak.js — tokens
-// harvested from real logged-in pages by skin.js).
-//
-// The login branch exists because the white "between documents" flash is
-// the browser's own canvas — unpaintable by page code — and it appears per
-// navigation. Native login burns THREE documents (login → auth stub →
-// home). Here the slow auth POST happens via fetch while the dark login
-// page stays on screen, and only the final fast hop is a real navigation.
-// Failed logins never navigate at all: the error renders inline on the
-// card and the fresh token from the response is swapped in for the retry.
+// formtokenserial (bridged from chrome.storage by recovery-bridge.js).
 //
 // NOTE: an earlier version also patched HTMLFormElement.prototype.submit
 // on ALL pages to hijack any redirect-stub whose target contained
@@ -29,7 +20,7 @@
 // correct behavior.
 //
 // Loop guard: "cp-stub-tries" in sessionStorage — two interstitial
-// recoveries without a contentful page load in between (skin.js resets the
+// recoveries without a contentful page load in between (recovery-bridge.js resets the
 // counter) means the session is really dead, and /Login/ proceeds normally.
 (function () {
   if (window !== window.top) return;
@@ -56,20 +47,13 @@
     try { return JSON.parse(sessionStorage.getItem("cp-last-nav") || "null"); } catch (e) { return null; }
   }
 
-  // Strip legacy inline styles from a FETCHED response before DOMParser/injection — they carry the server
-  // response's CSP nonce (≠ the live page's) so style-src blocks them anyway (they never apply). Removing them
-  // pre-parse silences the CSP-violation console noise with zero visual change. Mirrors pjax cpStripInlineStyles.
+  // Preserve CommPilot's own inline styling on fetched pages.
   function cpStripInlineStyles(html) {
-    try {
-      return String(html)
-        .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
-        .replace(/\sstyle\s*=\s*"[^"]*"/gi, "")
-        .replace(/\sstyle\s*=\s*'[^']*'/gi, "");
-    } catch (e) { return html; }
+    return String(html);
   }
 
-  // The actual native main-frame POST that commits the recovery (loads the recovered page so content scripts
-  // re-inject and the skin re-applies). Split out of replay() so we can pick the token AFTER an async harvest.
+  // The native main-frame POST that commits recovery. Split out of replay()
+  // so we can pick the token after an async harvest.
   function cpNativePost(nav, token) {
     var f = document.createElement("form");
     f.method = "POST";
@@ -198,275 +182,13 @@
     return { target: m[1].replace(/\\u002F/g, "/"), data: data, token: tEl ? tEl.value : null };
   }
 
-  // Dark splash — same look as cloak.js paints on incoming documents.
-  function splashUp() {
-    try { document.documentElement.classList.add("cp-stub-hold"); } catch (e) {}
-    if (document.getElementById("cp-cloak")) return;
-    var o = document.createElement("div");
-    o.id = "cp-cloak";
-    // Per-property CSSOM, not setAttribute("style") — the page CSP blocks inline style ATTRIBUTES but not
-    // CSSOM property writes, so the interstitial splash actually paints. See skin.js cpLoginSplash note.
-    o.style.position = "fixed"; o.style.inset = "0"; o.style.zIndex = "2147483647"; o.style.background = "#1c1b19";
-    o.style.display = "flex"; o.style.alignItems = "center"; o.style.justifyContent = "center";
-    o.style.font = "600 14px/1.4 'Nunito','Segoe UI',system-ui,sans-serif"; o.style.color = "#6b6862";
-    o.textContent = "CommPilot";
-    document.documentElement.appendChild(o);
-    if (o.animate) o.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: "ease-out" });
-  }
-  function splashDown() {
-    try { document.documentElement.classList.remove("cp-stub-hold"); } catch (e) {}
-    var o = document.getElementById("cp-cloak");
-    if (!o) return;
-    var drop = function () { try { o.remove(); } catch (e) {} };
-    if (o.animate) {
-      o.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: "ease-out" }).onfinish = drop;
-      setTimeout(drop, 400);
-    } else {
-      drop();
-    }
-  }
-
-  function showLoginError(doc) {
-    try {
-      var msg = "";
-      var el = doc.querySelector(".loginerror");
-      if (el && el.textContent.trim()) msg = el.textContent.trim();
-      if (!msg) {
-        var cand = Array.prototype.slice.call(doc.querySelectorAll("td,span,div,p,b,font")).find(function (e) {
-          return e.childElementCount === 0 && /not authorized|login again|session timeout|invalid|incorrect|failed|disabled|locked|expired|suspend/i.test(e.textContent || "");
-        });
-        if (cand) msg = cand.textContent.trim();
-      }
-      if (!msg) msg = "Sign-in failed. Please check your User ID and password and try again.";
-      // Insert into the form panel (split-panel login) — falling back to the card.
-      // .cp-login-field now lives inside .cp-login-form-panel, so inserting relative
-      // to it must use that panel as the parent (card.insertBefore threw silently).
-      var panel = document.querySelector(".cp-login-form-panel") || document.querySelector(".cp-login-card");
-      if (!panel) return;
-      var al = panel.querySelector(".cp-login-alert");
-      if (!al) {
-        al = document.createElement("div");
-        al.className = "cp-login-alert";
-        al.innerHTML = '<svg class="cp-login-alert-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg><span class="cp-login-alert-msg"></span>';
-        panel.insertBefore(al, panel.querySelector(".cp-login-field") || null);
-      }
-      (al.querySelector(".cp-login-alert-msg") || al).textContent = msg;
-    } catch (e) {}
-  }
-
-  // ---- Single-navigation login (/Login/ pages only) ----------------------
-  if (path.indexOf("/Login/") !== -1) {
-    // A recovery replay that just FAILED (its single-use token transiently rejected — most often right after an
-    // EXTENSION reload) can redirect here even though the session is still alive. A clean retry succeeds, so
-    // re-enter recovery ONCE before showing the login form. Bounded by cp-err-retries (reset on the next real app
-    // page); only fires when a replay happened in the last few seconds (cp-replay-at). /Login/ is DNR-allowed so
-    // reloading it wouldn't re-enter recovery — GET an app url instead (DNR-redirected → styles.css → recovery).
-    try {
-      var _rAt = parseInt(sessionStorage.getItem("cp-replay-at") || "0", 10) || 0;
-      var _rN = parseInt(sessionStorage.getItem("cp-err-retries") || "0", 10) || 0;
-      if (_rAt && (Date.now() - _rAt < 12000) && _rN < 1) {
-        sessionStorage.setItem("cp-err-retries", String(_rN + 1));
-        sessionStorage.setItem("cp-stub-tries", "0");
-        sessionStorage.removeItem("cp-replay-at");
-        location.replace("/commpilot/Common/folder_contents.jsp");
-        return;
-      }
-    } catch (e) {}
-    var armedLogin = true;
-
-    function cpLoginFollow(u, p, token, depth) {
-      var fb = new URLSearchParams();
-      for (var k in p) if (Object.prototype.hasOwnProperty.call(p, k)) fb.append(k, p[k]);
-      if (token) fb.append("formtokenserial", token);
-      return fetch(u, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: fb.toString(),
-        credentials: "same-origin"
-      })
-        .then(function (r) { return r.text(); })
-        .then(function (html) {
-          if (html.indexOf("Please login again") !== -1 || html.indexOf("not authorized to access the system") !== -1) return { auth: false };
-          var d = new DOMParser().parseFromString(cpStripInlineStyles(html), "text/html");
-          if (d.querySelector('td[width="82%"]')) return { doc: d };
-          var stub = extractStub(d);
-          if (stub && stub.target && depth < 4) {
-            if (stub.target.indexOf("/Login/") !== -1) return { fallback: true };
-            cpDbg("[stubguard] morph following stub ->", stub.target);
-            return cpLoginFollow(stub.target, stub.data, stub.token, depth + 1);
-          }
-          return { doc: d };
-        });
-    }
-
-    function morphIntoApp(stub) {
-      if (!window.__cpReexec || !window.__cpPjaxMorphed) {
-        console.warn("[stubguard] morph helpers missing — native fallback");
-        replay({ url: stub.target, params: stub.data }, stub.token);
-        return;
-      }
-      cpLoginFollow(stub.target, stub.data, stub.token, 0)
-        .then(function (res) {
-          if (!res || res.auth === false || res.fallback || !res.doc.querySelector('td[width="82%"]')) {
-            console.warn("[stubguard] morph follow failed — native fallback");
-            replay({ url: stub.target, params: stub.data }, stub.token);
-            return;
-          }
-          var doc = res.doc;
-          try { document.title = doc.title; } catch (e) {}
-          /* Merge stylesheets and styles from doc.head */
-          var liveHead = document.head || document.documentElement;
-          doc.head.querySelectorAll("link[rel=stylesheet], style").forEach(function (el) {
-            var key = el.tagName === "LINK" ? el.getAttribute("href") : (el.textContent || "").trim().slice(0, 200);
-            if (!key) return;
-            var exists = Array.prototype.some.call(liveHead.querySelectorAll("link[rel=stylesheet], style"), function (existing) {
-              if (el.tagName === "LINK" && existing.tagName === "LINK") return existing.getAttribute("href") === key;
-              if (el.tagName === "STYLE" && existing.tagName === "STYLE") return (existing.textContent || "").trim().slice(0, 200) === key;
-              return false;
-            });
-            if (!exists) liveHead.appendChild(el.cloneNode(true));
-          });
-          /* Replace body wholesale */
-          var liveBody = document.body;
-          for (var ai = liveBody.attributes.length - 1; ai >= 0; ai--) liveBody.removeAttribute(liveBody.attributes[ai].name);
-          for (var ai2 = 0; ai2 < doc.body.attributes.length; ai2++) liveBody.setAttribute(doc.body.attributes[ai2].name, doc.body.attributes[ai2].value);
-          liveBody.innerHTML = doc.body.innerHTML;
-          /* Re-exec head scripts not already present */
-          var headScripts = [];
-          doc.head.querySelectorAll("script").forEach(function (oldScript) {
-            var key = oldScript.src || (oldScript.textContent || "").trim().slice(0, 200);
-            if (!key) return;
-            var exists = Array.prototype.some.call(liveHead.querySelectorAll("script"), function (existing) {
-              if (oldScript.src) return existing.src === oldScript.src;
-              return !existing.src && (existing.textContent || "").trim().slice(0, 200) === key;
-            });
-            if (!exists) headScripts.push(oldScript.cloneNode(true));
-          });
-          var headWrapper = null;
-          if (headScripts.length > 0) {
-            headWrapper = document.createElement("div");
-            headWrapper.style.display = "none";
-            document.body.appendChild(headWrapper);
-            for (var hi = 0; hi < headScripts.length; hi++) headWrapper.appendChild(headScripts[hi]);
-          }
-          var headReady = headScripts.length > 0
-            ? window.__cpReexec([headWrapper])
-            : Promise.resolve(0);
-          /* Move head script nodes to live head synchronously (nodes exist even if src hasn't loaded) */
-          if (headWrapper) {
-            while (headWrapper.firstChild) liveHead.appendChild(headWrapper.firstChild);
-            document.body.removeChild(headWrapper);
-          }
-          /* Chain body reexec + pjax wiring + reveal after all head scripts have loaded */
-          headReady
-            .then(function () {
-              return window.__cpReexec([liveBody]);
-            })
-            .then(function () {
-              var pjaxOk = window.__cpPjaxMorphed({ url: stub.target, params: stub.data });
-              if (!pjaxOk) console.warn("[stubguard] __cpPjaxMorphed returned false — pjax unavailable");
-              try { document.documentElement.classList.remove("cp-stub-hold"); } catch (e) {}
-              document.dispatchEvent(new Event("cp:morphed"));
-            })
-            .catch(function (e) {
-              console.warn("[stubguard] morph failed — native fallback", e);
-              replay({ url: stub.target, params: stub.data }, stub.token);
-            });
-        })
-        .catch(function (e) {
-          console.warn("[stubguard] morph failed — native fallback", e);
-          replay({ url: stub.target, params: stub.data }, stub.token);
-        });
-    }
-
-    function loginFetchFlow(form, attempt) {
-      attempt = attempt || 0;
-      var loginFlowStart = Date.now();
-      document.dispatchEvent(new CustomEvent("cp:loginsplash"));
-      var body = new URLSearchParams();
-      try {
-        new FormData(form).forEach(function (v, k) { body.append(k, v); });
-      } catch (e) {}
-      fetch(String(form.getAttribute("action") || form.action), {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: body.toString(),
-        credentials: "same-origin"
-      })
-        .then(function (r) { return r.text(); })
-        .then(function (html) {
-          var doc = new DOMParser().parseFromString(cpStripInlineStyles(html), "text/html");
-          var stub = extractStub(doc);
-          if (stub && stub.target && stub.token) {
-            if (stub.target.indexOf("/Login/") !== -1) {
-              cpDbg("[stubguard] login produced /Login/ stub — failed login");
-            } else {
-              cpDbg("[stubguard] login ok — morphing into app via", stub.target);
-              morphIntoApp(stub);
-              return;
-            }
-          }
-          // No handoff stub, or /Login/ stub — login failed.
-          cpDbg("[stubguard] login produced no handoff — staying on form");
-          armedLogin = true; // re-arm immediately so a quick retry never falls through to native submit
-          var liveTok = form.querySelector('input[name="formtokenserial"]');
-          var MIN_SPLASH = 600;
-          var showFail = function (errDoc) {
-            var freshTok = errDoc.getElementsByName("formtokenserial")[0];
-            if (freshTok && liveTok) liveTok.value = freshTok.value;
-
-            // Idle "stale session / not authorized" glitch: the first POST after long idle is rejected on a
-            // stale token (regardless of credentials) and the rejection mints a fresh token (just swapped into
-            // the form above). Re-submit ONCE, silently, under the splash. This is gated on the SPECIFIC
-            // session-timeout / not-authorized message — "Authentication failed" (wrong password), account
-            // "disabled", and lockout messages use different text and are NEVER auto-retried, so wrong
-            // passwords are never silently hammered. Capped at one retry (attempt < 1) so it can never loop.
-            if (attempt < 1 && freshTok) {
-              var staleGlitch = false;
-              errDoc.querySelectorAll(".loginerror").forEach(function (e) {
-                if (/not authorized to access the system|session timeout/i.test(e.textContent || "")) staleGlitch = true;
-              });
-              if (staleGlitch) {
-                cpDbg("[stubguard] stale-session login glitch — silent retry with fresh token");
-                armedLogin = false;            // we drive the retry directly; prevent a stray submit piling on
-                loginFetchFlow(form, attempt + 1);
-                return;                         // keep splash up; skip showing the error
-              }
-            }
-
-            var reveal = function () { showLoginError(errDoc); splashDown(); };
-            var elapsed = Date.now() - loginFlowStart;
-            if (elapsed < MIN_SPLASH) { setTimeout(reveal, MIN_SPLASH - elapsed); } else { reveal(); }
-          };
-          // The failure response is a stub with no message; the real error (td.loginerror) is
-          // session-stored and renders on a GET of the login page.
-          fetch("/commpilot/Login/", { credentials: "same-origin" })
-            .then(function (r) { return r.text(); })
-            .then(function (loginHtml) { showFail(new DOMParser().parseFromString(cpStripInlineStyles(loginHtml), "text/html")); })
-            .catch(function () { showFail(doc); });
-        })
-        .catch(function (e) {
-          console.warn("[stubguard] login fetch failed — native fallback", e);
-          try { realSubmit.call(form); } catch (err) {}
-        });
-    }
-
-    HTMLFormElement.prototype.submit = function () {
-      try {
-        if (armedLogin && this.querySelector('input[name="Password"]')) {
-          armedLogin = false;
-          loginFetchFlow(this);
-          return;
-        }
-      } catch (e) {}
-      return realSubmit.apply(this, arguments);
-    };
-    return;
-  }
+  // Native login and logout remain under CommPilot control.
+  // Let CommPilot render and process its login page normally.
+  if (path.indexOf("/Login/") !== -1) return;
 
   if (path.indexOf("/Logout/") !== -1) return;
 
-  // Query cloak.js (ISOLATED world) for the stored nav + token, then hand
+  // Query recovery-bridge.js (ISOLATED world) for the stored nav + token, then hand
   // {nav, token} to finish() — nav falls back to sessionStorage, then HOME.
   // onNoToken runs when there is nothing usable to replay.
   function bridgeRecover(label, onNoToken) {
@@ -491,7 +213,7 @@
         replay(nav, null);
       }
     };
-    // 3000ms (was 800): a cold service-worker + chrome.storage read via the cloak.js bridge routinely exceeds 800ms,
+    // 3000ms (was 800): a cold service-worker + chrome.storage read via the recovery bridge routinely exceeds 800ms,
     // and firing the fallback with a null token used to log out a still-alive session. Give the real token time to
     // arrive; the fallback now attempts a harvest-replay anyway (above) rather than an immediate Login.
     var fallback = setTimeout(function () {
@@ -514,7 +236,7 @@
   if (path === "/commpilot/Common/styles.css") {
     try { document.documentElement.classList.add("cp-stub-hold"); } catch (e) {}
     // EXPIRE a stale loop-guard counter before the short-circuit. cp-stub-tries survives reloads and is reset only
-    // when a contentful app page renders (skin.js cpRevealCloak), so heavy churn (many extension reloads / earlier
+    // when a contentful app page renders (recovery-bridge.js saveToken), so heavy churn (many extension reloads / earlier
     // cold-URL bounces) can leave it >=2 and send a FRESH, unrelated idle reload straight to Login with NO replay.
     // A genuine dead-session loop is RAPID (back-to-back reloads); a real idle reload is minutes later — so if the
     // last attempt was >30s ago, treat this as a new recovery cycle and reset, leaving the guard to catch only true

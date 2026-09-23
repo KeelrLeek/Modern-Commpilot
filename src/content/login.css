@@ -1,0 +1,55 @@
+/* Center Cisco's existing 800 × 460 login table without restyling it. */
+body#loginBody {
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 100vh !important;
+  margin: 0 !important;
+}
+
+body#loginBody > br {
+  display: none !important;
+}
+
+body#loginBody > form[name="loginForm"] {
+  flex: none !important;
+  margin: 0 !important;
+}
+
+/* Preserve the native table size and allow scrolling on smaller screens. */
+@media (max-width: 815px), (max-height: 475px) {
+  body#loginBody {
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+  }
+
+  body#loginBody > form[name="loginForm"] {
+    margin: 8px !important;
+  }
+}
+
+body#loginBody .bw-login-auto-choice {
+  display: block;
+  margin-top: 4px;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+body#loginBody .bw-login-auto-choice input {
+  vertical-align: middle;
+}
+
+body#loginBody .bw-login-auto-status:not(:empty) {
+  display: block;
+  margin-top: 4px;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+}
+
+body#loginBody .bw-login-auto-status.bw-login-auto-error {
+  color: #b00020;
+}

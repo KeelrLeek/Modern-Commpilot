@@ -1,0 +1,20 @@
+/* Small status notices for PJAX errors. The page retains its own CommPilot styling. */
+.cp-alert {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  padding: 6px 10px;
+  border: 1px solid #8593a5;
+  border-radius: 3px;
+  background: #e9eef5;
+  color: #1e3049;
+  font: 12px Arial, sans-serif;
+}
+.cp-alert-warning { border-color: #be9b45; background: #fff4d6; color: #533f12; }
+.cp-alert-error { border-color: #bd6464; background: #f8e6e6; color: #652323; }
+.cp-alert-badge svg { display: block; width: 16px; height: 16px; }
+.cp-alert-content { flex: 1; }
+.cp-alert-title { font-weight: bold; }
+.cp-alert-act { cursor: pointer; }

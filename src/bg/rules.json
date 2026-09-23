@@ -1,16 +1,104 @@
 [
-  { "id": 1, "priority": 1,
-    "action": { "type": "redirect", "redirect": { "regexSubstitution": "\\1/commpilot/Common/styles.css" } },
-    "condition": { "regexFilter": "^(https://[^/]+)/commpilot/.*", "resourceTypes": ["main_frame"], "requestMethods": ["get"] } },
-  { "id": 2, "priority": 2, "action": { "type": "allow" },
-    "condition": { "regexFilter": "^https://[^/]+/commpilot/Login/", "resourceTypes": ["main_frame"], "requestMethods": ["get"] } },
-  { "id": 3, "priority": 2, "action": { "type": "allow" },
-    "condition": { "regexFilter": "^https://[^/]+/commpilot/Logout/", "resourceTypes": ["main_frame"], "requestMethods": ["get"] } },
-  { "id": 4, "priority": 2, "action": { "type": "allow" },
-    "condition": { "regexFilter": "^https://[^/]+/commpilot/Common/styles\\.css", "resourceTypes": ["main_frame"], "requestMethods": ["get"] } },
-  { "id": 5, "priority": 2, "action": { "type": "allow" },
-    "condition": { "regexFilter": "^https://[^/]+/commpilot/servlet/Login", "resourceTypes": ["main_frame"], "requestMethods": ["get"] } },
-  { "id": 6, "priority": 2,
-    "action": { "type": "redirect", "redirect": { "regexSubstitution": "\\1/commpilot/Scripts/validateNone.js" } },
-    "condition": { "regexFilter": "^(https://[^/]+)/commpilot/[A-Za-z]+/IMRNsManagement/validate\\.js", "resourceTypes": ["script"], "requestMethods": ["get"] } }
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "regexSubstitution": "\\1/commpilot/Common/styles.css"
+      }
+    },
+    "condition": {
+      "regexFilter": "^(https://(?:apps(?:01|02|-sbx)?\\.avpaas\\.io|phone[12]?\\.tripbx\\.com))/commpilot/.*",
+      "resourceTypes": [
+        "main_frame"
+      ],
+      "requestMethods": [
+        "get"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 2,
+    "action": {
+      "type": "allow"
+    },
+    "condition": {
+      "regexFilter": "^https://(?:apps(?:01|02|-sbx)?\\.avpaas\\.io|phone[12]?\\.tripbx\\.com)/commpilot/Login/",
+      "resourceTypes": [
+        "main_frame"
+      ],
+      "requestMethods": [
+        "get"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "priority": 2,
+    "action": {
+      "type": "allow"
+    },
+    "condition": {
+      "regexFilter": "^https://(?:apps(?:01|02|-sbx)?\\.avpaas\\.io|phone[12]?\\.tripbx\\.com)/commpilot/Logout/",
+      "resourceTypes": [
+        "main_frame"
+      ],
+      "requestMethods": [
+        "get"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "priority": 2,
+    "action": {
+      "type": "allow"
+    },
+    "condition": {
+      "regexFilter": "^https://(?:apps(?:01|02|-sbx)?\\.avpaas\\.io|phone[12]?\\.tripbx\\.com)/commpilot/Common/styles\\.css",
+      "resourceTypes": [
+        "main_frame"
+      ],
+      "requestMethods": [
+        "get"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "priority": 2,
+    "action": {
+      "type": "allow"
+    },
+    "condition": {
+      "regexFilter": "^https://(?:apps(?:01|02|-sbx)?\\.avpaas\\.io|phone[12]?\\.tripbx\\.com)/commpilot/servlet/Login",
+      "resourceTypes": [
+        "main_frame"
+      ],
+      "requestMethods": [
+        "get"
+      ]
+    }
+  },
+  {
+    "id": 6,
+    "priority": 2,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "regexSubstitution": "\\1/commpilot/Scripts/validateNone.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^(https://(?:apps(?:01|02|-sbx)?\\.avpaas\\.io|phone[12]?\\.tripbx\\.com))/commpilot/[A-Za-z]+/IMRNsManagement/validate\\.js",
+      "resourceTypes": [
+        "script"
+      ],
+      "requestMethods": [
+        "get"
+      ]
+    }
+  }
 ]

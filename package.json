@@ -1,0 +1,13 @@
+{
+  "name": "broadworks-enhancer-pjax-preview",
+  "version": "0.3.1",
+  "description": "Native CommPilot improvements with PJAX navigation",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.cjs"
+  },
+  "type": "commonjs",
+  "devDependencies": {
+    "playwright-core": "^1.63.0"
+  }
+}

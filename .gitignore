@@ -7,6 +7,9 @@ trisign-local-tauri-migration/
 # OS / editor cruft
 Thumbs.db
 .DS_Store
+node_modules/
+tests/*.png
+native/*.exe
 
 # Chrome-generated when loading the extension
 _metadata/

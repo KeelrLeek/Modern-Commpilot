@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CommPilot PJAX preview</title>
+  <link rel="stylesheet" href="/base.css">
+  <link rel="stylesheet" href="/site.css">
+  <link rel="stylesheet" href="/src/content/enhancer.css">
+  <link rel="stylesheet" href="/src/content/native-pjax.css">
+</head>
+<body>
+  <table width="100%" cellpadding="8" cellspacing="0"><tr>
+    <td class="headerBar">
+      <a class="headerAuthLevelLink" href="#">Reseller</a> &gt;
+      <a class="headerAuthLevelLink" href="#">Group</a> &gt;
+      <a class="headerAuthLevelLink" href="#">Users</a> :
+      <span class="headerAuthLevel" id="current-user">3122160773@phonenetwork.net</span>
+    </td>
+  </tr></table>
+  <input name="formtokenserial" type="hidden" value="preview-token">
+  <table width="100%" cellspacing="0" cellpadding="0"><tr>
+    <td width="18%" class="headandfoot" valign="top">
+      <div class="navOptions">Options</div>
+      <form name="leftNavForm">
+        <p><a class="leftnavfolder" href="#" onclick="redirectPost('/commpilot/Common/folder_contents.jsp',{folder:'R0',menuId:'8'});return false">Profile</a></p>
+        <p><a class="leftnavfolder" href="#" onclick="redirectPost('/commpilot/Group/Members/',{});return false">Users</a></p>
+      </form>
+    </td>
+    <td width="82%" valign="top">
+      <table width="100%"><tr><td class="screenName">User Profile</td></tr></table>
+      <p>CommPilot's original stylesheet is active. The extension adds only the requested controls.</p>
+      <a class="navMenuItem" href="#">Call Forwarding - On</a>
+      <br><a class="navMenuItem" href="#">Voice Messaging - Off</a>
+      <p><label for="phoneNumber">Phone Number:</label>
+        <select id="phoneNumber" aria-label="Phone Number">
+          <option>None</option><option>2054182101 (Socius - Birmingham)</option>
+          <option>2054182102 (Socius - Birmingham)</option>
+          <option>2055783408 (Birmingham)</option><option>2056940003 (Birmingham)</option>
+        </select></p>
+      <p><button type="button" onclick="redirectPost('/commpilot/Group/Members/',{})">PJAX: Users</button>
+         <button type="button" onclick="redirectPost('/commpilot/User/Profile/',{})">PJAX: Profile</button></p>
+    </td>
+  </tr></table>
+  <script>
+    window.redirectPost = function (url, params) {
+      const form = document.createElement('form');
+      form.method = 'POST'; form.action = url;
+      for (const [name, value] of Object.entries(params || {})) {
+        const input = document.createElement('input');
+        input.type = 'hidden'; input.name = name; input.value = value; form.append(input);
+      }
+      document.body.append(form); form.submit();
+    };
+  </script>
+  <script src="/src/content/pjax.js"></script>
+  <script src="/src/content/enhancer.js"></script>
+  <script>
+    let version;
+    setInterval(async () => {
+      try {
+        const next = await (await fetch('/version', { cache: 'no-store' })).text();
+        if (version && next !== version) location.reload();
+        version = next;
+      } catch (_) {}
+    }, 1500);
+  </script>
+</body>
+</html>

@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.2.346";
+  var CP_PJAX_VERSION = "0.3.1-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -43,17 +43,11 @@
   // retry (0.2.264), redirect:'manual' bounce classification (0.2.278), and the in-place token re-harvest on
   // auth-fail (0.2.279). See [[gotcha-idle-connection-drop-dead-click]].
 
-  // Strip legacy inline styles (<style> blocks + style="" attrs) from a FETCHED response before we
-  // DOMParser-parse / inject it. Re-injected here they carry the SERVER response's CSP nonce (≠ the live page's),
-  // so style-src blocks them ANYWAY — they never apply (skin.css does the styling). Stripping first removes the
-  // useless CSP-violation console noise with ZERO visual change. See [[gotcha-csp-inline-style-attr-blocked]].
+  // Keep server-provided styling on fetched pages so PJAX does not change
+  // the original CommPilot appearance.
   function cpStripInlineStyles(html) {
-    try {
-      return String(html)
-        .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
-        .replace(/\sstyle\s*=\s*"[^"]*"/gi, "")
-        .replace(/\sstyle\s*=\s*'[^']*'/gi, "");
-    } catch (e) { return html; }
+    // Keep CommPilot's own inline styling when a fetched page is swapped in.
+    return String(html);
   }
 
   // Single-page sign-out: minimum time (ms) the "Signing out…" spinner stays up
@@ -3822,6 +3816,11 @@
 
     cpHook = function (url, params, _retry) {
       try {
+        // A deliberate sign-out should leave the native login page visible
+        // briefly even when Windows credentials are saved for auto sign-in.
+        if (typeof url === "string" && /\/Logout(?:\/|$)/i.test(url)) {
+          try { sessionStorage.setItem("bwManualLogoutAt", String(Date.now())); } catch (e) {}
+        }
         // SYNTHETIC-NAV GUARD: cpListSearch's client-fill harvest re-dispatches DOMContentLoaded to run a
         // page's own fill. On some pages (DeviceInventory) a DCL handler NAVIGATES (redirectPost to the
         // landing) instead of filling — 60 spin ticks fired repeated token-bearing POSTs into a 500ing
@@ -4051,47 +4050,17 @@
               // Update tab title from fetched page
               try { if (doc.title) document.title = doc.title; } catch (e) {}
 
-              // Restore breadcrumb above swapped title — PILL TRAIL (cpBuildPillCrumb), matching the console
-              // and the initial-load crumb. Source the trail texts from the fetched header links (deduped);
-              // cpBuildPillCrumb wires the ancestors (cpCrumbNav). This replaces the old bare-<a> crumb that
-              // made non-console pages revert to the legacy look after a pjax nav.
+              // The content-cell swap keeps the old header in the live document.
+              // Refresh it from the fetched page so user ID/extension actions see
+              // the entity that is actually open after a PJAX navigation.
               try {
-                var fCrumbLink = doc.querySelector('td.headerBar a.headerAuthLevelLink');
-                var newTitle = liveCell.querySelector("td.screenName");
-                if (fCrumbLink && newTitle) {
-                  var fCell = fCrumbLink.closest("td");
-                  var titleTable = newTitle.closest("table");
-                  var ctLinks = Array.prototype.slice.call(fCell.querySelectorAll("a.headerAuthLevelLink"));
-                  var ctrail = [];
-                  ctLinks.forEach(function (a) { var t = (a.textContent || "").trim(); if (t && (!ctrail.length || ctrail[ctrail.length - 1] !== t)) ctrail.push(t); });
-                  // Append the CURRENT PAGE as the trailing pill(s) so the trail names where you are:
-                  //  • Entity (a user id in span.headerAuthLevel) → the id pill. On a user SUB-PAGE (a settings
-                  //    page, no navMenuItem) the id becomes a clickable ANCESTOR and the page name is the
-                  //    current pill: "… Group › <user-id> › Addresses". On the user home (a folder MENU) the id
-                  //    is the current pill.
-                  //  • A plain LIST page (no entity) → the screenName as the current pill ("… › Groups").
-                  //  • A folder MENU (a level base/home — has navMenuItem) → no page pill: it becomes the
-                  //    aggregated console, whose anchor ("Profile") isn't a page. (cpBuildConsole inherits this
-                  //    crumb, so a stray name here would leak onto the console.)
-                  var isMenu = !!doc.querySelector("a.navMenuItem");
-                  var cEnt = doc.querySelector("span.headerAuthLevel");
-                  var et = cEnt ? (cEnt.textContent || "").replace(/^\s*:\s*/, "").trim() : "";
-                  if (et && ctrail[ctrail.length - 1] === et) et = "";   // dedupe vs last ancestor
-                  var sn = "";
-                  if (!isMenu && newTitle) {
-                    sn = (newTitle.textContent || "").trim();
-                    var ci = sn.indexOf(": "); if (ci > 0 && sn.slice(0, ci).indexOf(" ") === -1) sn = sn.slice(ci + 2).trim();  // strip a leading "<id>: " prefix
-                  }
-                  if (et) ctrail.push(et);                                   // entity id: ancestor if a page follows, else current
-                  var isIdLast = !!et;
-                  if (sn && ctrail[ctrail.length - 1] !== sn) { ctrail.push(sn); isIdLast = false; }   // page name = current pill
-                  if (ctrail.length && titleTable && titleTable.parentNode) {
-                    titleTable.parentNode.insertBefore(cpBuildPillCrumb(ctrail, isIdLast, true), titleTable);   // sub-page → mega menu on the current pill
-                  }
-                }
-              } catch (e) {
-                console.warn("[pjax] breadcrumb restore", e);
-              }
+                var nextHeader = doc.querySelector("td.headerBar");
+                var currentHeader = document.querySelector("td.headerBar");
+                if (nextHeader && currentHeader) currentHeader.innerHTML = nextHeader.innerHTML;
+              } catch (e) { console.warn("[pjax] header sync", e); }
+
+              // The native header above was refreshed from the response. Do not
+              // insert the former extension's pill breadcrumb into the content.
 
               // Sync sidebar active highlight to fetched page
               try {
@@ -5740,27 +5709,9 @@
     }
 
     function cpAutoConsole() {
-      cpSyncConsoleClass();
-      if (document.querySelector(".cp-console")) return;                 // already showing the console
-      if (!document.querySelector('a.leftnavfolder, a.leftnavfolderopen')) return;  // not a reseller folder page
-      var cell = document.querySelector('td[width="82%"]');
-      // Build ONLY when the content cell is a folder MENU (has navMenu options), never a list/leaf
-      // destination. Check CONTENT, not location.pathname — pjax fires cp:reskin BEFORE it updates the
-      // URL, so location.pathname is stale (still the previous page) at this moment.
-      if (!cell || !cell.querySelector('a.navMenuItem')) {
-        // List/leaf SUB-PAGE (not a folder menu): collapse any sidebar submenu left open from the
-        // console so the expanded accordion doesn't persist onto the list page.
-        document.querySelectorAll('form[name="leftNavForm"] td.cp-grp-open').forEach(function (td) { td.classList.remove("cp-grp-open"); });
-        // On a FULL-LOAD sub-page (reload/recovery) skin.js built the crumb without the mega menu — attach it.
-        cpDecorateCurrentCrumbPill();
-        // REDESIGNED SEARCH GRID (flagged): a page.jsp-paginated search LIST (has #searchTable) → preload-all
-        // grid instead of the in-place legacy table. skin.js skips its list skinning while html.cp-grid-on is set.
-        if (cpNewSearchOn() && cpIsGridListPage()) { cpBuildSearchGrid(); return; }
-        document.documentElement.classList.remove("cp-grid-on");
-        return;
-      }
-      document.documentElement.classList.remove("cp-grid-on");
-      cpBuildConsole();   // no-ops at non-reseller levels (the reseller-only gate returns early there)
+      // Keep the server's menu, list/search table, and page layout intact.
+      // PJAX still handles the same navigation URLs and response transport.
+      return;
     }
 
     // Build console on reskin (runs after every pjax swap)
