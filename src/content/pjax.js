@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.6-native";
+  var CP_PJAX_VERSION = "0.3.7-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -100,6 +100,9 @@
   var cpDclSpin = false;   // true while cpListSearch's harvest re-dispatches DOMContentLoaded (see cpHook guard)
   var cpLastNav = { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
   var cpPopReplaying = false;
+  var cpReexecutingScripts = false;
+  var cpAutoReplaceUrl = null;
+  var cpConfigFilesForwarded = false;
   var _orig = null;
   var cpHook = null;
   var cpSrcCollector = null;
@@ -3885,6 +3888,12 @@
         // Resolve a RELATIVE redirectPost target (e.g. the admin Add button's "Add/index.jsp") to an absolute
         // /commpilot path so isPjaxUrl can match it — otherwise cpHook native-navigates → a full page load.
         // (Only relative targets are touched; absolute "/commpilot/..." urls pass through unchanged.)
+        // Scheduled Reports emits ../Add/index.jsp from its list landing even
+        // though its Add form lives under CCScheduledReports/Add/. The browser
+        // would otherwise resolve that to the nonexistent /Group/Add/ page.
+        if (url === "../Add/index.jsp" &&
+            /\/Group\/CCScheduledReports\/$/.test(location.pathname))
+          url = "/commpilot/Group/CCScheduledReports/Add/index.jsp";
         if (typeof url === "string" && url && url.charAt(0) !== "/" && !/^https?:/i.test(url)) {
           // Resolve against the list LANDING (not location) when the address bar is stuck on a /Common search
           // artifact — otherwise the list's Add/Import buttons ("Add/index.jsp") resolve to /Common/Add/index.jsp
@@ -4171,6 +4180,22 @@
                 console.warn("[pjax] sidebar sync", e);
               }
 
+              // Inline page scripts can submit relative form actions immediately
+              // when re-executed. Make the fetched page's URL current first, so
+              // those actions resolve as they would after a native navigation.
+              cpConfigFilesForwarded = false;
+              var cpState = { cpNav: { url: url, params: params || {} } };
+              var cpHistoryMode = cpPopReplaying || cpAutoReplaceUrl === url ||
+                (cpLoader === cpFollowFrame && history.length > cpHistoryBeforeLoad) ? "replace" : "push";
+              if (cpAutoReplaceUrl === url) cpAutoReplaceUrl = null;
+              var cpHistoryCommitted = false;
+              try {
+                history[cpHistoryMode + "State"](cpState, "", url);
+                cpHistoryCommitted = true;
+                cpPopReplaying = false;
+              } catch (e) {}
+              try { document.documentElement.setAttribute("data-cp-path", url); } catch (e) {}
+
               // Re-execute swapped scripts under nonce-CSP. CAPTURE each page DOMContentLoaded handler (e.g. the
               // Admins row-fill) into a fresh per-nav list so a consumer that needs the page to (re)render can
               // re-invoke it. A pjax swap fires no real DCL, and the one-shot microtask call below can run BEFORE
@@ -4203,16 +4228,20 @@
                 }
                 return origWinAdd.call(this, type, fn, opts);
               };
-              var n = reexecScripts(liveCell);
-              if (cpLiveNav) reexecScripts(cpLiveNav);
-              if (cpLiveHeader) {
-                // BroadWorks wires breadcrumb links in DCL script tags inside this
-                // cell. The swapped scripts must run once; omit them from the
-                // grid's later DCL retries to avoid duplicate click handlers.
-                var headerDclStart = window.__cpDclFns.length;
-                n += reexecScripts(cpLiveHeader);
-                window.__cpDclFns.splice(headerDclStart);
-              }
+              var n = 0;
+              cpReexecutingScripts = true;
+              try {
+                n = reexecScripts(liveCell);
+                if (cpLiveNav) reexecScripts(cpLiveNav);
+                if (cpLiveHeader) {
+                  // BroadWorks wires breadcrumb links in DCL script tags inside this
+                  // cell. The swapped scripts must run once; omit them from the
+                  // grid's later DCL retries to avoid duplicate click handlers.
+                  var headerDclStart = window.__cpDclFns.length;
+                  n += reexecScripts(cpLiveHeader);
+                  window.__cpDclFns.splice(headerDclStart);
+                }
+              } finally { cpReexecutingScripts = false; }
               document.addEventListener = origAdd;
               window.addEventListener = origWinAdd;
               if (window.redirectPost !== cpHook) { _orig = window.redirectPost; window.redirectPost = cpHook; }
@@ -4271,13 +4300,13 @@
                 }
               } catch (e) {}
               try {
-                var cpState = { cpNav: { url: url, params: params || {} } };
-                if (cpPopReplaying) { history.replaceState(cpState, "", canonical); cpPopReplaying = false; }
-                else if (cpLoader === cpFollowFrame && history.length > cpHistoryBeforeLoad) {
-                  // A navigation-only frame POST has already created a joint
-                  // history entry. Claim that entry for the parent document.
+                // The entry was created before script replay. A list/form/tab
+                // response may have a different canonical URL; update that
+                // same entry without adding another Back step.
+                if (cpHistoryCommitted || cpHistoryMode === "replace")
                   history.replaceState(cpState, "", canonical);
-                } else { history.pushState(cpState, "", canonical); }
+                else history.pushState(cpState, "", canonical);
+                cpPopReplaying = false;
               } catch (e) {}
               // Chained follow-up (entity re-entry → target page): fire the pending nav now that this swap
               // (the entry) has committed. See cpPendingNav/cpEntityEntry.
@@ -4326,6 +4355,7 @@
         // through to a NATIVE full POST (rotated single-use token → "page temporarily unavailable" → /Login/).
         // An empty action attribute means "post to self" → fall back to the current path.
         var act = form.getAttribute("action"); if (!act) act = location.pathname;
+        try { var resolvedAct = new URL(act, location.href); act = resolvedAct.pathname + resolvedAct.search; } catch (e) {}
         // The admin drill-in lands the URL on modify.jsp (the set-context endpoint); the form's REAL save endpoint
         // is .../Admins/Modify/. An empty action posts to self = modify.jsp, which only RE-RENDERS (no save — the
         // "OK does nothing, breadcrumb just refreshes" symptom). Verified live that posting the same fields to
@@ -4343,9 +4373,49 @@
           params[el.name] = el.value;
         }
         if (e.submitter && e.submitter.name) params[e.submitter.name] = e.submitter.value;
-        window.redirectPost(act, params);
+        cpHook(act, params);
       } catch (err) { console.warn("[pjax] submit intercept", err); }
     }, true);
+
+    // CommPilot also calls form.submit() directly from some page scripts.
+    // That bypasses submit events, including the PJAX listener above. Replay
+    // ordinary content forms through that listener; keep uploads, downloads,
+    // and hidden transport frames on their native path.
+    var cpNativeFormSubmit = HTMLFormElement.prototype.submit;
+    HTMLFormElement.prototype.submit = function () {
+      try {
+        var action = new URL(this.getAttribute("action") || location.pathname, location.href);
+        var target = (this.getAttribute("target") || "").toLowerCase();
+        var enctype = (this.getAttribute("enctype") || "").toLowerCase();
+        var configFiles = "/commpilot/Group/DefaultConfig/Nested/Files/";
+        if (action.pathname === configFiles && location.pathname === configFiles) return;
+        if (this.isConnected && action.origin === location.origin &&
+            (this.getAttribute("method") || "GET").toUpperCase() === "POST" &&
+            (!target || target === "_self") && !/multipart\/form-data/.test(enctype) &&
+            !this.querySelector('input[type="file"]') &&
+            isPjaxUrl(action.pathname + action.search)) {
+          if (action.pathname === configFiles) {
+            // The list grid may replay its own DOMContentLoaded handlers while
+            // harvesting rows. Those synthetic calls must not consume the real
+            // automatic forward that follows the page swap.
+            if (cpDclSpin) return;
+            if (cpConfigFilesForwarded) return;
+            cpConfigFilesForwarded = true;
+          }
+          // Configuration's auto-forward runs in a replayed DOMContentLoaded
+          // callback, after reexecScripts has returned. Keep the intermediate
+          // Configuration page out of Back history in that case too.
+          if (cpReexecutingScripts || (action.pathname === configFiles &&
+              /\/DefaultConfig\/Nested\/Configuration\//.test(location.pathname)))
+            cpAutoReplaceUrl = action.pathname + action.search;
+          var submitEvent = new Event("submit", { bubbles: true, cancelable: true });
+          this.dispatchEvent(submitEvent);
+          if (submitEvent.defaultPrevented) return;
+          if (action.pathname === configFiles) cpConfigFilesForwarded = false;
+        }
+      } catch (e) { console.warn("[pjax] direct submit bridge", e); }
+      return cpNativeFormSubmit.apply(this, arguments);
+    };
 
     // The legacy "Cancel" on the admin Modify page returns via a server-side context our pjax nav doesn't
     // preserve, so it lands on the WRONG list (observed: -> /Reseller/Enterprises/ -> 404, then a logout on the

@@ -138,6 +138,31 @@ test('PJAX retains navigation coverage across the existing page families', async
   }
 });
 
+test('Scheduled Reports Add resolves its legacy relative target to the real form', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const posts = [];
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      if (route.request().method() === 'POST') {
+        posts.push(new URL(route.request().url()).pathname);
+        return route.fulfill({ status: 200, contentType: 'text/html', body: next });
+      }
+      return route.fulfill({ status: 200, contentType: 'text/html', body: start });
+    });
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Group/CCScheduledReports/',
+      { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => window.redirectPost('../Add/index.jsp', {}));
+    await page.waitForFunction(() => location.pathname ===
+      '/commpilot/Group/CCScheduledReports/Add/index.jsp');
+    assert.deepEqual(posts, ['/commpilot/Group/CCScheduledReports/Add/index.jsp']);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('Group Members search keeps its form POST in shell and uses the rotated token', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });
@@ -213,6 +238,54 @@ test('PJAX back and forward replay each page without losing forward history', as
     await page.waitForFunction(url => location.pathname === url && document.querySelector('#view')?.textContent === 'Admins', admin);
     await page.goForward();
     await page.waitForFunction(url => location.pathname === url && document.querySelector('#view')?.textContent === 'DeviceType', devices, { timeout: 5000 });
+  } finally {
+    await browser.close();
+  }
+});
+
+test('direct relative POST auto-forward stays in shell and Back skips its intermediate page', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const parent = '/commpilot/Group/DefaultConfig/';
+    const config = '/commpilot/Group/DefaultConfig/Nested/Configuration/index.jsp';
+    const files = '/commpilot/Group/DefaultConfig/Nested/Files/';
+    const posts = [];
+    const shell = (label, script = '') => `<!doctype html><html><head><title>${label}</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">Group</span></td></tr></table>
+      <form name="leftNavForm"></form><input name="formtokenserial" value="token">
+      <table><tr><td width="82%"><div id="view">${label}</div>${script}</td></tr></table>
+      <script>window.redirectPost = function(url, params) { window.nativeNavigation = {url, params}; };</script>
+    </body></html>`;
+    const autoForward = `<script>document.addEventListener('DOMContentLoaded', function () {
+      window.redirectPost = function (url) { window.nativeNavigation = url; };
+      var form = document.createElement('form');
+      form.method = 'post'; form.action = '../Files/';
+      form.innerHTML = '<input name="key" value="device-1">';
+      document.body.appendChild(form);
+      form.submit();
+    });</script>`;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (route.request().method() === 'POST') posts.push(pathname);
+      const label = pathname === parent ? 'Device Configuration' :
+        pathname === config ? 'Intermediate Configuration' : 'Configuration Files';
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: shell(label, pathname === config ? autoForward : '') });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${parent}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    await page.evaluate(url => window.redirectPost(url, { key: 'device-1' }), config);
+    await page.waitForFunction(pathname => location.pathname === pathname &&
+      document.querySelector('#view')?.textContent === 'Configuration Files', files);
+    assert.deepEqual(posts, [config, files]);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+    await page.goBack();
+    await page.waitForFunction(pathname => location.pathname === pathname &&
+      document.querySelector('#view')?.textContent === 'Device Configuration', parent);
+    assert.deepEqual(posts, [config, files, parent]);
   } finally {
     await browser.close();
   }

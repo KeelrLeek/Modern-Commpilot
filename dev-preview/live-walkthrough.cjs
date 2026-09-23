@@ -1,6 +1,6 @@
-// Interactive sandbox walkthrough with the unpacked extension. The user signs in
-// in the visible Edge window; commands on stdin let a test runner inspect and
-// navigate the same Playwright page without recording passwords or POST bodies.
+// Interactive sandbox walkthrough with the unpacked extension. It runs headless
+// by default so automated checks do not steal focus; BW_VISIBLE=1 opts into a
+// visible Edge window. Commands on stdin inspect the same Playwright page.
 const { chromium } = require('playwright-core');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -15,7 +15,7 @@ fs.mkdirSync(profile, { recursive: true });
 (async () => {
   const context = await chromium.launchPersistentContext(profile, {
     executablePath: edge,
-    headless: process.env.BW_HEADLESS === '1',
+    headless: process.env.BW_VISIBLE !== '1',
     viewport: null,
     args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`]
   });

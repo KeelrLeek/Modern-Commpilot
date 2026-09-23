@@ -22,6 +22,8 @@
     .progress > span { height: 100%; }
     .progress .pass { background: var(--green); }.progress .needs { background: var(--red); }.progress .pending { background: var(--amber); }
     .progress-label { margin-top: 8px; font-size: 13px; }
+    .depth-progress { margin-top: 12px; }
+    .scan-note { display: block; margin-top: 4px; color: var(--amber); font-size: 11px; font-weight: 650; }
     .scope { margin: 18px 0 0; padding: 14px 16px; border: 1px solid var(--amber); border-radius: 12px; background: var(--panel); line-height: 1.45; }
     .scope b { color: var(--amber); }.scope small { color: var(--muted); display: block; margin-top: 3px; }
     .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 8px; }
@@ -50,8 +52,8 @@
 </head>
 <body>
 <main>
-  <header><div><h1>CommPilot PJAX coverage</h1><p>Live sandbox route checks · Edge · 0.3.5 checks, 0.3.6 current build</p></div><p id="updated"></p></header>
-  <div class="scope" role="status"><b>Sitewide routes left to check: unknown</b><small id="inventory">Scanning top-level folders and account submenus. Counts below cover only routes discovered so far.</small></div>
+  <header><div><h1>CommPilot PJAX coverage</h1><p>Live sandbox route checks · headless Edge · 0.3.7 development build</p></div><p id="updated"></p></header>
+  <div class="scope" role="status"><b id="scope-summary">Sitewide routes left to check: unknown</b><small id="inventory">Scanning top-level folders and account submenus. Counts below cover only routes discovered so far.</small></div>
   <section class="metrics" aria-label="Route tally">
     <div class="metric"><strong id="discovered">—</strong><span>Discovered routes</span></div>
     <div class="metric pass"><strong id="passed">—</strong><span>PJAX passed</span></div>
@@ -60,8 +62,28 @@
   </section>
   <div class="progress" role="img" id="progress" aria-label="Coverage of discovered routes"></div>
   <p class="progress-label" id="progress-label"></p>
+  <h2>Row and Edit drill-ins</h2>
+  <section class="metrics" aria-label="Drill-in scan tally">
+    <div class="metric pass"><strong id="deep-scanned">—</strong><span>Menu pages checked for row/Edit links</span></div>
+    <div class="metric pending"><strong id="deep-remaining">—</strong><span>Menu pages awaiting this scan</span></div>
+    <div class="metric"><strong id="deep-found">—</strong><span>Row/Edit subpages found</span></div>
+    <div class="metric"><strong id="folders-scanned">—</strong><span>Folders inventoried</span></div>
+  </section>
+  <div class="progress depth-progress" role="img" id="depth-progress" aria-label="Menu pages checked for subpages"></div>
+  <p class="progress-label" id="depth-progress-label"></p>
+  <h2>Other navigation controls</h2>
+  <section class="metrics" aria-label="Other control scan tally">
+    <div class="metric pass"><strong id="controls-scanned">—</strong><span>Menu pages checked for buttons, tabs, and other links</span></div>
+    <div class="metric pending"><strong id="controls-remaining">—</strong><span>Menu pages awaiting control scan</span></div>
+    <div class="metric"><strong id="controls-found">—</strong><span>Additional routes found</span></div>
+    <div class="metric"><strong id="sidebar-verified">—</strong><span>Account sidebars verified live</span></div>
+  </section>
+  <div class="progress depth-progress" role="img" id="controls-progress" aria-label="Menu pages checked for other navigation controls"></div>
+  <p class="progress-label" id="controls-progress-label"></p>
   <nav class="filters" aria-label="Filter routes">
     <button type="button" data-filter="all" aria-pressed="true">All</button>
+    <button type="button" data-filter="unscanned" aria-pressed="false">Row/Edit next</button>
+    <button type="button" data-filter="controls" aria-pressed="false">Controls next</button>
     <button type="button" data-filter="pending" aria-pressed="false">Check next</button>
     <button type="button" data-filter="needs" aria-pressed="false">Needs PJAX</button>
     <button type="button" data-filter="pass" aria-pressed="false">Passed</button>
@@ -74,7 +96,7 @@
   const statusNames = { pass: 'PJAX', needs: 'Needs work', pending: 'Next' };
   const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   function render(data) {
-    const routes = data.routes || [];
+    const routes = (data.routes || []).filter(route => route.kind !== 'duplicate');
     const count = status => routes.filter(route => route.status === status).length;
     const passed = count('pass'), needs = count('needs'), pending = count('pending');
     document.getElementById('discovered').textContent = routes.length;
@@ -83,16 +105,39 @@
     document.getElementById('pending').textContent = pending;
     document.getElementById('updated').textContent = 'Updated ' + (data.updated || 'today');
     const folders = data.inventory?.folders || [];
+    const menuAreas = new Set(folders.map(folder => `${folder.level} / ${folder.name}`));
+    const isMenuRoute = route => !route.kind && menuAreas.has(route.area);
+    const menuRoutes = routes.filter(isMenuRoute);
+    const deepScanned = menuRoutes.filter(route => route.deepScanned).length;
+    const deepRemaining = menuRoutes.length - deepScanned;
+    const deepFound = routes.filter(route => route.kind === 'nested' || route.kind === 'auto-follow').length;
+    document.getElementById('deep-scanned').textContent = deepScanned;
+    document.getElementById('deep-remaining').textContent = deepRemaining;
+    document.getElementById('deep-found').textContent = deepFound;
+    document.getElementById('folders-scanned').textContent = folders.length;
+    const controlsScanned = menuRoutes.filter(route => route.controlScanned).length;
+    const controlsRemaining = menuRoutes.length - controlsScanned;
+    document.getElementById('controls-scanned').textContent = controlsScanned;
+    document.getElementById('controls-remaining').textContent = controlsRemaining;
+    document.getElementById('controls-found').textContent = routes.filter(route => route.kind === 'action').length;
+    document.getElementById('sidebar-verified').textContent = `${(data.inventory?.sidebarVerifiedLevels || []).length}/7`;
+    document.getElementById('controls-progress').innerHTML = `<span class="pass" style="width:${menuRoutes.length ? (100 * controlsScanned / menuRoutes.length).toFixed(2) : 0}%"></span><span class="pending" style="width:${menuRoutes.length ? (100 * controlsRemaining / menuRoutes.length).toFixed(2) : 0}%"></span>`;
+    document.getElementById('controls-progress-label').textContent = `${controlsScanned} of ${menuRoutes.length} menu pages checked for other navigation controls`;
+    document.getElementById('scope-summary').textContent = `${deepRemaining + controlsRemaining} known page scans remain · total sitewide routes unknown`;
+    document.getElementById('depth-progress').innerHTML = `<span class="pass" style="width:${menuRoutes.length ? (100 * deepScanned / menuRoutes.length).toFixed(2) : 0}%"></span><span class="pending" style="width:${menuRoutes.length ? (100 * deepRemaining / menuRoutes.length).toFixed(2) : 0}%"></span>`;
+    document.getElementById('depth-progress-label').textContent = `${deepScanned} of ${menuRoutes.length} menu pages checked for row and Edit links`;
     const byLevel = [...new Set(folders.map(item => item.level))].map(level => `${level}: ${folders.filter(item => item.level === level).length} folders`).join(' · ');
-    document.getElementById('inventory').textContent = `${folders.length} folders scanned${byLevel ? ' · ' + byLevel : ''}. Counts below cover only discovered routes; deeper menus and drill-ins are still being inventoried.`;
+    document.getElementById('inventory').textContent = `${folders.length} folders scanned; ${(data.inventory?.sidebarVerifiedLevels || []).length} of 7 account sidebars verified${byLevel ? ' · ' + byLevel : ''}. Counts cover discovered routes; deeper controls remain under audit.`;
     const width = amount => routes.length ? (100 * amount / routes.length).toFixed(2) + '%' : '0%';
     document.getElementById('progress').innerHTML = `<span class="pass" style="width:${width(passed)}"></span><span class="needs" style="width:${width(needs)}"></span><span class="pending" style="width:${width(pending)}"></span>`;
     document.getElementById('progress-label').textContent = `${passed} of ${routes.length} discovered routes verified · site inventory still in progress`;
-    const visible = routes.filter(route => state.filter === 'all' || route.status === state.filter);
+    const visible = routes.filter(route => state.filter === 'all' ||
+      (state.filter === 'unscanned' ? isMenuRoute(route) && !route.deepScanned :
+        state.filter === 'controls' ? isMenuRoute(route) && !route.controlScanned : route.status === state.filter));
     const areas = [...new Set(visible.map(route => route.area))];
     document.getElementById('groups').innerHTML = areas.length ? areas.map(area => {
       const subset = visible.filter(route => route.area === area);
-      return `<section class="group"><div class="group-title"><h2>${escapeHtml(area)}</h2><span>${subset.length} route${subset.length === 1 ? '' : 's'}</span></div><div class="routes">${subset.map(route => `<div class="route" data-status="${route.status}"><span class="dot" aria-hidden="true"></span><div><b>${escapeHtml(route.label)}</b><code>${escapeHtml(route.path)}</code></div><span class="tag">${statusNames[route.status]}</span></div>`).join('')}</div></section>`;
+      return `<section class="group"><div class="group-title"><h2>${escapeHtml(area)}</h2><span>${subset.length} route${subset.length === 1 ? '' : 's'}</span></div><div class="routes">${subset.map(route => `<div class="route" data-status="${route.status}"><span class="dot" aria-hidden="true"></span><div><b>${escapeHtml(route.label)}</b>${isMenuRoute(route) && !route.deepScanned ? '<span class="scan-note">Row/Edit scan next</span>' : ''}${isMenuRoute(route) && !route.controlScanned ? '<span class="scan-note">Control scan next</span>' : ''}<code>${escapeHtml(route.path)}</code></div><span class="tag">${statusNames[route.status]}</span></div>`).join('')}</div></section>`;
     }).join('') : '<p class="empty">No routes in this status yet.</p>';
     document.getElementById('flows').innerHTML = (data.flows || []).map(flow => `<span class="flow" data-status="${escapeHtml(flow.status || 'pending')}">${escapeHtml(flow.label)}</span>`).join('');
   }
