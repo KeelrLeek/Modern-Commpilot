@@ -14,19 +14,38 @@
     try { page = new URL(sender.url || ""); } catch (_) { return false; }
     if (!sender.tab || page.protocol !== "https:" || !SITES.has(page.hostname) ||
         !/^\/commpilot\/Login\/?$/i.test(page.pathname) ||
-        !["get", "save", "delete"].includes(message.op)) {
+        !["list", "add", "unlock", "remove"].includes(message.op)) {
       reply({ ok: false, error: "Unauthorized credential request" });
       return false;
     }
 
     var request = { op: message.op, origin: page.origin };
-    if (message.op === "save") {
+    if (message.op === "add") {
       request.user = String(message.user || "");
       request.password = String(message.password || "");
       if (!request.user || !request.password || request.user.length > 256 ||
-          request.password.length > 2048) {
+          request.password.length > 512) {
         reply({ ok: false, error: "Enter a valid User ID and Password" });
         return false;
+      }
+      request.pin = String(message.pin || "");
+      if (request.pin && !/^[0-9]{4,8}$/.test(request.pin)) {
+        reply({ ok: false, error: "PIN must be 4 to 8 digits" });
+        return false;
+      }
+    }
+    if (message.op === "unlock" || message.op === "remove") {
+      request.id = String(message.id || "");
+      if (request.id !== "legacy" && !/^[0-9a-f]{32}$/.test(request.id)) {
+        reply({ ok: false, error: "Saved login not found" });
+        return false;
+      }
+      if (message.op === "unlock") {
+        request.pin = String(message.pin || "");
+        if (request.pin.length > 8 || (request.pin && !/^[0-9]+$/.test(request.pin))) {
+          reply({ ok: false, error: "Invalid PIN" });
+          return false;
+        }
       }
     }
 

@@ -43,4 +43,4 @@ foreach ($registration in $registrations) {
 
 Write-Output "Windows credential helper installed for Chrome, Edge, and Firefox."
 Write-Output "Location: $installDir"
-Write-Output 'No credentials are saved until you enter them on the CommPilot login page and select Auto sign in.'
+Write-Output 'No credentials are saved until you add a login from the Saved sign-ins panel.'

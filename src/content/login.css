@@ -1,4 +1,4 @@
-/* Center Cisco's existing 800 × 460 login table without restyling it. */
+/* Center Cisco's original login image and controls. */
 body#loginBody {
   box-sizing: border-box !important;
   display: flex !important;
@@ -7,49 +7,60 @@ body#loginBody {
   min-height: 100vh !important;
   margin: 0 !important;
 }
+body#loginBody > br,
+body#loginBody tr:has(input[name="rememberPass"]) { display: none !important; }
+body#loginBody > form[name="loginForm"] { flex: none !important; margin: auto !important; }
 
-body#loginBody > br {
-  display: none !important;
+/* A small Cisco-blue drawer below the unchanged login image. */
+body#loginBody .bw-saved-login {
+  box-sizing: border-box;
+  width: min(752px, calc(100vw - 40px));
+  margin: 8px 0 0 20px;
+  border: 1px solid #2b94ba;
+  border-radius: 6px;
+  background: #fff;
+  color: #424b50;
+  font: 12px Arial, Helvetica, sans-serif;
 }
-
-body#loginBody > form[name="loginForm"] {
-  flex: none !important;
-  margin: 0 !important;
+body#loginBody .bw-saved-login button,
+body#loginBody .bw-saved-login input { font: inherit; }
+body#loginBody .bw-saved-trigger {
+  display: block; width: 100%; padding: 7px 11px;
+  border: 0; border-radius: 5px; background: #fff;
+  color: #1684ad; text-align: left; font-weight: bold !important; cursor: pointer;
 }
-
-/* Preserve the native table size and allow scrolling on smaller screens. */
-@media (max-width: 815px), (max-height: 475px) {
-  body#loginBody {
-    align-items: flex-start !important;
-    justify-content: flex-start !important;
-  }
-
-  body#loginBody > form[name="loginForm"] {
-    margin: 8px !important;
-  }
+body#loginBody .bw-saved-trigger:hover,
+body#loginBody .bw-saved-back:hover,
+body#loginBody .bw-saved-account-name:hover { background: #eef8fb; }
+body#loginBody .bw-saved-marker { margin-right: 7px; }
+body#loginBody .bw-saved-panel { padding: 10px 13px 13px; border-top: 1px solid #b7d5e0; }
+body#loginBody .bw-saved-panel[hidden] { display: none !important; }
+body#loginBody .bw-saved-heading { margin: 0 0 8px; color: #167aa3; font-weight: bold; }
+body#loginBody .bw-saved-empty { margin: 8px 0; color: #777; }
+body#loginBody .bw-saved-status { margin: 0; color: #357f3c; }
+body#loginBody .bw-saved-status:not(:empty) { margin-bottom: 8px; }
+body#loginBody .bw-saved-status.bw-saved-error { color: #b32828; }
+body#loginBody .bw-saved-account { display: flex; align-items: center; width: min(360px, 100%); border-bottom: 1px solid #e5edf1; }
+body#loginBody .bw-saved-account-name,
+body#loginBody .bw-saved-back { padding: 6px 4px; border: 0; background: transparent; color: #167aa3; text-align: left; cursor: pointer; }
+body#loginBody .bw-saved-account-name { flex: 1; }
+body#loginBody .bw-saved-account-hint { color: #777; }
+body#loginBody .bw-saved-back { display: block; margin-bottom: 7px; }
+body#loginBody .bw-saved-label { display: block; width: min(290px, 100%); margin: 7px 0; }
+body#loginBody .bw-saved-input {
+  box-sizing: border-box; display: block; width: 100%; margin-top: 3px;
+  padding: 4px 6px; border: 1px solid #9ba8ad; background: #fff; color: #272727;
 }
-
-body#loginBody .bw-login-auto-choice {
-  display: block;
-  margin-top: 4px;
-  color: inherit;
-  font: inherit;
-  white-space: nowrap;
-  cursor: pointer;
+body#loginBody .bw-saved-help { margin: 8px 0; color: #737373; }
+body#loginBody .bw-saved-actions { display: flex; align-items: center; gap: 13px; }
+body#loginBody .bw-saved-button {
+  margin-top: 8px; padding: 4px 14px; border: 1px solid #278aad;
+  border-radius: 3px; background: #fff; color: #167aa3; cursor: pointer;
 }
-
-body#loginBody .bw-login-auto-choice input {
-  vertical-align: middle;
-}
-
-body#loginBody .bw-login-auto-status:not(:empty) {
-  display: block;
-  margin-top: 4px;
-  color: inherit;
-  font: inherit;
-  white-space: nowrap;
-}
-
-body#loginBody .bw-login-auto-status.bw-login-auto-error {
-  color: #b00020;
+body#loginBody .bw-saved-primary { background: #238eaf; color: #fff; }
+body#loginBody .bw-saved-button:disabled { opacity: .55; cursor: default; }
+body#loginBody .bw-saved-remove { border: 0; background: transparent; color: #777; cursor: pointer; }
+@media (max-width: 815px) {
+  body#loginBody { justify-content: flex-start !important; }
+  body#loginBody > form[name="loginForm"] { margin: 8px !important; }
 }

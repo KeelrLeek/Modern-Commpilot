@@ -1,6 +1,6 @@
 {
   "name": "broadworks-enhancer-pjax-preview",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Native CommPilot improvements with PJAX navigation",
   "private": true,
   "scripts": {

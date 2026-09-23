@@ -2,7 +2,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.1-native";
+  var CP_PJAX_VERSION = "0.3.2-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -3817,7 +3817,7 @@
     cpHook = function (url, params, _retry) {
       try {
         // A deliberate sign-out should leave the native login page visible
-        // briefly even when Windows credentials are saved for auto sign-in.
+        // briefly after a user-initiated sign-out.
         if (typeof url === "string" && /\/Logout(?:\/|$)/i.test(url)) {
           try { sessionStorage.setItem("bwManualLogoutAt", String(Date.now())); } catch (e) {}
         }
@@ -4050,13 +4050,19 @@
               // Update tab title from fetched page
               try { if (doc.title) document.title = doc.title; } catch (e) {}
 
-              // The content-cell swap keeps the old header in the live document.
-              // Refresh it from the fetched page so user ID/extension actions see
-              // the entity that is actually open after a PJAX navigation.
+              // The header has several td.headerBar cells (spacers, logo, Help,
+              // auth trail, Welcome). Select the cell that actually holds the
+              // native breadcrumb; querySelector("td.headerBar") selects a spacer.
+              // Copy its fresh markup so the trail and current user match the page.
+              var cpLiveHeader = null;
               try {
-                var nextHeader = doc.querySelector("td.headerBar");
-                var currentHeader = document.querySelector("td.headerBar");
-                if (nextHeader && currentHeader) currentHeader.innerHTML = nextHeader.innerHTML;
+                var hasTrail = function (cell) { return !!cell.querySelector("a.headerAuthLevelLink, span.headerAuthLevel"); };
+                var nextHeader = Array.prototype.find.call(doc.querySelectorAll("td.headerBar"), hasTrail);
+                var currentHeader = Array.prototype.find.call(document.querySelectorAll("td.headerBar"), hasTrail);
+                if (nextHeader && currentHeader) {
+                  currentHeader.innerHTML = nextHeader.innerHTML;
+                  cpLiveHeader = currentHeader;
+                }
               } catch (e) { console.warn("[pjax] header sync", e); }
 
               // The native header above was refreshed from the response. Do not
@@ -4120,6 +4126,14 @@
               };
               var n = reexecScripts(liveCell);
               if (cpLiveNav) reexecScripts(cpLiveNav);
+              if (cpLiveHeader) {
+                // BroadWorks wires breadcrumb links in DCL script tags inside this
+                // cell. The swapped scripts must run once; omit them from the
+                // grid's later DCL retries to avoid duplicate click handlers.
+                var headerDclStart = window.__cpDclFns.length;
+                n += reexecScripts(cpLiveHeader);
+                window.__cpDclFns.splice(headerDclStart);
+              }
               document.addEventListener = origAdd;
               window.addEventListener = origWinAdd;
               if (window.redirectPost !== cpHook) { _orig = window.redirectPost; window.redirectPost = cpHook; }

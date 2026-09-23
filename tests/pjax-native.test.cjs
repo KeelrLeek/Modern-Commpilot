@@ -10,14 +10,22 @@ const chromePath = process.env.CHROME_PATH || [
 ].find(fs.existsSync);
 const pjaxPath = path.resolve(__dirname, '../src/content/pjax.js');
 const start = `<!doctype html><html><head><title>Users</title></head><body>
-<table><tr><td class="headerBar"><span class="headerAuthLevel">Old User</span></td></tr></table>
+<table><tr><td class="headerBar"><img alt="spacer"></td></tr>
+<tr><td class="headerBar"><a class="headerAuthLevelLink">Reseller</a> &gt;
+<a class="headerAuthLevelLink">Acme SP</a> &gt; <a class="headerAuthLevelLink">Acme Group</a> &gt;
+<a class="headerAuthLevelLink">Users</a> : <span class="headerAuthLevel">Old User</span></td></tr></table>
 <form name="leftNavForm"><a class="leftnavfolder" href="#">Profile</a></form>
 <input name="formtokenserial" value="token-1">
 <table><tr><td width="82%"><div id="view">Original page</div></td></tr></table>
 <script>window.redirectPost = function(url, params) { window.nativeNavigation = {url, params}; };</script>
 </body></html>`;
 const next = `<!doctype html><html><head><title>Addresses</title></head><body>
-<table><tr><td class="headerBar"><span class="headerAuthLevel">New User</span></td></tr></table>
+<table><tr><td class="headerBar"><img alt="spacer"></td></tr>
+<tr><td class="headerBar"><a class="headerAuthLevelLink" id="new-reseller">Reseller</a> &gt;
+<a class="headerAuthLevelLink">Acme SP</a> &gt; <a class="headerAuthLevelLink">Acme Group</a> &gt;
+<a class="headerAuthLevelLink">Users</a> : <span class="headerAuthLevel">New User</span>
+<script>document.addEventListener('DOMContentLoaded',function(){document.getElementById('new-reseller').addEventListener('click',function(){window.nativeCrumbClicks=(window.nativeCrumbClicks||0)+1;});});</script>
+</td></tr></table>
 <form name="leftNavForm"><a class="leftnavfolder" href="#">Profile</a></form>
 <input name="formtokenserial" value="token-2">
 <table><tr><td width="82%"><div id="view">Address settings</div></td></tr></table>
@@ -42,7 +50,10 @@ test('PJAX swaps content, header, token, and URL without a document reload', asy
   await page.evaluate(() => window.redirectPost('/commpilot/Reseller/Admins/', {}));
   await page.getByText('Address settings').waitFor();
   assert.equal(requests, 1);
-  assert.equal(await page.locator('td.headerBar').innerText(), 'New User');
+  assert.equal(await page.locator('td.headerBar:has(.headerAuthLevel)').innerText(),
+    'Reseller > Acme SP > Acme Group > Users : New User');
+  await page.locator('#new-reseller').click();
+  assert.equal(await page.evaluate(() => window.nativeCrumbClicks), 1);
   assert.equal(await page.locator('[name="formtokenserial"]').inputValue(), 'token-2');
   assert.equal(await page.evaluate(() => document === window.initialDocument), true);
   assert.equal(await page.evaluate(() => location.pathname), '/commpilot/Reseller/Admins/');
