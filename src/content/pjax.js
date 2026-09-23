@@ -1,8 +1,12 @@
 (function () {
+  // The hidden POST transport loads CommPilot in sandboxed frames. PJAX owns
+  // only the top-level page; running here would rewrite the frame's joint
+  // history state and can turn Back into a full document navigation.
+  if (window !== window.top) return;
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.4-native";
+  var CP_PJAX_VERSION = "0.3.6-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -55,7 +59,17 @@
   // intentional moment instead of a flicker. See cpSignOutFetch / cpHook.
   var CP_LOGOUT_MIN_MS = 1400;
 
-  try { history.replaceState({ cpNav: { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } } }, "", location.href); } catch (e) {}
+  try {
+    var cpInitialPath = location.pathname;
+    // A fresh reseller login lands on folder_contents.jsp by POST. Replaying
+    // that URL without its folder selection bounces to Login on Back.
+    var cpInitialNav = cpInitialPath === "/commpilot/Common/folder_contents.jsp" ?
+      { url: cpInitialPath, params: { folder: "R0", menuId: "8" } } :
+      cpInitialPath.indexOf("/commpilot/") === 0 && cpInitialPath.indexOf("/Login/") === -1 ?
+      { url: cpInitialPath, params: {} } :
+      { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
+    history.replaceState({ cpNav: cpInitialNav }, "", location.href);
+  } catch (e) {}
 
   var onLogin =
     location.pathname.indexOf("/Login/") !== -1 ||
@@ -121,6 +135,7 @@
   // page load (cpBuildConsole then reads the live header, which IS fresh on an initial/recovery load).
   var cpCurEntity = null;
   var cpAggActive = false;
+  var cpAggGeneration = 0;
   var cpAggToken = null;
   var cpAggAnchorFolder = null;
   var cpAggCache = null;   // SP pre-fetch cache {folder: menuHtml|null}, filled before the page is wiped
@@ -336,6 +351,10 @@
           // page's fill (find.jsp/findAll.jsp render their cells client-side, like the list landing).
           u.indexOf("/commpilot/Common/find.jsp") !== -1 ||
           u.indexOf("/commpilot/Common/findAll.jsp") !== -1 ||
+          // Shared settings pages are linked from service provider and group
+          // menus, but their endpoints live outside those level prefixes.
+          /\/commpilot\/Common\/(?:DeviceProfileAuthPasswordRules|Password_Rules|PasscodeRules|SipAuthPasswordRules)\/index\.jsp$/.test(u) ||
+          /\/commpilot\/Intercept\/index\.jsp$/.test(u) ||
           // Admin row DRILL-IN: the Administrators list row navigates via /Reseller/Admins/modify.jsp (a "set the
           // modify context, then redirect to .../Admins/Modify/" endpoint). Unlisted → cpHook native-submitted it
           // → a FULL page load on drill-in AND a native POST that degraded the single-use token → /Login/.
@@ -378,7 +397,15 @@
           // — THREE section segments, so the 1-2 segment SP/Group patterns above miss them → cpHook
           // native-navigated (FULL reload, observed 2026-07-06). Listed, the Add form's modal-fail fallback
           // and the row drill both swap in-shell, and the form's ok/cancel self-POSTs ride cpFollow.
-          /\/commpilot\/(?:ServiceProvider|Group)\/Schedules\/Events\/(?:Add|Modify)\/(index\.jsp)?$/.test(u))
+          /\/commpilot\/(?:ServiceProvider|Group)\/Schedules\/Events\/(?:Add|Modify)\/(index\.jsp)?$/.test(u) ||
+          // CommPilot has deeper settings trees under each level. Keep those
+          // pages in the shell, including Operator pages, while leaving Login,
+          // Common utilities, and servlet/download endpoints on their existing
+          // dedicated paths. A content-less response still falls back safely.
+          (/^\/commpilot\/(?:Reseller|ServiceProvider|Group|User)(?:\/[A-Za-z0-9_-]+){3,8}\/(?:[A-Za-z0-9_-]+\.jsp)?(?:\?[^#]*)?$/.test(u) &&
+            !/\/Logout(?:\/|$)/i.test(u)) ||
+          (/^\/commpilot\/Operator(?:\/[A-Za-z0-9_-]+){1,8}\/(?:[A-Za-z0-9_-]+\.jsp)?(?:\?[^#]*)?$/.test(u) &&
+            !/\/Logout(?:\/|$)/i.test(u)))
       );
     }
 
@@ -488,11 +515,15 @@
     // folder_contents 2-step), so cpHook's swap logic is identical regardless of transport.
     function cpFollowFrame(url, params, token, depth) {
       return new Promise(function (resolve) {
-        var ifr = document.createElement("iframe");
-        ifr.name = "cpFrame" + (++cpFrameSeq);
-        ifr.setAttribute("sandbox", "allow-same-origin");
-        ifr.style.cssText = "position:absolute;width:10px;height:10px;border:0;left:-9999px;top:-9999px";
-        document.body.appendChild(ifr);
+        var ifr;
+        function newFrame() {
+          ifr = document.createElement("iframe");
+          ifr.name = "cpFrame" + (++cpFrameSeq);
+          ifr.setAttribute("sandbox", "allow-same-origin");
+          ifr.style.cssText = "position:absolute;width:10px;height:10px;border:0;left:-9999px;top:-9999px";
+          document.body.appendChild(ifr);
+        }
+        newFrame();
         cpInflightPosts++;   // a token-bearing navigation POST in flight (drained by the reload handler)
         var settled = false;
         function done(val) {
@@ -522,7 +553,16 @@
             var fdoc = new DOMParser().parseFromString(html, "text/html");
             if (fdoc.querySelector('td[width="82%"]')) { done({ doc: fdoc, html: html }); return; }
             var stub = cpExtractStub(fdoc);
-            if (stub && stub.target && d < 4) { cpDbg("[pjax] frame stub ->", stub.target); post(stub.target, stub.data, stub.token, d + 1); return; }
+            if (stub && stub.target && d < 4) {
+              cpDbg("[pjax] frame stub ->", stub.target);
+              // Each POST is the first navigation of a fresh frame. Reusing a
+              // frame for the redirect chain adds joint session-history entries.
+              // Those entries can intercept Back and discard the Forward page.
+              try { ifr.remove(); } catch (e) {}
+              newFrame();
+              post(stub.target, stub.data, stub.token, d + 1);
+              return;
+            }
             done({ doc: fdoc, html: html });
           };
           f.submit();
@@ -582,6 +622,13 @@
       cpAggToken = t ? t.value : null;
     }
     function cpAggEnd() {
+      cpAggGeneration++;
+      if (cpAggReady) {
+        for (var pendingFolder in cpAggReady) {
+          if (Object.prototype.hasOwnProperty.call(cpAggReady, pendingFolder))
+            try { cpAggReady[pendingFolder].resolve(null); } catch (e) {}
+        }
+      }
       cpAggActive = false; cpAggToken = null; cpAggAnchorFolder = null; cpAggCache = null; cpAggReady = null;
     }
     function cpAggPrefetch(folders) {
@@ -594,20 +641,28 @@
         if (f.folder === cpAggAnchorFolder) return;
         if (!cpAggReady[f.folder]) cpAggReady[f.folder] = cpDefer();
       });
+      var generation = cpAggGeneration;
       var seq = Promise.resolve();
       folders.forEach(function (f) {
         if (f.folder === cpAggAnchorFolder) return;   // anchor reuses its captured menu
         var deferred = cpAggReady[f.folder];           // capture THIS build's deferred (survives a cpAggEnd swap)
         seq = seq.then(function () {
           var settle = function (html) { if (cpAggCache) cpAggCache[f.folder] = html; deferred.resolve(html); };
-          if (cpSectionAborted) { settle(null); return; }
+          if (cpSectionAborted || generation !== cpAggGeneration || !cpAggActive) { settle(null); return; }
           var tokEl = document.getElementsByName("formtokenserial")[0];
           var tok = (tokEl ? tokEl.value : null) || cpAggToken;
           return cpFollowFrame("/commpilot/Common/folder_contents.jsp", { folder: f.folder, menuId: f.menuId || "2" }, tok, 0)
             .then(function (res) {
+              if (res && res.doc) {
+                var nt = res.doc.getElementsByName("formtokenserial")[0];
+                if (nt && nt.value) {
+                  if (generation === cpAggGeneration) cpAggToken = nt.value;
+                  var ts = document.getElementsByName("formtokenserial");
+                  for (var i = 0; i < ts.length; i++) ts[i].value = nt.value;
+                }
+              }
+              if (generation !== cpAggGeneration || !cpAggActive) { deferred.resolve(null); return; }
               if (!res || res.auth === false || !res.doc) { settle(null); return; }
-              var nt = res.doc.getElementsByName("formtokenserial")[0];
-              if (nt && nt.value) { cpAggToken = nt.value; var ts = document.getElementsByName("formtokenserial"); for (var i = 0; i < ts.length; i++) ts[i].value = nt.value; }
               var td = res.doc.querySelector('td[width="82%"]');
               var n = td ? td.querySelectorAll('a.navMenuItem').length : 0;
               settle((td && n > 0) ? td.innerHTML : null);
@@ -3845,6 +3900,25 @@
         var _so = 0; try { _so = parseInt(sessionStorage.getItem("cp-signing-out") || "0", 10); } catch (e) {}
         if (_so && (Date.now() - _so < 15000)) { cpSignOutFetch(url, params || {}); return; }
         if (isPjaxUrl(url)) {
+          // A level's menu prefetch rotates the same single-use token as a
+          // clicked page. Stop the remaining prefetches and let its current
+          // POST settle before starting this navigation.
+          if (cpAggActive) {
+            cpSectionAborted = true;
+            cpAggEnd();
+            if (cpInflightPosts > 0) {
+              var waitSeq = ++cpSeq, waited = 0;
+              var continueAfterAgg = function () {
+                if (cpSeq !== waitSeq) return;
+                if (cpInflightPosts === 0 || waited++ >= 250) {
+                  if (cpInflightPosts > 0) console.warn("[pjax] menu prefetch did not drain before navigation");
+                  cpHook(url, params, _retry);
+                } else setTimeout(continueAfterAgg, 20);
+              };
+              setTimeout(continueAfterAgg, 0);
+              return;
+            }
+          }
           var mySeq = ++cpSeq;
           // Remember the list landing a search was launched FROM (location is still the real landing here, before
           // the swap repaints the address bar as /Common/findAll.jsp) so later relative navs resolve right.
@@ -3885,6 +3959,7 @@
           var liveTokEl = document.getElementsByName("formtokenserial")[0];
           var firstTok = liveTokEl ? liveTokEl.value : null;
           var cpLoader = cpNeedsFrame(url, params) ? cpFollowFrame : cpFollow;
+          var cpHistoryBeforeLoad = history.length;
           cpDbg("[pjax]", cpLoader === cpFollowFrame ? "iframe-loading" : "fetching", url);
           cpLoader(url, params, firstTok, 0)
             .then(function (res) {
@@ -4057,8 +4132,12 @@
               var cpLiveHeader = null;
               try {
                 var hasTrail = function (cell) { return !!cell.querySelector("a.headerAuthLevelLink, span.headerAuthLevel"); };
-                var nextHeader = Array.prototype.find.call(doc.querySelectorAll("td.headerBar"), hasTrail);
-                var currentHeader = Array.prototype.find.call(document.querySelectorAll("td.headerBar"), hasTrail);
+                var findHeader = function (cells) {
+                  for (var i = 0; i < cells.length; i++) if (hasTrail(cells[i])) return cells[i];
+                  return null;
+                };
+                var nextHeader = findHeader(doc.querySelectorAll("td.headerBar"));
+                var currentHeader = findHeader(document.querySelectorAll("td.headerBar"));
                 if (nextHeader && currentHeader) {
                   currentHeader.innerHTML = nextHeader.innerHTML;
                   cpLiveHeader = currentHeader;
@@ -4194,7 +4273,11 @@
               try {
                 var cpState = { cpNav: { url: url, params: params || {} } };
                 if (cpPopReplaying) { history.replaceState(cpState, "", canonical); cpPopReplaying = false; }
-                else { history.pushState(cpState, "", canonical); }
+                else if (cpLoader === cpFollowFrame && history.length > cpHistoryBeforeLoad) {
+                  // A navigation-only frame POST has already created a joint
+                  // history entry. Claim that entry for the parent document.
+                  history.replaceState(cpState, "", canonical);
+                } else { history.pushState(cpState, "", canonical); }
               } catch (e) {}
               // Chained follow-up (entity re-entry → target page): fire the pending nav now that this swap
               // (the entry) has committed. See cpPendingNav/cpEntityEntry.

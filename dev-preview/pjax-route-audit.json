@@ -1,0 +1,4039 @@
+{
+  "updated": "2026-09-23 19:30",
+  "note": "Live sandbox scan. Totals are for discovered routes so far, not the entire CommPilot site.",
+  "inventory": {
+    "complete": false,
+    "folders": [
+      {
+        "level": "Reseller",
+        "name": "Resources",
+        "count": 13
+      },
+      {
+        "level": "Reseller",
+        "name": "Services",
+        "count": 4
+      },
+      {
+        "level": "Reseller",
+        "name": "Call Center",
+        "count": 1
+      },
+      {
+        "level": "Reseller",
+        "name": "Meet-Me Conferencing",
+        "count": 1
+      },
+      {
+        "level": "Reseller",
+        "name": "Utilities",
+        "count": 2
+      },
+      {
+        "level": "Service Provider",
+        "name": "Resources",
+        "count": 25
+      },
+      {
+        "level": "Service Provider",
+        "name": "Services",
+        "count": 12
+      },
+      {
+        "level": "Service Provider",
+        "name": "Communication Barring",
+        "count": 2
+      },
+      {
+        "level": "Service Provider",
+        "name": "Meet-Me Conferencing",
+        "count": 1
+      },
+      {
+        "level": "Service Provider",
+        "name": "Utilities",
+        "count": 13
+      },
+      {
+        "level": "Group",
+        "name": "Resources",
+        "count": 29
+      },
+      {
+        "level": "Group",
+        "name": "Services",
+        "count": 31
+      },
+      {
+        "level": "Group",
+        "name": "Acct/Auth Codes",
+        "count": 2
+      },
+      {
+        "level": "Group",
+        "name": "Call Center",
+        "count": 11
+      },
+      {
+        "level": "Group",
+        "name": "Calling Plan",
+        "count": 8
+      },
+      {
+        "level": "Group",
+        "name": "Communication Barring",
+        "count": 1
+      },
+      {
+        "level": "Group",
+        "name": "Meet-Me Conferencing",
+        "count": 2
+      },
+      {
+        "level": "Group",
+        "name": "Utilities",
+        "count": 14
+      },
+      {
+        "level": "User",
+        "name": "Incoming Calls",
+        "count": 32
+      },
+      {
+        "level": "User",
+        "name": "Outgoing Calls",
+        "count": 14
+      },
+      {
+        "level": "User",
+        "name": "Call Control",
+        "count": 34
+      },
+      {
+        "level": "User",
+        "name": "Calling Plans",
+        "count": 6
+      },
+      {
+        "level": "User",
+        "name": "Client Applications",
+        "count": 8
+      },
+      {
+        "level": "User",
+        "name": "Messaging",
+        "count": 13
+      },
+      {
+        "level": "User",
+        "name": "Utilities",
+        "count": 13
+      },
+      {
+        "level": "Reseller",
+        "name": "Profile",
+        "count": 10
+      },
+      {
+        "level": "Service Provider",
+        "name": "Profile",
+        "count": 13
+      },
+      {
+        "level": "Group",
+        "name": "Profile",
+        "count": 16
+      },
+      {
+        "level": "User",
+        "name": "Profile",
+        "count": 19
+      },
+      {
+        "level": "Auto Attendant",
+        "name": "Incoming Calls",
+        "count": 4
+      },
+      {
+        "level": "Auto Attendant",
+        "name": "Calling Plans",
+        "count": 6
+      },
+      {
+        "level": "Auto Attendant",
+        "name": "Menus",
+        "count": 3
+      },
+      {
+        "level": "Auto Attendant",
+        "name": "Utilities",
+        "count": 1
+      },
+      {
+        "level": "Hunt Group",
+        "name": "Incoming Calls",
+        "count": 18
+      },
+      {
+        "level": "Hunt Group",
+        "name": "Outgoing Calls",
+        "count": 1
+      },
+      {
+        "level": "Hunt Group",
+        "name": "Call Control",
+        "count": 5
+      },
+      {
+        "level": "Hunt Group",
+        "name": "Calling Plans",
+        "count": 6
+      },
+      {
+        "level": "Hunt Group",
+        "name": "Messaging",
+        "count": 7
+      },
+      {
+        "level": "Hunt Group",
+        "name": "Utilities",
+        "count": 4
+      },
+      {
+        "level": "Call Center",
+        "name": "Routing Policies",
+        "count": 4
+      },
+      {
+        "level": "Call Center",
+        "name": "Incoming Calls",
+        "count": 17
+      },
+      {
+        "level": "Call Center",
+        "name": "Outgoing Calls",
+        "count": 1
+      },
+      {
+        "level": "Call Center",
+        "name": "Call Control",
+        "count": 6
+      },
+      {
+        "level": "Call Center",
+        "name": "Calling Plans",
+        "count": 6
+      },
+      {
+        "level": "Call Center",
+        "name": "Messaging",
+        "count": 7
+      },
+      {
+        "level": "Call Center",
+        "name": "Utilities",
+        "count": 4
+      },
+      {
+        "level": "Auto Attendant",
+        "name": "Profile",
+        "count": 10
+      },
+      {
+        "level": "Hunt Group",
+        "name": "Profile",
+        "count": 11
+      },
+      {
+        "level": "Call Center",
+        "name": "Profile",
+        "count": 17
+      }
+    ]
+  },
+  "routes": [
+    {
+      "id": "reseller-groups",
+      "area": "Reseller / Profile",
+      "label": "Groups",
+      "path": "/commpilot/Reseller/Groups/",
+      "status": "pass"
+    },
+    {
+      "id": "reseller-group-entry",
+      "area": "Group drill-in",
+      "label": "Group profile menu",
+      "path": "/commpilot/Reseller/Groups/Modify/index.jsp",
+      "status": "pass"
+    },
+    {
+      "id": "group-users",
+      "area": "Group / Profile",
+      "label": "Users",
+      "path": "/commpilot/Group/Members/",
+      "status": "pass"
+    },
+    {
+      "id": "group-user-entry",
+      "area": "User drill-in",
+      "label": "User profile menu",
+      "path": "/commpilot/Group/Members/Modify/index.jsp",
+      "status": "pass"
+    },
+    {
+      "id": "user-addresses",
+      "area": "User / Profile",
+      "label": "Addresses",
+      "path": "/commpilot/User/Addresses/",
+      "status": "pass"
+    },
+    {
+      "id": "group-schedules",
+      "area": "Group / Profile",
+      "label": "Schedules",
+      "path": "/commpilot/Group/Schedules/",
+      "status": "pass"
+    },
+    {
+      "id": "schedule-modify",
+      "area": "Schedule drill-in",
+      "label": "Schedule modify",
+      "path": "/commpilot/Group/Schedules/Modify/index.jsp",
+      "status": "pass"
+    },
+    {
+      "id": "event-modify",
+      "area": "Schedule drill-in",
+      "label": "Event modify",
+      "path": "/commpilot/Group/Schedules/Events/Modify/index.jsp",
+      "status": "pass"
+    },
+    {
+      "id": "codes-management",
+      "area": "Calling Plan",
+      "label": "Codes Management",
+      "path": "/commpilot/Group/Calling_Plan/CodesMgmt/",
+      "status": "pass"
+    },
+    {
+      "id": "codes-modify",
+      "area": "Calling Plan drill-in",
+      "label": "Codes Management modify",
+      "path": "/commpilot/Group/Calling_Plan/CodesMgmt/Modify/index.jsp",
+      "status": "pass"
+    },
+    {
+      "id": "reseller-service-providers",
+      "area": "Reseller / Profile",
+      "label": "Service Providers",
+      "path": "/commpilot/Reseller/ServiceProviders/index.jsp",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "reseller-enterprises",
+      "area": "Reseller / Profile",
+      "label": "Enterprises",
+      "path": "/commpilot/Reseller/ServiceProviders/index.jsp",
+      "status": "pending",
+      "detail": "page.evaluate: TypeError: window.redirectPost is not a function\n    at eval (eval at evaluate (:311:30), <anonymous>:1:16)\n    at UtilityScript.evaluate (<anonymous>:313:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+    },
+    {
+      "id": "reseller-users",
+      "area": "Reseller / Profile",
+      "label": "Users",
+      "path": "/commpilot/Reseller/Users/",
+      "status": "pending"
+    },
+    {
+      "id": "reseller-service-instances",
+      "area": "Reseller / Profile",
+      "label": "Service Instances",
+      "path": "/commpilot/Reseller/ServiceInstances/",
+      "status": "pending"
+    },
+    {
+      "id": "reseller-profile",
+      "area": "Reseller / Profile",
+      "label": "Profile",
+      "path": "/commpilot/Reseller/Profile/",
+      "status": "pending"
+    },
+    {
+      "id": "reseller-admins",
+      "area": "Reseller / Profile",
+      "label": "Administrators",
+      "path": "/commpilot/Reseller/Admins/",
+      "status": "pending"
+    },
+    {
+      "id": "reseller-activation",
+      "area": "Reseller / Profile",
+      "label": "Activation Code Device Onboarding Policies",
+      "path": "/commpilot/Reseller/DeviceActivationPolicy/",
+      "status": "pending"
+    },
+    {
+      "id": "reseller-alternate-ids",
+      "area": "Reseller / Profile",
+      "label": "Alternate User IDs",
+      "path": "/commpilot/Reseller/AlternateUserIDs/",
+      "status": "pending"
+    },
+    {
+      "id": "reseller-stir",
+      "area": "Reseller / Profile",
+      "label": "STIR-SHAKEN",
+      "path": "/commpilot/Reseller/StirShaken/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-20",
+      "area": "Reseller / Resources",
+      "label": "Call Recording Platforms",
+      "path": "/commpilot/Reseller/CallRecordingPlatforms/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-21",
+      "area": "Reseller / Resources",
+      "label": "Identity/Device Endpoints",
+      "path": "/commpilot/Reseller/Endpoints/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-22",
+      "area": "Reseller / Resources",
+      "label": "Identity/Device Profile Types",
+      "path": "/commpilot/Reseller/DeviceType/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-23",
+      "area": "Reseller / Resources",
+      "label": "Identity/Device Profile Inventory",
+      "path": "/commpilot/Reseller/DeviceInventory/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-24",
+      "area": "Reseller / Resources",
+      "label": "Domains",
+      "path": "/commpilot/Reseller/Domains/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-25",
+      "area": "Reseller / Resources",
+      "label": "Numbers",
+      "path": "/commpilot/Reseller/DnManagement/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-26",
+      "area": "Reseller / Resources",
+      "label": "Numbers Usage",
+      "path": "/commpilot/Reseller/DnSummary/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-27",
+      "area": "Reseller / Resources",
+      "label": "Enterprise Trunk Number Ranges",
+      "path": "/commpilot/Reseller/NumberRanges/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-28",
+      "area": "Reseller / Resources",
+      "label": "Enterprise Trunk Number Prefixes",
+      "path": "/commpilot/Reseller/NumberPrefixes/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-29",
+      "area": "Reseller / Resources",
+      "label": "Xsi Policy Profile",
+      "path": "/commpilot/Reseller/XsiPolicyProfile/ServiceProvider/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-30",
+      "area": "Reseller / Resources",
+      "label": "Device Management Device Families",
+      "path": "/commpilot/Reseller/DeviceFamilies/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-31",
+      "area": "Reseller / Resources",
+      "label": "Device Management Tag Sets",
+      "path": "/commpilot/Reseller/DeviceTags/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-32",
+      "area": "Reseller / Resources",
+      "label": "Mobile Subscriber Directory Numbers",
+      "path": "/commpilot/Reseller/MSDNManagement/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-33",
+      "area": "Reseller / Services",
+      "label": "Call Notify",
+      "path": "/commpilot/Reseller/CallNotify/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-34",
+      "area": "Reseller / Services",
+      "label": "Collaborate",
+      "path": "/commpilot/Reseller/Collaborate/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-35",
+      "area": "Reseller / Services",
+      "label": "Emergency Zones",
+      "path": "/commpilot/Reseller/EmergencyZone/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-36",
+      "area": "Reseller / Services",
+      "label": "Voice Messaging",
+      "path": "/commpilot/Reseller/VM/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-37",
+      "area": "Reseller / Call Center",
+      "label": "Profile",
+      "path": "/commpilot/Reseller/CallCenter/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-38",
+      "area": "Reseller / Meet-Me Conferencing",
+      "label": "Profile",
+      "path": "/commpilot/Reseller/MeetMeConferencing/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-39",
+      "area": "Reseller / Utilities",
+      "label": "Emergency Call Notification",
+      "path": "/commpilot/Reseller/EmergencyCallNotification/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-40",
+      "area": "Reseller / Utilities",
+      "label": "Mail Parameters",
+      "path": "/commpilot/Reseller/MailParameters/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-41",
+      "area": "Service Provider / Resources",
+      "label": "Carriers",
+      "path": "/commpilot/ServiceProvider/Carriers/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-42",
+      "area": "Service Provider / Resources",
+      "label": "Group Paging Targets Capacity",
+      "path": "/commpilot/ServiceProvider/GroupPagingTargetsCapacity/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-43",
+      "area": "Service Provider / Resources",
+      "label": "Identity/Device Endpoints",
+      "path": "/commpilot/ServiceProvider/Endpoints/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-44",
+      "area": "Service Provider / Resources",
+      "label": "Identity/Device Profiles",
+      "path": "/commpilot/ServiceProvider/DeviceInventory/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-45",
+      "area": "Service Provider / Resources",
+      "label": "Domains",
+      "path": "/commpilot/ServiceProvider/Domains/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-46",
+      "area": "Service Provider / Resources",
+      "label": "Network Classes of Service",
+      "path": "/commpilot/ServiceProvider/NetworkClassesOfService/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-47",
+      "area": "Service Provider / Resources",
+      "label": "Numbers",
+      "path": "/commpilot/ServiceProvider/DnManagement/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-48",
+      "area": "Service Provider / Resources",
+      "label": "Enterprise Trunk Number Ranges",
+      "path": "/commpilot/ServiceProvider/NumberRanges/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-49",
+      "area": "Service Provider / Resources",
+      "label": "Enterprise Trunk Number Prefixes",
+      "path": "/commpilot/ServiceProvider/NumberPrefixes/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-50",
+      "area": "Service Provider / Resources",
+      "label": "Office Zones",
+      "path": "/commpilot/ServiceProvider/OfficeZones/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-51",
+      "area": "Service Provider / Resources",
+      "label": "Route Point External Systems",
+      "path": "/commpilot/ServiceProvider/RoutePointExternalSystems/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-52",
+      "area": "Service Provider / Resources",
+      "label": "Services",
+      "path": "/commpilot/Operator/ServiceProviders/AuthorizeServices/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-53",
+      "area": "Service Provider / Resources",
+      "label": "Service Packs",
+      "path": "/commpilot/ServiceProvider/ServicePacks/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-54",
+      "area": "Service Provider / Resources",
+      "label": "Service Pack Usage",
+      "path": "/commpilot/ServiceProvider/ServicePackUtilization/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-55",
+      "area": "Service Provider / Resources",
+      "label": "Session Admission Control Capacity",
+      "path": "/commpilot/ServiceProvider/SACCapacity/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-56",
+      "area": "Service Provider / Resources",
+      "label": "System Defined Communication Barring Criteria",
+      "path": "/commpilot/ServiceProvider/SystemDefinedCriteria/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-57",
+      "area": "Service Provider / Resources",
+      "label": "System Defined Communication Barring Incoming Criteria",
+      "path": "/commpilot/ServiceProvider/SystemDefinedIncomingCriteria/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-58",
+      "area": "Service Provider / Resources",
+      "label": "Trunking Call Capacity",
+      "path": "/commpilot/ServiceProvider/TrunkingCallCapacity/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-59",
+      "area": "Service Provider / Resources",
+      "label": "Xsi Policy Profile",
+      "path": "/commpilot/ServiceProvider/XsiPolicyProfile/Group/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-60",
+      "area": "Service Provider / Resources",
+      "label": "Assign Domains",
+      "path": "/commpilot/Operator/ServiceProviders/AssignDomains/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-61",
+      "area": "Service Provider / Resources",
+      "label": "Assign Network Classes of Service",
+      "path": "/commpilot/ServiceProvider/AssignNetworkClassesOfService/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-62",
+      "area": "Service Provider / Resources",
+      "label": "Assign Route Point External Systems",
+      "path": "/commpilot/ServiceProvider/AssignRoutePointExternalSystems/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-63",
+      "area": "Service Provider / Resources",
+      "label": "Assign Xsi Policy Profile",
+      "path": "/commpilot/ServiceProvider/AssignXsiPolicyProfile/ServiceProvider/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-64",
+      "area": "Service Provider / Resources",
+      "label": "IMRNs",
+      "path": "/commpilot/ServiceProvider/IMRNsManagement/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-65",
+      "area": "Service Provider / Resources",
+      "label": "Mobile Subscriber Directory Numbers",
+      "path": "/commpilot/ServiceProvider/MSDNManagement/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-66",
+      "area": "Service Provider / Services",
+      "label": "External Custom Ringback",
+      "path": "/commpilot/ServiceProvider/ExternalCustomRingback/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-67",
+      "area": "Service Provider / Services",
+      "label": "In-Call Service Activation",
+      "path": "/commpilot/ServiceProvider/ICSA/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-68",
+      "area": "Service Provider / Services",
+      "label": "Integrated IM&P",
+      "path": "/commpilot/ServiceProvider/IntegratedIMP/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-69",
+      "area": "Service Provider / Services",
+      "label": "Voice Messaging",
+      "path": "/commpilot/ServiceProvider/VM/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-70",
+      "area": "Service Provider / Services",
+      "label": "Voice Portal",
+      "path": "/commpilot/ServiceProvider/VP/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-71",
+      "area": "Service Provider / Services",
+      "label": "Advice Of Charge",
+      "path": "/commpilot/ServiceProvider/AdviceOfCharge/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-72",
+      "area": "Service Provider / Services",
+      "label": "BroadWorks Mobility",
+      "path": "/commpilot/ServiceProvider/BroadWorksMobility/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-73",
+      "area": "Service Provider / Services",
+      "label": "MWI Delivery to Mobile Endpoint",
+      "path": "/commpilot/ServiceProvider/MWIMobile/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-74",
+      "area": "Service Provider / Services",
+      "label": "Number Portability Query",
+      "path": "/commpilot/ServiceProvider/NumberPortabilityQuery/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-75",
+      "area": "Service Provider / Services",
+      "label": "Session Admission Control Allow List",
+      "path": "/commpilot/ServiceProvider/SACWhiteList/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-76",
+      "area": "Service Provider / Services",
+      "label": "Third-Party Emergency Calling",
+      "path": "/commpilot/ServiceProvider/ThirdPartyEmergency/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-77",
+      "area": "Service Provider / Services",
+      "label": "Zone Calling Restrictions",
+      "path": "/commpilot/ServiceProvider/ZoneCallingRestrictions/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-78",
+      "area": "Service Provider / Communication Barring",
+      "label": "Digit Pattern Criteria",
+      "path": "/commpilot/ServiceProvider/CommBarring/DigitPatternCriteria/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-79",
+      "area": "Service Provider / Communication Barring",
+      "label": "Profiles",
+      "path": "/commpilot/ServiceProvider/CommBarring/Profiles/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-80",
+      "area": "Service Provider / Meet-Me Conferencing",
+      "label": "Meet-Me Conference Ports",
+      "path": "/commpilot/ServiceProvider/MeetMeConference/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-81",
+      "area": "Service Provider / Utilities",
+      "label": "BroadWorks Anywhere Number Lookup",
+      "path": "/commpilot/ServiceProvider/BWAnywhereNumberLookup/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-82",
+      "area": "Service Provider / Utilities",
+      "label": "Device Profile Authentication Password Rules",
+      "path": "/commpilot/Common/DeviceProfileAuthPasswordRules/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-83",
+      "area": "Service Provider / Utilities",
+      "label": "Emergency Call Notification",
+      "path": "/commpilot/ServiceProvider/EmergencyCallNotification/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-84",
+      "area": "Service Provider / Utilities",
+      "label": "Feature Access Codes",
+      "path": "/commpilot/ServiceProvider/FAC/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-85",
+      "area": "Service Provider / Utilities",
+      "label": "Password Rules",
+      "path": "/commpilot/Common/Password_Rules/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-86",
+      "area": "Service Provider / Utilities",
+      "label": "Passcode Rules",
+      "path": "/commpilot/Common/PasscodeRules/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-87",
+      "area": "Service Provider / Utilities",
+      "label": "SIP Authentication Password Rules",
+      "path": "/commpilot/Common/SipAuthPasswordRules/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-88",
+      "area": "Service Provider / Utilities",
+      "label": "Answer Confirmation",
+      "path": "/commpilot/ServiceProvider/AnswerConfirmation/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-89",
+      "area": "Service Provider / Utilities",
+      "label": "Device Configuration",
+      "path": "/commpilot/ServiceProvider/DefaultConfig/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-90",
+      "area": "Service Provider / Utilities",
+      "label": "Device Management Event Queues",
+      "path": "/commpilot/ServiceProvider/DMEventQueues/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-91",
+      "area": "Service Provider / Utilities",
+      "label": "Service Pack Migration",
+      "path": "/commpilot/ServiceProvider/ServicePackMigration/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-92",
+      "area": "Service Provider / Utilities",
+      "label": "Voice Portal Branding",
+      "path": "/commpilot/ServiceProvider/VPBranding/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-93",
+      "area": "Service Provider / Utilities",
+      "label": "Web Portal Branding",
+      "path": "/commpilot/Operator/System/System_Preferences/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-94",
+      "area": "Group / Resources",
+      "label": "Call Recording Platform",
+      "path": "/commpilot/Group/CallRecordingPlatform/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-95",
+      "area": "Group / Resources",
+      "label": "Group Paging Targets Capacity",
+      "path": "/commpilot/Group/GroupPagingTargetsCapacity/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-96",
+      "area": "Group / Resources",
+      "label": "Identity/Device Endpoints",
+      "path": "/commpilot/Group/Endpoints/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-97",
+      "area": "Group / Resources",
+      "label": "Identity/Device Profiles",
+      "path": "/commpilot/Group/DeviceInventory/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-98",
+      "area": "Group / Resources",
+      "label": "Domains",
+      "path": "/commpilot/Group/Domains/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-99",
+      "area": "Group / Resources",
+      "label": "Network Classes of Service",
+      "path": "/commpilot/Group/NetworkClassesOfService/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-100",
+      "area": "Group / Resources",
+      "label": "Numbers",
+      "path": "/commpilot/Group/GroupDnManagement/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-101",
+      "area": "Group / Resources",
+      "label": "Enterprise Trunk Number Ranges",
+      "path": "/commpilot/Group/NumberRangesUsage/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-102",
+      "area": "Group / Resources",
+      "label": "Enterprise Trunk Number Prefixes",
+      "path": "/commpilot/Group/NumberPrefixesUsage/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-103",
+      "area": "Group / Resources",
+      "label": "Office Zones",
+      "path": "/commpilot/Group/OfficeZones/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-104",
+      "area": "Group / Resources",
+      "label": "Route Point External Systems",
+      "path": "/commpilot/Group/RoutePointExternalSystems/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-105",
+      "area": "Group / Resources",
+      "label": "Services",
+      "path": "/commpilot/ServiceProvider/Members/AuthorizeServices/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-106",
+      "area": "Group / Resources",
+      "label": "Trunking Call Capacity",
+      "path": "/commpilot/Group/TrunkingCallCapacity/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-107",
+      "area": "Group / Resources",
+      "label": "Session Admission Control Capacity",
+      "path": "/commpilot/Group/SACCapacity/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-108",
+      "area": "Group / Resources",
+      "label": "Xsi Policy Profile",
+      "path": "/commpilot/Group/XsiPolicyProfile/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-109",
+      "area": "Group / Resources",
+      "label": "Assign Domains",
+      "path": "/commpilot/ServiceProvider/Members/AssignDomains/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-110",
+      "area": "Group / Resources",
+      "label": "Assign Network Classes of Service",
+      "path": "/commpilot/Group/AssignNetworkClassesOfService/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-111",
+      "area": "Group / Resources",
+      "label": "Assign Numbers",
+      "path": "/commpilot/Group/DnManagement/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-112",
+      "area": "Group / Resources",
+      "label": "Assign Enterprise Trunk Number Ranges",
+      "path": "/commpilot/Group/NumberRangesAssign/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-113",
+      "area": "Group / Resources",
+      "label": "Assign Enterprise Trunk Number Prefixes",
+      "path": "/commpilot/Group/NumberPrefixesAssign/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-114",
+      "area": "Group / Resources",
+      "label": "Assign Office Zones",
+      "path": "/commpilot/Group/AssignOfficeZones/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-115",
+      "area": "Group / Resources",
+      "label": "Assign Route Point External Systems",
+      "path": "/commpilot/Group/AssignRoutePointExternalSystems/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-116",
+      "area": "Group / Resources",
+      "label": "Activate Numbers",
+      "path": "/commpilot/Group/DnActivation/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-117",
+      "area": "Group / Resources",
+      "label": "Assign Group Services",
+      "path": "/commpilot/Group/Services/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-118",
+      "area": "Group / Resources",
+      "label": "Assign Xsi Policy Profile",
+      "path": "/commpilot/Group/AssignXsiPolicyProfile/Group/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-119",
+      "area": "Group / Resources",
+      "label": "New User Services Template",
+      "path": "/commpilot/Group/UserServices/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-120",
+      "area": "Group / Resources",
+      "label": "Existing User Services",
+      "path": "/commpilot/Group/ExistingUserServices/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-121",
+      "area": "Group / Resources",
+      "label": "IMRNs",
+      "path": "/commpilot/Group/IMRNsManagement/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-122",
+      "area": "Group / Resources",
+      "label": "Mobile Subscriber Directory Numbers",
+      "path": "/commpilot/Group/MSDNManagement/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-123",
+      "area": "Group / Services",
+      "label": "Auto Attendant",
+      "path": "/commpilot/Group/Auto_Attendant/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-124",
+      "area": "Group / Services",
+      "label": "Call Park",
+      "path": "/commpilot/Group/CallPark/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-125",
+      "area": "Group / Services",
+      "label": "Call Pickup",
+      "path": "/commpilot/Group/CPU/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-126",
+      "area": "Group / Services",
+      "label": "Exchange Integration",
+      "path": "/commpilot/Group/ExchangeIntegration/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-127",
+      "area": "Group / Services",
+      "label": "Hunt Group",
+      "path": "/commpilot/Group/Hunt_Group/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-128",
+      "area": "Group / Services",
+      "label": "Integrated IM&P",
+      "path": "/commpilot/Group/IntegratedIMP/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-129",
+      "area": "Group / Services",
+      "label": "Music/Video on Hold",
+      "path": "/commpilot/Group/MusicOnHold/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-130",
+      "area": "Group / Services",
+      "label": "VoiceXML",
+      "path": "/commpilot/Group/Voice_XML/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-131",
+      "area": "Group / Services",
+      "label": "Pre-alerting Announcement",
+      "path": "/commpilot/Group/PreAlertingAnnouncement/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-132",
+      "area": "Group / Services",
+      "label": "Voice Messaging",
+      "path": "/commpilot/Group/Voice_Mail_Retrieval/General/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-133",
+      "area": "Group / Services",
+      "label": "Voice Portal",
+      "path": "/commpilot/Group/VoicePortal/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-134",
+      "area": "Group / Services",
+      "label": "Advice Of Charge",
+      "path": "/commpilot/Group/AdviceOfCharge/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-135",
+      "area": "Group / Services",
+      "label": "BroadWorks Anywhere",
+      "path": "/commpilot/Group/BroadWorksAnywhere/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-136",
+      "area": "Group / Services",
+      "label": "BroadWorks Mobility",
+      "path": "/commpilot/Group/BroadWorksMobility/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-137",
+      "area": "Group / Services",
+      "label": "Call Capacity",
+      "path": "/commpilot/Group/Call_Capacity/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-138",
+      "area": "Group / Services",
+      "label": "Custom Ringback Group",
+      "path": "/commpilot/Group/CustomRingback/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-139",
+      "area": "Group / Services",
+      "label": "Emergency Zones",
+      "path": "/commpilot/Group/EmergencyZones/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-140",
+      "area": "Group / Services",
+      "label": "Enterprise Trunk",
+      "path": "/commpilot/Group/EnterpriseTrunk/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-141",
+      "area": "Group / Services",
+      "label": "Find-me/Follow-me",
+      "path": "/commpilot/Group/FindMeFollowMe/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-142",
+      "area": "Group / Services",
+      "label": "Flexible Seating Host",
+      "path": "/commpilot/Group/FlexibleSeatingHost/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-143",
+      "area": "Group / Services",
+      "label": "Group Night Forwarding",
+      "path": "/commpilot/Group/GroupNightForwarding/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-144",
+      "area": "Group / Services",
+      "label": "Group Paging",
+      "path": "/commpilot/Group/GroupPaging/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-145",
+      "area": "Group / Services",
+      "label": "Instant Group Call",
+      "path": "/commpilot/Group/InstantGroupCall/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-146",
+      "area": "Group / Services",
+      "label": "MWI Delivery to Mobile Endpoint",
+      "path": "/commpilot/Group/MWIMobile/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-147",
+      "area": "Group / Services",
+      "label": "Polycom Phone Services",
+      "path": "/commpilot/Group/PolycomPhoneServices/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-148",
+      "area": "Group / Services",
+      "label": "Preferred Carrier Group",
+      "path": "/commpilot/Group/PreferredCarrierGroup/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-149",
+      "area": "Group / Services",
+      "label": "Route Point",
+      "path": "/commpilot/Group/RoutePoint/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-150",
+      "area": "Group / Services",
+      "label": "Series Completion",
+      "path": "/commpilot/Group/SeriesComplete/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-151",
+      "area": "Group / Services",
+      "label": "Session Admission Control Group",
+      "path": "/commpilot/Group/SACGroup/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-152",
+      "area": "Group / Services",
+      "label": "Third-Party Voice Mail Support",
+      "path": "/commpilot/Group/ExternalVoiceMail/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-153",
+      "area": "Group / Services",
+      "label": "Trunk Group",
+      "path": "/commpilot/Group/TrunkGroup/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-154",
+      "area": "Group / Acct/Auth Codes",
+      "label": "Administration",
+      "path": "/commpilot/Group/AccountCodes/General/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-155",
+      "area": "Group / Acct/Auth Codes",
+      "label": "Codes Management",
+      "path": "/commpilot/Group/AccountCodes/CodesMgmt/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-156",
+      "area": "Group / Call Center",
+      "label": "Call Centers",
+      "path": "/commpilot/Group/Call_Center/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-157",
+      "area": "Group / Call Center",
+      "label": "Agent Default Settings",
+      "path": "/commpilot/Group/Call_Center/DefaultProperties/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-158",
+      "area": "Group / Call Center",
+      "label": "Agent Threshold Profiles",
+      "path": "/commpilot/Group/Call_Center/ThresholdsProfiles/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-159",
+      "area": "Group / Call Center",
+      "label": "Agent Unavailable Codes",
+      "path": "/commpilot/Group/Call_Center/UnavailableCodes/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-160",
+      "area": "Group / Call Center",
+      "label": "Call Center Monitoring",
+      "path": "/commpilot/Group/CallCenterMonitoring/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-161",
+      "area": "Group / Call Center",
+      "label": "Call Disposition Codes",
+      "path": "/commpilot/Group/Call_Center/DispositionCodes/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-162",
+      "area": "Group / Call Center",
+      "label": "Routing Priority Settings",
+      "path": "/commpilot/Group/Call_Center/RoutingPriority/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-163",
+      "area": "Group / Call Center",
+      "label": "External Reporting Settings",
+      "path": "/commpilot/Group/Call_Center/ExternalReporting/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-164",
+      "area": "Group / Call Center",
+      "label": "Report Branding",
+      "path": "/commpilot/Group/ReportBranding/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-165",
+      "area": "Group / Call Center",
+      "label": "Report Templates",
+      "path": "/commpilot/Group/ReportTemplates/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-166",
+      "area": "Group / Call Center",
+      "label": "Scheduled Reports",
+      "path": "/commpilot/Group/CCScheduledReports/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-167",
+      "area": "Group / Calling Plan",
+      "label": "Codes Management",
+      "path": "/commpilot/Group/Calling_Plan/CodesMgmt/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-168",
+      "area": "Group / Calling Plan",
+      "label": "Digit Strings",
+      "path": "/commpilot/Group/Calling_Plan/DigitStrings/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-169",
+      "area": "Group / Calling Plan",
+      "label": "Pinhole Digit Strings",
+      "path": "/commpilot/Group/Calling_Plan/PinholeDigitStrings/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-170",
+      "area": "Group / Calling Plan",
+      "label": "Transfer Numbers",
+      "path": "/commpilot/Group/Calling_Plan/TransferNumbers/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-171",
+      "area": "Group / Calling Plan",
+      "label": "Incoming Calling Plan",
+      "path": "/commpilot/Group/Calling_Plan/Incoming/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-172",
+      "area": "Group / Calling Plan",
+      "label": "Outgoing Calling Plan",
+      "path": "/commpilot/Group/Calling_Plan/Outgoing/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-173",
+      "area": "Group / Calling Plan",
+      "label": "Outgoing Digit Plan",
+      "path": "/commpilot/Group/Calling_Plan/OutgoingDigitPlan/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-174",
+      "area": "Group / Calling Plan",
+      "label": "Outgoing Pinhole Digit Plan",
+      "path": "/commpilot/Group/Calling_Plan/OutgoingPinholeDigitPlan/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-175",
+      "area": "Group / Communication Barring",
+      "label": "Profiles",
+      "path": "/commpilot/Group/CommBarring/Profiles/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-176",
+      "area": "Group / Meet-Me Conferencing",
+      "label": "Meet-Me Conference Ports",
+      "path": "/commpilot/Group/MeetMeConferencePorts/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-177",
+      "area": "Group / Meet-Me Conferencing",
+      "label": "Meet-Me Conference Bridges",
+      "path": "/commpilot/Group/ConferenceBridges/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-178",
+      "area": "Group / Utilities",
+      "label": "BroadWorks Anywhere Number Lookup",
+      "path": "/commpilot/Group/BWAnywhereNumberLookup/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-179",
+      "area": "Group / Utilities",
+      "label": "Common Phone List",
+      "path": "/commpilot/Group/PhoneList/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-180",
+      "area": "Group / Utilities",
+      "label": "Custom Contact Directories",
+      "path": "/commpilot/Group/CustomContactDir/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-181",
+      "area": "Group / Utilities",
+      "label": "Emergency Call Notification",
+      "path": "/commpilot/Group/EmergencyCallNotification/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-182",
+      "area": "Group / Utilities",
+      "label": "Feature Access Codes",
+      "path": "/commpilot/Group/Feature_Codes17/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-183",
+      "area": "Group / Utilities",
+      "label": "Group Directory",
+      "path": "/commpilot/Group/CompanyDir/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-184",
+      "area": "Group / Utilities",
+      "label": "Inventory Report",
+      "path": "/commpilot/Group/InventoryReport/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-185",
+      "area": "Group / Utilities",
+      "label": "Password Rules",
+      "path": "/commpilot/Common/Password_Rules/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-186",
+      "area": "Group / Utilities",
+      "label": "Passcode Rules",
+      "path": "/commpilot/Common/PasscodeRules/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-187",
+      "area": "Group / Utilities",
+      "label": "Device Configuration",
+      "path": "/commpilot/Group/DefaultConfig/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-188",
+      "area": "Group / Utilities",
+      "label": "Device Management Event Queues",
+      "path": "/commpilot/Group/DMEventQueues/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-189",
+      "area": "Group / Utilities",
+      "label": "Extension Dialing",
+      "path": "/commpilot/Group/ExtensionMgmt/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-190",
+      "area": "Group / Utilities",
+      "label": "Intercept Group",
+      "path": "/commpilot/Intercept/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-191",
+      "area": "Group / Utilities",
+      "label": "Voice Portal Branding",
+      "path": "/commpilot/Group/VPBranding/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-192",
+      "area": "User / Incoming Calls",
+      "label": "Anonymous Rejection - Off",
+      "path": "/commpilot/User/ACR/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-193",
+      "area": "User / Incoming Calls",
+      "label": "Calling Line ID Blocking Override - Off",
+      "path": "/commpilot/User/CLIO/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-194",
+      "area": "User / Incoming Calls",
+      "label": "Calling Name Delivery - On",
+      "path": "/commpilot/User/CallingNameDelivery/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-195",
+      "area": "User / Incoming Calls",
+      "label": "Calling Name Retrieval - Off",
+      "path": "/commpilot/User/CNAM/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-196",
+      "area": "User / Incoming Calls",
+      "label": "Calling Number Delivery - On",
+      "path": "/commpilot/User/CallingNumberDelivery/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-197",
+      "area": "User / Incoming Calls",
+      "label": "Call Forwarding Always - Off",
+      "path": "/commpilot/User/CF/Always/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-198",
+      "area": "User / Incoming Calls",
+      "label": "Call Forwarding Always Secondary - Off",
+      "path": "/commpilot/User/CF/AlwaysSecondary/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-199",
+      "area": "User / Incoming Calls",
+      "label": "Call Forwarding Busy - Off",
+      "path": "/commpilot/User/CF/Busy/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-200",
+      "area": "User / Incoming Calls",
+      "label": "Call Forwarding No Answer - Off",
+      "path": "/commpilot/User/CF/No_Answer/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-201",
+      "area": "User / Incoming Calls",
+      "label": "Call Forwarding Not Reachable - Off",
+      "path": "/commpilot/User/CF/Not_Reachable/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-202",
+      "area": "User / Incoming Calls",
+      "label": "Call Notify - Off",
+      "path": "/commpilot/User/Icn/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-203",
+      "area": "User / Incoming Calls",
+      "label": "Connected Line Identification Restriction - Off",
+      "path": "/commpilot/User/COLR/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-204",
+      "area": "User / Incoming Calls",
+      "label": "Do Not Disturb - Off",
+      "path": "/commpilot/User/DND/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-205",
+      "area": "User / Incoming Calls",
+      "label": "External Calling Line ID Delivery - On",
+      "path": "/commpilot/User/ExternalCLIDDelivery/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-206",
+      "area": "User / Incoming Calls",
+      "label": "Internal Calling Line ID Delivery - On",
+      "path": "/commpilot/User/InternalCLIDDelivery/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-207",
+      "area": "User / Incoming Calls",
+      "label": "Silent Alerting - Off",
+      "path": "/commpilot/User/SilentAlerting/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-208",
+      "area": "User / Incoming Calls",
+      "label": "Automatic Hold/Retrieve - Off",
+      "path": "/commpilot/User/AutomaticHoldRetrieve/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-209",
+      "area": "User / Incoming Calls",
+      "label": "Alternate Numbers",
+      "path": "/commpilot/User/AlternateNumbers/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-210",
+      "area": "User / Incoming Calls",
+      "label": "Call Forwarding Selective - Off",
+      "path": "/commpilot/User/SCF/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-211",
+      "area": "User / Incoming Calls",
+      "label": "Call Me Now - Off",
+      "path": "/commpilot/User/CallMeNow/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-212",
+      "area": "User / Incoming Calls",
+      "label": "CommPilot Express - Off",
+      "path": "/commpilot/User/CommPilot_Express/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-213",
+      "area": "User / Incoming Calls",
+      "label": "Custom Ringback User - Off",
+      "path": "/commpilot/User/CustomRingback/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-214",
+      "area": "User / Incoming Calls",
+      "label": "External Custom Ringback - Off",
+      "path": "/commpilot/User/ExternalCustomRingback/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-215",
+      "area": "User / Incoming Calls",
+      "label": "Personal Assistant - Off",
+      "path": "/commpilot/User/PersonalAssistant/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-216",
+      "area": "User / Incoming Calls",
+      "label": "Pre-alerting Announcement - Off",
+      "path": "/commpilot/User/PreAlertingAnnouncement/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-217",
+      "area": "User / Incoming Calls",
+      "label": "Priority Alert - Off",
+      "path": "/commpilot/User/PRCW/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-218",
+      "area": "User / Incoming Calls",
+      "label": "Selective Acceptance - Off",
+      "path": "/commpilot/User/SCA/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-219",
+      "area": "User / Incoming Calls",
+      "label": "Selective Rejection - Off",
+      "path": "/commpilot/User/SCR/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-220",
+      "area": "User / Incoming Calls",
+      "label": "Sequential Ring - Off",
+      "path": "/commpilot/User/SeqRing/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-221",
+      "area": "User / Incoming Calls",
+      "label": "Simultaneous Ring Family - Off",
+      "path": "/commpilot/User/SimRing/Family/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-222",
+      "area": "User / Incoming Calls",
+      "label": "Simultaneous Ring Personal - Off",
+      "path": "/commpilot/User/SimRing/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-223",
+      "area": "User / Incoming Calls",
+      "label": "Terminating Alternate Trunk Identity",
+      "path": "/commpilot/User/TerminatingAlternateTrunkIdentity/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-224",
+      "area": "User / Outgoing Calls",
+      "label": "Automatic Callback - Off",
+      "path": "/commpilot/User/AutomaticCallback/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-225",
+      "area": "User / Outgoing Calls",
+      "label": "Classmark",
+      "path": "/commpilot/User/Classmark/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-226",
+      "area": "User / Outgoing Calls",
+      "label": "Call Return",
+      "path": "/commpilot/User/CallReturn/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-227",
+      "area": "User / Outgoing Calls",
+      "label": "Calling Party Category",
+      "path": "/commpilot/User/CPC/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-228",
+      "area": "User / Outgoing Calls",
+      "label": "Legacy Automatic Callback - On",
+      "path": "/commpilot/User/LegacyAutomaticCallback/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-229",
+      "area": "User / Outgoing Calls",
+      "label": "Last Number Redial",
+      "path": "/commpilot/User/LNR/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-230",
+      "area": "User / Outgoing Calls",
+      "label": "Line ID Blocking - Off",
+      "path": "/commpilot/User/CIDB/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-231",
+      "area": "User / Outgoing Calls",
+      "label": "Resource Priority",
+      "path": "/commpilot/User/ResourcePriority/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-232",
+      "area": "User / Outgoing Calls",
+      "label": "Speed Dial 8",
+      "path": "/commpilot/User/SC8/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-233",
+      "area": "User / Outgoing Calls",
+      "label": "Speed Dial 100",
+      "path": "/commpilot/User/SC100/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-234",
+      "area": "User / Outgoing Calls",
+      "label": "Number Portability Announcement - Off",
+      "path": "/commpilot/User/NumberPortabilityAnnouncement/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-235",
+      "area": "User / Outgoing Calls",
+      "label": "Personal Phone List",
+      "path": "/commpilot/User/Phone_List/Personal/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-236",
+      "area": "User / Outgoing Calls",
+      "label": "Preferred Carrier User",
+      "path": "/commpilot/User/PreferredCarrierUser/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-237",
+      "area": "User / Outgoing Calls",
+      "label": "Two-Stage Dialing - On",
+      "path": "/commpilot/User/TSD/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-238",
+      "area": "User / Call Control",
+      "label": "Barge-in Exempt - On",
+      "path": "/commpilot/User/BargeinExempt/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-239",
+      "area": "User / Call Control",
+      "label": "Call Waiting - On",
+      "path": "/commpilot/User/CW/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-240",
+      "area": "User / Call Control",
+      "label": "Customer Originated Trace",
+      "path": "/commpilot/User/CustomerOriginatedTrace/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-241",
+      "area": "User / Call Control",
+      "label": "Directed Call Pickup",
+      "path": "/commpilot/User/DirectedCallPickup/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-242",
+      "area": "User / Call Control",
+      "label": "Diversion Inhibitor",
+      "path": "/commpilot/User/DiversionInhibitor/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-243",
+      "area": "User / Call Control",
+      "label": "Directed Call Pickup with Barge-in",
+      "path": "/commpilot/User/DPUBI/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-244",
+      "area": "User / Call Control",
+      "label": "Flash Call Hold",
+      "path": "/commpilot/User/FlashCH/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-245",
+      "area": "User / Call Control",
+      "label": "Call Transfer",
+      "path": "/commpilot/User/CallTransfer/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-246",
+      "area": "User / Call Control",
+      "label": "In-Call Service Activation - Off",
+      "path": "/commpilot/User/ICSA/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-247",
+      "area": "User / Call Control",
+      "label": "Three-Way Call",
+      "path": "/commpilot/User/ThreeWayCall/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-248",
+      "area": "User / Call Control",
+      "label": "Music/Video On Hold - On",
+      "path": "/commpilot/User/MOHUser/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-249",
+      "area": "User / Call Control",
+      "label": "Preferred Answer Endpoint",
+      "path": "/commpilot/User/PreferredAnswerEndpoint/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-250",
+      "area": "User / Call Control",
+      "label": "N-Way Call",
+      "path": "/commpilot/User/NWayCall/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-251",
+      "area": "User / Call Control",
+      "label": "Call Recording - Off",
+      "path": "/commpilot/User/CallRecording/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-252",
+      "area": "User / Call Control",
+      "label": "Communication Barring User-Control",
+      "path": "/commpilot/User/CommunicationBarring/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-253",
+      "area": "User / Call Control",
+      "label": "Advice of Charge",
+      "path": "/commpilot/User/AdviceOfCharge/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-254",
+      "area": "User / Call Control",
+      "label": "BroadWorks Anywhere",
+      "path": "/commpilot/User/BroadWorksAnywhere/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-255",
+      "area": "User / Call Control",
+      "label": "BroadWorks Mobility - Off",
+      "path": "/commpilot/User/BroadWorksMobility/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-256",
+      "area": "User / Call Control",
+      "label": "Call Centers",
+      "path": "/commpilot/User/Call_Center/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-257",
+      "area": "User / Call Control",
+      "label": "Charge Number",
+      "path": "/commpilot/User/ChargeNumber/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-258",
+      "area": "User / Call Control",
+      "label": "Executive",
+      "path": "/commpilot/User/Executive/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-259",
+      "area": "User / Call Control",
+      "label": "Executive-Assistant",
+      "path": "/commpilot/User/ExecutiveAssistant/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-260",
+      "area": "User / Call Control",
+      "label": "Flexible Seating Guest - Off",
+      "path": "/commpilot/User/FlexibleSeatingGuest/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-261",
+      "area": "User / Call Control",
+      "label": "Group Night Forwarding - Off",
+      "path": "/commpilot/User/GroupNightForwarding/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-262",
+      "area": "User / Call Control",
+      "label": "Hoteling Guest - Off",
+      "path": "/commpilot/User/HotelingGuest/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-263",
+      "area": "User / Call Control",
+      "label": "Hoteling Host - Off",
+      "path": "/commpilot/User/HotelingHost/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-264",
+      "area": "User / Call Control",
+      "label": "Mobile Extension to Extension Dialing",
+      "path": "/commpilot/User/MEED/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-265",
+      "area": "User / Call Control",
+      "label": "PBX Integration",
+      "path": "/commpilot/User/PBXIntegration/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-266",
+      "area": "User / Call Control",
+      "label": "Push to Talk",
+      "path": "/commpilot/User/PTT/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-267",
+      "area": "User / Call Control",
+      "label": "Physical Location - Off",
+      "path": "/commpilot/User/PhysicalLocation/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-268",
+      "area": "User / Call Control",
+      "label": "Remote Office - Off",
+      "path": "/commpilot/User/RemoteOffice/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-269",
+      "area": "User / Call Control",
+      "label": "Shared Call Appearance",
+      "path": "/commpilot/User/SCAP/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-270",
+      "area": "User / Call Control",
+      "label": "Video Add-On - Off",
+      "path": "/commpilot/User/VideoAddOn/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-271",
+      "area": "User / Call Control",
+      "label": "Zone Calling Restrictions",
+      "path": "/commpilot/User/ZoneCallingRestrictions/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-272",
+      "area": "User / Calling Plans",
+      "label": "Incoming Calling Plan",
+      "path": "/commpilot/User/Calling_Plan/Incoming/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-273",
+      "area": "User / Calling Plans",
+      "label": "Outgoing Calling Plan",
+      "path": "/commpilot/User/Calling_Plan/Outgoing/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-274",
+      "area": "User / Calling Plans",
+      "label": "Outgoing Authorization Codes",
+      "path": "/commpilot/User/Calling_Plan/OutgoingAuthCodes/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-275",
+      "area": "User / Calling Plans",
+      "label": "Outgoing Digit Plan",
+      "path": "/commpilot/User/Calling_Plan/OutgoingDigitPlan/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-276",
+      "area": "User / Calling Plans",
+      "label": "Outgoing Pinhole Digit Plan",
+      "path": "/commpilot/User/Calling_Plan/OutgoingPinholeDigitPlan/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-277",
+      "area": "User / Calling Plans",
+      "label": "Transfer Numbers",
+      "path": "/commpilot/User/Calling_Plan/TransferNumbers/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-278",
+      "area": "User / Client Applications",
+      "label": "Busy Lamp Field",
+      "path": "/commpilot/User/BusyLampField/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-279",
+      "area": "User / Client Applications",
+      "label": "Office Communicator Tab",
+      "path": "/commpilot/User/OfficeCommunicatorTab/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-280",
+      "area": "User / Client Applications",
+      "label": "BroadWorks Agent",
+      "path": "/commpilot/User/BroadWorksAgent/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-281",
+      "area": "User / Client Applications",
+      "label": "BroadWorks Supervisor",
+      "path": "/commpilot/User/BroadWorksSupervisor/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-282",
+      "area": "User / Client Applications",
+      "label": "BroadWorks Receptionist - Enterprise",
+      "path": "/commpilot/User/ClientLicense4/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-283",
+      "area": "User / Client Applications",
+      "label": "BroadWorks Receptionist - Small Business",
+      "path": "/commpilot/User/ReceptionistSmallBusiness/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-284",
+      "area": "User / Client Applications",
+      "label": "BroadWorks Receptionist - Office",
+      "path": "/commpilot/User/ReceptionistOffice/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-285",
+      "area": "User / Client Applications",
+      "label": "Polycom Phone Services",
+      "path": "/commpilot/User/PolycomPhoneServices/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-286",
+      "area": "User / Messaging",
+      "label": "Aliases",
+      "path": "/commpilot/User/VM/Aliases/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-287",
+      "area": "User / Messaging",
+      "label": "Distribution Lists",
+      "path": "/commpilot/User/VM/DistList/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-288",
+      "area": "User / Messaging",
+      "label": "Greetings",
+      "path": "/commpilot/User/VM/Greetings/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-289",
+      "area": "User / Messaging",
+      "label": "Integrated IM&P - Off",
+      "path": "/commpilot/User/IntegratedIMP/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-290",
+      "area": "User / Messaging",
+      "label": "Short Message Service",
+      "path": "/commpilot/User/ShortMessageService/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-291",
+      "area": "User / Messaging",
+      "label": "Voice Management - Off",
+      "path": "/commpilot/User/VM/General/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-292",
+      "area": "User / Messaging",
+      "label": "Voice Portal",
+      "path": "/commpilot/User/VoicePortal/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-293",
+      "area": "User / Messaging",
+      "label": "Fax Messaging - Off",
+      "path": "/commpilot/User/FaxMessaging/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-294",
+      "area": "User / Messaging",
+      "label": "MWI Delivery to Mobile Endpoint - Off",
+      "path": "/commpilot/User/MWIMobile/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-295",
+      "area": "User / Messaging",
+      "label": "Outgoing MWI",
+      "path": "/commpilot/User/VM/OutgoingMWI/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-296",
+      "area": "User / Messaging",
+      "label": "Third-Party MWI Control",
+      "path": "/commpilot/User/ThirdPartyMWI/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-297",
+      "area": "User / Messaging",
+      "label": "Third-Party Voice Mail Support - Off",
+      "path": "/commpilot/User/ExternalVoiceMail/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-298",
+      "area": "User / Messaging",
+      "label": "Voice Portal Calling - On",
+      "path": "/commpilot/User/VoicePortalCalling/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-299",
+      "area": "User / Utilities",
+      "label": "Authentication",
+      "path": "/commpilot/User/Authentication/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-300",
+      "area": "User / Utilities",
+      "label": "Basic Call Logs",
+      "path": "/commpilot/User/BasicCallLogs/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-301",
+      "area": "User / Utilities",
+      "label": "Device Activation",
+      "path": "/commpilot/User/DeviceActivation/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-302",
+      "area": "User / Utilities",
+      "label": "Enhanced Call Logs",
+      "path": "/commpilot/User/EnhancedCallLogs/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-303",
+      "area": "User / Utilities",
+      "label": "Feature Access Codes",
+      "path": "/commpilot/User/Feature_Codes/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-304",
+      "area": "User / Utilities",
+      "label": "Group Directory",
+      "path": "/commpilot/User/CompanyDir/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-305",
+      "area": "User / Utilities",
+      "label": "Mobile App Registrations",
+      "path": "/commpilot/User/MobileAppRegistrations/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-306",
+      "area": "User / Utilities",
+      "label": "Intercept User - Off",
+      "path": "/commpilot/Intercept/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-307",
+      "area": "User / Utilities",
+      "label": "Prepaid - Off",
+      "path": "/commpilot/User/Prepaid/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-308",
+      "area": "User / Utilities",
+      "label": "Push Notification",
+      "path": "/commpilot/User/PushNotification/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-309",
+      "area": "User / Utilities",
+      "label": "Push Notification Registrations",
+      "path": "/commpilot/User/PushNotificationRegistrations/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-310",
+      "area": "User / Utilities",
+      "label": "Registrations",
+      "path": "/commpilot/User/Registrations/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-311",
+      "area": "User / Utilities",
+      "label": "Security Classification - On",
+      "path": "/commpilot/User/SecurityClassification/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-312",
+      "area": "Service Provider / Profile",
+      "label": "Groups",
+      "path": "/commpilot/ServiceProvider/Members/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-313",
+      "area": "Service Provider / Profile",
+      "label": "Users",
+      "path": "/commpilot/ServiceProvider/Users/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-314",
+      "area": "Service Provider / Profile",
+      "label": "Service Instances",
+      "path": "/commpilot/ServiceProvider/ServiceInstances/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-315",
+      "area": "Service Provider / Profile",
+      "label": "Profile",
+      "path": "/commpilot/ServiceProvider/Profile/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-316",
+      "area": "Service Provider / Profile",
+      "label": "Administrators",
+      "path": "/commpilot/ServiceProvider/Admins/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-317",
+      "area": "Service Provider / Profile",
+      "label": "Schedules",
+      "path": "/commpilot/ServiceProvider/Schedules/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-318",
+      "area": "Service Provider / Profile",
+      "label": "Activation Code Device Onboarding Policies",
+      "path": "/commpilot/ServiceProvider/DeviceActivationPolicy/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-319",
+      "area": "Service Provider / Profile",
+      "label": "Alternate User IDs",
+      "path": "/commpilot/ServiceProvider/AlternateUserIDs/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-320",
+      "area": "Service Provider / Profile",
+      "label": "Call Processing Policies",
+      "path": "/commpilot/ServiceProvider/CallProcessingPolicy/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-321",
+      "area": "Service Provider / Profile",
+      "label": "Dial Plan Policy",
+      "path": "/commpilot/ServiceProvider/DialPlanPolicy/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-322",
+      "area": "Service Provider / Profile",
+      "label": "Routing Profile",
+      "path": "/commpilot/ServiceProvider/RoutingProfile/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-323",
+      "area": "Service Provider / Profile",
+      "label": "Dialable Caller ID",
+      "path": "/commpilot/ServiceProvider/DialableCallerID/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-324",
+      "area": "Service Provider / Profile",
+      "label": "STIR-SHAKEN",
+      "path": "/commpilot/ServiceProvider/StirShaken/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-325",
+      "area": "Group / Profile",
+      "label": "Profile",
+      "path": "/commpilot/Group/Profile/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-326",
+      "area": "Group / Profile",
+      "label": "Administrators",
+      "path": "/commpilot/Group/Admins/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-327",
+      "area": "Group / Profile",
+      "label": "Announcement Repository",
+      "path": "/commpilot/Group/AnnouncementRepository/Audio/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-328",
+      "area": "Group / Profile",
+      "label": "Departments",
+      "path": "/commpilot/Group/Departments/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-329",
+      "area": "Group / Profile",
+      "label": "Activation Code Device Onboarding Policies",
+      "path": "/commpilot/Group/DeviceActivationPolicy/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-330",
+      "area": "Group / Profile",
+      "label": "Alternate User IDs",
+      "path": "/commpilot/Group/AlternateUserIDs/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-331",
+      "area": "Group / Profile",
+      "label": "Call Processing Policies",
+      "path": "/commpilot/Group/CallProcessingPolicy/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-332",
+      "area": "Group / Profile",
+      "label": "Communication Barring Authorization Codes",
+      "path": "/commpilot/Group/CommBarringAuthCodes/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-333",
+      "area": "Group / Profile",
+      "label": "Dial Plan Policy",
+      "path": "/commpilot/Group/DialPlanPolicy/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-334",
+      "area": "Group / Profile",
+      "label": "Group Web Policies",
+      "path": "/commpilot/Group/Policies/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-335",
+      "area": "Group / Profile",
+      "label": "Routing Profile",
+      "path": "/commpilot/Group/RoutingProfile/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-336",
+      "area": "Group / Profile",
+      "label": "Virtual On-Net Enterprise Extensions",
+      "path": "/commpilot/Group/VirtualOnNet/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-337",
+      "area": "Group / Profile",
+      "label": "Dialable Caller ID",
+      "path": "/commpilot/Group/DialableCallerID/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-338",
+      "area": "Group / Profile",
+      "label": "STIR-SHAKEN",
+      "path": "/commpilot/Group/StirShaken/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-339",
+      "area": "User / Profile",
+      "label": "Profile",
+      "path": "/commpilot/User/Profile/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-340",
+      "area": "User / Profile",
+      "label": "Announcement Repository",
+      "path": "/commpilot/User/AnnouncementRepository/Audio/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-341",
+      "area": "User / Profile",
+      "label": "Passwords",
+      "path": "/commpilot/User/Password/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-342",
+      "area": "User / Profile",
+      "label": "Schedules",
+      "path": "/commpilot/User/Schedules/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-343",
+      "area": "User / Profile",
+      "label": "Direct Route",
+      "path": "/commpilot/User/DirectRoute/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-344",
+      "area": "User / Profile",
+      "label": "Route List",
+      "path": "/commpilot/User/RouteList/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-345",
+      "area": "User / Profile",
+      "label": "Alternate User IDs",
+      "path": "/commpilot/User/AlternateUserIDs/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-346",
+      "area": "User / Profile",
+      "label": "Assign Services",
+      "path": "/commpilot/User/Services/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-347",
+      "area": "User / Profile",
+      "label": "Assign Call Centers",
+      "path": "/commpilot/User/AssignCallCenters/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-348",
+      "area": "User / Profile",
+      "label": "Assign Route Point Supervisors",
+      "path": "/commpilot/User/AgentSupervisors/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-349",
+      "area": "User / Profile",
+      "label": "Assign Xsi Policy Profile",
+      "path": "/commpilot/User/AssignXsiPolicyProfile/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-350",
+      "area": "User / Profile",
+      "label": "Call Application Policies",
+      "path": "/commpilot/User/OCICAppPolicies/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-351",
+      "area": "User / Profile",
+      "label": "Call Policies",
+      "path": "/commpilot/User/CallPolicies/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-352",
+      "area": "User / Profile",
+      "label": "Call Processing Policies",
+      "path": "/commpilot/User/CallProcessingPolicy/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-353",
+      "area": "User / Profile",
+      "label": "Communication Barring Authorization Codes",
+      "path": "/commpilot/User/CommBarringAuthCodes/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-354",
+      "area": "User / Profile",
+      "label": "Device Policies",
+      "path": "/commpilot/User/DevicePolicies/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-355",
+      "area": "User / Profile",
+      "label": "Privacy",
+      "path": "/commpilot/User/Privacy/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-356",
+      "area": "User / Profile",
+      "label": "Office Zone",
+      "path": "/commpilot/User/OfficeZone/",
+      "status": "pass"
+    },
+    {
+      "id": "discovered-357",
+      "area": "Auto Attendant / Incoming Calls",
+      "label": "Call Forwarding Always - Off",
+      "path": "/commpilot/User/CF/Always/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-358",
+      "area": "Auto Attendant / Incoming Calls",
+      "label": "Do Not Disturb - Off",
+      "path": "/commpilot/User/DND/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-359",
+      "area": "Auto Attendant / Incoming Calls",
+      "label": "Alternate Numbers",
+      "path": "/commpilot/User/AlternateNumbers/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-360",
+      "area": "Auto Attendant / Incoming Calls",
+      "label": "Call Forwarding Selective - Off",
+      "path": "/commpilot/User/SCF/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-361",
+      "area": "Auto Attendant / Calling Plans",
+      "label": "Incoming Calling Plan",
+      "path": "/commpilot/User/Calling_Plan/Incoming/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-362",
+      "area": "Auto Attendant / Calling Plans",
+      "label": "Outgoing Calling Plan",
+      "path": "/commpilot/User/Calling_Plan/Outgoing/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-363",
+      "area": "Auto Attendant / Calling Plans",
+      "label": "Outgoing Authorization Codes",
+      "path": "/commpilot/User/Calling_Plan/OutgoingAuthCodes/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-364",
+      "area": "Auto Attendant / Calling Plans",
+      "label": "Outgoing Digit Plan",
+      "path": "/commpilot/User/Calling_Plan/OutgoingDigitPlan/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-365",
+      "area": "Auto Attendant / Calling Plans",
+      "label": "Outgoing Pinhole Digit Plan",
+      "path": "/commpilot/User/Calling_Plan/OutgoingPinholeDigitPlan/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-366",
+      "area": "Auto Attendant / Calling Plans",
+      "label": "Transfer Numbers",
+      "path": "/commpilot/User/Calling_Plan/TransferNumbers/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-367",
+      "area": "Auto Attendant / Menus",
+      "label": "Business Hours Menu",
+      "path": "/commpilot/Group/Auto_Attendant/MenuBusinessHours/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-368",
+      "area": "Auto Attendant / Menus",
+      "label": "After Hours Menu",
+      "path": "/commpilot/Group/Auto_Attendant/MenuAfterHours/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-369",
+      "area": "Auto Attendant / Menus",
+      "label": "Holiday Menu",
+      "path": "/commpilot/Group/Auto_Attendant/MenuHoliday/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-370",
+      "area": "Auto Attendant / Utilities",
+      "label": "Feature Access Codes",
+      "path": "/commpilot/User/Feature_Codes/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-371",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "Anonymous Rejection - Off",
+      "path": "/commpilot/User/ACR/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-372",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "Calling Name Retrieval - Off",
+      "path": "/commpilot/User/CNAM/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-373",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "Call Forwarding Always - Off",
+      "path": "/commpilot/User/CF/Always/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-374",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "Call Forwarding Always Secondary - Off",
+      "path": "/commpilot/User/CF/AlwaysSecondary/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-375",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "Call Forwarding Busy - Off",
+      "path": "/commpilot/User/CF/Busy/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-376",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "Call Notify - Off",
+      "path": "/commpilot/User/Icn/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-377",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "Connected Line Identification Restriction - Off",
+      "path": "/commpilot/User/COLR/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-378",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "Do Not Disturb - Off",
+      "path": "/commpilot/User/DND/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-379",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "Alternate Numbers",
+      "path": "/commpilot/User/AlternateNumbers/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-380",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "Call Forwarding Selective - Off",
+      "path": "/commpilot/User/SCF/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-381",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "Call Me Now - Off",
+      "path": "/commpilot/User/CallMeNow/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-382",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "Custom Ringback User - Off",
+      "path": "/commpilot/User/CustomRingback/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-383",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "External Custom Ringback - Off",
+      "path": "/commpilot/User/ExternalCustomRingback/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-384",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "Pre-alerting Announcement - Off",
+      "path": "/commpilot/User/PreAlertingAnnouncement/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-385",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "Priority Alert - Off",
+      "path": "/commpilot/User/PRCW/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-386",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "Selective Acceptance - Off",
+      "path": "/commpilot/User/SCA/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-387",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "Selective Rejection - Off",
+      "path": "/commpilot/User/SCR/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-388",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "SMDI Message Desk - Off",
+      "path": "/commpilot/User/SmdiMessageDesk/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-389",
+      "area": "Hunt Group / Outgoing Calls",
+      "label": "Line ID Blocking - Off",
+      "path": "/commpilot/User/CIDB/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-390",
+      "area": "Hunt Group / Call Control",
+      "label": "Diversion Inhibitor",
+      "path": "/commpilot/User/DiversionInhibitor/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-391",
+      "area": "Hunt Group / Call Control",
+      "label": "Communication Barring User-Control",
+      "path": "/commpilot/User/CommunicationBarring/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-392",
+      "area": "Hunt Group / Call Control",
+      "label": "Charge Number",
+      "path": "/commpilot/User/ChargeNumber/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-393",
+      "area": "Hunt Group / Call Control",
+      "label": "Group Night Forwarding - Off",
+      "path": "/commpilot/User/GroupNightForwarding/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-394",
+      "area": "Hunt Group / Call Control",
+      "label": "Zone Calling Restrictions",
+      "path": "/commpilot/User/ZoneCallingRestrictions/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-395",
+      "area": "Hunt Group / Calling Plans",
+      "label": "Incoming Calling Plan",
+      "path": "/commpilot/User/Calling_Plan/Incoming/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-396",
+      "area": "Hunt Group / Calling Plans",
+      "label": "Outgoing Calling Plan",
+      "path": "/commpilot/User/Calling_Plan/Outgoing/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-397",
+      "area": "Hunt Group / Calling Plans",
+      "label": "Outgoing Authorization Codes",
+      "path": "/commpilot/User/Calling_Plan/OutgoingAuthCodes/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-398",
+      "area": "Hunt Group / Calling Plans",
+      "label": "Outgoing Digit Plan",
+      "path": "/commpilot/User/Calling_Plan/OutgoingDigitPlan/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-399",
+      "area": "Hunt Group / Calling Plans",
+      "label": "Outgoing Pinhole Digit Plan",
+      "path": "/commpilot/User/Calling_Plan/OutgoingPinholeDigitPlan/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-400",
+      "area": "Hunt Group / Calling Plans",
+      "label": "Transfer Numbers",
+      "path": "/commpilot/User/Calling_Plan/TransferNumbers/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-401",
+      "area": "Hunt Group / Messaging",
+      "label": "Aliases",
+      "path": "/commpilot/User/VM/Aliases/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-402",
+      "area": "Hunt Group / Messaging",
+      "label": "Distribution Lists",
+      "path": "/commpilot/User/VM/DistList/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-403",
+      "area": "Hunt Group / Messaging",
+      "label": "Greetings",
+      "path": "/commpilot/User/VM/Greetings/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-404",
+      "area": "Hunt Group / Messaging",
+      "label": "Voice Management - Off",
+      "path": "/commpilot/User/VM/General/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-405",
+      "area": "Hunt Group / Messaging",
+      "label": "Fax Messaging - Off",
+      "path": "/commpilot/User/FaxMessaging/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-406",
+      "area": "Hunt Group / Messaging",
+      "label": "Outgoing MWI",
+      "path": "/commpilot/User/VM/OutgoingMWI/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-407",
+      "area": "Hunt Group / Messaging",
+      "label": "Third-Party Voice Mail Support - Off",
+      "path": "/commpilot/User/ExternalVoiceMail/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-408",
+      "area": "Hunt Group / Utilities",
+      "label": "Basic Call Logs",
+      "path": "/commpilot/User/BasicCallLogs/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-409",
+      "area": "Hunt Group / Utilities",
+      "label": "Enhanced Call Logs",
+      "path": "/commpilot/User/EnhancedCallLogs/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-410",
+      "area": "Hunt Group / Utilities",
+      "label": "Feature Access Codes",
+      "path": "/commpilot/User/Feature_Codes/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-411",
+      "area": "Hunt Group / Utilities",
+      "label": "Prepaid - Off",
+      "path": "/commpilot/User/Prepaid/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-412",
+      "area": "Call Center / Routing Policies",
+      "label": "Bounced Calls",
+      "path": "/commpilot/Group/Call_Center/RoutingPolicies/Bounced/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-413",
+      "area": "Call Center / Routing Policies",
+      "label": "Overflow",
+      "path": "/commpilot/Group/Call_Center/RoutingPolicies/Overflow/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-414",
+      "area": "Call Center / Routing Policies",
+      "label": "Stranded Calls",
+      "path": "/commpilot/Group/Call_Center/RoutingPolicies/Stranded/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-415",
+      "area": "Call Center / Routing Policies",
+      "label": "Stranded Calls - Unavailable",
+      "path": "/commpilot/Group/Call_Center/RoutingPolicies/StrandedUnavailable/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-416",
+      "area": "Call Center / Incoming Calls",
+      "label": "Anonymous Rejection - Off",
+      "path": "/commpilot/User/ACR/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-417",
+      "area": "Call Center / Incoming Calls",
+      "label": "Calling Name Retrieval - Off",
+      "path": "/commpilot/User/CNAM/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-418",
+      "area": "Call Center / Incoming Calls",
+      "label": "Call Forwarding Always - Off",
+      "path": "/commpilot/User/CF/Always/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-419",
+      "area": "Call Center / Incoming Calls",
+      "label": "Call Forwarding Always Secondary - Off",
+      "path": "/commpilot/User/CF/AlwaysSecondary/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-420",
+      "area": "Call Center / Incoming Calls",
+      "label": "Call Forwarding Busy - Off",
+      "path": "/commpilot/User/CF/Busy/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-421",
+      "area": "Call Center / Incoming Calls",
+      "label": "Call Notify - Off",
+      "path": "/commpilot/User/Icn/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-422",
+      "area": "Call Center / Incoming Calls",
+      "label": "Connected Line Identification Restriction - Off",
+      "path": "/commpilot/User/COLR/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-423",
+      "area": "Call Center / Incoming Calls",
+      "label": "Do Not Disturb - Off",
+      "path": "/commpilot/User/DND/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-424",
+      "area": "Call Center / Incoming Calls",
+      "label": "Alternate Numbers",
+      "path": "/commpilot/User/AlternateNumbers/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-425",
+      "area": "Call Center / Incoming Calls",
+      "label": "Call Forwarding Selective - Off",
+      "path": "/commpilot/User/SCF/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-426",
+      "area": "Call Center / Incoming Calls",
+      "label": "Call Me Now - Off",
+      "path": "/commpilot/User/CallMeNow/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-427",
+      "area": "Call Center / Incoming Calls",
+      "label": "Custom Ringback User - Off",
+      "path": "/commpilot/User/CustomRingback/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-428",
+      "area": "Call Center / Incoming Calls",
+      "label": "External Custom Ringback - Off",
+      "path": "/commpilot/User/ExternalCustomRingback/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-429",
+      "area": "Call Center / Incoming Calls",
+      "label": "Pre-alerting Announcement - Off",
+      "path": "/commpilot/User/PreAlertingAnnouncement/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-430",
+      "area": "Call Center / Incoming Calls",
+      "label": "Priority Alert - Off",
+      "path": "/commpilot/User/PRCW/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-431",
+      "area": "Call Center / Incoming Calls",
+      "label": "Selective Acceptance - Off",
+      "path": "/commpilot/User/SCA/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-432",
+      "area": "Call Center / Incoming Calls",
+      "label": "Selective Rejection - Off",
+      "path": "/commpilot/User/SCR/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-433",
+      "area": "Call Center / Outgoing Calls",
+      "label": "Line ID Blocking - Off",
+      "path": "/commpilot/User/CIDB/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-434",
+      "area": "Call Center / Call Control",
+      "label": "Diversion Inhibitor",
+      "path": "/commpilot/User/DiversionInhibitor/",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T19:22:02.154Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:23:11.199Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:23:37.703Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:25:24.535Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:26:32.715Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:28:17.533Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:30:43.329Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ]
+    },
+    {
+      "id": "discovered-435",
+      "area": "Call Center / Call Control",
+      "label": "Call Recording - Off",
+      "path": "/commpilot/User/CallRecording/",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T19:22:02.608Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:23:12.101Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:23:38.108Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:25:25.414Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:26:33.592Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:28:18.467Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:30:44.244Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ]
+    },
+    {
+      "id": "discovered-436",
+      "area": "Call Center / Call Control",
+      "label": "Communication Barring User-Control",
+      "path": "/commpilot/User/CommunicationBarring/",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T19:22:03.076Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:23:12.823Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:23:38.466Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:25:26.147Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:26:34.307Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:28:19.193Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:30:45.053Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ]
+    },
+    {
+      "id": "discovered-437",
+      "area": "Call Center / Call Control",
+      "label": "Charge Number",
+      "path": "/commpilot/User/ChargeNumber/",
+      "status": "pass",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23T19:22:03.559Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:23:13.635Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:23:38.963Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:25:27.019Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:26:35.166Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:28:19.999Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:30:45.881Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        }
+      ]
+    },
+    {
+      "id": "discovered-438",
+      "area": "Call Center / Call Control",
+      "label": "Group Night Forwarding - Off",
+      "path": "/commpilot/User/GroupNightForwarding/",
+      "status": "pending",
+      "detail": "HTTP 500",
+      "attempts": [
+        {
+          "at": "2026-09-23T19:22:04.283Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:23:14.667Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:23:39.601Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:24:45.688Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:25:47.824Z",
+          "status": "pending",
+          "httpStatus": 500,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:26:56.271Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:28:40.776Z",
+          "status": "pending",
+          "httpStatus": 500,
+          "sameDocument": true
+        }
+      ]
+    },
+    {
+      "id": "discovered-439",
+      "area": "Call Center / Call Control",
+      "label": "Zone Calling Restrictions",
+      "path": "/commpilot/User/ZoneCallingRestrictions/",
+      "status": "needs",
+      "detail": "HTTP 200",
+      "attempts": [
+        {
+          "at": "2026-09-23",
+          "status": "needs",
+          "httpStatus": 200,
+          "sameDocument": false
+        },
+        {
+          "at": "2026-09-23",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-23T19:22:24.796Z",
+          "status": "needs",
+          "httpStatus": 200,
+          "sameDocument": false
+        },
+        {
+          "at": "2026-09-23T19:24:00.047Z",
+          "status": "needs",
+          "httpStatus": 200,
+          "sameDocument": false
+        },
+        {
+          "at": "2026-09-23T19:27:17.075Z",
+          "status": "needs",
+          "httpStatus": 200,
+          "sameDocument": false
+        }
+      ]
+    },
+    {
+      "id": "discovered-440",
+      "area": "Call Center / Calling Plans",
+      "label": "Incoming Calling Plan",
+      "path": "/commpilot/User/Calling_Plan/Incoming/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-441",
+      "area": "Call Center / Calling Plans",
+      "label": "Outgoing Calling Plan",
+      "path": "/commpilot/User/Calling_Plan/Outgoing/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-442",
+      "area": "Call Center / Calling Plans",
+      "label": "Outgoing Authorization Codes",
+      "path": "/commpilot/User/Calling_Plan/OutgoingAuthCodes/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-443",
+      "area": "Call Center / Calling Plans",
+      "label": "Outgoing Digit Plan",
+      "path": "/commpilot/User/Calling_Plan/OutgoingDigitPlan/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-444",
+      "area": "Call Center / Calling Plans",
+      "label": "Outgoing Pinhole Digit Plan",
+      "path": "/commpilot/User/Calling_Plan/OutgoingPinholeDigitPlan/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-445",
+      "area": "Call Center / Calling Plans",
+      "label": "Transfer Numbers",
+      "path": "/commpilot/User/Calling_Plan/TransferNumbers/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-446",
+      "area": "Call Center / Messaging",
+      "label": "Aliases",
+      "path": "/commpilot/User/VM/Aliases/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-447",
+      "area": "Call Center / Messaging",
+      "label": "Distribution Lists",
+      "path": "/commpilot/User/VM/DistList/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-448",
+      "area": "Call Center / Messaging",
+      "label": "Greetings",
+      "path": "/commpilot/User/VM/Greetings/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-449",
+      "area": "Call Center / Messaging",
+      "label": "Voice Management - Off",
+      "path": "/commpilot/User/VM/General/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-450",
+      "area": "Call Center / Messaging",
+      "label": "Fax Messaging - Off",
+      "path": "/commpilot/User/FaxMessaging/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-451",
+      "area": "Call Center / Messaging",
+      "label": "Outgoing MWI",
+      "path": "/commpilot/User/VM/OutgoingMWI/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-452",
+      "area": "Call Center / Messaging",
+      "label": "Third-Party Voice Mail Support - Off",
+      "path": "/commpilot/User/ExternalVoiceMail/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-453",
+      "area": "Call Center / Utilities",
+      "label": "Basic Call Logs",
+      "path": "/commpilot/User/BasicCallLogs/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-454",
+      "area": "Call Center / Utilities",
+      "label": "Enhanced Call Logs",
+      "path": "/commpilot/User/EnhancedCallLogs/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-455",
+      "area": "Call Center / Utilities",
+      "label": "Feature Access Codes",
+      "path": "/commpilot/User/Feature_Codes/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-456",
+      "area": "Call Center / Utilities",
+      "label": "Prepaid - Off",
+      "path": "/commpilot/User/Prepaid/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-457",
+      "area": "Auto Attendant / Profile",
+      "label": "Profile",
+      "path": "/commpilot/Group/Auto_Attendant/Modify/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-458",
+      "area": "Auto Attendant / Profile",
+      "label": "Addresses",
+      "path": "/commpilot/Group/Auto_Attendant/Addresses/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-459",
+      "area": "Auto Attendant / Profile",
+      "label": "Announcement Repository",
+      "path": "/commpilot/User/AnnouncementRepository/Audio/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-460",
+      "area": "Auto Attendant / Profile",
+      "label": "Password",
+      "path": "/commpilot/User/Password/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-461",
+      "area": "Auto Attendant / Profile",
+      "label": "Submenus",
+      "path": "/commpilot/Group/Auto_Attendant/Submenus/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-462",
+      "area": "Auto Attendant / Profile",
+      "label": "Voice Portal",
+      "path": "/commpilot/User/VoicePortal/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-463",
+      "area": "Auto Attendant / Profile",
+      "label": "Assign Services",
+      "path": "/commpilot/User/Services/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-464",
+      "area": "Auto Attendant / Profile",
+      "label": "Assign Xsi Policy Profile",
+      "path": "/commpilot/User/AssignXsiPolicyProfile/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-465",
+      "area": "Auto Attendant / Profile",
+      "label": "Call Application Policies",
+      "path": "/commpilot/User/OCICAppPolicies/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-466",
+      "area": "Auto Attendant / Profile",
+      "label": "Call Policies",
+      "path": "/commpilot/User/CallPolicies/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-467",
+      "area": "Hunt Group / Profile",
+      "label": "Profile",
+      "path": "/commpilot/Group/Hunt_Group/Modify/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-468",
+      "area": "Hunt Group / Profile",
+      "label": "Addresses",
+      "path": "/commpilot/Group/Hunt_Group/Addresses/index.jsp",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-469",
+      "area": "Hunt Group / Profile",
+      "label": "Announcement Repository",
+      "path": "/commpilot/User/AnnouncementRepository/Audio/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-470",
+      "area": "Hunt Group / Profile",
+      "label": "Password",
+      "path": "/commpilot/User/Password/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-471",
+      "area": "Hunt Group / Profile",
+      "label": "Voice Portal",
+      "path": "/commpilot/User/VoicePortal/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-472",
+      "area": "Hunt Group / Profile",
+      "label": "Assign Services",
+      "path": "/commpilot/User/Services/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-473",
+      "area": "Hunt Group / Profile",
+      "label": "Assign Xsi Policy Profile",
+      "path": "/commpilot/User/AssignXsiPolicyProfile/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-474",
+      "area": "Hunt Group / Profile",
+      "label": "Call Application Policies",
+      "path": "/commpilot/User/OCICAppPolicies/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-475",
+      "area": "Hunt Group / Profile",
+      "label": "Call Policies",
+      "path": "/commpilot/User/CallPolicies/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-476",
+      "area": "Hunt Group / Profile",
+      "label": "Privacy",
+      "path": "/commpilot/User/PrivacyServiceInstance/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-477",
+      "area": "Hunt Group / Profile",
+      "label": "Directory Number Hunting",
+      "path": "/commpilot/User/DirectoryNumberHunting/",
+      "status": "pending"
+    },
+    {
+      "id": "discovered-478",
+      "area": "Call Center / Profile",
+      "label": "Profile",
+      "path": "/commpilot/Group/Call_Center/AddModify/index.jsp",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-479",
+      "area": "Call Center / Profile",
+      "label": "Addresses",
+      "path": "/commpilot/Group/Call_Center/Addresses/index.jsp",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-480",
+      "area": "Call Center / Profile",
+      "label": "Agents",
+      "path": "/commpilot/Group/Call_Center/Agents/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-481",
+      "area": "Call Center / Profile",
+      "label": "Announcement Repository",
+      "path": "/commpilot/User/AnnouncementRepository/Audio/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-482",
+      "area": "Call Center / Profile",
+      "label": "Password",
+      "path": "/commpilot/User/Password/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-483",
+      "area": "Call Center / Profile",
+      "label": "Status & Statistics",
+      "path": "/commpilot/User/CCStatistics/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-484",
+      "area": "Call Center / Profile",
+      "label": "Supervisors",
+      "path": "/commpilot/Group/Call_Center/Supervisors/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-485",
+      "area": "Call Center / Profile",
+      "label": "Thresholds",
+      "path": "/commpilot/Group/Call_Center/Thresholds/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-486",
+      "area": "Call Center / Profile",
+      "label": "Announcements",
+      "path": "/commpilot/User/Announcements/Entrance/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-487",
+      "area": "Call Center / Profile",
+      "label": "Voice Portal",
+      "path": "/commpilot/User/VoicePortal/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-488",
+      "area": "Call Center / Profile",
+      "label": "Assign Services",
+      "path": "/commpilot/User/Services/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-489",
+      "area": "Call Center / Profile",
+      "label": "Assign Xsi Policy Profile",
+      "path": "/commpilot/User/AssignXsiPolicyProfile/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-490",
+      "area": "Call Center / Profile",
+      "label": "Call Application Policies",
+      "path": "/commpilot/User/OCICAppPolicies/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-491",
+      "area": "Call Center / Profile",
+      "label": "Call Policies",
+      "path": "/commpilot/User/CallPolicies/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-492",
+      "area": "Call Center / Profile",
+      "label": "Privacy",
+      "path": "/commpilot/User/PrivacyServiceInstance/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-493",
+      "area": "Call Center / Profile",
+      "label": "Directory Number Hunting",
+      "path": "/commpilot/User/DirectoryNumberHunting/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "discovered-494",
+      "area": "Call Center / Profile",
+      "label": "Distinctive Ringing",
+      "path": "/commpilot/Group/Call_Center/RoutingPolicies/DistinctiveRinging/",
+      "status": "pass",
+      "detail": "HTTP 200"
+    }
+  ],
+  "flows": [
+    {
+      "label": "Groups search",
+      "status": "pass"
+    },
+    {
+      "label": "Group Users search",
+      "status": "pass"
+    },
+    {
+      "label": "User menu ↔ Addresses history",
+      "status": "pass"
+    },
+    {
+      "label": "Codes Management ↔ Modify history",
+      "status": "pass"
+    },
+    {
+      "label": "Call Center Call Control Back replay",
+      "status": "needs"
+    }
+  ]
+}

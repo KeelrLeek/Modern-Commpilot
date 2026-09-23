@@ -395,7 +395,8 @@ test('all options in a large native dropdown remain reachable by scrolling', asy
   const summary = await page.locator('.bw-search-summary').innerText();
   assert.match(summary, /3501 matching options/);
   assert.doesNotMatch(summary, /first|type more/i);
-  assert.equal(await page.locator('.bw-search-result').count(), 3501);
+  assert.ok(await page.locator('.bw-search-result').count() < 50,
+    'only visible rows should be mounted');
   const results = page.locator('.bw-search-results');
   await results.evaluate(el => { el.scrollTop = el.scrollHeight; });
   const lastOption = page.locator('.bw-search-result', { hasText: '2056003499 (Birmingham)' });
@@ -410,6 +411,35 @@ test('all options in a large native dropdown remain reachable by scrolling', asy
     { type: 'input', value: '2056003499' },
     { type: 'change', value: '2056003499' }
   ]);
+  await page.close();
+});
+
+test('a dropdown with 18,609 matches opens quickly and keeps distant choices reachable', async () => {
+  const page = await openPage();
+  await page.evaluate(() => {
+    const select = document.createElement('select');
+    select.id = 'huge';
+    const fragment = document.createDocumentFragment();
+    for (let index = 0; index < 18609; index++) {
+      fragment.append(new Option(`Service ${String(index).padStart(5, '0')}`, String(index)));
+    }
+    select.append(fragment);
+    document.body.append(select);
+  });
+  await page.locator('#huge[data-bw-searchable]').waitFor();
+  const openMs = await dropdownTrigger(page, 'huge').evaluate(trigger => {
+    const started = performance.now();
+    trigger.click();
+    return performance.now() - started;
+  });
+  assert.ok(openMs < 1000, `opening 18,609 options took ${openMs.toFixed(0)} ms`);
+  assert.match(await page.locator('.bw-search-summary').innerText(), /18609 matching options/);
+  assert.ok(await page.locator('.bw-search-result').count() < 50);
+  await page.locator('.bw-search-results').evaluate(el => { el.scrollTop = el.scrollHeight; });
+  const last = page.locator('.bw-search-result', { hasText: 'Service 18608' });
+  await last.waitFor({ state: 'visible' });
+  await last.click();
+  assert.equal(await page.locator('#huge').inputValue(), '18608');
   await page.close();
 });
 

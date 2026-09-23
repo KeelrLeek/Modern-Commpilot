@@ -32,6 +32,10 @@
   let shownOptions = [];
   let activeResult = -1;
   let activeRow = null;
+  const RESULT_HEIGHT = 32;
+  const RESULT_OVERSCAN = 6;
+  let renderedStart = -1;
+  let renderedEnd = -1;
   const COPY_CACHE_PREFIX = "bw-extension:";
 
   function normalize(value) {
@@ -412,6 +416,7 @@
       const row = event.target.closest("[data-bw-option-index]");
       if (row && resultsBox.contains(row)) chooseOption(Number(row.dataset.bwOptionIndex));
     });
+    resultsBox.addEventListener("scroll", renderVisibleResults);
   }
 
   function collectOptions(select) {
@@ -478,6 +483,7 @@
     shownOptions = [];
     activeResult = -1;
     activeRow = null;
+    renderedStart = renderedEnd = -1;
     if (popover) popover.hidden = true;
     if (info) {
       info.trigger.setAttribute("aria-expanded", "false");
@@ -490,47 +496,81 @@
     const info = selectInfo.get(openSelect);
     if (!info) return;
     const query = normalize(searchInput.value);
-    const fragment = document.createDocumentFragment();
     shownOptions = [];
 
     for (const entry of info.options) {
       if (!entry.searchable.includes(query)) continue;
       shownOptions.push(entry);
+    }
+
+    activeRow = null;
+    renderedStart = renderedEnd = -1;
+    resultsBox.scrollTop = 0;
+    const matchCount = shownOptions.length;
+    summary.textContent = matchCount === 0 ? "No matching options" :
+      matchCount + (matchCount === 1 ? " matching option" : " matching options");
+    activeResult = shownOptions.findIndex(entry => !entry.disabled &&
+      entry.index === openSelect.selectedIndex);
+    if (activeResult < 0) activeResult = shownOptions.findIndex(entry => !entry.disabled);
+    renderVisibleResults();
+  }
+
+  function renderVisibleResults() {
+    if (!openSelect || !resultsBox) return;
+    const viewportRows = Math.ceil((resultsBox.clientHeight || 240) / RESULT_HEIGHT);
+    const start = Math.max(0, Math.floor(resultsBox.scrollTop / RESULT_HEIGHT) - RESULT_OVERSCAN);
+    const end = Math.min(shownOptions.length, start + viewportRows + RESULT_OVERSCAN * 2);
+    if (start === renderedStart && end === renderedEnd) return;
+    renderedStart = start;
+    renderedEnd = end;
+    const fragment = document.createDocumentFragment();
+    const spacer = height => {
+      const element = document.createElement("div");
+      element.className = "bw-search-spacer";
+      element.style.height = height + "px";
+      element.setAttribute("aria-hidden", "true");
+      return element;
+    };
+    if (start) fragment.append(spacer(start * RESULT_HEIGHT));
+    for (let position = start; position < end; position++) {
+      const entry = shownOptions[position];
       const row = document.createElement("button");
       row.type = "button";
       row.className = "bw-search-result";
       row.id = "bw-search-option-" + entry.index;
       row.dataset.bwOptionIndex = String(entry.index);
+      row.dataset.bwResultPosition = String(position);
       row.setAttribute("role", "option");
-      row.setAttribute("aria-selected", String(Boolean(openSelect.options[entry.index]?.selected)));
+      row.setAttribute("aria-posinset", String(position + 1));
+      row.setAttribute("aria-setsize", String(shownOptions.length));
+      row.setAttribute("aria-selected", String(entry.index === openSelect.selectedIndex));
       row.disabled = entry.disabled;
       row.textContent = entry.groupLabel
         ? entry.groupLabel + " — " + entry.label : entry.label;
+      row.title = row.textContent;
       fragment.append(row);
     }
-
+    if (end < shownOptions.length) fragment.append(spacer((shownOptions.length - end) * RESULT_HEIGHT));
     resultsBox.replaceChildren(fragment);
-    activeRow = null;
-    const matchCount = shownOptions.length;
-    summary.textContent = matchCount === 0 ? "No matching options" :
-      matchCount + (matchCount === 1 ? " matching option" : " matching options");
-    activeResult = shownOptions.findIndex(entry => !entry.disabled &&
-      Boolean(openSelect.options[entry.index]?.selected));
-    if (activeResult < 0) activeResult = shownOptions.findIndex(entry => !entry.disabled);
     updateActiveResult(false);
   }
 
   function updateActiveResult(scroll) {
-    if (activeRow?.isConnected) activeRow.classList.remove("bw-active-result");
-    const active = resultsBox.children[activeResult];
-    activeRow = active || null;
-    if (active) {
-      active.classList.add("bw-active-result");
-      searchInput.setAttribute("aria-activedescendant", active.id);
-      if (scroll) active.scrollIntoView({ block: "nearest" });
-    } else {
-      searchInput.removeAttribute("aria-activedescendant");
+    if (scroll && activeResult >= 0) {
+      const top = activeResult * RESULT_HEIGHT;
+      const bottom = top + RESULT_HEIGHT;
+      if (top < resultsBox.scrollTop) resultsBox.scrollTop = top;
+      else if (bottom > resultsBox.scrollTop + resultsBox.clientHeight) {
+        resultsBox.scrollTop = bottom - resultsBox.clientHeight;
+      }
+      renderVisibleResults();
     }
+    if (activeRow?.isConnected) activeRow.classList.remove("bw-active-result");
+    activeRow = resultsBox.querySelector(`[data-bw-result-position="${activeResult}"]`);
+    if (activeRow) {
+      activeRow.classList.add("bw-active-result");
+      searchInput.setAttribute("aria-activedescendant", activeRow.id);
+    } else searchInput.removeAttribute("aria-activedescendant");
   }
 
   function onSearchKeydown(event) {

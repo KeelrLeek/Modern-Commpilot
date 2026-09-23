@@ -45,6 +45,15 @@ test('PJAX swaps content, header, token, and URL without a document reload', asy
   });
   await page.goto('https://apps-sbx.avpaas.io/', { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => history.replaceState(null, '', '/commpilot/Reseller/Groups/'));
+  // CommPilot's Prototype library overrides Array.find and requires Array.each.
+  // Calling that method with a NodeList used to skip the native header refresh.
+  await page.evaluate(() => {
+    const nativeFind = Array.prototype.find;
+    Array.prototype.find = function (...args) {
+      if (!Array.isArray(this)) throw new TypeError('this.each is not a function');
+      return nativeFind.apply(this, args);
+    };
+  });
   await page.addScriptTag({ path: pjaxPath });
   const initialDocument = await page.evaluate(() => { window.initialDocument = document; return location.href; });
   await page.evaluate(() => window.redirectPost('/commpilot/Reseller/Admins/', {}));
@@ -101,7 +110,17 @@ test('PJAX retains navigation coverage across the existing page families', async
       '/commpilot/Group/Members/',
       '/commpilot/Group/Members/Modify/',
       '/commpilot/User/Profile/',
+      '/commpilot/Reseller/DeviceManagement/DeviceType/Profile/',
+      '/commpilot/ServiceProvider/CallingPlan/Outgoing/AuthorizationCodes/',
+      '/commpilot/Group/CommunicationBarring/Outgoing/Criteria/',
+      '/commpilot/User/CallControl/CallForwarding/Always/',
+      '/commpilot/Operator/System/DeviceFamilies/Modify/Profile/',
       '/commpilot/Common/findAll.jsp',
+      '/commpilot/Common/DeviceProfileAuthPasswordRules/index.jsp',
+      '/commpilot/Common/Password_Rules/index.jsp',
+      '/commpilot/Common/PasscodeRules/index.jsp',
+      '/commpilot/Common/SipAuthPasswordRules/index.jsp',
+      '/commpilot/Intercept/index.jsp',
       '/commpilot/Operator/System/DeviceType/Add/'
     ];
     for (const target of routes) {
@@ -114,6 +133,174 @@ test('PJAX retains navigation coverage across the existing page families', async
       assert.equal(requests[expectedCount - 1], target, `${target} must stay on PJAX transport`);
       await page.waitForFunction(url => location.pathname === url, target, { timeout: 5000 });
     }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('Group Members search keeps its form POST in shell and uses the rotated token', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const posts = [];
+    const membersPage = (token, label) => `<!doctype html><html><head><title>Users</title></head><body>
+      <table><tr><td class="headerBar">Group &gt; Users</td></tr></table>
+      <table><tr><td width="82%"><form name="mainForm" method="post"
+        action="/commpilot/Group/Members/index.jsp">
+        <input type="hidden" name="action" value="find">
+        <input type="hidden" name="formtokenserial" value="${token}">
+        <input name="findValue0" value="Smith">
+        <button type="submit" name="search" value="Search">Search</button>
+        <div id="result">${label}</div>
+      </form></td></tr></table>
+      <script>window.redirectPost = function(url, params) { window.nativeNavigation = {url, params}; };</script>
+    </body></html>`;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      if (route.request().method() === 'POST') {
+        posts.push({ path: new URL(route.request().url()).pathname,
+          params: new URLSearchParams(route.request().postData()) });
+        return route.fulfill({ status: 200, contentType: 'text/html',
+          body: membersPage(`token-${posts.length + 1}`, `Search ${posts.length}`) });
+      }
+      return route.fulfill({ status: 200, contentType: 'text/html', body: membersPage('token-1', 'Before') });
+    });
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Group/Members/', { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    await page.getByRole('button', { name: 'Search' }).click();
+    await page.getByText('Search 1').waitFor();
+    await page.getByRole('button', { name: 'Search' }).click();
+    await page.getByText('Search 2').waitFor();
+
+    assert.equal(posts.length, 2);
+    assert.deepEqual(posts.map(post => post.path), [
+      '/commpilot/Group/Members/index.jsp', '/commpilot/Group/Members/index.jsp']);
+    assert.deepEqual(posts.map(post => post.params.get('formtokenserial')), ['token-1', 'token-2']);
+    assert.ok(posts.every(post => post.params.get('findValue0') === 'Smith' &&
+      post.params.get('search') === 'Search'));
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+    assert.equal(await page.locator('[name="formtokenserial"]').inputValue(), 'token-3');
+  } finally {
+    await browser.close();
+  }
+});
+
+test('PJAX back and forward replay each page without losing forward history', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const pageHtml = label => `<!doctype html><html><head><title>${label}</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">${label}</span></td></tr></table>
+      <form name="leftNavForm"></form><input name="formtokenserial" value="token">
+      <table><tr><td width="82%"><div id="view">${label}</div></td></tr></table>
+      <script>window.redirectPost = function(url, params) { window.nativeNavigation = {url, params}; };</script>
+    </body></html>`;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const name = new URL(route.request().url()).pathname.split('/').filter(Boolean).at(-1);
+      return route.fulfill({ status: 200, contentType: 'text/html', body: pageHtml(name) });
+    });
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Reseller/Groups/', { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    const admin = '/commpilot/Reseller/Admins/';
+    const devices = '/commpilot/Reseller/DeviceType/';
+    await page.evaluate(url => window.redirectPost(url, {}), admin);
+    await page.waitForFunction(url => location.pathname === url && document.querySelector('#view')?.textContent === 'Admins', admin);
+    await page.evaluate(url => window.redirectPost(url, {}), devices);
+    await page.waitForFunction(url => location.pathname === url && document.querySelector('#view')?.textContent === 'DeviceType', devices);
+    await page.goBack();
+    await page.waitForFunction(url => location.pathname === url && document.querySelector('#view')?.textContent === 'Admins', admin);
+    await page.goForward();
+    await page.waitForFunction(url => location.pathname === url && document.querySelector('#view')?.textContent === 'DeviceType', devices, { timeout: 5000 });
+  } finally {
+    await browser.close();
+  }
+});
+
+test('Back to the initial reseller Profile replays its folder parameters', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const posts = [];
+    const shell = label => `<!doctype html><html><head><title>${label}</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">Reseller</span></td></tr></table>
+      <form name="leftNavForm"></form><input name="formtokenserial" value="token">
+      <table><tr><td width="82%"><div id="view">${label}</div></td></tr></table>
+      <script>window.redirectPost = function(url, params) { window.nativeNavigation = {url, params}; };</script>
+    </body></html>`;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (route.request().method() === 'POST') posts.push({ pathname,
+        body: new URLSearchParams(route.request().postData() || '') });
+      return route.fulfill({ status: 200, contentType: 'text/html', body:
+        shell(pathname.includes('folder_contents') ? 'Profile' : 'Service Providers') });
+    });
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Common/folder_contents.jsp',
+      { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => window.redirectPost('/commpilot/Reseller/ServiceProviders/index.jsp', {}));
+    await page.waitForFunction(() => location.pathname === '/commpilot/Reseller/ServiceProviders/index.jsp');
+    await page.goBack();
+    await page.waitForFunction(() => location.pathname === '/commpilot/Common/folder_contents.jsp' &&
+      document.querySelector('#view')?.textContent === 'Profile');
+    const back = posts.findLast(post => post.pathname === '/commpilot/Common/folder_contents.jsp');
+    assert.ok(back);
+    assert.equal(back.body.get('folder'), 'R0');
+    assert.equal(back.body.get('menuId'), '8');
+  } finally {
+    await browser.close();
+  }
+});
+
+test('back from a user page preserves forward history across iframe entry replay', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const appPage = label => `<!doctype html><html><head><title>${label}</title></head><body>
+      <table><tr><td class="headerBar"><a class="headerAuthLevelLink">Users</a>
+        <span class="headerAuthLevel">Test User</span></td></tr></table>
+      <form name="leftNavForm"><a class="leftnavfolder">Profile</a></form>
+      <input name="formtokenserial" value="token">
+      <table><tr><td width="82%"><div id="view">${label}</div></td></tr></table>
+      <script>window.redirectPost = function(url, params) { window.nativeNavigation = {url, params}; };</script>
+    </body></html>`;
+    const stub = `<!doctype html><html><head><title>Redirect</title></head><body>
+      <input name="formtokenserial" value="token">
+      <script>redirectPost('/commpilot/User/index.jsp', {userId:'Test User'});</script>
+      <!-- ${'padding '.repeat(50)} -->
+    </body></html>`;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const pathname = new URL(route.request().url()).pathname;
+      const body = pathname.includes('/Group/Members/Modify/') ? stub :
+        pathname.includes('/User/Addresses/') ? appPage('Addresses') :
+          pathname.includes('/User/index.jsp') ? appPage('User Menu') : appPage('Users List');
+      return route.fulfill({ status: 200, contentType: 'text/html', body });
+    });
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Group/Members/', { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    const entry = '/commpilot/Group/Members/Modify/index.jsp';
+    const addresses = '/commpilot/User/Addresses/';
+    await page.evaluate(url => window.redirectPost(url, { userId: 'Test User' }), entry);
+    await page.waitForFunction(url => location.pathname === url && document.querySelector('#view')?.textContent === 'User Menu', entry);
+    const entryHistoryLength = await page.evaluate(() => history.length);
+    await page.evaluate(url => window.redirectPost(url, {}), addresses);
+    await page.waitForFunction(url => location.pathname === url && document.querySelector('#view')?.textContent === 'Addresses', addresses);
+    assert.equal(await page.evaluate(() => history.length), entryHistoryLength + 1);
+    await page.goBack();
+    await page.waitForFunction(url => location.pathname === url && document.querySelector('#view')?.textContent === 'User Menu', entry);
+    assert.equal(await page.evaluate(() => history.length), entryHistoryLength + 1);
+    await page.goBack();
+    await page.waitForFunction(() => location.pathname === '/commpilot/Group/Members/' &&
+      document.querySelector('#view')?.textContent === 'Users List', null, { timeout: 5000 });
+    await page.goForward();
+    await page.waitForFunction(url => location.pathname === url && document.querySelector('#view')?.textContent === 'User Menu', entry);
+    await page.goForward();
+    await page.waitForFunction(url => location.pathname === url && document.querySelector('#view')?.textContent === 'Addresses', addresses, { timeout: 5000 });
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
   } finally {
     await browser.close();
   }

@@ -4,15 +4,17 @@ This branch combines the original BroadWorks Enhancer controls with the PJAX tra
 
 ## Included behavior
 
-- The original dropdown search, green/red On/Off labels, and breadcrumb Copy User ID / Copy Extension controls.
-- PJAX navigation for the same URL families handled by Modern-Commpilot 0.2.346: reseller, service-provider, group and user pages; folder menus; list find/sort/page requests; entity drill-in; and the specific Operator/System and Schedule paths covered by its route matcher.
-- Form-token rotation, bounded redirect-stub following, iframe transport for navigation-only entity pages, in-place server-error handling, back/forward replay, and same-origin reload recovery.
+- The original dropdown search, green/red On/Off labels, and breadcrumb Copy User ID / Copy Extension controls. Large native dropdowns now render only the visible options, keeping searches responsive even with over 18,000 matches.
+- PJAX navigation for reseller, service-provider, group, user, and Operator pages, including deeper settings trees; folder menus; list find/sort/page requests; and entity drill-in.
+- Form-token rotation, bounded redirect-stub following, iframe transport for navigation-only entity pages, in-place server-error handling, back/forward replay that preserves Forward after an iframe drill-in, and same-origin reload recovery.
 - PJAX refreshes the actual CommPilot breadcrumb cell and reattaches its native link handlers after each swap, preserving the full Reseller → Service Provider → Group → Users → User trail.
 - Native CommPilot styling. The only added CSS styles the requested controls and small PJAX error notices.
 - The existing Cisco login form is centered. Its logo, background image, fields, and submit logic remain intact. The old **Remember Password** row is removed. A compact **Saved sign-ins** drawer sits below the Cisco panel.
 - You can save multiple sign-ins per BroadWorks host. Each account can sign in automatically or ask for a four-digit PIN. With one automatic account, visiting the login page signs in immediately; with several accounts, the page shows an account chooser. A single PIN account opens its PIN prompt. Saved passwords are AES-256-GCM ciphertext in extension storage. A non-extractable encryption key persists in extension IndexedDB so automatic sign-in works after browser restart. The PIN gates use of an account but is not a strong encryption secret.
 
-A page outside the current PJAX route matcher continues through CommPilot's original navigation. The retained transport has not yet been validated on every production page. Use the sandbox host for further route-by-route testing before replacing the stable extension in production.
+A page outside the current PJAX route matcher continues through CommPilot's original navigation. The expanded matcher has been checked with browser fixtures; a live sandbox walkthrough covered reseller Groups, Group Users search and drill-in, User Addresses, and Back/Forward. It has not been validated on every production page. Use the sandbox host for further route-by-route testing before replacing the stable extension in production.
+
+The live route inventory and pass/fail tally are in `dev-preview/pjax-route-audit.html` when running `python dev-preview/server.py`. The discovered menu inventory includes Reseller, Service Provider, Group, User, Call Center, Auto Attendant, and Hunt Group; nested controls and other service instances are still being audited.
 
 ## Live local preview
 
@@ -34,4 +36,4 @@ The extension is scoped to the seven known BroadWorks hosts. The PJAX code only 
 
 ## Tests
 
-Run `npm ci` and `npm test`. The tests load the extension in Chromium, exercise the prior enhancer cases, navigate through representative PJAX page families including an iframe drill-in, verify native CSS remains active, and test a reload recovery path. The saved-login test checks ciphertext storage, the non-extractable browser key, correct and incorrect PINs, account selection, automatic sign-in, and removal. Firefox lint reports no errors; it still reports warnings for `innerHTML` assignments in the inherited PJAX code.
+Run `npm ci` and `npm test`. The tests load the extension in Chromium, exercise the prior enhancer cases, navigate through representative PJAX page families including deeper route patterns and an iframe drill-in, verify native CSS remains active, and test a reload recovery path. The saved-login test checks ciphertext storage, the non-extractable browser key, correct and incorrect PINs, account selection, automatic sign-in, and removal. Firefox lint reports no errors; it still reports warnings for `innerHTML` assignments in the inherited PJAX code.

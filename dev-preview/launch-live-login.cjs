@@ -6,7 +6,8 @@ const path = require('node:path');
 
 const extension = path.resolve(__dirname, '..');
 const edge = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
-const profile = path.join(process.env.LOCALAPPDATA, 'BroadWorksEnhancer', 'LivePreviewProfile');
+const profile = process.env.BW_LIVE_PROFILE ||
+  path.join(process.env.LOCALAPPDATA, 'BroadWorksEnhancer', 'LivePreviewProfile');
 fs.mkdirSync(profile, { recursive: true });
 
 (async () => {
@@ -18,7 +19,7 @@ fs.mkdirSync(profile, { recursive: true });
   });
   const page = context.pages()[0] || await context.newPage();
   await page.goto('https://apps-sbx.avpaas.io/commpilot/Login/', { waitUntil: 'domcontentloaded' });
-  console.log('Visible Edge preview opened with BroadWorks Enhancer 0.3.4.');
+  console.log('Visible Edge preview opened with BroadWorks Enhancer 0.3.6.');
   await new Promise(resolve => context.on('close', resolve));
 })().catch(error => {
   console.error(error.message);
