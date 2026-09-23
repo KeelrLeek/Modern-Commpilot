@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const output = path.resolve(root, '..', '..', 'final');
+const output = path.resolve(root, '..', 'release', 'previews');
 const edge = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'bw-login-capture-'));
 
