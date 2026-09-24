@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.11-native";
+  var CP_PJAX_VERSION = "0.3.12-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -4302,14 +4302,14 @@
               } catch (e) {}
               // GENERALIZED form-submit re-anchor (the Admins case above, for every form family): a submit
               // (ok/apply/cancel/delete) POSTed to a form endpoint whose response renders the LIST screen
-              // (find-criteria selects present) re-anchors to the list the form was opened from — NOT a
+              // (find-criteria controls or Add buttons present) re-anchors to the list the form was opened from — NOT a
               // path-strip of the form URL, because the form can live under a different tree than its list
               // (DeviceType list = /Reseller/DeviceType/ but its Add = /Operator/System/DeviceType/Add/).
               try {
                 if (_submitNav && cpFormOrigin && canonical === url &&
                     (/\/(Add|Import|Modify)\//.test(url) || /\/Operator\/System\/DeviceType\/Profile\//.test(url)) &&
                     liveCell && liveCell.querySelector &&
-                    liveCell.querySelector('select[name="findKey0"], #searchTable')) {
+                    liveCell.querySelector('select[name="findKey0"], #searchTable, input[name="add"][type="button"], button[name="add"]')) {
                   canonical = cpFormOrigin;
                   document.documentElement.setAttribute("data-cp-path", canonical);
                 }

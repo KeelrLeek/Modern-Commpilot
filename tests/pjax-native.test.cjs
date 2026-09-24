@@ -130,6 +130,46 @@ test('multipart import follows its token-bearing stub in-shell and Back does not
   } finally { await browser.close(); }
 });
 
+test('Shared Call Appearance Add returns to its list URL after a successful save', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const listPath = '/commpilot/User/SCAP/';
+    const addPath = '/commpilot/User/SCAP/Add/index.jsp';
+    const shell = content => `<!doctype html><html><head><title>Shared Call Appearance</title></head><body>
+      <form name="leftNavForm"><a class="leftnavfolder">Call Control</a></form>
+      <input name="formtokenserial" value="test-token">
+      <table><tr><td width="82%">${content}</td></tr></table>
+      <script>window.redirectPost=function(url,params){window.nativeNavigation={url,params};};</script>
+      </body></html>`;
+    const list = shell('<h1>Shared Call Appearance</h1><input type="button" name="add" value="Add">' +
+      '<div id="saved-row">Saved appearance</div>');
+    const add = shell('<h1>Shared Call Appearance Add</h1><form name="mainForm" method="post">' +
+      '<input name="deviceLinePortDomain" value="testline"><input type="submit" name="ok" value="OK"></form>');
+    const posts = [];
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (request.method() === 'POST') posts.push(pathname);
+      const body = pathname === addPath && request.method() === 'POST' &&
+        new URLSearchParams(request.postData() || '').has('ok') ? list :
+        pathname === addPath ? add : list;
+      return route.fulfill({ status: 200, contentType: 'text/html', body });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${listPath}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(url => window.redirectPost(url, {}), addPath);
+    await page.locator('form[name="mainForm"] input[name="ok"]').click();
+    await page.locator('#saved-row').waitFor();
+    assert.equal(await page.evaluate(() => location.pathname), listPath);
+    assert.deepEqual(posts, [addPath, addPath]);
+    await page.evaluate(() => window.redirectPost('Add/index.jsp', {}));
+    await page.waitForFunction(path => location.pathname === path, addPath);
+    assert.deepEqual(posts, [addPath, addPath, addPath]);
+  } finally { await browser.close(); }
+});
+
 test('PJAX leaves the current page intact after a server error', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });

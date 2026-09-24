@@ -104,6 +104,35 @@ if (!profile || process.env.BW_INVALID_UPLOAD_PROBE !== '1')
       location.pathname === expected &&
       !!document.querySelector('form[name="mainForm"] input[type="file"]'),
     spec.import, { timeout: 20000 });
+    if (process.env.BW_PROBE_CANCEL === '1') {
+      const beforeCancel = await page.evaluate(() => {
+        window.__bwCancelMarker = Date.now();
+        window.__bwCancelReskins = 0;
+        document.addEventListener('cp:reskin', () => { window.__bwCancelReskins++; });
+        return { path: location.pathname, historyLength: history.length };
+      });
+      await page.locator('form[name="mainForm"] input[name="cancel"]:visible').first()
+        .click({ noWaitAfter: true });
+      await page.waitForFunction(expected => location.pathname === expected &&
+        (window.__bwCancelReskins || 0) > 0, spec.list, { timeout: 15000 });
+      const afterCancel = await page.evaluate(() => ({ path: location.pathname,
+        sameDocument: !!window.__bwCancelMarker,
+        historyLength: history.length, reskins: window.__bwCancelReskins || 0 }));
+      if (!afterCancel.sameDocument || afterCancel.path !== spec.list || servletPosts !== 0)
+        throw new Error('Cancel did not return to its list in the PJAX document');
+      const auditPath = path.join(__dirname, 'pjax-route-audit.json');
+      const audit = JSON.parse(fs.readFileSync(auditPath, 'utf8'));
+      const route = audit.routes.find(item => item.area === spec.area && item.path === spec.import &&
+        item.sourcePath === spec.list && item.kind === 'action');
+      if (!route) throw new Error('Import route is missing from the visual audit');
+      route.cancelCheck = { status: 'pass', path: afterCancel.path,
+        sameDocument: true, servletPosts: 0, at: new Date().toISOString() };
+      audit.updated = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      fs.writeFileSync(auditPath, JSON.stringify(audit, null, 2) + '\n');
+      console.log(JSON.stringify({ event: 'import-cancel-probe', kind,
+        before: beforeCancel, after: afterCancel, servletPosts }));
+      return;
+    }
     const before = await page.evaluate(() => {
       window.__bwUploadProbeMarker = Date.now();
       window.__bwUploadReskins = 0;

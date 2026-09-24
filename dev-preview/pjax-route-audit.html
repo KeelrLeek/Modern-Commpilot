@@ -25,7 +25,7 @@
     .breakdown { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
     .breakdown span { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; color: var(--muted); font-size: 12px; }
     .breakdown b { color: var(--fg); }
-    .interaction-queue { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 9px; margin: 13px 0 0; }
+    .interaction-queue { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 9px; margin: 13px 0 0; }
     .interaction-queue button { text-align: left; border-radius: 11px; padding: 12px; }
     .interaction-queue strong { display: block; margin-top: 4px; font-size: 20px; color: var(--amber); font-variant-numeric: tabular-nums; }
     .interaction-queue small { color: var(--muted); font-size: 11px; }
@@ -61,7 +61,7 @@
 </head>
 <body>
 <main>
-  <header><div><h1>CommPilot PJAX coverage</h1><p>Live sandbox route checks · headless Edge · 0.3.11 development build</p></div><p id="updated"></p></header>
+  <header><div><h1>CommPilot PJAX coverage</h1><p>Live sandbox route checks · headless Edge · 0.3.12 development build</p></div><p id="updated"></p></header>
   <div class="scope" id="file-notice" style="display:none" role="status"><b>This file view cannot load the live tally.</b><small><a href="http://127.0.0.1:8766/pjax-route-audit.html">Open the live dashboard</a> to see the numbers update as routes are checked.</small></div>
   <div class="scope" role="status"><b id="scope-summary">Sitewide routes left to check: unknown</b><small id="inventory">Scanning top-level folders and account submenus. Counts below cover only routes discovered so far.</small></div>
   <section class="metrics" aria-label="Route tally">
@@ -148,9 +148,10 @@
       return '<span class="scan-note">Import page opens; upload submission pending</span>';
     if (route.uploadCheck?.status === 'validation-pass')
       return '<span class="verified-note">Upload validation passed in PJAX; Back did not resend</span>' +
-        '<span class="scan-note">Successful import fixture next</span>';
+        '<span class="scan-note">Successful upload fixture next</span>';
     if ((route.uploadForms || []).length && route.uploadCheck?.status !== 'pass')
-      return '<span class="scan-note">Upload form mapped; submission pending</span>';
+      return '<span class="scan-note">Upload form mapped; submission pending</span>' +
+        `<span class="control-note">${escapeHtml(route.uploadForms.map(form => form.action).join(' · '))}</span>`;
     return '';
   };
   function render(data) {
@@ -191,12 +192,15 @@
     const searchPassed = searchViews.filter(searchVerified).length;
     const searchUnavailable = searchViews.filter(route => route.searchCheck?.status === 'no-trigger').length;
     const searchRemaining = searchViews.length - searchPassed;
+    const uploadViews = dynamicRoutes.filter(route => (route.uploadForms || []).length > 0);
+    const uploadValidation = uploadViews.filter(route => route.uploadCheck?.status === 'validation-pass').length;
     const nextKinds = [
       ['sort', 'Sorting'], ['paging', 'Paging'], ['tabs', 'Tabs'],
-      ['transfer', 'Transfers'], ['submit', 'Form actions']
+      ['transfer', 'Transfers'], ['upload', 'File uploads'], ['submit', 'Form actions']
     ];
-    const uncheckedKind = (route, kind) => (route.dynamicControls?.[kind] || 0) > 0 &&
-      route.interactionChecks?.[kind]?.status !== 'pass';
+    const uncheckedKind = (route, kind) => kind === 'upload' ?
+      (route.uploadForms || []).length > 0 && route.uploadCheck?.status !== 'validation-pass' :
+      (route.dynamicControls?.[kind] || 0) > 0 && route.interactionChecks?.[kind]?.status !== 'pass';
     const nextViews = dynamicRoutes.filter(route => nextKinds.some(([kind]) => uncheckedKind(route, kind)));
     const subpagesScanned = subpageRoutes.filter(route => route.controlScanned).length;
     const subpagesRemaining = subpageRoutes.length - subpagesScanned;
@@ -227,17 +231,19 @@
     document.getElementById('search-progress').innerHTML = `<span class="pass" style="width:${searchViews.length ? (100 * searchPassed / searchViews.length).toFixed(2) : 0}%"></span><span class="pending" style="width:${searchViews.length ? (100 * searchRemaining / searchViews.length).toFixed(2) : 0}%"></span>`;
     document.getElementById('search-progress-label').textContent = `${searchPassed} of ${searchViews.length} discovered search views passed a live PJAX check`;
     document.getElementById('interaction-queue').innerHTML = nextKinds.map(([kind, label]) => {
-      const views = dynamicRoutes.filter(route => (route.dynamicControls?.[kind] || 0) > 0);
-      const passed = views.filter(route => route.interactionChecks?.[kind]?.status === 'pass').length;
+      const views = kind === 'upload' ? uploadViews :
+        dynamicRoutes.filter(route => (route.dynamicControls?.[kind] || 0) > 0);
+      const passed = kind === 'upload' ? uploadValidation :
+        views.filter(route => route.interactionChecks?.[kind]?.status === 'pass').length;
       const importEntries = kind === 'transfer' ? views.filter(route => routes.some(child =>
         child.sourcePath === route.path && /\bimport\b/i.test(child.label || '') && child.status === 'pass')).length : 0;
       const uploadForms = kind === 'transfer' ? routes.filter(route => (route.uploadForms || []).length).length : 0;
-      const uploadValidation = kind === 'transfer' ? routes.filter(route => route.uploadCheck?.status === 'validation-pass').length : 0;
       const detail = kind === 'transfer' ? `${passed} downloads/exports · ${uploadValidation}/${uploadForms} safe uploads · ${importEntries} successful imports to check` :
+        kind === 'upload' ? `${uploadViews.length - uploadValidation} validation paths pending · successful uploads still to check` :
         `passed · ${views.length - passed} remaining`;
       return `<button type="button" data-interaction="${kind}" aria-pressed="${state.filter === kind}"><span>${label}</span><strong>${passed} / ${views.length}</strong><small>${detail}</small></button>`;
     }).join('');
-    document.getElementById('scope-summary').textContent = `${deepRemaining + controlsRemaining + subpagesRemaining + dynamicRemaining + searchRemaining} known page and search checks remain · ${nextViews.length} views have other interaction checks pending · total sitewide routes unknown`;
+    document.getElementById('scope-summary').textContent = `${deepRemaining + controlsRemaining + subpagesRemaining + dynamicRemaining + searchRemaining} known page and search checks remain · ${nextViews.length} views have other interaction checks pending, including ${uploadViews.length - uploadValidation} file-form validation checks · total sitewide routes unknown`;
     document.getElementById('depth-progress').innerHTML = `<span class="pass" style="width:${menuRoutes.length ? (100 * deepScanned / menuRoutes.length).toFixed(2) : 0}%"></span><span class="pending" style="width:${menuRoutes.length ? (100 * deepRemaining / menuRoutes.length).toFixed(2) : 0}%"></span>`;
     document.getElementById('depth-progress-label').textContent = `${deepScanned} of ${menuRoutes.length} menu pages checked for row and Edit links`;
     const byLevel = [...new Set(folders.map(item => item.level))].map(level => `${level}: ${folders.filter(item => item.level === level).length} folders`).join(' · ');
@@ -252,6 +258,7 @@
             state.filter === 'dynamic' ? dynamicRoutes.includes(route) && !route.dynamicScanned :
               state.filter === 'search' ? searchViews.includes(route) && !searchVerified(route) :
                 state.filter === 'transfer' ? (route.dynamicControls?.transfer || 0) > 0 || (route.uploadForms || []).length > 0 :
+                state.filter === 'upload' ? (route.uploadForms || []).length > 0 :
                 nextKinds.some(([kind]) => state.filter === kind) ? uncheckedKind(route, state.filter) : route.status === state.filter));
     const areas = [...new Set(visible.map(route => route.area))];
     document.getElementById('groups').innerHTML = areas.length ? areas.map(area => {

@@ -1237,6 +1237,12 @@ async function testTarget(page, target, folder) {
     record.dynamicControls = result.dynamicControls;
     record.dynamicScanned = true;
   }
+  if (process.env.BW_DISCOVER_UPLOADS === '1' && !record.uploadScanned) {
+    record.uploadForms = await captureUploadForms(page);
+    record.uploadScanned = true;
+    if (record.uploadForms.length) console.log(JSON.stringify({ event: 'upload-inventory',
+      area, label: record.label, path: wanted, forms: record.uploadForms }));
+  }
   if (process.env.BW_INSPECT_TRANSFER_CONTROLS === '1' &&
       (record.dynamicControls?.transfer || 0) > 0)
     console.log(JSON.stringify({ event: 'transfer-controls', area, label: record.label,
@@ -1515,8 +1521,9 @@ async function testTarget(page, target, folder) {
             (known?.dynamicControls?.transfer || 0) > 0 &&
             (!['pass', 'upload-pending'].includes(known?.interactionChecks?.transfer?.status) ||
               process.env.BW_FORCE_DOWNLOAD === '1');
+          const needsUploads = process.env.BW_DISCOVER_UPLOADS === '1' && !known?.uploadScanned;
           if (known?.status === 'pass' && !force && !known.backPending &&
-              !needsActions && !needsDescendants && !needsDynamic && !needsSearch && !needsSort && !needsPaging && !needsTabs && !needsDownload &&
+              !needsActions && !needsDescendants && !needsDynamic && !needsSearch && !needsSort && !needsPaging && !needsTabs && !needsDownload && !needsUploads &&
               (process.env.BW_DISCOVER_DEEP !== '1' || (known.deepScanned && !pendingInner))) continue;
           const outcome = await testTarget(page, target, folder);
           if (outcome === 'gap') { console.log(JSON.stringify({ event: 'needs-fix', level, folder, label: target.label })); return; }
