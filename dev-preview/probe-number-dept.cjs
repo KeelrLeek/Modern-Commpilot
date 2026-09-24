@@ -86,12 +86,19 @@ const snapshot = page => page.evaluate(() => ({
     if (process.env.BW_NUMBER_BULK === '1') {
       await page.locator('#cp-bulk-number-launch').waitFor({ timeout: 15000 });
       await page.locator('#cp-bulk-number-launch').click();
-      const bytes = await page.evaluate(target => [...window.cpXlsxBuild([{
-        name: 'Assignments', headers: ['Phone Number', 'Department'],
-        rows: [['+1-2244830007', target]], widths: [23, 34], textColumns: [0]
-      }])], process.env.BW_NUMBER_BULK_TARGET || 'Basement');
+      const bytes = await page.evaluate(({ target, range }) => [...window.cpXlsxBuild([{
+        name: 'Assignments', headers: range ? ['Phone Number', 'Department', 'Range End'] :
+          ['Phone Number', 'Department'],
+        rows: range === 'missing' ? [['+1-2244830007', 'Basement', '+1-2244830009']] :
+          range === 'valid' ? [['+1-2244830007', target, '+1-2244830007'],
+            ['+1-2244830030', target, '+1-2244830030']] :
+            [['+1-2244830007', target]],
+        widths: range ? [23, 34, 23] : [23, 34], textColumns: range ? [0, 2] : [0]
+      }])], { target: process.env.BW_NUMBER_BULK_TARGET || 'Basement',
+        range: process.env.BW_NUMBER_BULK_RANGE || '' });
       if (process.env.BW_NUMBER_BULK_APPLY !== '1' &&
-          process.env.BW_NUMBER_BULK_DIRECT !== '1') {
+          process.env.BW_NUMBER_BULK_DIRECT !== '1' &&
+          !process.env.BW_NUMBER_BULK_RANGE) {
         const templateDownload = page.waitForEvent('download', { timeout: 10000 });
         await page.locator('.cp-bulk-dialog [data-action="template"]').click();
         const download = await templateDownload;
@@ -100,29 +107,48 @@ const snapshot = page => page.evaluate(() => ({
           path: new URL(page.url()).pathname }));
       }
       if (process.env.BW_NUMBER_BULK_DIRECT === '1')
-        await page.evaluate(() => { window.cpListSearch = async () => ({ tooMany: true }); });
+        await page.evaluate(() => {
+          const original = window.cpListSearch;
+          let first = true;
+          window.cpListSearch = (...args) => {
+            if (first) { first = false; return Promise.resolve({ tooMany: true }); }
+            return original(...args);
+          };
+        });
+      if (process.env.BW_NUMBER_BULK_VERIFY_EXACT === '1')
+        await page.evaluate(() => {
+          const original = window.cpListSearch;
+          let blankSearches = 0;
+          window.cpListSearch = (criteria, options) => {
+            if (!criteria.length && ++blankSearches === 2)
+              return Promise.resolve({ tooMany: true });
+            return original(criteria, options);
+          };
+        });
       await page.locator('.cp-bulk-dialog input[type="file"]').setInputFiles({
         name: 'test-number-assignments.xlsx',
         mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         buffer: Buffer.from(bytes) });
-      await page.waitForFunction(() => /Review the changes|Fix \d+ row|not found|unavailable|missing|stopped/i
+      await page.waitForFunction(() => /Review the changes|All requested numbers|Fix \d+ number|not found|unavailable|missing|stopped/i
         .test(document.querySelector('.cp-bulk-status')?.textContent || ''),
       null, { timeout: 30000 });
       console.log(JSON.stringify({ event: 'number-bulk-preview',
         path: new URL(page.url()).pathname,
         status: await page.locator('.cp-bulk-status').innerText(),
+        progress: await page.locator('.cp-bulk-progress').innerText(),
         preview: (await page.locator('.cp-bulk-preview').innerText()).slice(0, 1300),
         applyEnabled: await page.locator('.cp-bulk-dialog [data-action="apply"]').isEnabled() }));
       if (process.env.BW_NUMBER_BULK_APPLY === '1') {
         if (!await page.locator('.cp-bulk-dialog [data-action="apply"]').isEnabled())
           throw Error('Bulk preview is not ready');
         await page.locator('.cp-bulk-dialog [data-action="apply"]').click();
-        await page.waitForFunction(() => /Saved 1 assignment|Stopped:/i
+        await page.waitForFunction(() => /Verified \d+ assignments?\.|Stopped:|readback was unavailable|did not match/i
           .test(document.querySelector('.cp-bulk-status')?.textContent || ''),
         null, { timeout: 45000 });
         console.log(JSON.stringify({ event: 'number-bulk-result',
           path: new URL(page.url()).pathname,
           status: await page.locator('.cp-bulk-status').innerText(),
+          progress: await page.locator('.cp-bulk-progress').innerText(),
           preview: (await page.locator('.cp-bulk-preview').innerText()).slice(0, 1000) }));
         await waitPath(page, '/commpilot/Group/GroupDnManagement/index.jsp');
         console.log(JSON.stringify({ event: 'number-bulk-returned',
@@ -136,6 +162,13 @@ const snapshot = page => page.evaluate(() => ({
           rowCount: data.rows.length, totalPages: data.totalPages,
           tooMany: data.tooMany || false })));
       console.log(JSON.stringify({ event: 'number-list-search', result }));
+      return;
+    }
+    if (process.env.BW_NUMBER_EXACT === '1') {
+      const result = await page.evaluate(() => window.cpListSearch([{
+        key: 'Dn', op: 'EQUAL_TO', value: '+1-2244830007'
+      }], {}).then(data => ({ rows: data.rows, tooMany: data.tooMany || false })));
+      console.log(JSON.stringify({ event: 'number-exact-search', result }));
       return;
     }
     if (process.env.BW_NUMBER_ACTION === 'search-edit') {

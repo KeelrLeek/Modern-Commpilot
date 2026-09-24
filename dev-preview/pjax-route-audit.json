@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-24 14:24 UTC",
+  "updated": "2026-09-24 14:52 UTC",
   "note": "Live sandbox scan. Totals are for discovered routes so far, not the entire CommPilot site.",
   "inventory": {
     "complete": false,
@@ -43235,6 +43235,32 @@
       "method": "POST",
       "status": "pass",
       "detail": "HTTP 200; same document"
+    },
+    {
+      "id": "discovered-823",
+      "kind": "nested",
+      "area": "Group / Resources",
+      "label": "Numbers › Row/Edit detail",
+      "sourcePath": "/commpilot/Group/GroupDnManagement/index.jsp",
+      "path": "/commpilot/Group/GroupDnManagement/Nested/index.jsp",
+      "status": "pass",
+      "detail": "Sandbox Add > and Apply saved, then cleared an assignment in the same document",
+      "controlScanned": true,
+      "dynamicScanned": true,
+      "dynamicControls": {
+        "search": 0,
+        "sort": 0,
+        "paging": 0,
+        "tabs": 0,
+        "transfer": 0,
+        "submit": 2
+      },
+      "interactionChecks": {
+        "submit": {
+          "status": "pass",
+          "detail": "Sandbox Add > and Apply persisted Basement, then None, without a document reload."
+        }
+      }
     }
   ],
   "flows": [
@@ -43408,6 +43434,10 @@
     },
     {
       "label": "Bulk number department direct lookup fallback",
+      "status": "pass"
+    },
+    {
+      "label": "Bulk department range validation, progress, and verified Before/After",
       "status": "pass"
     },
     {
