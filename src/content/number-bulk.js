@@ -348,8 +348,26 @@
   }
 
   async function applyOne(item, onStage) {
+    // The Edit page's selected department is a pick-list context, not a readback
+    // of this number. Re-read the Numbers list before each save instead.
+    onStage('Checking current department');
+    if (location.pathname !== LIST) await navigate(LIST, {}, LIST);
+    const matches = await lookupNumberRows(item.canonical);
+    if (!matches.length) throw Error('Number was not found during the save-time check.');
+    const departments = new Set(matches.map(row => normalizedLabel(row.cells[5] || 'None')));
+    const drillKeys = new Set(matches.map(row => JSON.stringify(row.drill.params)));
+    if (departments.size !== 1 || drillKeys.size !== 1)
+      throw Error('Number has conflicting assignments during the save-time check.');
+    const liveCurrent = matches[0].cells[5] || 'None';
+    if (normalizedLabel(liveCurrent) === normalizedLabel(item.targetName)) {
+      item.after = liveCurrent;
+      return 'unchanged';
+    }
+    if (normalizedLabel(liveCurrent) !== normalizedLabel(item.current))
+      throw Error(`Number now belongs to ${liveCurrent}, but preview showed ${item.current}. ` +
+        'Check this row and upload the workbook again.');
     onStage('Opening number');
-    await navigate(item.drill.url, item.drill.params, EDIT);
+    await navigate(matches[0].drill.url, matches[0].drill.params, EDIT);
     const form = document.forms.mainForm;
     const dept = form?.elements.deptDropDownList;
     const source = form?.elements.assignedList;
@@ -357,9 +375,6 @@
       throw Error('Assign Numbers form is missing a required control.');
     const target = [...dept.options].find(option => option.value === item.targetValue);
     if (!target) throw Error('Department changed since preview.');
-    const liveCurrent = dept.selectedOptions[0]?.textContent.trim() || 'None';
-    if (normalizedLabel(liveCurrent) !== normalizedLabel(item.current))
-      throw Error('The number department changed since preview. Check it and upload the workbook again.');
     const number = [...source.options].find(option => option.value === item.canonical);
     if (!number) throw Error('Number changed since preview.');
     dept.value = item.targetValue;
@@ -380,6 +395,7 @@
     if (location.pathname !== EDIT || !/\bSaved\b/.test(content) ||
         /\b(?:Failed|An error occurred)\b/i.test(content))
       throw Error('CommPilot did not confirm the save.');
+    return 'submitted';
   }
 
   async function verifySaved(items, setProgress) {
@@ -577,26 +593,31 @@
       close.textContent = 'Stop after current number';
       const targets = preview.filter(item => item.status === 'ready');
       let submitted = 0;
+      let processed = 0;
+      let alreadyCorrectDuringApply = 0;
       let saveError = null;
       try {
         for (const item of targets) {
           if (stopRequested) break;
-          setStatus(`Saving ${submitted + 1} of ${targets.length}: ${item.canonical}…`);
-          setProgress('Applying assignments', submitted, targets.length,
+          setStatus(`Saving ${processed + 1} of ${targets.length}: ${item.canonical}…`);
+          setProgress('Applying assignments', processed, targets.length,
             `Row ${item.line} · ${item.canonical}: opening`);
           try {
-            await applyOne(item, stage => setProgress('Applying assignments', submitted,
+            const result = await applyOne(item, stage => setProgress('Applying assignments', processed,
               targets.length, `Row ${item.line} · ${item.canonical}: ${stage}`));
-            item.status = 'submitted';
-            submitted++;
-            setProgress('Applying assignments', submitted, targets.length,
-              `CommPilot accepted row ${item.line} · ${item.canonical}`);
+            item.status = result;
+            if (result === 'submitted') submitted++;
+            else alreadyCorrectDuringApply++;
+            processed++;
+            setProgress('Applying assignments', processed, targets.length,
+              `Row ${item.line} · ${item.canonical}: ` +
+              (result === 'submitted' ? 'CommPilot accepted the save' : 'Already correct at save time'));
             render();
           } catch (error) {
             item.status = 'error';
             item.error = error.message;
             render();
-            saveError = error;
+            saveError = Error(`Row ${item.line} · ${item.canonical}: ${error.message}`);
             break;
           }
         }
@@ -606,9 +627,11 @@
         else if (checked.errors) setStatus(`${checked.verified} verified; ${checked.errors} did not match CommPilot’s readback.`);
         else if (checked.unverified) setStatus(`CommPilot accepted ${submitted} save${submitted === 1 ? '' : 's'}, but readback was unavailable. Check the results before retrying.`);
         else setStatus(stopRequested ? `Stopped after ${checked.verified} verified assignment${checked.verified === 1 ? '' : 's'}.` :
-          `Verified ${checked.verified} assignment${checked.verified === 1 ? '' : 's'}. Review Before and After below.`);
+          `Verified ${checked.verified} assignment${checked.verified === 1 ? '' : 's'}.` +
+          (alreadyCorrectDuringApply ? ` ${alreadyCorrectDuringApply} already correct at save time.` : '') +
+          ' Review Before and After below.');
         setProgress(saveError || checked.errors || checked.unverified || stopRequested ? 'Stopped' : 'Complete',
-          checked.verified, targets.length,
+          checked.verified + alreadyCorrectDuringApply, targets.length,
           saveError ? saveError.message : checked.unverified ? 'Readback unavailable.' :
             checked.errors ? 'One or more saved values did not match.' : 'Before and After results are shown below.');
       } catch (error) { setStatus(`Stopped: ${error.message} Check results before retrying.`);

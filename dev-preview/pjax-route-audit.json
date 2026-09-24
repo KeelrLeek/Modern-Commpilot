@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-24 15:04 UTC",
+  "updated": "2026-09-24 15:20 UTC",
   "note": "Live sandbox scan. Totals are for discovered routes so far, not the entire CommPilot site.",
   "inventory": {
     "complete": false,
@@ -43442,6 +43442,10 @@
     },
     {
       "label": "International DN country-code hyphen lookup (controlled test)",
+      "status": "pass"
+    },
+    {
+      "label": "Bulk save checks fresh number department, not Edit dropdown (controlled test)",
       "status": "pass"
     },
     {
