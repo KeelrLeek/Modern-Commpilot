@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-24 16:25 UTC",
+  "updated": "2026-09-24 18:34 UTC",
   "note": "Live sandbox scan. Totals are for discovered routes so far, not the entire CommPilot site.",
   "inventory": {
     "complete": false,
@@ -43478,7 +43478,7 @@
     },
     {
       "label": "Bulk activation save on a deactivated sandbox number",
-      "status": "pending"
+      "status": "pass"
     },
     {
       "label": "Assign Numbers Add page opens in PJAX",

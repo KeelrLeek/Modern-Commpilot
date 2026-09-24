@@ -168,12 +168,12 @@
       throw Error('The numbers in this row do not match the preview. Scan again.');
     item.numbers = before.deactivated;
     const form = document.forms.mainForm;
-    for (const option of form.elements.deactivatedList.options)
-      option.selected = item.numbers.includes(option.value.trim());
-    const button = document.getElementById('PICKLIST_addNumbers');
-    if (!button) throw Error('CommPilot Add button is missing.');
+    form.elements.toAdd.value = item.numbers.join(',');
+    form.elements.action.value = 'add';
     onStage(`Moving ${item.count} number${item.count === 1 ? '' : 's'} to Activated`);
-    await waitForReskin(() => button.click());
+    // CommPilot's Add > button only works after its DOMContentLoaded handler attaches.
+    // Submit the same server action directly so a missed PJAX replay cannot strand the run.
+    await waitForReskin(() => form.submit());
     if (path() !== MODIFY) throw Error('CommPilot did not return to Activate Numbers Modify after Add.');
     const staged = members();
     if (staged.deactivated.some(value => item.numbers.includes(value)) ||

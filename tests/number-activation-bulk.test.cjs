@@ -52,10 +52,14 @@ async function fixture(badPage = false, rangeAsOne = false, mismatch = false) {
         ${options(left)}</select><select name="activatedList" multiple>${options(right)}</select>
         <input id="PICKLIST_addNumbers" type="button" value="Add >">
         <input name="ok" type="button" value="OK"></form>`;
-      cell.querySelector('#PICKLIST_addNumbers').addEventListener('click', () => {
-        window.calls.push('add:' + current.label);
+      // Model a PJAX page where the native Add > click handler never attached.
+      cell.querySelector('form').submit = () => {
+        const form = cell.querySelector('form');
+        if (form.elements.action.value !== 'add' ||
+            form.elements.toAdd.value !== left.join(',')) throw Error('Wrong activation POST fields');
+        window.calls.push('submit-add:' + current.label);
         staged = true; editView(); document.dispatchEvent(new Event('cp:reskin'));
-      });
+      };
       cell.querySelector('input[name="ok"]').addEventListener('click', () => {
         window.calls.push('save:' + current.label);
         current.active = staged || current.active;
@@ -106,6 +110,7 @@ test('activation reads each page checkmark without opening rows, then saves and 
     const calls = await page.evaluate(() => window.calls);
     assert.ok(calls.includes('/commpilot/Common/page.jsp:1'));
     assert.ok(calls.includes('/commpilot/Common/page.jsp:2'));
+    assert.equal(calls.filter(c => c.startsWith('submit-add:')).length, 2);
     assert.equal(calls.filter(c => c.startsWith('save:')).length, 2);
   } finally { await browser.close(); }
 });
