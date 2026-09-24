@@ -248,6 +248,68 @@ test('Back replays a Find landing whose history entry lost its PJAX state', asyn
   }
 });
 
+for (const scenario of [
+  { name: 'Assign Xsi Policy Profile',
+    start: '/commpilot/Group/AssignXsiPolicyProfile/Group/',
+    next: '/commpilot/Group/AssignXsiPolicyProfile/User/',
+    before: 'Group Xsi Policy Profile', after: 'User Xsi Policy Profile',
+    handler: 'tabSubmit', relative: '../User/' },
+  { name: 'Tag Set Modify',
+    start: '/commpilot/Operator/System/DeviceTags/Modify/TagSet/index.jsp',
+    next: '/commpilot/Operator/System/DeviceTags/Modify/Regions/',
+    before: 'Tags', after: 'Regions',
+    handler: 'TabSubmit', relative: '../Regions/' }
+]) {
+  test(`${scenario.name} tab switches in-shell and Back restores the first tab`, async () => {
+    assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+    const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+    try {
+      const page = await browser.newPage();
+      const posts = [];
+      const tabPage = (active, sibling, token) => `<!doctype html><html><head><title>Tabbed settings</title></head><body>
+        <table><tr><td class="headerBar">Settings</td></tr></table>
+        <input name="formtokenserial" value="${token}">
+        <table><tr><td width="82%"><form name="mainForm" method="post">
+          <table><tr><td class="tabActive">${active}</td><td><a class="tab" id="sibling-tab">${sibling}</a></td></tr></table>
+          <input name="newTagSetName" value="unchanged">
+        </form></td></tr></table>
+        <script>window.redirectPost=function(url,params){window.nativeNavigation={url,params};};
+          window.${scenario.handler}=function(){document.forms.mainForm.submit();};
+          document.addEventListener('DOMContentLoaded',function(){
+            document.getElementById('sibling-tab').addEventListener('click',function(){
+              ${scenario.handler}('${scenario.relative}');
+            });
+          });</script>
+      </body></html>`;
+      await page.route('https://apps-sbx.avpaas.io/**', route => {
+        const pathname = new URL(route.request().url()).pathname;
+        if (route.request().method() === 'POST') posts.push(pathname);
+        if (route.request().method() === 'POST' && pathname !== scenario.start && pathname !== scenario.next)
+          return route.fulfill({ status: 500, body: 'Unexpected tab target' });
+        const active = pathname === scenario.next ? scenario.after : scenario.before;
+        const sibling = pathname === scenario.next ? scenario.before : scenario.after;
+        return route.fulfill({ status: 200, contentType: 'text/html',
+          body: tabPage(active, sibling, pathname === scenario.next ? 'token-2' : 'token-1') });
+      });
+      await page.goto('https://apps-sbx.avpaas.io' + scenario.start,
+        { waitUntil: 'domcontentloaded' });
+      await page.addScriptTag({ path: pjaxPath });
+      await page.evaluate(() => { window.initialDocument = document; });
+      await page.locator('#sibling-tab').click();
+      await page.locator('.tabActive').filter({ hasText: scenario.after }).waitFor();
+      assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+      assert.equal(await page.evaluate(() => location.pathname), scenario.next);
+      assert.deepEqual(posts, [scenario.next]);
+      await page.goBack();
+      await page.locator('.tabActive').filter({ hasText: scenario.before }).waitFor();
+      assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+      assert.equal(await page.evaluate(() => location.pathname), scenario.start);
+    } finally {
+      await browser.close();
+    }
+  });
+}
+
 test('Group Members search keeps its form POST in shell and uses the rotated token', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });

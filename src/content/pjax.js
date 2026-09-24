@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.9-native";
+  var CP_PJAX_VERSION = "0.3.10-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -2480,7 +2480,7 @@
     function cpTabNav(tabEl) {
       try {
         var form = document.querySelector('form[name="mainForm"]');
-        if (!form) return;
+        if (!form) return false;
         // Deliberately DON'T call the legacy validate(form) here. TabSubmit gates the switch on full-form validity,
         // which FAILS on the Regions sub-page (its form lacks the fields validate expects) → switching back to Tags
         // was silently blocked (the asymmetry: Tags→Regions validated fine, Regions→Tags didn't). A tab switch is
@@ -2502,6 +2502,7 @@
           var idx = scripts.indexOf(tabEl.id);
           if (idx >= 0) { var m = scripts.slice(idx, idx + 400).match(/([Tt])abSubmit\s*\(\s*['"]([^'"]+)['"]/); if (m) { dialectLower = m[1] === "t"; tabUrl = m[2]; } }
         }
+        if (!tabUrl) return false;
         if (dialectLower) {
           // Enter the sibling tab as its OWN page, bare ({} — cpHook threads the token). Each tab IS a separate
           // page (verified apps01: bare POSTs render /Group/ and /User/ cleanly and location LANDS on the real
@@ -2512,17 +2513,27 @@
           // beats an accidental write).
           var resolved = "";
           try { resolved = new URL(tabUrl, location.origin + location.pathname).pathname; } catch (e) {}
-          if (resolved && tabUrl) window.redirectPost(resolved, {});
-          else console.warn("[pjax] cpTabNav: no tab target extracted — ignoring tab click");
-          return;
+          if (!resolved) return false;
+          window.redirectPost(resolved, {});
+          return true;
         }
         var params = {};
         try { new URLSearchParams(new FormData(form)).forEach(function (v, k) { params[k] = v; }); } catch (e) {}
         delete params.formtokenserial;   // cpHook threads the live single-use token
         if (tabUrl) params.tabPage = tabUrl;
         window.redirectPost(tabUrl || (location.origin + location.pathname), params);
-      } catch (e) { console.warn("[pjax] cpTabNav:", e); }
+        return true;
+      } catch (e) { console.warn("[pjax] cpTabNav:", e); return false; }
     }
+    // Legacy tab handlers may die after a PJAX swap or submit the entire form
+    // natively. Replay tabs with a known URL here, before those handlers run.
+    // Lowercase tabSubmit uses a bare POST to the sibling entry page; the
+    // sandbox's Group Assign Xsi form POST returns 500, while that entry works.
+    document.addEventListener("click", function (ev) {
+      var tab = ev.target && ev.target.closest ? ev.target.closest('td[width="82%"] a.tab') : null;
+      if (!tab || !cpTabNav(tab)) return;
+      ev.preventDefault(); ev.stopImmediatePropagation();
+    }, true);
     function cpGridBuildSubnav(state) {
       var host = state.wrap.querySelector(".cp-srch-subnav");
       if (!host) return;

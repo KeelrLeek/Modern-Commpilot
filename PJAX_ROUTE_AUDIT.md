@@ -1,6 +1,6 @@
 # CommPilot PJAX route audit
 
-Live sandbox account, Edge with the unpacked preview extension. A **PJAX pass** means the destination rendered with HTTP 200 and the top-level document marker stayed the same. Opening a form here does not submit or save it. The visual, live-updating tally is at `http://127.0.0.1:8766/pjax-route-audit.html`. The current extension build is 0.3.9, with 821 discovered routes passing and all 174 discovered subpages scanned for further controls.
+Live sandbox account, Edge with the unpacked preview extension. A **PJAX pass** means the destination rendered with HTTP 200 and the top-level document marker stayed the same. Opening a form here does not submit or save it. The visual, live-updating tally is at `http://127.0.0.1:8766/pjax-route-audit.html`. The current extension build is 0.3.10, with 821 discovered routes passing and all 174 discovered subpages scanned for further controls.
 
 ## Tally
 
@@ -10,6 +10,7 @@ Live sandbox account, Edge with the unpacked preview extension. A **PJAX pass** 
 | Search/Find views | 143 | 0 | 0 discovered views |
 | Sorting views, including Back replay | 8 | 0 | 0 discovered views |
 | Paging views, including Back replay | 2 | 0 | 0 discovered views |
+| Tabbed views, including Back replay | 5 | 0 | 0 discovered views |
 | Transfer control views | 0 verified | 0 | 10 discovered views |
 | Form action views | 0 verified | 0 | 657 discovered views |
 
