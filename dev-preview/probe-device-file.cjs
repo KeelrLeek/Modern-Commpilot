@@ -51,6 +51,18 @@ expected, { timeout: 25000 });
         .filter(item => item.getClientRects().length)
         .map(item => ({ text: item.textContent.trim(), id: item.id })).slice(0, 25) }));
     console.log(JSON.stringify({ event: 'device-config-files', files }));
+    if (process.env.BW_DEVICE_CANCEL === '1') {
+      await page.locator('td[width="82%"] a:text-is("Edit")').first().click();
+      await waitPath(page, '/commpilot/Group/DefaultConfig/Nested/Files/Modify/index.jsp');
+      await page.evaluate(() => { window.deviceCancelDocument = document; });
+      await page.locator('td[width="82%"] input[name="cancel"]').first().click();
+      await page.waitForFunction(() => location.pathname !==
+        '/commpilot/Group/DefaultConfig/Nested/Files/Modify/index.jsp', null,
+        { timeout: 25000 });
+      console.log(JSON.stringify({ event: 'device-config-cancel',
+        path: new URL(page.url()).pathname,
+        sameDocument: await page.evaluate(() => document === window.deviceCancelDocument) }));
+    }
   } finally { await context.close(); }
 })().catch(error => { console.error(JSON.stringify({ event: 'fatal', error: error.message }));
   process.exitCode = 1; });

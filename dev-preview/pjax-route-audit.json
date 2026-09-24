@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-24 13:43",
+  "updated": "2026-09-24 13:52 UTC",
   "note": "Live sandbox scan. Totals are for discovered routes so far, not the entire CommPilot site.",
   "inventory": {
     "complete": false,
@@ -38470,7 +38470,14 @@
         "transfer": 0,
         "submit": 4
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "interactionChecks": {
+        "submit": {
+          "status": "pass",
+          "detail": "Blank Add sent one multipart servlet POST; validation rendered in the same document, and Cancel returned to the Video list in shell.",
+          "at": "2026-09-24T13:50:37.724Z"
+        }
+      }
     },
     {
       "id": "discovered-620",
@@ -41287,7 +41294,12 @@
           ]
         }
       ],
-      "uploadScanned": true
+      "uploadScanned": true,
+      "uploadCheck": {
+        "status": "synthetic-pass",
+        "detail": "Selected file bytes, submitter, token-bearing stub, and in-shell list return passed a controlled test. Existing sandbox configuration was not overwritten.",
+        "at": "2026-09-24T13:51:22.732Z"
+      }
     },
     {
       "id": "discovered-675",
@@ -43376,6 +43388,14 @@
     },
     {
       "label": "Report Templates Add Cancel returns to its list in-shell",
+      "status": "pass"
+    },
+    {
+      "label": "User Announcement Repository blank Add and Cancel",
+      "status": "pass"
+    },
+    {
+      "label": "Device Configuration multipart file transport (controlled test)",
       "status": "pass"
     }
   ]

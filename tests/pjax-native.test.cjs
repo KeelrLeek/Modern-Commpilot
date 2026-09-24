@@ -214,6 +214,54 @@ test('Answer Confirmation saves a multipart form with no selected file in-shell'
   } finally { await browser.close(); }
 });
 
+test('Device Configuration sends selected file bytes and returns in-shell', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const formPath = '/commpilot/Group/DefaultConfig/Nested/Files/Modify/index.jsp';
+    const listPath = '/commpilot/Group/DefaultConfig/Nested/Files/';
+    const servlet = '/commpilot/servlet/SystemDmsFileProvisionServlet';
+    const shell = (token, done = false) => `<!doctype html><html><head><title>Device Configuration</title></head><body>
+      <form name="leftNavForm"><a class="leftnavfolder">Utilities</a></form>
+      <input name="formtokenserial" value="${token}"><table><tr><td width="82%">
+      ${done ? '<div id="files">Device Configuration Files</div>' : `<form name="mainForm" action="${servlet}" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="formtokenserial" value="${token}">
+      <input type="hidden" name="configurationMode" value="custom">
+      <input type="file" name="fileName"><input type="submit" name="ok" value="OK"></form>`}
+      </td></tr></table><script>window.redirectPost=function(url,params){window.nativeNavigation={url,params};};</script>
+      </body></html>`;
+    const contents = Buffer.from('test-device-config=1\n');
+    let servletPosts = 0;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const target = new URL(request.url()).pathname;
+      if (target === servlet && request.method() === 'POST') {
+        servletPosts++;
+        const body = request.postDataBuffer();
+        assert.match(request.headers()['content-type'], /^multipart\/form-data; boundary=/);
+        assert.ok(body.includes(contents), 'selected file bytes should be sent');
+        assert.ok(body.includes(Buffer.from('name="ok"')), 'clicked submitter should be sent');
+        return route.fulfill({ status: 200, contentType: 'text/html',
+          body: `<html><body><input name="formtokenserial" value="token-2"><script>` +
+            `redirectPost('${listPath}', {});</script></body></html>` });
+      }
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: shell(request.method() === 'POST' ? 'token-3' : 'token-1', target === listPath) });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${formPath}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.originalDocument = document; });
+    await page.locator('input[name="fileName"]').setInputFiles({
+      name: 'test.cfg', mimeType: 'text/plain', buffer: contents });
+    await page.locator('input[name="ok"]').click();
+    await page.locator('#files').waitFor();
+    assert.equal(await page.evaluate(() => location.pathname), listPath);
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.equal(servletPosts, 1);
+  } finally { await browser.close(); }
+});
+
 test('PJAX leaves the current page intact after a server error', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });

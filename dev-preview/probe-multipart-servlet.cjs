@@ -28,6 +28,10 @@ const specs = {
     listPath: '/commpilot/Group/AnnouncementRepository/Audio/',
     path: '/commpilot/Group/AnnouncementRepository/Add/index.jsp',
     servlet: '/commpilot/servlet/AnnouncementRepositoryServlet', submitName: 'ok' },
+  'announcement-add-user': { level: 'User', folder: 'Profile', label: 'Announcement Repository',
+    listPath: '/commpilot/User/AnnouncementRepository/Audio/',
+    path: '/commpilot/User/AnnouncementRepository/Add/index.jsp',
+    servlet: '/commpilot/servlet/AnnouncementRepositoryServlet', submitName: 'ok' },
   'report-template-add': { level: 'Group', folder: 'Call Center', label: 'Report Templates',
     listPath: '/commpilot/Group/ReportTemplates/',
     path: '/commpilot/Group/ReportTemplates/Add/index.jsp',
@@ -40,6 +44,8 @@ const edge = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
 const waitPath = (page, pathname) => page.waitForFunction(expected =>
   location.pathname === expected && !!document.querySelector('td[width="82%"]'),
 pathname, { timeout: 25000 });
+let activePage;
+let phase = 'launch';
 
 (async () => {
   const context = await chromium.launchPersistentContext(profile, {
@@ -47,6 +53,7 @@ pathname, { timeout: 25000 });
     args: [`--disable-extensions-except=${root}`, `--load-extension=${root}`]
   });
   const page = await context.newPage();
+  activePage = page;
   for (const old of context.pages()) if (old !== page) await old.close();
   try {
     await page.goto('https://apps-sbx.avpaas.io/commpilot/Login/', { waitUntil: 'commit' });
@@ -57,15 +64,18 @@ pathname, { timeout: 25000 });
     await page.waitForFunction(() => location.pathname === '/commpilot/Common/folder_contents.jsp' &&
       document.title.trim() === 'Profile', null, { timeout: 30000 });
     await page.locator('td[width="82%"] a.navMenuItem:text-is("Service Providers")').click();
+    phase = 'reseller-to-sp';
     await waitPath(page, '/commpilot/Reseller/ServiceProviders/index.jsp');
     await page.locator('#search0').click();
     await page.locator('a:text-is("Test_SP")').click();
+    phase = 'sp-entry';
     await waitPath(page, '/commpilot/Reseller/ServiceProviders/Modify/index.jsp');
     if (spec.level === 'Group' || spec.level === 'User') {
       await page.locator('td[width="82%"] a.navMenuItem:text-is("Groups")').click();
       await waitPath(page, '/commpilot/ServiceProvider/Members/');
       await page.locator('#search0').click();
       await page.locator('a:text-is("Stan Mikita Donuts")').click();
+      phase = 'group-entry';
       await waitPath(page, '/commpilot/ServiceProvider/Members/Modify/index.jsp');
     }
     if (spec.level === 'User') {
@@ -73,6 +83,7 @@ pathname, { timeout: 25000 });
       await waitPath(page, '/commpilot/Group/Members/');
       await page.locator('#search0').click();
       await page.locator('a:text-is("SMDonuts21")').click();
+      phase = 'user-entry';
       await waitPath(page, '/commpilot/Group/Members/Modify/index.jsp');
     }
     await page.locator('a.leftnavfolder, a.leftnavfolderopen')
@@ -81,10 +92,13 @@ pathname, { timeout: 25000 });
       spec.folder || 'Utilities', { timeout: 25000 });
     await page.locator('td[width="82%"] a.navMenuItem')
       .filter({ hasText: new RegExp(`^\\s*${spec.label}\\s*$`) }).click();
+    phase = 'form-open';
     if (spec.listPath) {
+      phase = 'list-open';
       await waitPath(page, spec.listPath);
       await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
     }
+    phase = 'add-open';
     await waitPath(page, spec.path);
     if (process.env.BW_MULTIPART_INSPECT === '1') {
       const controls = await page.evaluate(() => [...document.querySelectorAll('td[width="82%"] form')]
@@ -155,5 +169,7 @@ pathname, { timeout: 25000 });
     }, { servlet: spec.servlet, submitName: spec.submitName || 'apply' });
     console.log(JSON.stringify({ event: 'multipart-contract', kind, result }));
   } finally { await context.close(); }
-})().catch(error => { console.error(JSON.stringify({ event: 'fatal', error: error.message }));
+})().catch(error => { console.error(JSON.stringify({ event: 'fatal', phase,
+  path: activePage && !activePage.isClosed() ? new URL(activePage.url()).pathname : '',
+  error: error.message }));
   process.exitCode = 1; });
