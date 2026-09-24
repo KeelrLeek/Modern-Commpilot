@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-24 13:52 UTC",
+  "updated": "2026-09-24 14:24 UTC",
   "note": "Live sandbox scan. Totals are for discovered routes so far, not the entire CommPilot site.",
   "inventory": {
     "complete": false,
@@ -43397,6 +43397,26 @@
     {
       "label": "Device Configuration multipart file transport (controlled test)",
       "status": "pass"
+    },
+    {
+      "label": "Group Numbers Edit: Add > and Apply persisted in PJAX",
+      "status": "pass"
+    },
+    {
+      "label": "Bulk number department template, preview, save, and clear",
+      "status": "pass"
+    },
+    {
+      "label": "Bulk number department direct lookup fallback",
+      "status": "pass"
+    },
+    {
+      "label": "Assign Numbers Add page opens in PJAX",
+      "status": "pass"
+    },
+    {
+      "label": "Assign Numbers Add > with an available pool",
+      "status": "pending"
     }
   ]
 }

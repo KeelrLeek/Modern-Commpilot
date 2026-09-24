@@ -19,6 +19,8 @@ FILES = (
     "src/content/login.css",
     "src/content/login.js",
     "src/content/native-pjax.css",
+    "src/content/number-bulk.css",
+    "src/content/number-bulk.js",
     "src/content/pjax.js",
     "src/content/recovery-bridge.js",
     "src/content/skin.css",

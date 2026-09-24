@@ -33,6 +33,34 @@ pathname, { timeout: 25000 }).catch(async error => {
   if (process.env.BW_SCAP_DEBUG === '1')
     await context.addInitScript(() => localStorage.setItem('cpDebug', '1'));
   const page = await context.newPage();
+  if (process.env.BW_SCAP_INSPECT_USER_FRAME === '1') {
+    let userStubSeen = false;
+    page.on('response', response => {
+      if (new URL(response.url()).pathname === '/commpilot/User/index.jsp' &&
+          response.request().method() === 'POST') userStubSeen = true;
+    });
+    await page.route('**/commpilot/Common/folder_contents.jsp', async route => {
+      if (!userStubSeen || route.request().method() !== 'POST')
+        return route.continue();
+      const response = await route.fetch({ maxRedirects: 0 });
+      const headers = response.headers();
+      let location = '';
+      if (headers.location) {
+        try { const redirect = new URL(headers.location, response.url());
+          location = `${redirect.protocol}//${redirect.host}${redirect.pathname}`; }
+        catch (e) { location = 'unparseable'; }
+      }
+      console.log(JSON.stringify({ event: 'user-folder-http', status: response.status(),
+        location, csp: headers['content-security-policy'] || '',
+        xFrameOptions: headers['x-frame-options'] || '' }));
+      if (response.status() === 302 && process.env.BW_SCAP_RETRY_USER_FRAME === '1') {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const second = await route.fetch({ maxRedirects: 0 });
+        console.log(JSON.stringify({ event: 'user-folder-retry', status: second.status() }));
+        await route.fulfill({ response: second });
+      } else await route.fulfill({ response });
+    });
+  }
   page.on('console', message => {
     if (message.text().startsWith('[pjax]')) {
       pjaxMessages.push({ ms: Date.now() - startedAt, text: message.text().slice(0, 260) });
@@ -72,7 +100,9 @@ pathname, { timeout: 25000 }).catch(async error => {
   });
   page.on('requestfailed', request => {
     requestEvents.push({ ms: Date.now() - startedAt,
-      path: new URL(request.url()).pathname, event: 'failed', reason: request.failure()?.errorText });
+      path: new URL(request.url()).pathname, event: 'failed', reason: request.failure()?.errorText,
+      redirectTo: request.redirectedTo() ?
+        new URL(request.redirectedTo().url()).pathname : undefined });
     if (requestEvents.length > 24) requestEvents.shift();
   });
   for (const old of context.pages()) if (old !== page) await old.close();
@@ -164,6 +194,13 @@ pathname, { timeout: 25000 }).catch(async error => {
     await page.locator('a:text-is("SMDonuts21")').click();
     stage = 'user entry';
     await waitPath(page, '/commpilot/Group/Members/Modify/index.jsp');
+    if (process.env.BW_SCAP_MODE === 'entry-check') {
+      console.log(JSON.stringify({ event: 'user-entry-check', status: 'pass',
+        ms: Date.now() - startedAt, path: new URL(page.url()).pathname,
+        posts: recent.map(item => ({ path: item.path, status: item.status,
+          requestTokenId: item.requestTokenId, responseTokenId: item.responseTokenId })) }));
+      return;
+    }
     await page.locator('a.leftnavfolder, a.leftnavfolderopen')
       .filter({ hasText: /^\s*Call Control\s*$/ }).click();
     stage = 'call control folder';
@@ -387,5 +424,7 @@ pathname, { timeout: 25000 }).catch(async error => {
     }
   } finally { await context.close(); }
 })().catch(error => { console.error(JSON.stringify({ event: 'fatal', stage, error: error.message,
-  recent, requestEvents, pjaxMessages: pjaxMessages.slice(-35) }));
+  recent: process.env.BW_SCAP_CONCISE === '1' ? recent.slice(-4) : recent,
+  requestEvents: process.env.BW_SCAP_CONCISE === '1' ? requestEvents.slice(-6) : requestEvents,
+  pjaxMessages: process.env.BW_SCAP_CONCISE === '1' ? pjaxMessages.slice(-8) : pjaxMessages.slice(-35) }));
   process.exitCode = 1; });

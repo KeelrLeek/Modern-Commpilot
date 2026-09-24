@@ -70,6 +70,49 @@ test('PJAX swaps content, header, token, and URL without a document reload', asy
   await browser.close();
 });
 
+test('an external BroadWorks script wires its DOMContentLoaded pick-list handler after PJAX', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const formPath = '/commpilot/Group/GroupDnManagement/Nested/index.jsp';
+    const scriptPath = '/commpilot/Group/GroupDnManagement/Nested/validate.js';
+    const formPage = `<!doctype html><html><head><title>Assign Numbers Modify</title></head><body>
+      <form name="leftNavForm"><a class="leftnavfolder">Resources</a></form>
+      <input name="formtokenserial" value="token-2">
+      <table><tr><td width="82%"><form name="mainForm" method="post">
+      <select name="assignedList" multiple><option value="+12244830007">+12244830007</option></select>
+      <input type="button" id="PICKLIST_addNumbers" value="Add >"></form>
+      <script src="${scriptPath}"></script></td></tr></table></body></html>`;
+    await page.route('https://apps-sbx.avpaas.io/**', async route => {
+      const target = new URL(route.request().url()).pathname;
+      if (target === scriptPath) {
+        await new Promise(resolve => setTimeout(resolve, 80));
+        return route.fulfill({ status: 200, contentType: 'application/javascript',
+          body: `document.addEventListener('DOMContentLoaded',function(){
+            document.getElementById('PICKLIST_addNumbers').addEventListener('click',function(){
+              window.added=(window.added||0)+1;
+            });
+          });` });
+      }
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: route.request().method() === 'POST' ? formPage : start });
+    });
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Reseller/Groups/',
+      { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.originalDocument = document;
+      window.redirectPost('/commpilot/Group/GroupDnManagement/Nested/index.jsp', {}); });
+    await page.locator('#PICKLIST_addNumbers').waitFor();
+    await page.waitForFunction(() => typeof window.added === 'undefined' &&
+      !!document.querySelector('script[src$="validate.js"]')._cpLoaded);
+    await page.locator('#PICKLIST_addNumbers').click();
+    assert.equal(await page.evaluate(() => window.added), 1);
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.equal(await page.evaluate(() => location.pathname), formPath);
+  } finally { await browser.close(); }
+});
+
 test('multipart import follows its token-bearing stub in-shell and Back does not resend the file', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });

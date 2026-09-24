@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.14-native";
+  var CP_PJAX_VERSION = "0.3.15-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -106,6 +106,7 @@
   var _orig = null;
   var cpHook = null;
   var cpSrcCollector = null;
+  var cpExternalDclRestore = null;
   var cpSectionQueue = [];
   var cpSectionRunning = false;
   var cpSectionAborted = false;
@@ -195,6 +196,8 @@
       if (LIVE_NONCE) s.nonce = LIVE_NONCE;
       if (old.src) {
         s.src = old.src;
+        s.addEventListener("load", function () { this._cpLoaded = true; }, { once: true });
+        s.addEventListener("error", function () { this._cpLoaded = true; }, { once: true });
         if (cpSrcCollector) cpSrcCollector.push(s);
       } else {
         s.textContent = old.textContent;
@@ -1523,22 +1526,25 @@
       '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>' +
       '<border><left style="thin"><color rgb="FFDDDDDD"/></left><right style="thin"><color rgb="FFDDDDDD"/></right><top style="thin"><color rgb="FFDDDDDD"/></top><bottom style="thin"><color rgb="FFDDDDDD"/></bottom><diagonal/></border></borders>' +
       '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-      '<cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+      '<cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
       '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>' +
       '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>' +
-      '<xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf></cellXfs>' +
+      '<xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>' +
+      '<xf numFmtId="49" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/></cellXfs>' +
       '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
     function cpXlsxSheetXml(sheet) {
       var cols = "";
-      (sheet.widths || []).forEach(function (w, i) { cols += '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; });
+      (sheet.widths || []).forEach(function (w, i) { cols += '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"' +
+        (sheet.textColumns && sheet.textColumns.indexOf(i) !== -1 ? ' style="4"' : '') + '/>'; });
       var row = function (r, cells, band) {
         var s = (r === 1) ? 1 : (band ? 3 : 2);
         var o = '<row r="' + r + '">';
         for (var i = 0; i < cells.length; i++) {
           var ref = cpColRef(i) + r, v = cells[i];
-          if (v == null || v === "") o += '<c r="' + ref + '" s="' + s + '"/>';
-          else if (r > 1 && /^[1-9]\d{0,14}$/.test(v)) o += '<c r="' + ref + '" s="' + s + '"><v>' + v + "</v></c>";
-          else o += '<c r="' + ref + '" s="' + s + '" t="inlineStr"><is><t xml:space="preserve">' + cpXmlEsc(v) + "</t></is></c>";
+          var cellStyle = r > 1 && sheet.textColumns && sheet.textColumns.indexOf(i) !== -1 ? 4 : s;
+          if (v == null || v === "") o += '<c r="' + ref + '" s="' + cellStyle + '"/>';
+          else if (cellStyle !== 4 && r > 1 && /^[1-9]\d{0,14}$/.test(v)) o += '<c r="' + ref + '" s="' + cellStyle + '"><v>' + v + "</v></c>";
+          else o += '<c r="' + ref + '" s="' + cellStyle + '" t="inlineStr"><is><t xml:space="preserve">' + cpXmlEsc(v) + "</t></is></c>";
         }
         return o + "</row>";
       };
@@ -1577,6 +1583,7 @@
       files.push({ name: "xl/styles.xml", data: CP_XLSX_STYLES });
       return cpZipBytes(files);
     }
+    window.cpXlsxBuild = cpXlsxBuild;
     // Excel sheet names: ≤31 chars, no []:*?/\ — sanitize + dedupe (truncation collisions get " (2)"…).
     function cpXlsxSheetName(label, used) {
       var n = String(label || "Sheet").replace(/[\[\]:*?\/\\]/g, " ").replace(/\s+/g, " ").trim().replace(/^'+|'+$/g, "");
@@ -4231,6 +4238,7 @@
               // the handler's (async) data exists — the Admins fill renders empty then, and is never re-run.
               // The grid re-invokes window.__cpDclFns until its rows populate. (NOT registered on the real doc —
               // that would accumulate stale handlers across navs.)
+              if (cpExternalDclRestore) cpExternalDclRestore();
               window.__cpDclFns = [];
               var origAdd = document.addEventListener;
               document.addEventListener = function (type, fn, opts) {
@@ -4258,6 +4266,8 @@
                 return origWinAdd.call(this, type, fn, opts);
               };
               var n = 0;
+              var externalScripts = [];
+              cpSrcCollector = externalScripts;
               cpReexecutingScripts = true;
               try {
                 n = reexecScripts(liveCell);
@@ -4270,9 +4280,28 @@
                   n += reexecScripts(cpLiveHeader);
                   window.__cpDclFns.splice(headerDclStart);
                 }
-              } finally { cpReexecutingScripts = false; }
-              document.addEventListener = origAdd;
-              window.addEventListener = origWinAdd;
+              } finally { cpReexecutingScripts = false; cpSrcCollector = null; }
+              var restoreDcl = function () {
+                if (cpExternalDclRestore !== restoreDcl) return;
+                document.addEventListener = origAdd;
+                window.addEventListener = origWinAdd;
+                cpExternalDclRestore = null;
+              };
+              cpExternalDclRestore = restoreDcl;
+              if (externalScripts.length) {
+                var pendingScripts = externalScripts.filter(function (script) { return !script._cpLoaded; });
+                if (pendingScripts.length) {
+                  var scriptDone = function () {
+                    pendingScripts = pendingScripts.filter(function (script) { return !script._cpLoaded; });
+                    if (!pendingScripts.length) restoreDcl();
+                  };
+                  pendingScripts.forEach(function (script) {
+                    script.addEventListener("load", scriptDone, { once: true });
+                    script.addEventListener("error", scriptDone, { once: true });
+                  });
+                  setTimeout(restoreDcl, 4000);
+                } else restoreDcl();
+              } else restoreDcl();
               if (window.redirectPost !== cpHook) { _orig = window.redirectPost; window.redirectPost = cpHook; }
               cpDbg("[pjax] re-executed", n, "scripts");
               // Stamp the NAV TARGET on <html> BEFORE the reskin: cp:reskin handlers run before the address-bar
