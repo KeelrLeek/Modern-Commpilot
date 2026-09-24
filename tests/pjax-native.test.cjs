@@ -257,6 +257,99 @@ test('Answer Confirmation saves a multipart form with no selected file in-shell'
   } finally { await browser.close(); }
 });
 
+test('Device Profile Delete multipart servlet returns to the list in shell', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const profile = '/commpilot/Group/DeviceInventory/Modify/Profile/index.jsp';
+    const list = '/commpilot/Group/DeviceInventory/';
+    const servlet = '/commpilot/servlet/DeviceInventoryProvisionServlet';
+    const shell = `<!doctype html><html><body><form name="leftNavForm"></form>
+      <input name="formtokenserial" value="token-1"><table><tr><td width="82%">
+      <form name="mainForm" action="${servlet}" method="post" enctype="multipart/form-data">
+      <input name="formtokenserial" type="hidden" value="token-1">
+      <input name="deviceName" type="hidden" value="TEST 99999">
+      <input name="delete" type="submit" value="Delete"></form></td></tr></table>
+      <script>window.redirectPost=function(){};</script></body></html>`;
+    const listHtml = `<!doctype html><html><body><form name="leftNavForm"></form>
+      <input name="formtokenserial" value="token-3"><table><tr><td width="82%">
+      <div id="profile-list">Identity/Device Profiles</div></td></tr></table></body></html>`;
+    let servletPosts = 0;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (pathname === servlet && request.method() === 'POST') {
+        servletPosts++;
+        assert.match(request.headers()['content-type'], /^multipart\/form-data; boundary=/);
+        assert.ok(request.postDataBuffer().includes(Buffer.from('name="delete"')));
+        return route.fulfill({ status: 200, contentType: 'text/html',
+          body: `<html><body><input name="formtokenserial" value="token-2"><script>` +
+            `redirectPost('${list}', {});</script></body></html>` });
+      }
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: pathname === list ? listHtml : shell });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${profile}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.originalDocument = document; });
+    await page.locator('input[name="delete"]').click();
+    await page.locator('#profile-list').waitFor();
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.equal(await page.evaluate(() => location.pathname), list);
+    assert.equal(servletPosts, 1);
+  } finally { await browser.close(); }
+});
+
+test('Device Profile Users tab opens with profile identity only', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const list = '/commpilot/Group/DeviceInventory/';
+    const profile = '/commpilot/Group/DeviceInventory/Modify/Profile/index.jsp';
+    const users = '/commpilot/Group/DeviceInventory/Modify/Users/';
+    const shell = `<html><head><title>Identity/Device Profile Modify</title></head><body><form name="leftNavForm"></form>
+      <input name="formtokenserial" value="token-1"><table><tr><td width="82%">
+      <form name="mainForm"><input name="key" value="TEST 99999">
+      <input name="P_key" value="TEST 99999"><input name="description" value="Do not save"></form>
+      <a class="tab" id="anchor-users">Users</a>
+      <script>var wiring = "anchor-users TabSubmit('/Group/DeviceInventory/Modify/Users/')";</script>
+      </td></tr></table>
+      </body></html>`;
+    const usersHtml = `<html><body><form name="leftNavForm"></form>
+      <input name="formtokenserial" value="token-2"><table><tr><td width="82%">
+      <div id="users-tab">Users</div></td></tr></table></body></html>`;
+    const listHtml = `<html><body><form name="leftNavForm"></form>
+      <input name="formtokenserial" value="token-1"><table><tr><td width="82%">
+      <form name="mainForm"><input name="add" type="button" value="Add"></form>
+      </td></tr></table><script>window.redirectPost=function(){};</script></body></html>`;
+    const posts = [];
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (request.method() === 'POST') posts.push({ pathname,
+        params: Object.fromEntries(new URLSearchParams(request.postData())) });
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: pathname === users ? usersHtml : pathname === list ? listHtml : shell });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${list}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(target => window.redirectPost(target,
+      { key: 'TEST 99999', P_key: 'TEST 99999' }), profile);
+    await page.locator('#anchor-users').waitFor();
+    await page.evaluate(() => { window.originalDocument = document; });
+    await page.locator('#anchor-users').click();
+    await page.locator('#users-tab').waitFor();
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.equal(await page.evaluate(() => location.pathname), users);
+    assert.equal(posts.length, 2);
+    assert.equal(posts[1].pathname, users);
+    assert.equal(posts[1].params.key, 'TEST 99999');
+    assert.equal(posts[1].params.description, undefined);
+  } finally { await browser.close(); }
+});
+
 test('Device Configuration sends selected file bytes and returns in-shell', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });

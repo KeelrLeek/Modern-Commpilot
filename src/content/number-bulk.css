@@ -1,4 +1,4 @@
-#cp-bulk-number-launch {
+#cp-bulk-number-launch, #cp-bulk-profile-launch {
   margin-left: 10px;
   padding: 3px 12px;
   border: 1px solid #9aa4ba;
@@ -30,6 +30,7 @@
   background: #30394f;
   box-shadow: 0 18px 55px rgba(0, 0, 0, .45);
 }
+.cp-profile-bulk-dialog { width: min(1120px, calc(100vw - 32px)); }
 .cp-bulk-dialog h2 { margin: 0 0 8px; font-size: 21px; color: #fff; }
 .cp-bulk-dialog p { margin: 8px 0 16px; line-height: 1.4; }
 .cp-bulk-actions, .cp-bulk-footer { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }

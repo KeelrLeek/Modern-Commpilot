@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.18-native";
+  var CP_PJAX_VERSION = "0.3.19-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -2509,6 +2509,19 @@
           if (idx >= 0) { var m = scripts.slice(idx, idx + 400).match(/([Tt])abSubmit\s*\(\s*['"]([^'"]+)['"]/); if (m) { dialectLower = m[1] === "t"; tabUrl = m[2]; } }
         }
         if (!tabUrl) return false;
+        if (/^\/(?:Group|ServiceProvider)\/DeviceInventory\/Modify\//.test(tabUrl)) {
+          // The full Profile form POST to a sibling tab is interpreted as a
+          // profile action and returns the list. Enter the tab with only the
+          // profile identity instead; this is navigation, not a save.
+          var identity = {};
+          ["key", "P_key", "name", "P_name"].forEach(function (field) {
+            var control = form.elements.namedItem(field);
+            if (control && control.value) identity[field] = control.value;
+          });
+          if (!identity.key) return false;
+          window.redirectPost("/commpilot" + tabUrl, identity);
+          return true;
+        }
         if (dialectLower) {
           // Enter the sibling tab as its OWN page, bare ({} — cpHook threads the token). Each tab IS a separate
           // page (verified apps01: bare POSTs render /Group/ and /User/ cleanly and location LANDS on the real
@@ -2527,7 +2540,13 @@
         try { new URLSearchParams(new FormData(form)).forEach(function (v, k) { params[k] = v; }); } catch (e) {}
         delete params.formtokenserial;   // cpHook threads the live single-use token
         if (tabUrl) params.tabPage = tabUrl;
-        window.redirectPost(tabUrl || (location.origin + location.pathname), params);
+        // Some DeviceInventory tabs provide a path rooted at CommPilot's app
+        // directory ("/Group/..."). The browser treats it as an origin-root
+        // path, so resolve that legacy spelling under /commpilot for transport.
+        var target = tabUrl;
+        if (/^\/(?:Reseller|ServiceProvider|Group|User|Operator|System|Common)\//.test(target))
+          target = "/commpilot" + target;
+        window.redirectPost(target || (location.origin + location.pathname), params);
         return true;
       } catch (e) { console.warn("[pjax] cpTabNav:", e); return false; }
     }
@@ -4408,15 +4427,16 @@
     // cpHook follow that stub and repaint the resulting CommPilot page.
     var cpUploadActive = false;
     function cpImportUploadAction(form) {
-      if (!form || !form.querySelector('input[type="file"]') ||
-          !/multipart\/form-data/i.test(form.getAttribute('enctype') || '') ||
+      if (!form || !/multipart\/form-data/i.test(form.getAttribute('enctype') || '') ||
           (form.getAttribute('method') || 'GET').toUpperCase() !== 'POST') return null;
       var target = (form.getAttribute('target') || '').toLowerCase();
       if (target && target !== '_self') return null;
       try {
         var action = new URL(form.getAttribute('action') || location.pathname, location.href);
+        var deviceProfile = action.pathname === '/commpilot/servlet/DeviceInventoryProvisionServlet';
+        if (!form.querySelector('input[type="file"]') && !deviceProfile) return null;
         return action.origin === location.origin &&
-          /^\/commpilot\/servlet\/(?:DeviceManagementImportServlet|PhoneListImportServlet|AnswerConfirmationServlet|VPBrandingServlet|SysAdminPrefsServlet|CCReportBrandingServlet|InterceptServiceServlet|AnnouncementRepositoryServlet|CallCenterEnhancedReportingReportTemplateServlet|SystemDmsFileProvisionServlet)$/.test(action.pathname) ? action : null;
+          /^\/commpilot\/servlet\/(?:DeviceManagementImportServlet|PhoneListImportServlet|AnswerConfirmationServlet|VPBrandingServlet|SysAdminPrefsServlet|CCReportBrandingServlet|InterceptServiceServlet|AnnouncementRepositoryServlet|CallCenterEnhancedReportingReportTemplateServlet|SystemDmsFileProvisionServlet|DeviceInventoryProvisionServlet)$/.test(action.pathname) ? action : null;
       } catch (e) { return null; }
     }
     function cpUploadNotice(message) {
