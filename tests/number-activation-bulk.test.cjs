@@ -10,7 +10,7 @@ const edge = process.env.CHROME_PATH || [
 ].find(fs.existsSync);
 const bulk = path.resolve(__dirname, '../src/content/number-activation-bulk.js');
 
-async function fixture(badPage = false) {
+async function fixture(badPage = false, rangeAsOne = false) {
   assert.ok(edge, 'Set CHROME_PATH to Edge or Chrome');
   const browser = await chromium.launch({ executablePath: edge, headless: true });
   const page = await browser.newPage();
@@ -20,14 +20,15 @@ async function fixture(badPage = false) {
     body: '<!doctype html><html><body><table><tr><td width="82%"></td></tr></table></body></html>'
   }));
   await page.goto(`https://apps-sbx.avpaas.io${list}`);
-  await page.evaluate(({ badPage }) => {
+  await page.evaluate(({ badPage, rangeAsOne }) => {
     const LIST = '/commpilot/Group/DnActivation/';
     const MODIFY = '/commpilot/Group/DnActivation/Modify/index.jsp';
     const cell = document.querySelector('td[width="82%"]');
     const data = [
       { label: '+1-1111111111', numbers: ['+1-1111111111'], active: true },
       { label: '+1-2222222222 - +1-2222222223',
-        numbers: ['+1-2222222222', '+1-2222222223'], active: false },
+        numbers: rangeAsOne ? ['+1-2222222222 - +1-2222222223'] :
+          ['+1-2222222222', '+1-2222222223'], active: false },
       { label: '+1-3333333333', numbers: ['+1-3333333333'], active: true },
       { label: '+1-4444444444', numbers: ['+1-4444444444'], active: false },
       { label: '+1-5555555555', numbers: ['+1-5555555555'], active: true }
@@ -83,7 +84,7 @@ async function fixture(badPage = false) {
       } else listView();
       document.dispatchEvent(new Event('cp:reskin'));
     };
-  }, { badPage });
+  }, { badPage, rangeAsOne });
   await page.addScriptTag({ path: bulk });
   return { browser, page };
 }
@@ -117,5 +118,19 @@ test('activation refuses to apply when a list page cannot be verified', async ()
     assert.match(await page.locator('.cp-bulk-status').innerText(), /changed the list while scanning page 2/);
     assert.equal(await page.locator('.cp-activation-bulk-dialog [data-action="apply"]').isDisabled(), true);
     assert.equal((await page.evaluate(() => window.calls)).filter(c => c.startsWith('save:')).length, 0);
+  } finally { await browser.close(); }
+});
+
+test('activation counts a compact CommPilot range as its individual numbers', async () => {
+  const { browser, page } = await fixture(false, true);
+  try {
+    await page.locator('#cp-bulk-activation-launch').click();
+    await page.locator('.cp-activation-bulk-dialog [data-action="scan"]').click();
+    await page.waitForFunction(() => !document.querySelector('.cp-activation-bulk-dialog [data-action="scan"]').disabled);
+    assert.match(await page.locator('.cp-bulk-status').innerText(), /Found 3 deactivated numbers in 2 rows/);
+    assert.match(await page.locator('.cp-bulk-preview').innerText(), /2 numbers: \+1-2222222222 - \+1-2222222223/);
+    await page.locator('.cp-activation-bulk-dialog [data-action="apply"]').click();
+    await page.waitForFunction(() => !document.querySelector('.cp-activation-bulk-dialog [data-action="scan"]').disabled);
+    assert.match(await page.locator('.cp-bulk-status').innerText(), /2 rows saved and verified · 0 errors/);
   } finally { await browser.close(); }
 });

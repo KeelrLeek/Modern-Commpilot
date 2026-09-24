@@ -94,6 +94,21 @@
       left.every(value => right.includes(value)) && new Set(left).size === left.length;
   }
 
+  function countNumbers(values) {
+    return values.reduce((total, value) => {
+      const range = /^(\+?[\d-]+)\s+-\s+(\+?[\d-]+)$/.exec(value);
+      if (!range) return total + 1;
+      const first = range[1].replace(/\D/g, '');
+      const last = range[2].replace(/\D/g, '');
+      if (!first || first.length !== last.length || BigInt(last) < BigInt(first))
+        throw Error(`CommPilot returned an invalid number range: ${value}.`);
+      const size = BigInt(last) - BigInt(first) + 1n;
+      if (size > BigInt(Number.MAX_SAFE_INTEGER - total))
+        throw Error('CommPilot returned a range too large to count safely.');
+      return total + Number(size);
+    }, 0);
+  }
+
   async function scan(setStatus, setProgress) {
     await navigate(LIST, {}, LIST); // Clears any search filter before counting pages.
     const first = pageState();
@@ -115,7 +130,7 @@
         if (!label || seen.has(label)) throw Error(`Duplicate or blank number row on page ${page}. Scan again.`);
         seen.add(label);
         if (rowStatus(row) === 'active') { activeRows++; continue; }
-        rows.push({ label, drill: row.drill, page, numbers: [], before: 'Deactivated',
+        rows.push({ label, drill: row.drill, page, numbers: [], count: 0, before: 'Deactivated',
           after: '—', status: 'ready', error: '' });
       }
       setProgress('Scanning all pages', page, first.total,
@@ -134,8 +149,9 @@
       if (actual.deactivated.some(value => actual.activated.includes(value)))
         throw Error(`${item.label} showed a number on both sides. Scan again.`);
       item.numbers = actual.deactivated;
+      item.count = countNumbers(item.numbers);
       setProgress('Counting numbers in ranges', i + 1, rows.length,
-        `${item.label}: ${item.numbers.length} number${item.numbers.length === 1 ? '' : 's'}`);
+        `${item.label}: ${item.count} number${item.count === 1 ? '' : 's'}`);
     }
     await navigate(LIST, {}, LIST);
     return { rows, pages: first.total, activeRows };
@@ -173,7 +189,7 @@
       option.selected = item.numbers.includes(option.value.trim());
     const button = document.getElementById('PICKLIST_addNumbers');
     if (!button) throw Error('CommPilot Add button is missing.');
-    onStage(`Moving ${item.numbers.length} number${item.numbers.length === 1 ? '' : 's'} to Activated`);
+    onStage(`Moving ${item.count} number${item.count === 1 ? '' : 's'} to Activated`);
     await waitForReskin(() => button.click());
     if (path() !== MODIFY) throw Error('CommPilot did not return to Activate Numbers Modify after Add.');
     const staged = members();
@@ -238,7 +254,7 @@
       const counts = Object.fromEntries(['ready', 'verified', 'already-active', 'error', 'unverified']
         .map(key => [key, preview.filter(item => item.status === key).length]));
       const numberCount = preview.filter(item => item.status === 'ready')
-        .reduce((sum, item) => sum + item.numbers.length, 0);
+        .reduce((sum, item) => sum + item.count, 0);
       if (scanned || preview.length) {
         const summary = document.createElement('p');
         summary.textContent = `${numberCount} numbers ready in ${counts.ready} rows · ` +
@@ -258,8 +274,8 @@
       const body = document.createElement('tbody');
       preview.slice(page * size, (page + 1) * size).forEach(item => {
         const tr = document.createElement('tr');
-        [item.label, item.numbers.length === 1 ? item.numbers[0] :
-          `${item.numbers.length} numbers: ${item.numbers.join(', ')}`,
+        [item.label, item.count === 1 ? item.numbers[0] :
+          `${item.count} numbers: ${item.numbers.join(', ')}`,
         item.before, item.after, item.error || ({ ready: 'Ready to activate',
           verified: 'Saved and verified', 'already-active': 'Already activated',
           unverified: 'Result could not be verified' }[item.status] || item.status)]
@@ -295,7 +311,7 @@
         setStatus('Scanning every Activate Numbers page…');
         const result = await scan(setStatus, setProgress);
         preview = result.rows; scanned = true;
-        const count = preview.reduce((sum, item) => sum + item.numbers.length, 0);
+        const count = preview.reduce((sum, item) => sum + item.count, 0);
         setStatus(count ? `Found ${count} deactivated numbers in ${preview.length} rows across ` +
           `${result.pages} pages. Review them below.` :
           `All rows on ${result.pages} pages are already activated.`);
@@ -314,7 +330,7 @@
       if (working || !scanned) return;
       const targets = preview.filter(item => item.status === 'ready');
       if (!targets.length) return;
-      const count = targets.reduce((sum, item) => sum + item.numbers.length, 0);
+      const count = targets.reduce((sum, item) => sum + item.count, 0);
       if (!window.confirm(`Activate ${count} deactivated number${count === 1 ? '' : 's'} ` +
         `across ${targets.length} group row${targets.length === 1 ? '' : 's'}?`)) return;
       working = true; stopRequested = false; render();
