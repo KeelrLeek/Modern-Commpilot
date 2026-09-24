@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-24 12:15",
+  "updated": "2026-09-24 12:48",
   "note": "Live sandbox scan. Totals are for discovered routes so far, not the entire CommPilot site.",
   "inventory": {
     "complete": false,
@@ -1330,18 +1330,6 @@
       "status": "pass",
       "attempts": [
         {
-          "at": "2026-09-23T20:31:25.578Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T20:31:45.031Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
           "at": "2026-09-23T20:32:02.881Z",
           "status": "pass",
           "httpStatus": 200,
@@ -1400,6 +1388,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:33:57.434Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:16.489Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -1425,6 +1425,13 @@
         "sameDocument": true,
         "reskinned": true,
         "rowLinks": 0
+      },
+      "interactionChecks": {
+        "transfer": {
+          "status": "upload-pending",
+          "type": "import-entry",
+          "detail": "Import entry opens by PJAX; file submission awaits verification"
+        }
       }
     },
     {
@@ -2042,6 +2049,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:34:01.189Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:20.122Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -2067,6 +2086,13 @@
         "sameDocument": true,
         "reskinned": true,
         "rowLinks": 0
+      },
+      "interactionChecks": {
+        "transfer": {
+          "status": "upload-pending",
+          "type": "import-entry",
+          "detail": "Import entry opens by PJAX; file submission awaits verification"
+        }
       }
     },
     {
@@ -2076,36 +2102,6 @@
       "path": "/commpilot/Reseller/DeviceTags/",
       "status": "pass",
       "attempts": [
-        {
-          "at": "2026-09-23T20:46:33.644Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T20:59:15.830Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T21:33:20.703Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T21:48:46.340Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T21:54:22.177Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
         {
           "at": "2026-09-23T22:09:57.023Z",
           "status": "pass",
@@ -2147,6 +2143,36 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:32:16.682Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:33:05.896Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:33:22.783Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:33:44.448Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:23.973Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -2172,6 +2198,13 @@
         "sameDocument": true,
         "reskinned": true,
         "rowLinks": 16
+      },
+      "interactionChecks": {
+        "transfer": {
+          "status": "upload-pending",
+          "type": "import-entry",
+          "detail": "Import entry opens by PJAX; file submission awaits verification"
+        }
       }
     },
     {
@@ -5405,18 +5438,6 @@
       "status": "pass",
       "attempts": [
         {
-          "at": "2026-09-23T19:52:27.986Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T20:23:49.158Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
           "at": "2026-09-23T20:49:00.503Z",
           "status": "pass",
           "httpStatus": 200,
@@ -5448,6 +5469,42 @@
         },
         {
           "at": "2026-09-23T22:45:08.450Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:29:18.866Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:29:37.883Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:29:55.789Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:30:18.435Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:30:42.428Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:31:52.307Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -10930,6 +10987,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:34:05.373Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:32.001Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -10945,7 +11014,14 @@
         "transfer": 1,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "interactionChecks": {
+        "transfer": {
+          "status": "upload-pending",
+          "type": "import-entry",
+          "detail": "Import entry opens by PJAX; file submission awaits verification"
+        }
+      }
     },
     {
       "id": "discovered-180",
@@ -11340,36 +11416,6 @@
       "status": "pass",
       "attempts": [
         {
-          "at": "2026-09-23T20:16:44.073Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T20:17:01.821Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T20:17:16.218Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T20:17:44.568Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T20:21:04.124Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
           "at": "2026-09-23T20:42:42.671Z",
           "status": "pass",
           "httpStatus": 200,
@@ -11407,6 +11453,36 @@
         },
         {
           "at": "2026-09-23T22:45:13.224Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:20:08.966Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:29:00.720Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:29:03.561Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:31:28.816Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:32:07.196Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -13793,6 +13869,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:34:11.089Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:45.824Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -13808,7 +13896,14 @@
         "transfer": 1,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "interactionChecks": {
+        "transfer": {
+          "status": "upload-pending",
+          "type": "import-entry",
+          "detail": "Import entry opens by PJAX; file submission awaits verification"
+        }
+      }
     },
     {
       "id": "discovered-236",
@@ -27486,6 +27581,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:34:06.211Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:35.920Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "controlScanned": true,
@@ -27499,7 +27606,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-505",
@@ -27511,42 +27620,6 @@
       "status": "pass",
       "detail": "HTTP 200; auto-followed to /commpilot/Group/DefaultConfig/Nested/Files/",
       "attempts": [
-        {
-          "at": "2026-09-23T20:13:41.952Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T20:14:07.958Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T20:14:47.767Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T20:15:20.023Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T20:15:42.141Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T20:16:34.699Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
         {
           "at": "2026-09-23T20:16:56.211Z",
           "status": "pass",
@@ -27582,6 +27655,42 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:20:09.363Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:20:10.348Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:29:00.783Z",
+          "status": "pending",
+          "httpStatus": 302,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:29:03.983Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:31:30.394Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:32:07.721Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "controlScanned": true,
@@ -27591,11 +27700,22 @@
         "search": 0,
         "sort": 0,
         "paging": 0,
-        "tabs": 0,
+        "tabs": 2,
         "transfer": 10,
         "submit": 2
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "interactionChecks": {
+        "transfer": {
+          "status": "pass",
+          "type": "binary-download",
+          "responsePath": "/commpilot/servlet/HttpProxy",
+          "httpStatus": 200,
+          "downloadStarted": true,
+          "sameDocument": true,
+          "historyUnchanged": true
+        }
+      }
     },
     {
       "id": "discovered-506",
@@ -27766,30 +27886,6 @@
       "detail": "HTTP 200",
       "attempts": [
         {
-          "at": "2026-09-23T20:22:56.038Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T21:33:21.012Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T21:48:47.489Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T22:24:58.942Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
           "at": "2026-09-23T22:50:49.486Z",
           "status": "pass",
           "httpStatus": 200,
@@ -27827,6 +27923,36 @@
         },
         {
           "at": "2026-09-23T23:06:47.161Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:32:16.918Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:33:06.105Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:33:06.582Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:33:45.095Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:25.201Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -27874,8 +28000,29 @@
           "sameDocument": true,
           "reskinned": true,
           "backStatus": "pass"
+        },
+        "transfer": {
+          "status": "pass",
+          "type": "export",
+          "responsePath": "/commpilot/Operator/System/DeviceTags/Modify/TagSet/index.jsp",
+          "httpStatus": 200,
+          "downloadStarted": true,
+          "sameDocument": true,
+          "proxyStatus": 200,
+          "historyUnchanged": true,
+          "beforePath": "/commpilot/Operator/System/DeviceTags/Modify/TagSet/index.jsp",
+          "afterPath": "/commpilot/Operator/System/DeviceTags/Modify/TagSet/index.jsp",
+          "historyBefore": 6,
+          "historyAfter": 6,
+          "markerUnchanged": true,
+          "afterError": null,
+          "pageClosed": false,
+          "contentType": "text/html;charset=ISO-8859-1",
+          "contentLength": "615"
         }
-      }
+      },
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-510",
@@ -28058,6 +28205,42 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:29:19.243Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:29:38.255Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:29:57.147Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:30:19.816Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:30:43.763Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:31:53.662Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "backPending": false,
@@ -28071,7 +28254,27 @@
         "transfer": 10,
         "submit": 2
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "interactionChecks": {
+        "transfer": {
+          "status": "pass",
+          "type": "binary-download",
+          "responsePath": "/commpilot/servlet/HttpProxy",
+          "httpStatus": 200,
+          "downloadStarted": true,
+          "sameDocument": true,
+          "historyUnchanged": true,
+          "beforePath": "/commpilot/ServiceProvider/DefaultConfig/Nested/Files/",
+          "afterPath": "/commpilot/ServiceProvider/DefaultConfig/Nested/Files/",
+          "historyBefore": 10,
+          "historyAfter": 10,
+          "markerUnchanged": true,
+          "afterError": null,
+          "pageClosed": false,
+          "contentType": "application/octet-stream;charset=ISO-8859-1",
+          "contentLength": "5366"
+        }
+      }
     },
     {
       "id": "discovered-514",
@@ -30294,6 +30497,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:34:05.583Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:33.477Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "controlScanned": true,
@@ -30307,7 +30522,9 @@
         "transfer": 0,
         "submit": 4
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-559",
@@ -30349,6 +30566,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:34:05.898Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:34.718Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "controlScanned": true,
@@ -30362,7 +30591,33 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [
+        {
+          "name": "mainForm",
+          "method": "POST",
+          "action": "/commpilot/servlet/PhoneListImportServlet",
+          "enctype": "multipart/form-data",
+          "files": [
+            {
+              "name": "phoneListFile",
+              "accept": ""
+            }
+          ]
+        }
+      ],
+      "uploadScanned": true,
+      "uploadCheck": {
+        "status": "validation-pass",
+        "case": "empty CSV",
+        "httpStatus": 200,
+        "sameDocument": true,
+        "reskinned": true,
+        "backStatus": "pass",
+        "servletPosts": 1,
+        "successfulImportTested": false,
+        "at": "2026-09-24T12:48:09.552Z"
+      }
     },
     {
       "id": "discovered-560",
@@ -30972,6 +31227,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:33:58.155Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:17.017Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "backPending": false,
@@ -30985,7 +31252,9 @@
         "transfer": 0,
         "submit": 4
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-573",
@@ -31015,6 +31284,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:33:58.575Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:17.244Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "backPending": false,
@@ -31028,7 +31309,33 @@
         "transfer": 0,
         "submit": 4
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [
+        {
+          "name": "mainForm",
+          "method": "POST",
+          "action": "/commpilot/servlet/DeviceManagementImportServlet",
+          "enctype": "multipart/form-data",
+          "files": [
+            {
+              "name": "fileName",
+              "accept": ""
+            }
+          ]
+        }
+      ],
+      "uploadScanned": true,
+      "uploadCheck": {
+        "status": "validation-pass",
+        "case": "invalid archive",
+        "httpStatus": 200,
+        "sameDocument": true,
+        "reskinned": true,
+        "backStatus": "pass",
+        "servletPosts": 1,
+        "successfulImportTested": false,
+        "at": "2026-09-24T12:41:58.076Z"
+      }
     },
     {
       "id": "discovered-574",
@@ -31101,6 +31408,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:34:01.338Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:20.356Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "backPending": false,
@@ -31114,7 +31433,9 @@
         "transfer": 0,
         "submit": 4
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-576",
@@ -31144,6 +31465,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:34:01.537Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:20.775Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "backPending": false,
@@ -31157,7 +31490,33 @@
         "transfer": 0,
         "submit": 4
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [
+        {
+          "name": "mainForm",
+          "method": "POST",
+          "action": "/commpilot/servlet/DeviceManagementImportServlet",
+          "enctype": "multipart/form-data",
+          "files": [
+            {
+              "name": "fileName",
+              "accept": ""
+            }
+          ]
+        }
+      ],
+      "uploadScanned": true,
+      "uploadCheck": {
+        "status": "validation-pass",
+        "case": "invalid archive",
+        "httpStatus": 200,
+        "sameDocument": true,
+        "reskinned": true,
+        "backStatus": "pass",
+        "servletPosts": 1,
+        "successfulImportTested": false,
+        "at": "2026-09-24T12:42:01.320Z"
+      }
     },
     {
       "id": "discovered-577",
@@ -31199,6 +31558,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:33:44.618Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:24.211Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "backPending": false,
@@ -31212,7 +31583,9 @@
         "transfer": 0,
         "submit": 4
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-578",
@@ -31248,6 +31621,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:33:44.845Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:24.642Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "backPending": false,
@@ -31261,7 +31646,33 @@
         "transfer": 0,
         "submit": 4
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [
+        {
+          "name": "mainForm",
+          "method": "POST",
+          "action": "/commpilot/servlet/DeviceManagementImportServlet",
+          "enctype": "multipart/form-data",
+          "files": [
+            {
+              "name": "fileName",
+              "accept": ""
+            }
+          ]
+        }
+      ],
+      "uploadScanned": true,
+      "uploadCheck": {
+        "status": "validation-pass",
+        "case": "invalid archive",
+        "httpStatus": 200,
+        "sameDocument": true,
+        "reskinned": true,
+        "backStatus": "pass",
+        "servletPosts": 1,
+        "successfulImportTested": false,
+        "at": "2026-09-24T12:45:14.767Z"
+      }
     },
     {
       "id": "discovered-579",
@@ -32630,6 +33041,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:34:11.291Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:46.296Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "controlScanned": true,
@@ -32643,7 +33066,9 @@
         "transfer": 0,
         "submit": 4
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-611",
@@ -32679,6 +33104,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:34:11.592Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:35:47.432Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "controlScanned": true,
@@ -32692,7 +33129,33 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [
+        {
+          "name": "mainForm",
+          "method": "POST",
+          "action": "/commpilot/servlet/PhoneListImportServlet",
+          "enctype": "multipart/form-data",
+          "files": [
+            {
+              "name": "phoneListFile",
+              "accept": ""
+            }
+          ]
+        }
+      ],
+      "uploadScanned": true,
+      "uploadCheck": {
+        "status": "validation-pass",
+        "case": "empty CSV",
+        "httpStatus": 200,
+        "sameDocument": true,
+        "reskinned": true,
+        "backStatus": "pass",
+        "servletPosts": 1,
+        "successfulImportTested": false,
+        "at": "2026-09-24T12:42:19.574Z"
+      }
     },
     {
       "id": "discovered-612",
@@ -35511,6 +35974,36 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:20:09.602Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:20:10.544Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:29:04.184Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:31:32.513Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:32:08.011Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "controlScanned": true,
@@ -35524,7 +36017,27 @@
         "transfer": 1,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "interactionChecks": {
+        "transfer": {
+          "status": "pass",
+          "type": "binary-download",
+          "responsePath": "/commpilot/servlet/HttpProxy",
+          "httpStatus": 200,
+          "downloadStarted": true,
+          "sameDocument": true,
+          "historyUnchanged": true,
+          "beforePath": "/commpilot/Group/DefaultConfig/Nested/Files/Modify/index.jsp",
+          "afterPath": "/commpilot/Group/DefaultConfig/Nested/Files/Modify/index.jsp",
+          "historyBefore": 13,
+          "historyAfter": 13,
+          "markerUnchanged": true,
+          "afterError": null,
+          "pageClosed": false,
+          "contentType": "application/octet-stream;charset=ISO-8859-1",
+          "contentLength": "5366"
+        }
+      }
     },
     {
       "id": "discovered-675",
@@ -35549,6 +36062,42 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:29:19.400Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:29:38.402Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:29:57.772Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:30:20.424Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:30:44.364Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T12:31:54.257Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "controlScanned": true,
@@ -35561,7 +36110,27 @@
         "transfer": 1,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "interactionChecks": {
+        "transfer": {
+          "status": "pass",
+          "type": "binary-download",
+          "responsePath": "/commpilot/servlet/HttpProxy",
+          "httpStatus": 200,
+          "downloadStarted": true,
+          "sameDocument": true,
+          "historyUnchanged": true,
+          "beforePath": "/commpilot/ServiceProvider/DefaultConfig/Nested/Files/Modify/index.jsp",
+          "afterPath": "/commpilot/ServiceProvider/DefaultConfig/Nested/Files/Modify/index.jsp",
+          "historyBefore": 10,
+          "historyAfter": 10,
+          "markerUnchanged": true,
+          "afterError": null,
+          "pageClosed": false,
+          "contentType": "application/octet-stream;charset=ISO-8859-1",
+          "contentLength": "5366"
+        }
+      }
     },
     {
       "id": "discovered-676",

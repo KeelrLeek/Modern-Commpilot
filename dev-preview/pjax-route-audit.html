@@ -31,6 +31,7 @@
     .interaction-queue small { color: var(--muted); font-size: 11px; }
     .depth-progress { margin-top: 12px; }
     .scan-note { display: block; margin-top: 4px; color: var(--amber); font-size: 11px; font-weight: 650; }
+    .verified-note { display: block; margin-top: 4px; color: var(--green); font-size: 11px; font-weight: 650; }
     .control-note { display: block; margin-top: 4px; color: var(--blue); font-size: 11px; }
     .scope { margin: 18px 0 0; padding: 14px 16px; border: 1px solid var(--amber); border-radius: 12px; background: var(--panel); line-height: 1.45; }
     .scope b { color: var(--amber); }.scope small { color: var(--muted); display: block; margin-top: 3px; }
@@ -60,7 +61,7 @@
 </head>
 <body>
 <main>
-  <header><div><h1>CommPilot PJAX coverage</h1><p>Live sandbox route checks · headless Edge · 0.3.10 development build</p></div><p id="updated"></p></header>
+  <header><div><h1>CommPilot PJAX coverage</h1><p>Live sandbox route checks · headless Edge · 0.3.11 development build</p></div><p id="updated"></p></header>
   <div class="scope" id="file-notice" style="display:none" role="status"><b>This file view cannot load the live tally.</b><small><a href="http://127.0.0.1:8766/pjax-route-audit.html">Open the live dashboard</a> to see the numbers update as routes are checked.</small></div>
   <div class="scope" role="status"><b id="scope-summary">Sitewide routes left to check: unknown</b><small id="inventory">Scanning top-level folders and account submenus. Counts below cover only routes discovered so far.</small></div>
   <section class="metrics" aria-label="Route tally">
@@ -118,7 +119,7 @@
   <div class="progress depth-progress" role="img" id="search-progress" aria-label="Search and Find checks completed"></div>
   <p class="progress-label" id="search-progress-label"></p>
   <h2>Next interaction checks</h2>
-  <p>Discovered views awaiting a live PJAX check. Form actions need safe test data before submission.</p>
+  <p>Discovered views awaiting a live PJAX check. Successful imports and other state-changing forms need controlled fixtures.</p>
   <div class="interaction-queue" id="interaction-queue" aria-label="Remaining interaction families"></div>
   <nav class="filters" aria-label="Filter routes">
     <button type="button" data-filter="all" aria-pressed="true">All</button>
@@ -140,6 +141,18 @@
   const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const dynamicSummary = route => Object.entries(route.dynamicControls || {}).filter(([, count]) => count > 0)
     .map(([kind, count]) => `${kind} ${count}`).join(' · ');
+  const transferNote = route => {
+    if (route.interactionChecks?.transfer?.status === 'pass')
+      return '<span class="verified-note">File download or export passed</span>';
+    if (route.interactionChecks?.transfer?.status === 'upload-pending')
+      return '<span class="scan-note">Import page opens; upload submission pending</span>';
+    if (route.uploadCheck?.status === 'validation-pass')
+      return '<span class="verified-note">Upload validation passed in PJAX; Back did not resend</span>' +
+        '<span class="scan-note">Successful import fixture next</span>';
+    if ((route.uploadForms || []).length && route.uploadCheck?.status !== 'pass')
+      return '<span class="scan-note">Upload form mapped; submission pending</span>';
+    return '';
+  };
   function render(data) {
     const routes = (data.routes || []).filter(route => route.kind !== 'duplicate');
     const count = status => routes.filter(route => route.status === status).length;
@@ -218,7 +231,9 @@
       const passed = views.filter(route => route.interactionChecks?.[kind]?.status === 'pass').length;
       const importEntries = kind === 'transfer' ? views.filter(route => routes.some(child =>
         child.sourcePath === route.path && /\bimport\b/i.test(child.label || '') && child.status === 'pass')).length : 0;
-      const detail = kind === 'transfer' ? `${importEntries} import entry pages passed · ${views.length - passed} transfers pending` :
+      const uploadForms = kind === 'transfer' ? routes.filter(route => (route.uploadForms || []).length).length : 0;
+      const uploadValidation = kind === 'transfer' ? routes.filter(route => route.uploadCheck?.status === 'validation-pass').length : 0;
+      const detail = kind === 'transfer' ? `${passed} downloads/exports · ${uploadValidation}/${uploadForms} safe uploads · ${importEntries} successful imports to check` :
         `passed · ${views.length - passed} remaining`;
       return `<button type="button" data-interaction="${kind}" aria-pressed="${state.filter === kind}"><span>${label}</span><strong>${passed} / ${views.length}</strong><small>${detail}</small></button>`;
     }).join('');
@@ -236,11 +251,12 @@
           state.filter === 'subpages' ? subpageRoutes.includes(route) && !route.controlScanned :
             state.filter === 'dynamic' ? dynamicRoutes.includes(route) && !route.dynamicScanned :
               state.filter === 'search' ? searchViews.includes(route) && !searchVerified(route) :
+                state.filter === 'transfer' ? (route.dynamicControls?.transfer || 0) > 0 || (route.uploadForms || []).length > 0 :
                 nextKinds.some(([kind]) => state.filter === kind) ? uncheckedKind(route, state.filter) : route.status === state.filter));
     const areas = [...new Set(visible.map(route => route.area))];
     document.getElementById('groups').innerHTML = areas.length ? areas.map(area => {
       const subset = visible.filter(route => route.area === area);
-      return `<section class="group"><div class="group-title"><h2>${escapeHtml(area)}</h2><span>${subset.length} route${subset.length === 1 ? '' : 's'}</span></div><div class="routes">${subset.map(route => `<div class="route" data-status="${route.status}"><span class="dot" aria-hidden="true"></span><div><b>${escapeHtml(route.label)}</b>${isMenuRoute(route) && !route.deepScanned ? '<span class="scan-note">Row/Edit scan next</span>' : ''}${isMenuRoute(route) && !route.controlScanned ? '<span class="scan-note">Control scan next</span>' : ''}${subpageRoutes.includes(route) && !route.controlScanned ? '<span class="scan-note">Subpage scan next</span>' : ''}${dynamicRoutes.includes(route) && !route.dynamicScanned ? '<span class="scan-note">Interaction inventory next</span>' : ''}${searchViews.includes(route) && !searchVerified(route) ? '<span class="scan-note">Search PJAX check next</span>' : ''}${dynamicSummary(route) ? `<span class="control-note">${escapeHtml(dynamicSummary(route))}</span>` : ''}<code>${escapeHtml(route.path)}</code></div><span class="tag">${statusNames[route.status]}</span></div>`).join('')}</div></section>`;
+      return `<section class="group"><div class="group-title"><h2>${escapeHtml(area)}</h2><span>${subset.length} route${subset.length === 1 ? '' : 's'}</span></div><div class="routes">${subset.map(route => `<div class="route" data-status="${route.status}"><span class="dot" aria-hidden="true"></span><div><b>${escapeHtml(route.label)}</b>${isMenuRoute(route) && !route.deepScanned ? '<span class="scan-note">Row/Edit scan next</span>' : ''}${isMenuRoute(route) && !route.controlScanned ? '<span class="scan-note">Control scan next</span>' : ''}${subpageRoutes.includes(route) && !route.controlScanned ? '<span class="scan-note">Subpage scan next</span>' : ''}${dynamicRoutes.includes(route) && !route.dynamicScanned ? '<span class="scan-note">Interaction inventory next</span>' : ''}${searchViews.includes(route) && !searchVerified(route) ? '<span class="scan-note">Search PJAX check next</span>' : ''}${transferNote(route)}${dynamicSummary(route) ? `<span class="control-note">${escapeHtml(dynamicSummary(route))}</span>` : ''}<code>${escapeHtml(route.path)}</code></div><span class="tag">${statusNames[route.status]}</span></div>`).join('')}</div></section>`;
     }).join('') : '<p class="empty">No routes in this status yet.</p>';
     document.getElementById('flows').innerHTML = (data.flows || []).map(flow => `<span class="flow" data-status="${escapeHtml(flow.status || 'pending')}">${escapeHtml(flow.label)}</span>`).join('');
   }

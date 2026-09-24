@@ -1,6 +1,6 @@
 # CommPilot PJAX route audit
 
-Live sandbox account, Edge with the unpacked preview extension. A **PJAX pass** means the destination rendered with HTTP 200 and the top-level document marker stayed the same. Opening a form here does not submit or save it. The visual, live-updating tally is at `http://127.0.0.1:8766/pjax-route-audit.html`. The current extension build is 0.3.10, with 821 discovered routes passing and all 174 discovered subpages scanned for further controls.
+Live sandbox account, Edge with the unpacked preview extension. A **PJAX route pass** means the destination rendered with HTTP 200 and the top-level document marker stayed the same. Separate interaction checks exercise the controls on those pages. The visual, live-updating tally is at `http://127.0.0.1:8766/pjax-route-audit.html`. The current extension build is 0.3.11, with 821 discovered routes passing and all 174 discovered subpages scanned for further controls.
 
 ## Tally
 
@@ -11,7 +11,9 @@ Live sandbox account, Edge with the unpacked preview extension. A **PJAX pass** 
 | Sorting views, including Back replay | 8 | 0 | 0 discovered views |
 | Paging views, including Back replay | 2 | 0 | 0 discovered views |
 | Tabbed views, including Back replay | 5 | 0 | 0 discovered views |
-| Transfer control views | 0 verified | 0 | 10 discovered views |
+| Download/export views | 5 | 0 | 0 discovered views |
+| Import forms: invalid or empty-file PJAX and Back | 5 | 0 | 0 discovered views |
+| Import forms: successful import and state check | 0 | 0 | 5 discovered views |
 | Form action views | 0 verified | 0 | 657 discovered views |
 
 ## Checked live
@@ -35,7 +37,7 @@ Live sandbox account, Edge with the unpacked preview extension. A **PJAX pass** 
 
 ## To check next
 
-- Transfer controls, including import/export and file upload/download behavior.
+- Successful imports with controlled, reversible test records; invalid archives and empty phone-list files already pass PJAX and Back checks without a document reload or repeated POST.
 - Configuration saves and other state-changing form submissions using the test account.
 - Production account behavior.
 

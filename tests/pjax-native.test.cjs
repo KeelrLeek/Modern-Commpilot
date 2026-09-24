@@ -70,6 +70,66 @@ test('PJAX swaps content, header, token, and URL without a document reload', asy
   await browser.close();
 });
 
+test('multipart import follows its token-bearing stub in-shell and Back does not resend the file', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const importPath = '/commpilot/Operator/System/DeviceTags/Import/index.jsp';
+    const servletPath = '/commpilot/servlet/DeviceManagementImportServlet';
+    const importPage = `<!doctype html><html><head><title>Tag Sets Import</title></head><body>
+      <form name="leftNavForm"><a class="leftnavfolder">Resources</a></form>
+      <input name="formtokenserial" value="token-1">
+      <table><tr><td width="82%"><form name="mainForm" method="post"
+        action="${servletPath}" enctype="multipart/form-data">
+        <input name="formtokenserial" value="token-1"><input type="file" name="fileName">
+        <input type="submit" name="ok" value="OK"></form></td></tr></table>
+      <script>window.redirectPost=function(url,params){window.nativeNavigation={url,params};};</script>
+      </body></html>`;
+    const resultPage = `<!doctype html><html><head><title>Tag Sets Import</title></head><body>
+      <form name="leftNavForm"><a class="leftnavfolder">Resources</a></form>
+      <input name="formtokenserial" value="token-3">
+      <table><tr><td width="82%"><div id="upload-result">Invalid archive</div></td></tr></table>
+      </body></html>`;
+    const stub = `<html><body><input name="formtokenserial" value="token-2">
+      <script>redirectPost('${importPath}', {});</script></body></html>`;
+    let servletPosts = 0;
+    const followTokens = [];
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (pathname === servletPath && request.method() === 'POST') {
+        servletPosts++;
+        assert.match(request.headers()['content-type'], /^multipart\/form-data; boundary=/);
+        assert.ok(request.postDataBuffer().includes(Buffer.from('not-a-real-archive')));
+        return route.fulfill({ status: 200, contentType: 'text/html', body: stub });
+      }
+      if (pathname === importPath && request.method() === 'POST') {
+        followTokens.push(new URLSearchParams(request.postData()).get('formtokenserial'));
+        return route.fulfill({ status: 200, contentType: 'text/html',
+          body: followTokens.length === 1 ? resultPage : importPage });
+      }
+      return route.fulfill({ status: 200, contentType: 'text/html', body: importPage });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${importPath}`,
+      { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.originalDocument = document; });
+    await page.locator('input[type="file"]').setInputFiles({ name: 'invalid.zip',
+      mimeType: 'application/zip', buffer: Buffer.from('not-a-real-archive') });
+    await page.locator('input[type="submit"]').click();
+    await page.locator('#upload-result').waitFor();
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.equal(await page.evaluate(() => location.pathname), importPath);
+    assert.deepEqual(followTokens, ['token-2']);
+    assert.equal(servletPosts, 1);
+    await page.goBack();
+    await page.locator('input[type="file"]').waitFor();
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.equal(servletPosts, 1);
+  } finally { await browser.close(); }
+});
+
 test('PJAX leaves the current page intact after a server error', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });

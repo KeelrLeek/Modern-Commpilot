@@ -347,6 +347,82 @@ async function captureTransferControls(page) {
     .filter(item => /\b(?:upload|download|export|import)\b/i.test(item.label)));
 }
 
+async function captureUploadForms(page) {
+  return page.evaluate(() => [...document.querySelectorAll('td[width="82%"] form')]
+    .filter(form => form.querySelector('input[type="file"]'))
+    .map(form => ({ name: form.getAttribute('name') || '',
+      method: (form.getAttribute('method') || 'GET').toUpperCase(),
+      action: new URL(form.getAttribute('action') || location.pathname, location.href).pathname,
+      enctype: form.getAttribute('enctype') || '',
+      files: [...form.querySelectorAll('input[type="file"]')]
+        .map(input => ({ name: input.name || '', accept: input.accept || '' })) })));
+}
+
+async function verifyDownloadControl(page, audit, record, area) {
+  record.interactionChecks ||= {};
+  const downloadLink = page.locator('td[width="82%"] a').filter({ hasText: /^\s*Download\s*$/i }).first();
+  const exportButton = page.locator('td[width="82%"] input[name="export"]').first();
+  const hasDownload = await downloadLink.count() && await downloadLink.isVisible();
+  const hasExport = await exportButton.count() && await exportButton.isVisible();
+  if (!hasDownload && !hasExport) {
+    record.interactionChecks.transfer = { status: 'upload-pending', type: 'import-entry',
+      detail: 'Import entry opens by PJAX; file submission awaits verification' };
+    saveAudit(audit);
+    console.log(JSON.stringify({ event: 'download-probe', area, label: record.label,
+      status: 'upload-pending' }));
+    return 'continue';
+  }
+  const before = await page.evaluate(() => ({ path: location.pathname,
+    marker: window.__bwTestDocMarker, historyLength: history.length,
+    reskinCount: window.__bwReskinCount || 0 }));
+  const responsePromise = page.waitForResponse(response =>
+    hasDownload ? response.request().method() === 'POST' &&
+      routePath(response.url(), page.url()) === '/commpilot/servlet/HttpProxy' :
+      response.request().method() === 'POST' && /[?&]export=/.test(response.url()),
+  { timeout: 15000 }).catch(() => null);
+  const proxyPromise = hasExport ? page.waitForResponse(response =>
+    response.request().method() === 'GET' &&
+    routePath(response.url(), page.url()) === '/commpilot/servlet/HttpProxy',
+  { timeout: 15000 }).catch(() => null) : Promise.resolve(null);
+  const downloadPromise = page.waitForEvent('download', { timeout: 15000 }).catch(() => null);
+  await (hasDownload ? downloadLink : exportButton).click({ noWaitAfter: true });
+  const [response, proxy, download] = await Promise.all([responsePromise, proxyPromise, downloadPromise]);
+  // Chromium can briefly destroy the execution context while handing a top-level
+  // attachment response to its download manager. Read the settled document.
+  let after = null;
+  let afterError = null;
+  for (let attempt = 0; attempt < 5 && !after; attempt++) {
+    if (attempt) await delay(150);
+    after = await page.evaluate(() => ({ path: location.pathname,
+      marker: window.__bwTestDocMarker, historyLength: history.length,
+      reskinCount: window.__bwReskinCount || 0,
+      title: document.title.trim() })).catch(error => { afterError = error.message.slice(0, 180); return null; });
+  }
+  const sameDocument = !!after && before.marker === after.marker &&
+    before.path === after.path && before.historyLength === after.historyLength;
+  const passed = response?.status() === 200 && (!hasExport || proxy?.status() === 200) &&
+    !!download && sameDocument;
+  record.interactionChecks.transfer = {
+    status: passed ? 'pass' : after?.path === '/commpilot/Login/' ? 'pending' : 'needs',
+    type: hasDownload ? 'binary-download' : 'export',
+    responsePath: response ? routePath(response.url(), page.url()) : null,
+    httpStatus: response?.status() || null, downloadStarted: !!download, sameDocument,
+    proxyStatus: proxy?.status() || null,
+    historyUnchanged: before.historyLength === after?.historyLength,
+    beforePath: before.path, afterPath: after?.path || null,
+    historyBefore: before.historyLength, historyAfter: after?.historyLength ?? null,
+    markerUnchanged: before.marker === after?.marker,
+    afterError, pageClosed: page.isClosed(),
+    contentType: response?.headers()['content-type'] || null,
+    contentLength: response?.headers()['content-length'] || null
+  };
+  if (download) await download.cancel().catch(() => {});
+  saveAudit(audit);
+  console.log(JSON.stringify({ event: 'download-probe', area, label: record.label,
+    ...record.interactionChecks.transfer }));
+  return passed ? 'continue' : record.interactionChecks.transfer.status === 'pending' ? 'session' : 'gap';
+}
+
 async function verifySortControl(page, audit, record, area, wanted) {
   let sort = null;
   for (const candidate of await page.locator('td[width="82%"] a.listSortHeader').all()) {
@@ -554,6 +630,10 @@ function needsSubpageWork(audit, area, item, depth = 0, seen = new Set()) {
       item.interactionChecks?.paging?.status !== 'pass') return true;
   if (process.env.BW_VERIFY_TABS === '1' && (item.dynamicControls?.tabs || 0) > 0 &&
       (item.interactionChecks?.tabs?.status !== 'pass' || process.env.BW_FORCE_TABS === '1')) return true;
+  if (process.env.BW_VERIFY_DOWNLOAD === '1' && (item.dynamicControls?.transfer || 0) > 0 &&
+      (!['pass', 'upload-pending'].includes(item.interactionChecks?.transfer?.status) ||
+        process.env.BW_FORCE_DOWNLOAD === '1')) return true;
+  if (process.env.BW_DISCOVER_UPLOADS === '1' && !item.uploadScanned) return true;
   if (!item.controlScanned) return true;
   const sourcePath = item.path.includes('/DefaultConfig/Nested/Configuration/') ?
     new URL('../Files/', new URL(item.path, 'https://audit.invalid')).pathname : item.path;
@@ -569,12 +649,13 @@ async function verifyInnerTarget(page, audit, area, sourcePath, parentLabel, inn
   const wanted = routePath(inner.url, page.url());
   const record = audit.routes.find(item => ['nested', 'action', 'descendant'].includes(item.kind) && item.sourcePath === sourcePath &&
     item.path === wanted && item.area === area);
+  const scanUploads = process.env.BW_DISCOVER_UPLOADS === '1' && record && !record.uploadScanned;
   const scanDescendants = process.env.BW_DISCOVER_DESCENDANTS === '1' && record &&
     (process.env.BW_RESCAN_DYNAMIC === '1' || !record.controlScanned ||
       (process.env.BW_VERIFY_DESCENDANTS === '1' &&
       needsSubpageWork(audit, area, record, depth)));
   if (!record || (record.status === 'pass' && process.env.BW_FORCE_NESTED !== '1' &&
-      !scanDescendants)) return 'continue';
+      !scanDescendants && !scanUploads)) return 'continue';
   await page.evaluate(() => {
     window.__bwNestedMarker = window.__bwTestDocMarker;
     if (!window.__bwReskinProbe) {
@@ -669,6 +750,13 @@ async function verifyInnerTarget(page, audit, area, sourcePath, parentLabel, inn
   }
   if (session) return 'session';
   if (status === 'needs') return 'gap';
+  if (scanUploads) {
+    record.uploadForms = await captureUploadForms(page);
+    record.uploadScanned = true;
+    saveAudit(audit);
+    if (record.uploadForms.length) console.log(JSON.stringify({ event: 'upload-inventory',
+      area, label: record.label, path: wanted, forms: record.uploadForms }));
+  }
   if (process.env.BW_INSPECT_TABS === '1') console.log(JSON.stringify({ event: 'tab-controls',
     area, label: record.label, path: wanted, controls: await captureTabControls(page) }));
   if (process.env.BW_INSPECT_TRANSFER_CONTROLS === '1' && (record.dynamicControls?.transfer || 0) > 0)
@@ -905,6 +993,12 @@ async function verifyInnerTarget(page, audit, area, sourcePath, parentLabel, inn
       (record.interactionChecks?.tabs?.status !== 'pass' || process.env.BW_FORCE_TABS === '1')) {
     const tabOutcome = await verifyTabControl(page, audit, record, area, wanted);
     if (tabOutcome !== 'continue') return tabOutcome;
+  }
+  if (process.env.BW_VERIFY_DOWNLOAD === '1' && (record.dynamicControls?.transfer || 0) > 0 &&
+      (!['pass', 'upload-pending'].includes(record.interactionChecks?.transfer?.status) ||
+        process.env.BW_FORCE_DOWNLOAD === '1')) {
+    const downloadOutcome = await verifyDownloadControl(page, audit, record, area);
+    if (downloadOutcome !== 'continue') return downloadOutcome;
   }
   const backReskinStart = await page.evaluate(() => window.__bwReskinCount || 0).catch(() => null);
   if (backReskinStart === null) return 'session';
@@ -1143,6 +1237,10 @@ async function testTarget(page, target, folder) {
     record.dynamicControls = result.dynamicControls;
     record.dynamicScanned = true;
   }
+  if (process.env.BW_INSPECT_TRANSFER_CONTROLS === '1' &&
+      (record.dynamicControls?.transfer || 0) > 0)
+    console.log(JSON.stringify({ event: 'transfer-controls', area, label: record.label,
+      path: wanted, controls: await captureTransferControls(page) }));
   if (searchCheck) {
     record.searchCheck = searchCheck;
     if (searchCheck.responsePath) {
@@ -1231,6 +1329,13 @@ async function testTarget(page, target, folder) {
     const tabOutcome = await verifyTabControl(page, audit, record, area, wanted);
     if (tabOutcome !== 'continue') return tabOutcome;
   }
+  if (process.env.BW_VERIFY_DOWNLOAD === '1' && status === 'pass' &&
+      (record.dynamicControls?.transfer || 0) > 0 &&
+      (!['pass', 'upload-pending'].includes(record.interactionChecks?.transfer?.status) ||
+        process.env.BW_FORCE_DOWNLOAD === '1')) {
+    const downloadOutcome = await verifyDownloadControl(page, audit, record, area);
+    if (downloadOutcome !== 'continue') return downloadOutcome;
+  }
   if (searchedRows) {
     if (searchCheck?.status === 'pending') return 'session';
     try { await clickFolder(page, folder); } catch { return 'session'; }
@@ -1285,6 +1390,7 @@ async function testTarget(page, target, folder) {
 (async () => {
   const context = await chromium.launchPersistentContext(profile, {
     executablePath: edge, headless: process.env.BW_VISIBLE !== '1', viewport: null,
+    acceptDownloads: process.env.BW_VERIFY_DOWNLOAD !== '1',
     args: [`--disable-extensions-except=${root}`, `--load-extension=${root}`]
   });
   if (process.env.BW_TRACE_REQUESTS === '1') await context.addInitScript(() => {
@@ -1300,6 +1406,11 @@ async function testTarget(page, target, folder) {
     localStorage.setItem('cpDebug', '1'));
   const oldPages = context.pages();
   const page = await context.newPage();
+  if (process.env.BW_TRACE_DOWNLOAD === '1') {
+    page.on('close', () => console.log(JSON.stringify({ event: 'download-trace', detail: 'page-closed' })));
+    page.on('crash', () => console.log(JSON.stringify({ event: 'download-trace', detail: 'page-crashed' })));
+    context.on('close', () => console.log(JSON.stringify({ event: 'download-trace', detail: 'context-closed' })));
+  }
   for (const old of oldPages) await old.close();
   if (process.env.BW_TRACE_REQUESTS === '1') {
     const cdp = await context.newCDPSession(page);
@@ -1400,8 +1511,12 @@ async function testTarget(page, target, folder) {
           const needsTabs = process.env.BW_VERIFY_TABS === '1' &&
             (known?.dynamicControls?.tabs || 0) > 0 &&
             (known?.interactionChecks?.tabs?.status !== 'pass' || process.env.BW_FORCE_TABS === '1');
+          const needsDownload = process.env.BW_VERIFY_DOWNLOAD === '1' &&
+            (known?.dynamicControls?.transfer || 0) > 0 &&
+            (!['pass', 'upload-pending'].includes(known?.interactionChecks?.transfer?.status) ||
+              process.env.BW_FORCE_DOWNLOAD === '1');
           if (known?.status === 'pass' && !force && !known.backPending &&
-              !needsActions && !needsDescendants && !needsDynamic && !needsSearch && !needsSort && !needsPaging && !needsTabs &&
+              !needsActions && !needsDescendants && !needsDynamic && !needsSearch && !needsSort && !needsPaging && !needsTabs && !needsDownload &&
               (process.env.BW_DISCOVER_DEEP !== '1' || (known.deepScanned && !pendingInner))) continue;
           const outcome = await testTarget(page, target, folder);
           if (outcome === 'gap') { console.log(JSON.stringify({ event: 'needs-fix', level, folder, label: target.label })); return; }

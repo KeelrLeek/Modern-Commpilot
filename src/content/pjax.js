@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.10-native";
+  var CP_PJAX_VERSION = "0.3.11-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -377,9 +377,8 @@
           // /Operator/System/DeviceFamilies/Import/index.jsp), NOT /Reseller/. Unlisted → the list's Import button
           // redirectPost'd there, cpHook saw a non-pjax url and NATIVE-navigated → a FULL page reload (legacy
           // styles/graphics re-fetched). Listing it routes the open through cpFollow so the upload form renders
-          // in-shell. (The OK upload posts multipart to /servlet/DeviceManagementImportServlet — NOT pjax-matched
-          // → still a native submit, which a file upload requires anyway. Cancel posts back to the /Reseller list,
-          // already pjax-matched.)
+          // in-shell. The import's multipart POST goes through cpSubmitImportUpload below, which follows the
+          // servlet's response stub back into PJAX. Cancel posts to the already-matched /Reseller list.
           /\/commpilot\/Operator\/System\/[A-Za-z0-9_]+\/Import\/(index\.jsp)?$/.test(u) ||
           // Device-management DRILL-IN: clicking a reseller Tag Set opens its Modify sub-page (the tag-name/value
           // grid) at /Operator/System/DeviceTags/Modify/TagSet/index.jsp — same Operator/System scope as Import, so
@@ -4375,10 +4374,116 @@
 
     window.redirectPost = cpHook;
 
+    // Import servlets accept multipart POSTs and answer with a token-bearing
+    // redirectPost stub. Keep the file POST in the current document, then let
+    // cpHook follow that stub and repaint the resulting CommPilot page.
+    var cpUploadActive = false;
+    function cpImportUploadAction(form) {
+      if (!form || !form.querySelector('input[type="file"]') ||
+          !/multipart\/form-data/i.test(form.getAttribute('enctype') || '') ||
+          (form.getAttribute('method') || 'GET').toUpperCase() !== 'POST') return null;
+      var target = (form.getAttribute('target') || '').toLowerCase();
+      if (target && target !== '_self') return null;
+      try {
+        var action = new URL(form.getAttribute('action') || location.pathname, location.href);
+        return action.origin === location.origin &&
+          /^\/commpilot\/servlet\/(?:DeviceManagementImportServlet|PhoneListImportServlet)$/.test(action.pathname) ? action : null;
+      } catch (e) { return null; }
+    }
+    function cpUploadNotice(message) {
+      var cell = document.querySelector('td[width="82%"]');
+      if (!cell) { console.warn('[pjax] upload: ' + message); return; }
+      var old = cell.querySelector('.cp-upload-notice');
+      if (old) old.remove();
+      var notice = document.createElement('div');
+      notice.className = 'cp-alert cp-alert-error cp-upload-notice';
+      notice.textContent = message;
+      cell.insertBefore(notice, cell.firstChild);
+    }
+    function cpSubmitImportUpload(form, submitter) {
+      var action = cpImportUploadAction(form);
+      if (!action) return false;
+      if (cpUploadActive) return true;
+      cpUploadActive = true;
+      if (cpAggActive) { cpSectionAborted = true; cpAggEnd(); }
+      try { if (cpGridState && cpGridState._searchAbort) cpGridState._searchAbort.abort(); } catch (e) {}
+      try { if (cpGridState && cpGridState._sweepAbort) cpGridState._sweepAbort.abort(); } catch (e) {}
+      var uploadSeq = ++cpSeq; // discard a late navigation response instead of overwriting the upload result
+      var body = new FormData(form);
+      if (submitter && submitter.name) body.append(submitter.name, submitter.value || '');
+      var buttons = [].slice.call(form.querySelectorAll('[type="submit"]'));
+      buttons.forEach(function (button) { button.disabled = true; });
+      form.setAttribute('aria-busy', 'true');
+      var finished = false;
+      function release(message) {
+        if (finished) return;
+        finished = true; cpUploadActive = false;
+        buttons.forEach(function (button) { button.disabled = false; });
+        form.removeAttribute('aria-busy');
+        if (message) cpUploadNotice(message);
+      }
+      var waited = 0;
+      function sendWhenReady() {
+        if (cpSeq !== uploadSeq || !form.isConnected) { release(); return; }
+        if (cpInflightPosts > 0) {
+          if (waited++ < 250) { setTimeout(sendWhenReady, 20); return; }
+          release('Another page request is still running. Please try the upload again.');
+          return;
+        }
+        var liveToken = document.getElementsByName('formtokenserial')[0];
+        if (liveToken) body.set('formtokenserial', liveToken.value);
+        cpInflightPosts++;
+        fetch(action.href, { method: 'POST', body: body, credentials: 'same-origin', redirect: 'manual' })
+          .then(function (response) {
+            if (response.status >= 500) {
+              release('The server could not process the upload. No automatic retry was sent.');
+              return null;
+            }
+            if (response.type === 'opaqueredirect' || response.status === 0 || response.status >= 300) {
+              release('The upload could not continue because the session ended. Please sign in again.');
+              return null;
+            }
+            return response.text();
+          })
+          .then(function (html) {
+            if (html == null) return;
+            if (cpSeq !== uploadSeq) { release(); return; }
+            var doc = new DOMParser().parseFromString(html, 'text/html');
+            var stub = cpExtractStub(doc);
+            if (!stub || !stub.target || !isPjaxUrl(stub.target)) {
+              release('The upload was sent, but its result could not be displayed. Reload to inspect it.');
+              return;
+            }
+            if (stub.token) {
+              var tokens = document.getElementsByName('formtokenserial');
+              for (var i = 0; i < tokens.length; i++) tokens[i].value = stub.token;
+            }
+            document.addEventListener('cp:reskin', function () { release(); }, { once: true });
+            cpHook(stub.target, stub.data || {});
+            setTimeout(function () {
+              if (cpUploadActive) release('The upload was sent, but its result did not appear. Check before trying again.');
+            }, 15000);
+          })
+          .catch(function (error) {
+            console.warn('[pjax] upload request failed:', error);
+            release('The upload response was lost. Check the result before trying again.');
+          })
+          .then(function () { cpInflightPosts = Math.max(0, cpInflightPosts - 1); },
+            function () { cpInflightPosts = Math.max(0, cpInflightPosts - 1); });
+      }
+      sendWhenReady();
+      return true;
+    }
+
     document.addEventListener("submit", function (e) {
       try {
         var form = e.target;
         if (!form || form.tagName !== "FORM") return;
+        if (cpImportUploadAction(form)) {
+          e.preventDefault(); e.stopImmediatePropagation();
+          cpSubmitImportUpload(form, e.submitter);
+          return;
+        }
         // Resolve the POST target from the ATTRIBUTE, not the form.action DOM property. Legacy forms (e.g. the
         // admin Modify mainForm) carry a hidden <input name="action">, which SHADOWS form.action → reading it
         // returns that ELEMENT, not a URL string, so isPjaxUrl(form.action) was always false and the submit fell
@@ -4409,11 +4514,13 @@
 
     // CommPilot also calls form.submit() directly from some page scripts.
     // That bypasses submit events, including the PJAX listener above. Replay
-    // ordinary content forms through that listener; keep uploads, downloads,
-    // and hidden transport frames on their native path.
+    // ordinary content forms through that listener; the two known import
+    // servlets use multipart PJAX above. Keep other uploads, downloads, and
+    // hidden transport frames on their native path.
     var cpNativeFormSubmit = HTMLFormElement.prototype.submit;
     HTMLFormElement.prototype.submit = function () {
       try {
+        if (cpImportUploadAction(this)) { cpSubmitImportUpload(this, null); return; }
         var action = new URL(this.getAttribute("action") || location.pathname, location.href);
         var target = (this.getAttribute("target") || "").toLowerCase();
         var enctype = (this.getAttribute("enctype") || "").toLowerCase();

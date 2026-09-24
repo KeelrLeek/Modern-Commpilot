@@ -3082,8 +3082,8 @@ function cpBuildDeviceFamilyAddRows(cell) {
 }
 
 /* Device Management Device Families IMPORT — File-upload card (themed drop-zone over the real multipart file
- * input) + Options card (the three legacy checkboxes → purple toggles). The OK submit stays a native multipart
- * POST to /servlet/DeviceManagementImportServlet (a file upload can't ride pjax). */
+ * input) + Options card (the three legacy checkboxes → purple toggles). The real multipart form is submitted
+ * through pjax.js, which follows the import servlet's token-bearing response in-shell. */
 function cpBuildDeviceFamilyImportRows(cell) {
   var fileI = cell.querySelector('input[type="file"][name="fileName"]');
   if (!fileI) return null;
