@@ -76,3 +76,76 @@ test('bulk number preview expands ranges, marks missing numbers, and blocks Appl
     assert.match(await page.locator('.cp-bulk-preview').innerText(), /2244830007[\s\S]*Ready/);
   } finally { await browser.close(); }
 });
+
+test('large-group lookup finds international numbers stored with a country-code hyphen', async () => {
+  assert.ok(edge, 'Set CHROME_PATH to Edge or Chrome');
+  const browser = await chromium.launch({ executablePath: edge, headless: true });
+  try {
+    const page = await browser.newPage();
+    const list = '/commpilot/Group/GroupDnManagement/index.jsp';
+    const edit = '/commpilot/Group/GroupDnManagement/Nested/index.jsp';
+    const html = `<!doctype html><html><body><form name="leftNavForm"></form>
+      <input name="formtokenserial" value="token-1"><table><tr><td width="82%">
+      <form name="mainForm"><input name="ok" value="OK" type="button"></form>
+      </td></tr></table><script>window.redirectPost=function(){};</script></body></html>`;
+    await page.route('https://apps-sbx.avpaas.io/**', route =>
+      route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+    await page.goto(`https://apps-sbx.avpaas.io${list}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjax });
+    await page.addScriptTag({ path: bulk });
+    await page.evaluate(({ edit }) => {
+      const values = [
+        ['+44-2030233343', 'RSUM - London'],
+        ['+44-2030233344', 'RSUM - London'],
+        ['+34-910603947', 'Barcelona'],
+        ['+44-2045747110', 'Innovisk - UK']
+      ];
+      window.lookupCriteria = [];
+      window.cpListSearch = async criteria => {
+        if (!criteria.length) return { tooMany: true };
+        window.lookupCriteria.push(criteria[0]);
+        const { op, value } = criteria[0];
+        return { rows: values.filter(([phone]) => (op === 'EQUAL_TO' && phone === value) ||
+          (op === 'CONTAINS' && phone.includes(value))).map(([phone, department]) => ({
+          cells: [phone, '', '', '', '', department],
+          drill: { url: edit, params: { key: phone, P_key: phone,
+            name: department, P_name: department } }
+        })) };
+      };
+      window.redirectPost = (url, params) => {
+        history.pushState(null, '', url);
+        document.documentElement.setAttribute('data-cp-path', url);
+        const options = ['None', ...new Set(values.map(row => row[1]))]
+          .map(name => `<option value="${name}" ${name === params?.name ? 'selected' : ''}>${name}</option>`)
+          .join('');
+        document.querySelector('td[width="82%"]').innerHTML = url === edit ?
+          `<form name="mainForm"><select name="deptDropDownList">${options}</select></form>` :
+          '<form name="mainForm"><input name="ok" value="OK" type="button"></form>';
+        document.dispatchEvent(new Event('cp:reskin'));
+      };
+    }, { edit });
+    await page.locator('#cp-bulk-number-launch').click();
+    const bytes = await page.evaluate(() => [...window.cpXlsxBuild([{
+      name: 'Assignments', headers: ['Phone Number', 'Department', 'Range End'],
+      rows: [['442030233343', 'RSUM - London', '442030233344'],
+        ['34910603947', 'Barcelona', ''],
+        ['442045747110', 'Innovisk - UK', '']],
+      widths: [23, 34, 23], textColumns: [0, 2]
+    }])]);
+    await page.locator('.cp-bulk-dialog input[type="file"]').setInputFiles({
+      name: 'international.xlsx', mimeType:
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      buffer: Buffer.from(bytes) });
+    await page.waitForFunction(() => document.querySelector('.cp-bulk-status')?.textContent
+      .includes('All requested numbers are already'));
+    const preview = await page.locator('.cp-bulk-preview').innerText();
+    assert.match(preview, /0 to change · 4 already correct · 0 errors/);
+    assert.match(preview, /442030233343[\s\S]*RSUM - London[\s\S]*Already correct/);
+    assert.match(preview, /442030233344[\s\S]*RSUM - London[\s\S]*Already correct/);
+    assert.match(preview, /34910603947[\s\S]*Barcelona[\s\S]*Already correct/);
+    assert.match(preview, /442045747110[\s\S]*Innovisk - UK[\s\S]*Already correct/);
+    assert.equal(await page.locator('[data-action="apply"]').isDisabled(), true);
+    assert.ok((await page.evaluate(() => window.lookupCriteria))
+      .some(criteria => criteria.op === 'EQUAL_TO' && criteria.value === '+44-2030233343'));
+  } finally { await browser.close(); }
+});

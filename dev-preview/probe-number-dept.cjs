@@ -171,6 +171,13 @@ const snapshot = page => page.evaluate(() => ({
       console.log(JSON.stringify({ event: 'number-exact-search', result }));
       return;
     }
+    if (process.env.BW_NUMBER_CONTAINS === '1') {
+      const result = await page.evaluate(() => window.cpListSearch([{
+        key: 'Dn', op: 'CONTAINS', value: '4830007'
+      }], {}).then(data => ({ rows: data.rows, tooMany: data.tooMany || false })));
+      console.log(JSON.stringify({ event: 'number-contains-search', result }));
+      return;
+    }
     if (process.env.BW_NUMBER_ACTION === 'search-edit') {
       await page.locator('td[width="82%"] select[name="findKey0"]').selectOption(
         process.env.BW_NUMBER_SEARCH_KEY || 'Dn');

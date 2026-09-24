@@ -7,6 +7,7 @@
   const EDIT = '/commpilot/Group/GroupDnManagement/Nested/index.jsp';
   let dialog = null;
   let stopRequested = false;
+  const knownCountryCodes = new Set();
 
   const currentPath = () => document.documentElement.getAttribute('data-cp-path') || location.pathname;
   const normalizedPhone = value => {
@@ -198,6 +199,45 @@
     return [...select.options].map(option => ({ name: option.textContent.trim(), value: option.value }));
   }
 
+  async function lookupNumberRows(phone) {
+    const digits = normalizedPhone(phone);
+    const exact = digits.length === 10 ? `+1-${digits}` : String(phone).trim();
+    const criteria = [];
+    const add = (op, value) => {
+      if (!criteria.some(item => item.op === op && item.value === value))
+        criteria.push({ key: 'Dn', op, value });
+    };
+    add('EQUAL_TO', exact);
+    // International DNs are commonly stored as +<country code>-<national number>.
+    // Country codes have 1–3 digits. Try each exact spelling before a suffix
+    // search; always compare the returned full DN by digits before accepting it.
+    for (const code of knownCountryCodes) if (digits.startsWith(code))
+      add('EQUAL_TO', `+${code}-${digits.slice(code.length)}`);
+    for (const length of [1, 2, 3]) if (digits.length > length + 3)
+      add('EQUAL_TO', `+${digits.slice(0, length)}-${digits.slice(length)}`);
+    for (const length of [10, 9, 8, 7]) if (digits.length >= length)
+      add('CONTAINS', digits.slice(-length));
+    let successfulSearch = false;
+    let tooMany = false;
+    for (const criterion of criteria) {
+      try {
+        const found = await window.cpListSearch([criterion], {});
+        if (found.tooMany) { tooMany = true; continue; }
+        successfulSearch = true;
+        const matches = found.rows.filter(row =>
+          normalizedPhone(row.cells[0]) === digits && row.drill?.url === EDIT);
+        if (matches.length) {
+          const countryCode = /^\+(\d{1,3})-/.exec(matches[0].cells[0])?.[1];
+          if (countryCode) knownCountryCodes.add(countryCode);
+          return matches;
+        }
+      } catch (error) { /* Try the next search form. */ }
+    }
+    if (tooMany) throw Error('CommPilot returned too many matches for this number. Use its full system format.');
+    if (!successfulSearch) throw Error('CommPilot could not complete a number lookup.');
+    return [];
+  }
+
   async function preflightDirect(sourceRows, setStatus, setProgress) {
     const preview = [];
     const repeated = new Set();
@@ -212,14 +252,8 @@
       if (!item.error) {
         setStatus(`Checking workbook number ${i + 1} of ${sourceRows.length}…`);
         setProgress('Checking numbers', i, sourceRows.length, `Row ${input.line}: ${input.phone}`);
-        const key = number.length === 10 ? `+1-${number}` : input.phone.trim();
         try {
-          const found = await window.cpListSearch([{
-            key: 'Dn', op: 'EQUAL_TO', value: key
-          }], {});
-          if (found.tooMany) throw Error('CommPilot could not narrow this number lookup.');
-          const matches = found.rows.filter(row =>
-            normalizedPhone(row.cells[0]) === number && row.drill?.url === EDIT);
+          const matches = await lookupNumberRows(input.phone);
           if (!matches.length) throw Error('Number was not found in this group.');
           const departmentsSeen = new Set(matches.map(row => normalizedLabel(row.cells[5] || 'None')));
           const drillKeys = new Set(matches.map(row => JSON.stringify(row.drill.params)));
@@ -381,13 +415,8 @@
       try {
         let matches = byNumber?.get(normalizedPhone(item.canonical));
         if (!byNumber) {
-          setProgress('Verifying by exact number', index, items.length, item.canonical);
-          const result = await window.cpListSearch([{
-            key: 'Dn', op: 'EQUAL_TO', value: item.canonical
-          }], {});
-          if (result.tooMany) throw Error('CommPilot could not narrow the readback.');
-          matches = result.rows.filter(row =>
-            normalizedPhone(row.cells[0]) === normalizedPhone(item.canonical));
+          setProgress('Verifying number', index, items.length, item.canonical);
+          matches = await lookupNumberRows(item.canonical);
         }
         matches = matches || [];
         const departments = new Set(matches.map(row => row.cells[5] || 'None'));
@@ -425,8 +454,9 @@
     overlay.className = 'cp-bulk-overlay';
     overlay.innerHTML = `<div class="cp-bulk-dialog" role="dialog" aria-modal="true"
       aria-labelledby="cp-bulk-title"><h2 id="cp-bulk-title">Bulk assign number departments</h2>
-      <p>Enter the department name as it appears in CommPilot. Leave Range End blank for one number,
-      or enter the last number of an inclusive range. Use <b>None</b> to clear a department.</p>
+      <p>Enter the department name as it appears in CommPilot. Full international numbers may be
+      entered as digits or in CommPilot's +country-code-number format. Leave Range End blank for one
+      number, or enter the last number of an inclusive range. Use <b>None</b> to clear a department.</p>
       <div class="cp-bulk-actions"><button type="button" data-action="template">Download blank Excel template</button>
       <label class="cp-bulk-file">Choose filled Excel file<input type="file" accept=".xlsx"></label></div>
       <p class="cp-bulk-status" role="status">Download the template, fill it, then choose the file.</p>
