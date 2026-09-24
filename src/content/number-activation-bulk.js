@@ -1,4 +1,4 @@
-/* Group Activate Numbers: scan every list page, preview, activate, and verify. */
+/* Group Activate Numbers: scan the sorted inactive prefix, activate, and verify. */
 (function () {
   if (window !== window.top || window.__cpActivationBulkLoaded) return;
   window.__cpActivationBulkLoaded = true;
@@ -7,6 +7,7 @@
   const MODIFY = '/commpilot/Group/DnActivation/Modify/index.jsp';
   const PAGE = '/commpilot/Common/page.jsp';
   const FIND = '/commpilot/Common/find.jsp';
+  const SORT = '/commpilot/Common/sort.jsp';
   const TABLE = 'grpDnActTable';
   let dialog = null;
   let stopRequested = false;
@@ -63,6 +64,33 @@
     return { current, total };
   }
 
+  function activationSort() {
+    const header = [...(content()?.querySelectorAll('a.listSortHeader') || [])]
+      .find(link => /^Activated\s*$/.test(link.textContent || ''));
+    if (!header) throw Error('CommPilot did not show the Activated sort column.');
+    const image = header.querySelector('img')?.getAttribute('src') || '';
+    if (/uparrow/i.test(image)) return 'ascending';
+    if (/downarrow/i.test(image)) return 'descending';
+    if (!image) return 'unsorted';
+    throw Error('CommPilot returned an unknown Activated sort indicator.');
+  }
+
+  async function sortDeactivatedFirst() {
+    let direction = activationSort();
+    if (direction === 'unsorted') {
+      await navigate(SORT, { returnPage: '/Group/DnActivation/', tableName: TABLE,
+        value: '1' }, [SORT, LIST]);
+      direction = activationSort();
+    }
+    if (direction === 'descending') {
+      await navigate(SORT, { returnPage: '/Group/DnActivation/', tableName: TABLE,
+        value: 'toggle' }, [SORT, LIST]);
+      direction = activationSort();
+    }
+    if (direction !== 'ascending')
+      throw Error('CommPilot could not sort deactivated numbers first.');
+  }
+
   async function currentRows() {
     if (typeof window.cpListSearch !== 'function') throw Error('CommPilot list reader is unavailable.');
     const found = await window.cpListSearch([], {});
@@ -110,14 +138,21 @@
 
   async function scan(setStatus, setProgress) {
     await navigate(LIST, {}, LIST); // Clears any search filter before counting pages.
+    await sortDeactivatedFirst();
+    if (pageState().current !== 1)
+      await navigate(PAGE, { returnPage: '/Group/DnActivation/', tableName: TABLE,
+        value: '0' }, [PAGE, LIST]);
     const first = pageState();
     const rows = [];
     const seen = new Set();
-    let activeRows = 0;
+    let scannedPages = 0;
+    let reachedActivated = false;
     for (let page = 1; page <= first.total; page++) {
       if (stopRequested) throw Error('Scan stopped. No activation was started.');
       if (page > 1) await navigate(PAGE,
         { returnPage: '/Group/DnActivation/', tableName: TABLE, value: String(page - 1) }, [PAGE, LIST]);
+      if (activationSort() !== 'ascending')
+        throw Error(`CommPilot lost the Activated sort on page ${page}. Scan again.`);
       const state = pageState();
       if (state.current !== page || state.total !== first.total)
         throw Error(`CommPilot changed the list while scanning page ${page}. Scan again.`);
@@ -128,16 +163,20 @@
         const label = row.cells?.[0]?.trim();
         if (!label || seen.has(label)) throw Error(`Duplicate or blank number row on page ${page}. Scan again.`);
         seen.add(label);
-        if (rowStatus(row) === 'active') { activeRows++; continue; }
+        if (rowStatus(row) === 'active') { reachedActivated = true; continue; }
+        if (reachedActivated)
+          throw Error(`CommPilot showed a deactivated row after an activated row on page ${page}. Scan again.`);
         rows.push({ label, drill: row.drill, page, numbers: [], count: countNumbers([label]), before: 'Deactivated',
           after: '—', status: 'ready', error: '' });
       }
-      setProgress('Scanning all pages', page, first.total,
-        `${rows.length} deactivated rows found · ${activeRows} active rows skipped`);
-      setStatus(`Scanned page ${page} of ${first.total}.`);
+      scannedPages = page;
+      setProgress('Scanning sorted pages', page, first.total,
+        `${rows.length} deactivated rows found` + (reachedActivated ? ' · activated rows reached' : ''));
+      setStatus(`Scanned sorted page ${page} of ${first.total}.`);
+      if (reachedActivated) break;
     }
     await navigate(LIST, {}, LIST);
-    return { rows, pages: first.total, activeRows };
+    return { rows, pages: first.total, scannedPages, reachedActivated };
   }
 
   async function findExact(label) {
@@ -200,7 +239,7 @@
     overlay.className = 'cp-bulk-overlay';
     overlay.innerHTML = `<div class="cp-bulk-dialog cp-activation-bulk-dialog" role="dialog" aria-modal="true"
       aria-labelledby="cp-activation-bulk-title"><h2 id="cp-activation-bulk-title">Activate all deactivated numbers</h2>
-      <p>Read the activation checkmarks on each list page. Range counts come from the displayed numbers. Review the preview before saving.</p>
+      <p>Sort deactivated numbers first and stop scanning at the first activated row. Range counts come from the displayed numbers. Review the preview before saving.</p>
       <div class="cp-bulk-actions"><button type="button" data-action="scan">Scan group</button></div>
       <p class="cp-bulk-status" role="status">Scan the group to find deactivated numbers.</p>
       <div class="cp-bulk-progress" hidden><div class="cp-bulk-progress-head">
@@ -240,8 +279,10 @@
         .reduce((sum, item) => sum + item.count, 0);
       if (scanned || preview.length) {
         const summary = document.createElement('p');
-        summary.textContent = `${numberCount} numbers ready in ${counts.ready} rows · ` +
-          `${counts.verified} rows verified · ${counts['already-active']} already active · ` +
+        summary.textContent = `${numberCount} number${numberCount === 1 ? '' : 's'} ready in ` +
+          `${counts.ready} row${counts.ready === 1 ? '' : 's'} · ` +
+          `${counts.verified} row${counts.verified === 1 ? '' : 's'} verified · ` +
+          `${counts['already-active']} already active · ` +
           `${counts.error} errors · ${counts.unverified} unverified`;
         table.appendChild(summary);
       }
@@ -295,11 +336,13 @@
         const result = await scan(setStatus, setProgress);
         preview = result.rows; scanned = true;
         const count = preview.reduce((sum, item) => sum + item.count, 0);
-        setStatus(count ? `Found ${count} deactivated numbers in ${preview.length} rows across ` +
-          `${result.pages} pages. Review them below.` :
-          `All rows on ${result.pages} pages are already activated.`);
-        setProgress('Preview complete', result.pages, result.pages,
-          `${result.activeRows} active rows skipped · ${count} deactivated numbers`);
+        setStatus(count ? `Found ${count} deactivated number${count === 1 ? '' : 's'} in ` +
+          `${preview.length} row${preview.length === 1 ? '' : 's'} after reading ` +
+          `${result.scannedPages} of ${result.pages} sorted pages. Review them below.` :
+          `No deactivated numbers found after reading ${result.scannedPages} of ${result.pages} sorted pages.`);
+        setProgress('Preview complete', result.scannedPages, result.scannedPages,
+          `${result.reachedActivated ? 'Stopped at the first activated row' : 'Reached the last page'} · ` +
+          `${count} deactivated numbers`);
       } catch (error) {
         preview = []; setStatus(error.message);
         setProgress('Scan stopped', 0, 0, error.message);
@@ -346,7 +389,8 @@
         }
         const verified = preview.filter(item => item.status === 'verified').length;
         const errors = preview.filter(item => ['error', 'unverified'].includes(item.status)).length;
-        setStatus(`${verified} rows saved and verified · ${errors} errors or unverified.` +
+        setStatus(`${verified} row${verified === 1 ? '' : 's'} saved and verified · ` +
+          `${errors} errors or unverified.` +
           (stopRequested ? ' Stopped after the current row.' :
             errors ? ' Stopped on the first error. Review the result before scanning again.' :
               ' Review the before and after results below.'));

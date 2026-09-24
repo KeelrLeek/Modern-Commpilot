@@ -10,7 +10,7 @@ const edge = process.env.CHROME_PATH || [
 ].find(fs.existsSync);
 const bulk = path.resolve(__dirname, '../src/content/number-activation-bulk.js');
 
-async function fixture(badPage = false, rangeAsOne = false, mismatch = false) {
+async function fixture(badPage = false, rangeAsOne = false, mismatch = false, advertisedPages = 3) {
   assert.ok(edge, 'Set CHROME_PATH to Edge or Chrome');
   const browser = await chromium.launch({ executablePath: edge, headless: true });
   const page = await browser.newPage();
@@ -20,7 +20,7 @@ async function fixture(badPage = false, rangeAsOne = false, mismatch = false) {
     body: '<!doctype html><html><body><table><tr><td width="82%"></td></tr></table></body></html>'
   }));
   await page.goto(`https://apps-sbx.avpaas.io${list}`);
-  await page.evaluate(({ badPage, rangeAsOne, mismatch }) => {
+  await page.evaluate(({ badPage, rangeAsOne, mismatch, advertisedPages }) => {
     const LIST = '/commpilot/Group/DnActivation/';
     const MODIFY = '/commpilot/Group/DnActivation/Modify/index.jsp';
     const cell = document.querySelector('td[width="82%"]');
@@ -33,15 +33,18 @@ async function fixture(badPage = false, rangeAsOne = false, mismatch = false) {
       { label: '+1-4444444444', numbers: ['+1-4444444444'], active: false },
       { label: '+1-5555555555', numbers: ['+1-5555555555'], active: true }
     ];
-    let pageIndex = 0, found = null, current = null, staged = false;
+    let pageIndex = 0, found = null, current = null, staged = false, sorted = false;
     window.calls = [];
     window.confirm = () => true;
     const selected = () => found ? data.filter(item =>
       item.label === found.value || (found.op === '2' && item.label.includes(found.value))) :
-      data.slice(pageIndex * 2, pageIndex * 2 + 2);
+      (sorted ? [...data].sort((a, b) => Number(a.active) - Number(b.active)) : data)
+        .slice(pageIndex * 2, pageIndex * 2 + 2);
     const listView = () => {
       cell.innerHTML = `<form name="mainForm"><input name="ok" type="button" value="OK"></form>
-        <div>[ Page ${found ? 1 : badPage && pageIndex === 1 ? 1 : pageIndex + 1} of ${found ? 1 : 3} ]</div>`;
+        <a class="listSortHeader">Phone Numbers${sorted ? '' : '<img src="/commpilot/Graphics/uparrow.gif">'}</a>
+        <a class="listSortHeader">Activated${sorted ? '<img src="/commpilot/Graphics/uparrow.gif">' : ''}</a>
+        <div>[ Page ${found ? 1 : badPage && pageIndex === 1 ? 1 : pageIndex + 1} of ${found ? 1 : advertisedPages} ]</div>`;
     };
     const editView = () => {
       const left = staged || current.active ? [] : current.numbers;
@@ -78,9 +81,11 @@ async function fixture(badPage = false, rangeAsOne = false, mismatch = false) {
       window.calls.push(url + (params.value != null ? ':' + params.value : ''));
       if (url === '/commpilot/Common/page.jsp') {
         pageIndex = Number(params.value); found = null;
+      } else if (url === '/commpilot/Common/sort.jsp') {
+        sorted = true; pageIndex = 0; found = null;
       } else if (url === '/commpilot/Common/find.jsp') {
         found = { value: params.value, op: params.op }; pageIndex = 0;
-      } else if (url === LIST) { found = null; pageIndex = 0; }
+      } else if (url === LIST) { found = null; pageIndex = 0; sorted = false; }
       history.pushState(null, '', url);
       document.documentElement.setAttribute('data-cp-path', url);
       if (url === MODIFY) {
@@ -88,7 +93,7 @@ async function fixture(badPage = false, rangeAsOne = false, mismatch = false) {
       } else listView();
       document.dispatchEvent(new Event('cp:reskin'));
     };
-  }, { badPage, rangeAsOne, mismatch });
+  }, { badPage, rangeAsOne, mismatch, advertisedPages });
   await page.addScriptTag({ path: bulk });
   return { browser, page };
 }
@@ -99,7 +104,7 @@ test('activation reads each page checkmark without opening rows, then saves and 
     await page.locator('#cp-bulk-activation-launch').click();
     await page.locator('.cp-activation-bulk-dialog [data-action="scan"]').click();
     await page.waitForFunction(() => !document.querySelector('.cp-activation-bulk-dialog [data-action="scan"]').disabled);
-    assert.match(await page.locator('.cp-bulk-status').innerText(), /Found 3 deactivated numbers in 2 rows across 3 pages/);
+    assert.match(await page.locator('.cp-bulk-status').innerText(), /Found 3 deactivated numbers in 2 rows after reading 2 of 3 sorted pages/);
     assert.match(await page.locator('.cp-bulk-preview').innerText(), /2 numbers: \+1-2222222222 - \+1-2222222223/);
     assert.match(await page.locator('.cp-bulk-preview').innerText(), /2 rows · 0 rows verified/);
     assert.equal((await page.evaluate(() => window.calls)).filter(c => c === '/commpilot/Group/DnActivation/Modify/index.jsp').length, 0);
@@ -108,8 +113,9 @@ test('activation reads each page checkmark without opening rows, then saves and 
     assert.match(await page.locator('.cp-bulk-status').innerText(), /2 rows saved and verified · 0 errors/);
     assert.match(await page.locator('.cp-bulk-preview').innerText(), /Saved and verified/);
     const calls = await page.evaluate(() => window.calls);
+    assert.ok(calls.includes('/commpilot/Common/sort.jsp:1'));
     assert.ok(calls.includes('/commpilot/Common/page.jsp:1'));
-    assert.ok(calls.includes('/commpilot/Common/page.jsp:2'));
+    assert.ok(!calls.includes('/commpilot/Common/page.jsp:2'));
     assert.equal(calls.filter(c => c.startsWith('submit-add:')).length, 2);
     assert.equal(calls.filter(c => c.startsWith('save:')).length, 2);
   } finally { await browser.close(); }
@@ -149,5 +155,18 @@ test('activation blocks Apply when a checkmark disagrees with row state', async 
     await page.waitForFunction(() => !document.querySelector('.cp-activation-bulk-dialog [data-action="scan"]').disabled);
     assert.match(await page.locator('.cp-bulk-status').innerText(), /activation checkmark disagrees/);
     assert.equal(await page.locator('.cp-activation-bulk-dialog [data-action="apply"]').isDisabled(), true);
+  } finally { await browser.close(); }
+});
+
+test('activation stops at the first active row even when 206 pages are advertised', async () => {
+  const { browser, page } = await fixture(false, false, false, 206);
+  try {
+    await page.locator('#cp-bulk-activation-launch').click();
+    await page.locator('.cp-activation-bulk-dialog [data-action="scan"]').click();
+    await page.waitForFunction(() => !document.querySelector('.cp-activation-bulk-dialog [data-action="scan"]').disabled);
+    assert.match(await page.locator('.cp-bulk-status').innerText(), /after reading 2 of 206 sorted pages/);
+    const calls = await page.evaluate(() => window.calls);
+    assert.equal(calls.filter(c => c.startsWith('/commpilot/Common/page.jsp')).length, 1);
+    assert.equal(calls.filter(c => c === '/commpilot/Group/DnActivation/Modify/index.jsp').length, 0);
   } finally { await browser.close(); }
 });

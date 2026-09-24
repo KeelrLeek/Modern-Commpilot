@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-24 18:34 UTC",
+  "updated": "2026-09-24 19:01 UTC",
   "note": "Live sandbox scan. Totals are for discovered routes so far, not the entire CommPilot site.",
   "inventory": {
     "complete": false,
@@ -43478,6 +43478,14 @@
     },
     {
       "label": "Bulk activation save on a deactivated sandbox number",
+      "status": "pass"
+    },
+    {
+      "label": "Bulk activation Activated ascending sort: inactive rows first (live sandbox)",
+      "status": "pass"
+    },
+    {
+      "label": "Bulk activation stops at the first active row, even with 206 pages (controlled test)",
       "status": "pass"
     },
     {
