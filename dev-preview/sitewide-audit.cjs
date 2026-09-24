@@ -1243,6 +1243,16 @@ async function testTarget(page, target, folder) {
     if (record.uploadForms.length) console.log(JSON.stringify({ event: 'upload-inventory',
       area, label: record.label, path: wanted, forms: record.uploadForms }));
   }
+  if (process.env.BW_INSPECT_UPLOAD_FORM === '1') {
+    const forms = await page.evaluate(() => [...document.querySelectorAll('td[width="82%"] form')]
+      .filter(form => form.querySelector('input[type="file"]'))
+      .map(form => ({ action: new URL(form.getAttribute('action') || location.pathname, location.href).pathname,
+        controls: [...form.elements].filter(item => item.name && item.type !== 'hidden' && item.type !== 'password')
+          .map(item => ({ name: item.name, type: item.type, required: item.required || false,
+            label: /^(?:button|submit)$/.test(item.type || '') ? item.value : undefined })) })));
+    if (forms.length) console.log(JSON.stringify({ event: 'upload-form-controls', area,
+      label: record.label, path: wanted, forms }));
+  }
   if (process.env.BW_INSPECT_TRANSFER_CONTROLS === '1' &&
       (record.dynamicControls?.transfer || 0) > 0)
     console.log(JSON.stringify({ event: 'transfer-controls', area, label: record.label,

@@ -170,6 +170,50 @@ test('Shared Call Appearance Add returns to its list URL after a successful save
   } finally { await browser.close(); }
 });
 
+test('Answer Confirmation saves a multipart form with no selected file in-shell', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const pathname = '/commpilot/ServiceProvider/AnswerConfirmation/';
+    const servlet = '/commpilot/servlet/AnswerConfirmationServlet';
+    const shell = token => `<!doctype html><html><head><title>Answer Confirmation</title></head><body>
+      <form name="leftNavForm"><a class="leftnavfolder">Utilities</a></form>
+      <input name="formtokenserial" value="${token}"><table><tr><td width="82%">
+      <form name="mainForm" action="${servlet}" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="formtokenserial" value="${token}">
+      <input type="radio" name="answerConfirmationSelection" value="system" checked>
+      <input type="file" name="file_answerConfirmationSelection">
+      <input type="submit" name="apply" value="Apply"></form>
+      <div id="saved">${token === 'token-3' ? 'Saved' : ''}</div></td></tr></table>
+      <script>window.redirectPost=function(url,params){window.nativeNavigation={url,params};};</script>
+      </body></html>`;
+    let servletPosts = 0;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const target = new URL(request.url()).pathname;
+      if (target === servlet && request.method() === 'POST') {
+        servletPosts++;
+        assert.match(request.headers()['content-type'], /^multipart\/form-data; boundary=/);
+        assert.ok(request.postDataBuffer().includes(Buffer.from('name="apply"')));
+        return route.fulfill({ status: 200, contentType: 'text/html',
+          body: `<html><body><input name="formtokenserial" value="token-2"><script>` +
+            `redirectPost('${pathname}', {});</script></body></html>` });
+      }
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: shell(request.method() === 'POST' ? 'token-3' : 'token-1') });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${pathname}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.originalDocument = document; });
+    await page.locator('input[name="apply"]').click();
+    await page.locator('#saved:text-is("Saved")').waitFor();
+    assert.equal(await page.evaluate(() => location.pathname), pathname);
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.equal(servletPosts, 1);
+  } finally { await browser.close(); }
+});
+
 test('PJAX leaves the current page intact after a server error', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });

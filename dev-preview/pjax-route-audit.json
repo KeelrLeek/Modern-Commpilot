@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-24 13:14",
+  "updated": "2026-09-24 13:43",
   "note": "Live sandbox scan. Totals are for discovered routes so far, not the entire CommPilot site.",
   "inventory": {
     "complete": false,
@@ -471,13 +471,19 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:42.096Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
       "detail": "HTTP 200",
       "deepScanned": true,
       "controlScanned": true,
-      "backPending": true,
+      "backPending": false,
       "dynamicControls": {
         "search": 0,
         "sort": 0,
@@ -6043,6 +6049,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:21:24.447Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:21:42.804Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -6073,7 +6091,14 @@
           ]
         }
       ],
-      "uploadScanned": true
+      "uploadScanned": true,
+      "interactionChecks": {
+        "submit": {
+          "status": "pass",
+          "detail": "No-file Apply sent one multipart POST to AnswerConfirmationServlet; followed its token-bearing stub in the same document; Saved visible.",
+          "at": "2026-09-24T13:38:17.164Z"
+        }
+      }
     },
     {
       "id": "discovered-89",
@@ -6355,6 +6380,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:38:31.007Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -6389,7 +6420,14 @@
           ]
         }
       ],
-      "uploadScanned": true
+      "uploadScanned": true,
+      "interactionChecks": {
+        "submit": {
+          "status": "pass",
+          "detail": "No-file Apply saved Voice Portal Branding in PJAX; one multipart servlet POST.",
+          "at": "2026-09-24T13:43:42.648Z"
+        }
+      }
     },
     {
       "id": "discovered-93",
@@ -6427,6 +6465,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:38:34.429Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -6461,7 +6505,14 @@
           ]
         }
       ],
-      "uploadScanned": true
+      "uploadScanned": true,
+      "interactionChecks": {
+        "submit": {
+          "status": "pass",
+          "detail": "No-file Apply saved Web Portal Branding in PJAX; one multipart servlet POST.",
+          "at": "2026-09-24T13:43:42.649Z"
+        }
+      }
     },
     {
       "id": "discovered-94",
@@ -11332,7 +11383,14 @@
           ]
         }
       ],
-      "uploadScanned": true
+      "uploadScanned": true,
+      "interactionChecks": {
+        "submit": {
+          "status": "pass",
+          "detail": "No-file Apply saved Report Branding in PJAX; one multipart servlet POST.",
+          "at": "2026-09-24T13:43:42.649Z"
+        }
+      }
     },
     {
       "id": "discovered-165",
@@ -12868,24 +12926,6 @@
       "status": "pass",
       "attempts": [
         {
-          "at": "2026-09-23T20:45:48.490Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T21:27:11.853Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
-          "at": "2026-09-23T21:44:37.407Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
           "at": "2026-09-23T22:02:56.382Z",
           "status": "pass",
           "httpStatus": 200,
@@ -12935,6 +12975,24 @@
         },
         {
           "at": "2026-09-24T12:54:01.378Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:41:58.754Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:42:22.729Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:42:36.543Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -13180,7 +13238,14 @@
           ]
         }
       ],
-      "uploadScanned": true
+      "uploadScanned": true,
+      "interactionChecks": {
+        "submit": {
+          "status": "pass",
+          "detail": "No-file Apply stayed in PJAX; one Intercept servlet POST.",
+          "at": "2026-09-24T13:43:42.649Z"
+        }
+      }
     },
     {
       "id": "discovered-191",
@@ -19938,7 +20003,14 @@
           ]
         }
       ],
-      "uploadScanned": true
+      "uploadScanned": true,
+      "interactionChecks": {
+        "submit": {
+          "status": "pass",
+          "detail": "No-file Apply stayed in PJAX; one Intercept servlet POST.",
+          "at": "2026-09-24T13:43:42.649Z"
+        }
+      }
     },
     {
       "id": "discovered-307",
@@ -22180,6 +22252,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:42.541Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22205,7 +22283,9 @@
         "sameDocument": true,
         "reskinned": true,
         "rowLinks": 0
-      }
+      },
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-341",
@@ -22231,6 +22311,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:43.054Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22246,7 +22332,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-342",
@@ -22296,6 +22384,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:43.540Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22332,7 +22426,9 @@
           "reskinned": true,
           "backStatus": "pass"
         }
-      }
+      },
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-343",
@@ -22358,6 +22454,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:44.021Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22373,7 +22475,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-344",
@@ -22399,6 +22503,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:44.512Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22414,7 +22524,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-345",
@@ -22440,6 +22552,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:44.996Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22455,7 +22573,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-346",
@@ -22481,6 +22601,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:45.539Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22496,7 +22622,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-347",
@@ -22522,6 +22650,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:46.019Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22537,7 +22671,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-348",
@@ -22569,6 +22705,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:46.527Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22594,7 +22736,9 @@
         "sameDocument": true,
         "reskinned": true,
         "rowLinks": 0
-      }
+      },
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-349",
@@ -22626,6 +22770,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:46.992Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22641,7 +22791,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-350",
@@ -22667,6 +22819,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:47.453Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22682,7 +22840,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-351",
@@ -22708,6 +22868,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:47.951Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22723,7 +22889,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-352",
@@ -22749,6 +22917,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:48.453Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22764,7 +22938,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-353",
@@ -22796,6 +22972,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:48.971Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22811,7 +22993,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-354",
@@ -22837,6 +23021,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:49.453Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22852,7 +23042,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-355",
@@ -22884,6 +23076,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:49.923Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22909,7 +23107,9 @@
         "sameDocument": true,
         "reskinned": true,
         "rowLinks": 0
-      }
+      },
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-356",
@@ -22935,6 +23135,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:17:50.423Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -22950,7 +23156,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-357",
@@ -22982,6 +23190,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:15.393Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -22997,7 +23211,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-358",
@@ -23029,6 +23245,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:16.130Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23044,7 +23266,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-359",
@@ -23076,6 +23300,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:16.980Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23091,7 +23321,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-360",
@@ -23123,6 +23355,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:17.765Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23138,7 +23376,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-361",
@@ -23170,6 +23410,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:18.866Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23185,7 +23431,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-362",
@@ -23217,6 +23465,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:19.769Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23232,7 +23486,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-363",
@@ -23264,6 +23520,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:20.558Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23279,7 +23541,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-364",
@@ -23311,6 +23575,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:21.448Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23326,7 +23596,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-365",
@@ -23358,6 +23630,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:22.315Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23373,7 +23651,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-366",
@@ -23405,6 +23685,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:23.114Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23420,7 +23706,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-367",
@@ -23458,6 +23746,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:24.369Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23473,7 +23767,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-368",
@@ -23505,6 +23801,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:25.296Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23520,7 +23822,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-369",
@@ -23552,6 +23856,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:26.207Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23567,7 +23877,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-370",
@@ -23599,6 +23911,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:27.468Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23614,7 +23932,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-371",
@@ -23646,6 +23966,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:16.681Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23661,7 +23987,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-372",
@@ -23693,6 +24021,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:17.098Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23708,7 +24042,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-373",
@@ -23740,6 +24076,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:17.493Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23755,7 +24097,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-374",
@@ -23787,6 +24131,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:17.893Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23802,7 +24152,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-375",
@@ -23834,6 +24186,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:18.289Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23849,7 +24207,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-376",
@@ -23881,6 +24241,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:18.699Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23896,7 +24262,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-377",
@@ -23928,6 +24296,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:19.094Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23943,7 +24317,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-378",
@@ -23975,6 +24351,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:19.480Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -23990,7 +24372,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-379",
@@ -24022,6 +24406,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:19.932Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24037,7 +24427,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-380",
@@ -24069,6 +24461,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:20.342Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24084,7 +24482,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-381",
@@ -24122,6 +24522,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:20.739Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24137,7 +24543,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-382",
@@ -24175,6 +24583,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:21.146Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24190,7 +24604,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-383",
@@ -24222,6 +24638,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:21.571Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24237,7 +24659,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-384",
@@ -24275,6 +24699,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:21.979Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24290,7 +24720,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-385",
@@ -24328,6 +24760,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:22.386Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24343,7 +24781,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-386",
@@ -24381,6 +24821,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:22.790Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24396,7 +24842,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-387",
@@ -24434,6 +24882,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:23.198Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24449,7 +24903,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-388",
@@ -24487,6 +24943,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:23.602Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24502,7 +24964,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-389",
@@ -24534,6 +24998,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:24.128Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24549,7 +25019,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-390",
@@ -24581,6 +25053,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:24.676Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24596,7 +25074,9 @@
         "transfer": 0,
         "submit": 2
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-391",
@@ -24628,6 +25108,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:25.124Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24643,7 +25129,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-392",
@@ -24675,6 +25163,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:25.530Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24690,7 +25184,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-393",
@@ -24728,6 +25224,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:25.943Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24743,7 +25245,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-394",
@@ -24775,6 +25279,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:26.327Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24790,7 +25300,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-395",
@@ -24822,6 +25334,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:26.844Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24837,7 +25355,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-396",
@@ -24869,6 +25389,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:27.294Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24884,7 +25410,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-397",
@@ -24916,6 +25444,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:27.751Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24931,7 +25465,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-398",
@@ -24963,6 +25499,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:28.192Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -24978,7 +25520,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-399",
@@ -25010,6 +25554,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:28.625Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -25025,7 +25575,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-400",
@@ -25057,6 +25609,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:28.998Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -25072,7 +25630,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-401",
@@ -25110,6 +25670,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:29.555Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -25125,7 +25691,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-402",
@@ -25157,6 +25725,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:29.965Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -25172,7 +25746,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-403",
@@ -25204,6 +25780,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:30.384Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -25219,7 +25801,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-404",
@@ -25251,6 +25835,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:30.819Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -25266,7 +25856,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-405",
@@ -25298,6 +25890,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:31.265Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -25313,7 +25911,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-406",
@@ -25345,6 +25945,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:31.687Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -25360,7 +25966,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-407",
@@ -25392,6 +26000,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:32.102Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -25407,7 +26021,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-408",
@@ -25439,6 +26055,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:32.681Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -25454,7 +26076,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-409",
@@ -25486,6 +26110,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:33.080Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -25501,7 +26131,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-410",
@@ -25533,6 +26165,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:33.563Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -25548,7 +26186,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-411",
@@ -25580,6 +26220,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:33.929Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -25595,7 +26241,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-412",
@@ -25622,6 +26270,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:51.024Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -25636,7 +26290,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-413",
@@ -25663,6 +26319,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:51.830Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -25677,7 +26339,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-414",
@@ -25704,6 +26368,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:52.728Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -25718,7 +26388,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-415",
@@ -25745,6 +26417,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:53.609Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -25759,7 +26437,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-416",
@@ -25786,6 +26466,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:54.737Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -25800,7 +26486,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-417",
@@ -25827,6 +26515,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:55.558Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -25841,7 +26535,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-418",
@@ -25868,6 +26564,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:56.367Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -25882,7 +26584,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-419",
@@ -25909,6 +26613,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:57.163Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -25923,7 +26633,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-420",
@@ -25950,6 +26662,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:57.965Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -25964,7 +26682,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-421",
@@ -25991,6 +26711,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:58.707Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26005,7 +26731,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-422",
@@ -26032,6 +26760,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:59.499Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26046,7 +26780,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-423",
@@ -26073,6 +26809,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:00.291Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26087,7 +26829,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-424",
@@ -26114,6 +26858,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:01.116Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26128,7 +26878,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-425",
@@ -26155,6 +26907,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:01.923Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26169,7 +26927,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-426",
@@ -26202,6 +26962,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:02.720Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:44.227Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26216,7 +26988,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-427",
@@ -26249,6 +27023,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:03.534Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:44.608Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26263,7 +27049,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-428",
@@ -26290,6 +27078,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:04.362Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26304,7 +27098,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-429",
@@ -26337,6 +27133,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:05.214Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:45.042Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26351,7 +27159,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-430",
@@ -26384,6 +27194,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:06.025Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:45.464Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26398,7 +27220,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-431",
@@ -26431,6 +27255,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:06.817Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:45.881Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26445,7 +27281,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-432",
@@ -26478,6 +27316,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:07.614Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:46.319Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26492,7 +27342,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-433",
@@ -26519,6 +27371,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:08.706Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26533,7 +27391,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-434",
@@ -26543,12 +27403,6 @@
       "status": "pass",
       "detail": "HTTP 200",
       "attempts": [
-        {
-          "at": "2026-09-23T19:22:02.154Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
         {
           "at": "2026-09-23T19:23:11.199Z",
           "status": "pass",
@@ -26614,6 +27468,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:09.670Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26628,7 +27488,9 @@
         "transfer": 0,
         "submit": 2
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-435",
@@ -26638,12 +27500,6 @@
       "status": "pass",
       "detail": "HTTP 200",
       "attempts": [
-        {
-          "at": "2026-09-23T19:22:02.608Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
         {
           "at": "2026-09-23T19:23:12.101Z",
           "status": "pass",
@@ -26709,6 +27565,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:10.554Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26723,7 +27585,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-436",
@@ -26733,12 +27597,6 @@
       "status": "pass",
       "detail": "HTTP 200",
       "attempts": [
-        {
-          "at": "2026-09-23T19:22:03.076Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
         {
           "at": "2026-09-23T19:23:12.823Z",
           "status": "pass",
@@ -26804,6 +27662,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:11.296Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26818,7 +27682,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-437",
@@ -26828,12 +27694,6 @@
       "status": "pass",
       "detail": "HTTP 200",
       "attempts": [
-        {
-          "at": "2026-09-23T19:22:03.559Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
         {
           "at": "2026-09-23T19:23:13.635Z",
           "status": "pass",
@@ -26899,6 +27759,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:12.107Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -26913,7 +27779,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-438",
@@ -26923,12 +27791,6 @@
       "status": "pass",
       "detail": "HTTP 200",
       "attempts": [
-        {
-          "at": "2026-09-23T19:23:14.667Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
         {
           "at": "2026-09-23T19:23:39.601Z",
           "status": "pass",
@@ -26994,6 +27856,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:12.895Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -27008,7 +27876,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-439",
@@ -27083,6 +27953,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:13.691Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": true,
@@ -27097,7 +27973,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-440",
@@ -27129,6 +28007,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:14.819Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -27144,7 +28028,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-441",
@@ -27176,6 +28062,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:15.735Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -27191,7 +28083,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-442",
@@ -27223,6 +28117,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:16.482Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -27238,7 +28138,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-443",
@@ -27270,6 +28172,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:17.365Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -27285,7 +28193,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-444",
@@ -27317,6 +28227,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:18.266Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -27332,7 +28248,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-445",
@@ -27364,6 +28282,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:19.061Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -27379,7 +28303,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-446",
@@ -27417,6 +28343,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:20.180Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:47.391Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -27432,7 +28370,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-447",
@@ -27464,6 +28404,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:20.977Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -27479,7 +28425,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-448",
@@ -27511,6 +28459,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:21.812Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -27526,7 +28480,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-449",
@@ -27558,6 +28514,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:22.622Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -27573,7 +28535,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-450",
@@ -27605,6 +28569,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:23.438Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -27620,7 +28590,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-451",
@@ -27652,6 +28624,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:24.247Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -27667,7 +28645,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-452",
@@ -27699,6 +28679,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:25.035Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -27714,7 +28700,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-453",
@@ -27741,6 +28729,18 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:26.117Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:48.070Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -27755,7 +28755,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-454",
@@ -27782,6 +28784,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:48.480Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -27796,7 +28804,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-455",
@@ -27823,6 +28833,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:48.931Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -27837,7 +28853,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-456",
@@ -27864,6 +28882,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:49.301Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -27878,7 +28902,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-457",
@@ -27910,6 +28936,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:28.762Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -27925,7 +28957,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-458",
@@ -27957,6 +28991,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:29.590Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -27972,7 +29012,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-459",
@@ -28022,6 +29064,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:30.429Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28047,7 +29095,9 @@
         "sameDocument": true,
         "reskinned": true,
         "rowLinks": 0
-      }
+      },
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-460",
@@ -28079,6 +29129,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:31.278Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28094,7 +29150,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-461",
@@ -28144,6 +29202,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:32.078Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28169,7 +29233,9 @@
         "sameDocument": true,
         "reskinned": true,
         "rowLinks": 0
-      }
+      },
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-462",
@@ -28201,6 +29267,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:32.918Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28216,7 +29288,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-463",
@@ -28248,6 +29322,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:33.723Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28263,7 +29343,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-464",
@@ -28301,6 +29383,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:34.541Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28316,7 +29404,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-465",
@@ -28348,6 +29438,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:35.370Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28363,7 +29459,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-466",
@@ -28395,6 +29493,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:18:36.178Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28410,7 +29514,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-467",
@@ -28454,6 +29560,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:34.637Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28479,7 +29591,9 @@
         "sameDocument": true,
         "reskinned": true,
         "rowLinks": 0
-      }
+      },
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-468",
@@ -28511,6 +29625,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:35.056Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28526,7 +29646,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-469",
@@ -28582,6 +29704,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:35.548Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28607,7 +29735,9 @@
         "sameDocument": true,
         "reskinned": true,
         "rowLinks": 0
-      }
+      },
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-470",
@@ -28639,6 +29769,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:35.996Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28654,7 +29790,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-471",
@@ -28686,6 +29824,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:36.534Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28701,7 +29845,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-472",
@@ -28733,6 +29879,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:37.022Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28748,7 +29900,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-473",
@@ -28786,6 +29940,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:37.508Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28801,7 +29961,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-474",
@@ -28833,6 +29995,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:37.898Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28848,7 +30016,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-475",
@@ -28880,6 +30050,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:38.307Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28895,7 +30071,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-476",
@@ -28927,6 +30105,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:38.694Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28942,7 +30126,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-477",
@@ -28974,6 +30160,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:19:39.104Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "detail": "HTTP 200",
@@ -28989,7 +30181,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-478",
@@ -29016,6 +30210,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:49.918Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29030,7 +30230,9 @@
         "transfer": 0,
         "submit": 8
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-479",
@@ -29057,6 +30259,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:50.311Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29071,7 +30279,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-480",
@@ -29110,6 +30320,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:50.742Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29134,7 +30350,9 @@
         "sameDocument": true,
         "reskinned": true,
         "rowLinks": 0
-      }
+      },
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-481",
@@ -29179,6 +30397,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:51.124Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29203,7 +30427,9 @@
         "sameDocument": true,
         "reskinned": true,
         "rowLinks": 0
-      }
+      },
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-482",
@@ -29230,6 +30456,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:51.561Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29244,7 +30476,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-483",
@@ -29271,6 +30505,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:51.971Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29285,7 +30525,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-484",
@@ -29324,6 +30566,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:52.367Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29348,7 +30596,9 @@
         "sameDocument": true,
         "reskinned": true,
         "rowLinks": 0
-      }
+      },
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-485",
@@ -29375,6 +30625,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:52.753Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29389,7 +30645,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-486",
@@ -29416,6 +30674,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:53.196Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29430,7 +30694,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-487",
@@ -29457,6 +30723,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:53.589Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29471,7 +30743,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-488",
@@ -29498,6 +30772,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:53.998Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29512,7 +30792,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-489",
@@ -29545,6 +30827,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:54.412Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29559,7 +30847,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-490",
@@ -29586,6 +30876,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:54.815Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29600,7 +30896,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-491",
@@ -29627,6 +30925,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:55.200Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29641,7 +30945,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-492",
@@ -29668,6 +30974,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:55.586Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29682,7 +30994,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-493",
@@ -29709,6 +31023,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:55.988Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29723,7 +31043,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-494",
@@ -29750,6 +31072,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:20:56.367Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "flakyHistory": false,
@@ -29764,7 +31092,9 @@
         "transfer": 0,
         "submit": 6
       },
-      "dynamicScanned": true
+      "dynamicScanned": true,
+      "uploadForms": [],
+      "uploadScanned": true
     },
     {
       "id": "discovered-495",
@@ -30391,12 +31721,6 @@
       "detail": "HTTP 200; auto-followed to /commpilot/Group/DefaultConfig/Nested/Files/",
       "attempts": [
         {
-          "at": "2026-09-23T20:17:28.867Z",
-          "status": "pass",
-          "httpStatus": 200,
-          "sameDocument": true
-        },
-        {
           "at": "2026-09-23T20:17:46.169Z",
           "status": "pass",
           "httpStatus": 200,
@@ -30458,6 +31782,12 @@
         },
         {
           "at": "2026-09-24T12:54:01.799Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:42:36.973Z",
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
@@ -33298,7 +34628,14 @@
           ]
         }
       ],
-      "uploadScanned": true
+      "uploadScanned": true,
+      "interactionChecks": {
+        "submit": {
+          "status": "pass",
+          "detail": "Blank Add sent one multipart servlet POST; validation rendered in the same document.",
+          "at": "2026-09-24T13:43:42.649Z"
+        }
+      }
     },
     {
       "id": "discovered-552",
@@ -34060,7 +35397,14 @@
           ]
         }
       ],
-      "uploadScanned": true
+      "uploadScanned": true,
+      "interactionChecks": {
+        "submit": {
+          "status": "pass",
+          "detail": "Blank Add sent one multipart servlet POST; validation rendered in the same document.",
+          "at": "2026-09-24T13:43:42.649Z"
+        }
+      }
     },
     {
       "id": "discovered-565",
@@ -36927,7 +38271,7 @@
       "interactionChecks": {
         "submit": {
           "status": "pass",
-          "detail": "Four sandbox saves appeared in the list without a reload; successful save now returns to the list URL; test entries removed.",
+          "detail": "Eleven sandbox appearances saved, including three new device profiles and a consecutive new-profile Add; list URL corrected; all test appearances and device profiles removed.",
           "at": "2026-09-24T13:14:27.158Z"
         }
       }
@@ -39889,6 +41233,12 @@
           "status": "pass",
           "httpStatus": 200,
           "sameDocument": true
+        },
+        {
+          "at": "2026-09-24T13:42:37.153Z",
+          "status": "pass",
+          "httpStatus": 200,
+          "sameDocument": true
         }
       ],
       "controlScanned": true,
@@ -41986,6 +43336,46 @@
     },
     {
       "label": "Shared Call Appearance Add save and list return",
+      "status": "pass"
+    },
+    {
+      "label": "Call Center Utilities Back replay",
+      "status": "pass"
+    },
+    {
+      "label": "Answer Confirmation multipart Apply",
+      "status": "pass"
+    },
+    {
+      "label": "Voice Portal Branding multipart Apply",
+      "status": "pass"
+    },
+    {
+      "label": "Web Portal Branding multipart Apply",
+      "status": "pass"
+    },
+    {
+      "label": "Call Center Report Branding multipart Apply",
+      "status": "pass"
+    },
+    {
+      "label": "Intercept Group and User multipart Apply",
+      "status": "pass"
+    },
+    {
+      "label": "Announcement Repository blank Add validation",
+      "status": "pass"
+    },
+    {
+      "label": "Report Templates blank Add validation",
+      "status": "pass"
+    },
+    {
+      "label": "Announcement Repository Add Cancel returns to its list in-shell",
+      "status": "pass"
+    },
+    {
+      "label": "Report Templates Add Cancel returns to its list in-shell",
       "status": "pass"
     }
   ]
