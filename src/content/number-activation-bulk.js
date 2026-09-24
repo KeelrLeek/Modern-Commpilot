@@ -47,8 +47,9 @@
 
   async function navigate(url, params, expected) {
     await waitForReskin(() => window.redirectPost(url, params || {}));
-    if (path() !== expected)
-      throw Error(`CommPilot opened ${path()} instead of ${expected}.`);
+    const allowed = Array.isArray(expected) ? expected : [expected];
+    if (!allowed.includes(path()))
+      throw Error(`CommPilot opened ${path()} instead of ${allowed.join(' or ')}.`);
   }
 
   function pageState() {
@@ -73,8 +74,11 @@
 
   function rowStatus(row) {
     const raw = row.drill?.params?.activated ?? row.drill?.params?.P_activated;
-    if (raw === 'true') return 'active';
-    if (raw === 'false') return 'inactive';
+    const checkmark = row.cells?.[1] === '✓';
+    if (raw === 'true' && checkmark) return 'active';
+    if (raw === 'false' && !checkmark) return 'inactive';
+    if (raw === 'true' || raw === 'false')
+      throw Error(`CommPilot's activation checkmark disagrees with ${row.cells?.[0] || 'a row'}. Scan again.`);
     throw Error(`CommPilot did not identify the activation state for ${row.cells?.[0] || 'a row'}.`);
   }
 
@@ -87,11 +91,6 @@
       throw Error('CommPilot did not show the Activate Numbers edit controls.');
     const values = select => [...select.options].map(option => option.value.trim()).filter(Boolean);
     return { deactivated: values(deactivated), activated: values(activated) };
-  }
-
-  function sameMembers(left, right) {
-    return left.length === right.length &&
-      left.every(value => right.includes(value)) && new Set(left).size === left.length;
   }
 
   function countNumbers(values) {
@@ -118,7 +117,7 @@
     for (let page = 1; page <= first.total; page++) {
       if (stopRequested) throw Error('Scan stopped. No activation was started.');
       if (page > 1) await navigate(PAGE,
-        { returnPage: '/Group/DnActivation/', tableName: TABLE, value: String(page - 1) }, LIST);
+        { returnPage: '/Group/DnActivation/', tableName: TABLE, value: String(page - 1) }, [PAGE, LIST]);
       const state = pageState();
       if (state.current !== page || state.total !== first.total)
         throw Error(`CommPilot changed the list while scanning page ${page}. Scan again.`);
@@ -130,28 +129,12 @@
         if (!label || seen.has(label)) throw Error(`Duplicate or blank number row on page ${page}. Scan again.`);
         seen.add(label);
         if (rowStatus(row) === 'active') { activeRows++; continue; }
-        rows.push({ label, drill: row.drill, page, numbers: [], count: 0, before: 'Deactivated',
+        rows.push({ label, drill: row.drill, page, numbers: [], count: countNumbers([label]), before: 'Deactivated',
           after: '—', status: 'ready', error: '' });
       }
       setProgress('Scanning all pages', page, first.total,
         `${rows.length} deactivated rows found · ${activeRows} active rows skipped`);
       setStatus(`Scanned page ${page} of ${first.total}.`);
-    }
-    for (let i = 0; i < rows.length; i++) {
-      if (stopRequested) throw Error('Scan stopped. No activation was started.');
-      const item = rows[i];
-      setStatus(`Inspecting deactivated row ${i + 1} of ${rows.length}: ${item.label}…`);
-      setProgress('Counting numbers in ranges', i, rows.length, item.label);
-      await navigate(item.drill.url, item.drill.params, MODIFY);
-      const actual = members();
-      if (!actual.deactivated.length)
-        throw Error(`${item.label} no longer contains deactivated numbers. Scan again.`);
-      if (actual.deactivated.some(value => actual.activated.includes(value)))
-        throw Error(`${item.label} showed a number on both sides. Scan again.`);
-      item.numbers = actual.deactivated;
-      item.count = countNumbers(item.numbers);
-      setProgress('Counting numbers in ranges', i + 1, rows.length,
-        `${item.label}: ${item.count} number${item.count === 1 ? '' : 's'}`);
     }
     await navigate(LIST, {}, LIST);
     return { rows, pages: first.total, activeRows };
@@ -174,16 +157,16 @@
     const found = await findExact(item.label);
     if (found.length !== 1) throw Error(`Could not uniquely find ${item.label} before activation.`);
     if (rowStatus(found[0]) === 'active') {
-      await navigate(found[0].drill.url, found[0].drill.params, MODIFY);
-      if (!item.numbers.every(value => members().activated.includes(value)))
-        throw Error('The row appears active but its edit page did not confirm every number.');
       item.after = 'Activated';
       return 'already-active';
     }
     await navigate(found[0].drill.url, found[0].drill.params, MODIFY);
     const before = members();
-    if (!sameMembers(before.deactivated, item.numbers))
-      throw Error('The deactivated numbers in this row changed since preview. Scan again.');
+    if (!before.deactivated.length ||
+        before.deactivated.some(value => before.activated.includes(value)) ||
+        countNumbers(before.deactivated) !== item.count)
+      throw Error('The numbers in this row do not match the preview. Scan again.');
+    item.numbers = before.deactivated;
     const form = document.forms.mainForm;
     for (const option of form.elements.deactivatedList.options)
       option.selected = item.numbers.includes(option.value.trim());
@@ -217,7 +200,7 @@
     overlay.className = 'cp-bulk-overlay';
     overlay.innerHTML = `<div class="cp-bulk-dialog cp-activation-bulk-dialog" role="dialog" aria-modal="true"
       aria-labelledby="cp-activation-bulk-title"><h2 id="cp-activation-bulk-title">Activate all deactivated numbers</h2>
-      <p>Scan every page of this group, including numbers inside range rows. Review the preview before saving.</p>
+      <p>Read the activation checkmarks on each list page. Range counts come from the displayed numbers. Review the preview before saving.</p>
       <div class="cp-bulk-actions"><button type="button" data-action="scan">Scan group</button></div>
       <p class="cp-bulk-status" role="status">Scan the group to find deactivated numbers.</p>
       <div class="cp-bulk-progress" hidden><div class="cp-bulk-progress-head">
@@ -274,8 +257,8 @@
       const body = document.createElement('tbody');
       preview.slice(page * size, (page + 1) * size).forEach(item => {
         const tr = document.createElement('tr');
-        [item.label, item.count === 1 ? item.numbers[0] :
-          `${item.count} numbers: ${item.numbers.join(', ')}`,
+        [item.label, item.count === 1 ? item.label :
+          `${item.count} numbers: ${item.label}`,
         item.before, item.after, item.error || ({ ready: 'Ready to activate',
           verified: 'Saved and verified', 'already-active': 'Already activated',
           unverified: 'Result could not be verified' }[item.status] || item.status)]
@@ -349,7 +332,7 @@
             // Never mark a failed save as success without a fresh server readback.
             try {
               const found = await findExact(item.label);
-              if (found.length === 1 && rowStatus(found[0]) === 'active') {
+              if (item.numbers.length && found.length === 1 && rowStatus(found[0]) === 'active') {
                 await navigate(found[0].drill.url, found[0].drill.params, MODIFY);
                 if (item.numbers.every(value => members().activated.includes(value))) {
                   item.status = 'verified'; item.after = 'Activated'; item.error = '';

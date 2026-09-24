@@ -43465,6 +43465,10 @@
       "status": "pass"
     },
     {
+      "label": "Bulk activation accepts Common/page.jsp and reads checkmarks without edit opens (controlled browser test)",
+      "status": "pass"
+    },
+    {
       "label": "Bulk activation range preview, save, and readback (controlled browser test)",
       "status": "pass"
     },

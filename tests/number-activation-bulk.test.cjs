@@ -10,7 +10,7 @@ const edge = process.env.CHROME_PATH || [
 ].find(fs.existsSync);
 const bulk = path.resolve(__dirname, '../src/content/number-activation-bulk.js');
 
-async function fixture(badPage = false, rangeAsOne = false) {
+async function fixture(badPage = false, rangeAsOne = false, mismatch = false) {
   assert.ok(edge, 'Set CHROME_PATH to Edge or Chrome');
   const browser = await chromium.launch({ executablePath: edge, headless: true });
   const page = await browser.newPage();
@@ -20,7 +20,7 @@ async function fixture(badPage = false, rangeAsOne = false) {
     body: '<!doctype html><html><body><table><tr><td width="82%"></td></tr></table></body></html>'
   }));
   await page.goto(`https://apps-sbx.avpaas.io${list}`);
-  await page.evaluate(({ badPage, rangeAsOne }) => {
+  await page.evaluate(({ badPage, rangeAsOne, mismatch }) => {
     const LIST = '/commpilot/Group/DnActivation/';
     const MODIFY = '/commpilot/Group/DnActivation/Modify/index.jsp';
     const cell = document.querySelector('td[width="82%"]');
@@ -66,14 +66,14 @@ async function fixture(badPage = false, rangeAsOne = false) {
     };
     listView();
     window.cpListSearch = async () => ({ tooMany: false, rows: selected().map(item => ({
-      cells: [item.label, item.active ? '✓' : ''],
+      cells: [item.label, item.active || (mismatch && item.label.startsWith('+1-222')) ? '✓' : ''],
       drill: { url: MODIFY, params: { key: item.label,
         P_key: item.label, activated: String(item.active), P_activated: String(item.active) } }
     })) });
     window.redirectPost = (url, params = {}) => {
       window.calls.push(url + (params.value != null ? ':' + params.value : ''));
       if (url === '/commpilot/Common/page.jsp') {
-        pageIndex = Number(params.value); found = null; url = LIST;
+        pageIndex = Number(params.value); found = null;
       } else if (url === '/commpilot/Common/find.jsp') {
         found = { value: params.value, op: params.op }; pageIndex = 0;
       } else if (url === LIST) { found = null; pageIndex = 0; }
@@ -84,20 +84,21 @@ async function fixture(badPage = false, rangeAsOne = false) {
       } else listView();
       document.dispatchEvent(new Event('cp:reskin'));
     };
-  }, { badPage, rangeAsOne });
+  }, { badPage, rangeAsOne, mismatch });
   await page.addScriptTag({ path: bulk });
   return { browser, page };
 }
 
-test('activation scans all pages and range members, then saves and verifies each row', async () => {
+test('activation reads each page checkmark without opening rows, then saves and verifies', async () => {
   const { browser, page } = await fixture();
   try {
     await page.locator('#cp-bulk-activation-launch').click();
     await page.locator('.cp-activation-bulk-dialog [data-action="scan"]').click();
     await page.waitForFunction(() => !document.querySelector('.cp-activation-bulk-dialog [data-action="scan"]').disabled);
     assert.match(await page.locator('.cp-bulk-status').innerText(), /Found 3 deactivated numbers in 2 rows across 3 pages/);
-    assert.match(await page.locator('.cp-bulk-preview').innerText(), /\+1-2222222222, \+1-2222222223/);
+    assert.match(await page.locator('.cp-bulk-preview').innerText(), /2 numbers: \+1-2222222222 - \+1-2222222223/);
     assert.match(await page.locator('.cp-bulk-preview').innerText(), /2 rows · 0 rows verified/);
+    assert.equal((await page.evaluate(() => window.calls)).filter(c => c === '/commpilot/Group/DnActivation/Modify/index.jsp').length, 0);
     await page.locator('.cp-activation-bulk-dialog [data-action="apply"]').click();
     await page.waitForFunction(() => !document.querySelector('.cp-activation-bulk-dialog [data-action="scan"]').disabled);
     assert.match(await page.locator('.cp-bulk-status').innerText(), /2 rows saved and verified · 0 errors/);
@@ -132,5 +133,16 @@ test('activation counts a compact CommPilot range as its individual numbers', as
     await page.locator('.cp-activation-bulk-dialog [data-action="apply"]').click();
     await page.waitForFunction(() => !document.querySelector('.cp-activation-bulk-dialog [data-action="scan"]').disabled);
     assert.match(await page.locator('.cp-bulk-status').innerText(), /2 rows saved and verified · 0 errors/);
+  } finally { await browser.close(); }
+});
+
+test('activation blocks Apply when a checkmark disagrees with row state', async () => {
+  const { browser, page } = await fixture(false, false, true);
+  try {
+    await page.locator('#cp-bulk-activation-launch').click();
+    await page.locator('.cp-activation-bulk-dialog [data-action="scan"]').click();
+    await page.waitForFunction(() => !document.querySelector('.cp-activation-bulk-dialog [data-action="scan"]').disabled);
+    assert.match(await page.locator('.cp-bulk-status').innerText(), /activation checkmark disagrees/);
+    assert.equal(await page.locator('.cp-activation-bulk-dialog [data-action="apply"]').isDisabled(), true);
   } finally { await browser.close(); }
 });
