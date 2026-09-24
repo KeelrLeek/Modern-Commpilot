@@ -43461,6 +43461,22 @@
       "status": "pass"
     },
     {
+      "label": "Bulk activation scans all pages and skips active rows (controlled browser test)",
+      "status": "pass"
+    },
+    {
+      "label": "Bulk activation range preview, save, and readback (controlled browser test)",
+      "status": "pass"
+    },
+    {
+      "label": "Bulk activation all-active no-op (live sandbox)",
+      "status": "pass"
+    },
+    {
+      "label": "Bulk activation save on a deactivated sandbox number",
+      "status": "pending"
+    },
+    {
       "label": "Assign Numbers Add page opens in PJAX",
       "status": "pass"
     },
