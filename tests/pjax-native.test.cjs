@@ -1635,6 +1635,114 @@ test('Tag Set Add and filtered Apply keep their owning controller in PJAX', asyn
   }
 });
 
+test('Hunt Group Profile Apply keeps Modify URL when its form has an embedded search', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const folder = '/commpilot/Common/folder_contents.jsp';
+    const modify = '/commpilot/Group/Hunt_Group/Modify/index.jsp';
+    const shell = (title, body) => `<!doctype html><html><head><title>${title}</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">Hunt Group</span></td></tr></table>
+      <form name="leftNavForm"></form><input name="formtokenserial" value="token">
+      <table><tr><td width="82%">${body}</td></tr></table>
+      <script>window.redirectPost=function(){};</script></body></html>`;
+    const profile = shell('StanMikitaHG: Hunt Group Profile',
+      '<h1>Hunt Group Profile</h1><form name="mainForm" method="post">' +
+      '<input name="unicodeLastName" value="Stan Mikita">' +
+      '<select name="findKey0"><option>Agent</option></select>' +
+      '<input name="apply" type="submit" value="Apply"></form>');
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const pathname = new URL(route.request().url()).pathname;
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: pathname === modify ? profile : shell('Folder', '<h1>Folder</h1>') });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + folder, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    await page.evaluate(pathname => window.redirectPost(pathname, {}), modify);
+    await page.getByRole('heading', { name: 'Hunt Group Profile' }).waitFor();
+    const saved = page.waitForResponse(response => response.request().method() === 'POST' &&
+      new URL(response.url()).pathname === modify);
+    await page.locator('input[name="apply"]').click();
+    await saved;
+    await page.waitForTimeout(150);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+    assert.equal(await page.evaluate(() => location.pathname), modify);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('Service Pack Migration wizard keeps its named popup target', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const base = '/commpilot/ServiceProvider/ServicePackMigration/';
+    await page.route('https://apps-sbx.avpaas.io/**', route => route.fulfill({
+      status: 200, contentType: 'text/html', body: `<!doctype html><html><head><title>Migration</title></head>
+        <body><table><tr><td class="headerBar">Service Provider</td></tr></table>
+        <form name="leftNavForm"></form><input name="formtokenserial" value="token">
+        <table><tr><td width="82%"><h1>Migration</h1></td></tr></table>
+        <script>window.redirectPost=function(url,params){window.nativeNavigation={url,params};};</script>
+        </body></html>`
+    }));
+    await page.goto('https://apps-sbx.avpaas.io' + base, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => {
+      window.wizardWin = { win: { closed: false } };
+      window.initialDocument = document;
+      window.redirectPost('Wizard/index.jsp', {});
+    });
+    assert.equal(await page.evaluate(() => window.nativeNavigation.url),
+      '/commpilot/ServiceProvider/ServicePackMigration/Wizard/index.jsp');
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+    assert.equal(await page.evaluate(() => location.pathname), base);
+  } finally { await browser.close(); }
+});
+
+test('filtered Reseller Tag Sets Delete posts to its owning list', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const list = '/commpilot/Reseller/DeviceTags/';
+    const find = '/commpilot/Common/find.jsp';
+    const posts = [];
+    const html = `<!doctype html><html><head><title>Device Management Tag Sets</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">Reseller</span></td></tr></table>
+      <form name="leftNavForm"></form><table><tr><td width="82%">
+      <h1>Device Management Tag Sets</h1><form name="mainForm" method="post">
+      <input name="hiddenCheckbox_PJAX_AUDIT_SET" type="checkbox" value="true">
+      <input name="apply" type="submit" value="Apply"></form></td></tr></table>
+      <input name="formtokenserial" value="token">
+      <script>window.redirectPost=function(){};</script></body></html>`;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const req = route.request();
+      if (req.method() === 'POST') posts.push({
+        path: new URL(req.url()).pathname, body: req.postData() || '' });
+      return route.fulfill({ status: 200, contentType: 'text/html', body: html });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + list, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    await page.evaluate(pathname => window.redirectPost(pathname, {
+      returnPage: '/Reseller/DeviceTags/', tableName: 'resellerTagSetTable',
+      key: '2', op: '2', value: 'PJAX_AUDIT_SET'
+    }), find);
+    await page.waitForFunction(pathname => location.pathname === pathname, find);
+    await page.locator('input[name="hiddenCheckbox_PJAX_AUDIT_SET"]').check();
+    await page.locator('input[name="apply"]').click();
+    await page.waitForFunction(pathname => location.pathname === pathname, list);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+    assert.ok(posts.some(post => post.path === list &&
+      post.body.includes('hiddenCheckbox_PJAX_AUDIT_SET=true') &&
+      post.body.includes('apply=Apply')));
+    assert.ok(!posts.some(post => post.path === find && post.body.includes('apply=Apply')));
+  } finally { await browser.close(); }
+});
+
 test('Back from a Group child restores User context before replaying Addresses', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });

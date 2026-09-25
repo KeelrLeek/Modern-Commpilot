@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.30-native";
+  var CP_PJAX_VERSION = "0.3.34-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -4046,6 +4046,16 @@
           }
           try { url = new URL(url, _base).pathname; } catch (e) {}
         }
+        // Service Pack Migration opens its wizard in a named popup and
+        // temporarily targets redirectPost's form there. Keep that native
+        // target: fetching the wizard into the parent PJAX shell instead
+        // leaves the popup blank and can send the parent to Login.
+        if (typeof url === "string" &&
+            /\/ServiceProvider\/ServicePackMigration\/Wizard\//.test(url) &&
+            window.wizardWin && window.wizardWin.win && !window.wizardWin.win.closed) {
+          _orig(url, params);
+          return;
+        }
         // Sign-out interception (must precede isPjaxUrl): when skin.js's logout
         // confirmation has armed cp-signing-out, this redirectPost IS the logout.
         var _so = 0; try { _so = parseInt(sessionStorage.getItem("cp-signing-out") || "0", 10); } catch (e) {}
@@ -4483,6 +4493,7 @@
                       /\/Operator\/System\/DeviceType\/Profile\//.test(url)) &&
                     !/\b(?:Add|Modify|Import)\b/i.test(doc.title || '') &&
                     liveCell && liveCell.querySelector &&
+                    !liveCell.querySelector('input[name="unicodeLastName"], input[name="clidLastName"]') &&
                     liveCell.querySelector('select[name="findKey0"], select[name="findKey"], #searchTable, input[name="add"][type="button"], input[name="addBasic"][type="button"], input[name="addByWeightedRouting"], input[name="addByOrderedRouting"], button[name="add"]')) {
                   canonical = cpFormOrigin;
                   document.documentElement.setAttribute("data-cp-path", canonical);
@@ -4739,7 +4750,10 @@
           "/commpilot/Operator/System/DeviceTags/Modify/TagSet/Add/index.jsp";
         var filteredTags = /\/commpilot\/Common\/find(?:All)?\.jsp$/.test(location.pathname) &&
           !!document.querySelector('td[width="82%"] input[name="newTagSetName"]');
-        if (!tagAdd && !filteredTags) return;
+        var filteredTagSets = /\/commpilot\/Common\/find(?:All)?\.jsp$/.test(location.pathname) &&
+          !!(history.state && history.state.cpNav && history.state.cpNav.params &&
+            history.state.cpNav.params.tableName === 'resellerTagSetTable');
+        if (!tagAdd && !filteredTags && !filteredTagSets) return;
         var button = e.target && e.target.closest ?
           e.target.closest(tagAdd ? 'input[type="submit"][name="ok"]' :
             'input[type="submit"][name="ok"], input[type="submit"][name="apply"]') : null;
@@ -4752,7 +4766,8 @@
           params[name] = value;
         });
         params.__cpFormEntries = entries;
-        cpHook(tagAdd ? location.pathname :
+        cpHook(tagAdd ? location.pathname : filteredTagSets ?
+          '/commpilot/Reseller/DeviceTags/' :
           '/commpilot/Operator/System/DeviceTags/Modify/TagSet/index.jsp', params);
       } catch (err) { console.warn("[pjax] Tag Set Add submit", err); }
     }, true);

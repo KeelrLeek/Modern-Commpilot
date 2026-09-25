@@ -2710,8 +2710,26 @@ async function probe(page, label) {
   if (process.env.BW_ROW_DRILL_INSPECT === '1') {
     const selector = process.env.BW_ROW_DRILL_SELECTOR ||
       'td[width="82%"] tr[id^="Row"] a.tableLink';
+    if (process.env.BW_ROW_ELEMENT_INSPECT === '1')
+      console.log(JSON.stringify({ event: 'row-element-inspect', selector,
+        html: await page.locator(selector).first().evaluate(item => item.outerHTML.slice(0, 1000)),
+        wiring: await page.locator(selector).first().evaluate(item => [...document.scripts]
+          .map(script => script.textContent || '').filter(script => script.includes(item.id))
+          .map(script => script.slice(0, 650))) }));
+    if (process.env.BW_ROW_POPUP_INSPECT === '1')
+      console.log(JSON.stringify({ event: 'row-popup-wiring',
+        wiring: await page.evaluate(() => ({
+          button: document.querySelector('td[width="82%"] input[name="wizard"]')?.outerHTML,
+          wizard: String(window.wizardOpen || '').slice(0, 1600),
+          scripts: [...document.querySelectorAll('td[width="82%"] script')]
+            .map(item => item.textContent || '').filter(item => /wizard|MigrationTask/.test(item))
+            .map(item => { const at = item.indexOf('wizard');
+              return item.slice(Math.max(0, at - 250), at + 600); }).slice(0, 5) })) }));
     await page.evaluate(() => { window.__bwRowDrillDocument = document; });
     await page.locator(selector).first().click();
+    if (process.env.BW_ROW_POPUP_INSPECT === '1' ||
+        (label === 'Service Pack Migration' && selector.includes('name="wizard"')))
+      await page.waitForTimeout(800);
     const expected = process.env.BW_ROW_DRILL_EXPECTED;
     if (expected) await waitPath(page, expected);
     const state = await page.evaluate(() => ({ path: location.pathname,
@@ -2726,7 +2744,47 @@ async function probe(page, label) {
         .map(item => ({ name: item.name, type: item.type, value: item.value,
           checked: item.checked })) }));
     console.log(JSON.stringify({ event: 'row-drill-inspect', level, folder, label,
-      selector, state }));
+      selector, state,
+      tabs: page.context().pages().map(item => new URL(item.url()).pathname) }));
+    if (process.env.BW_ROW_POPUP_INSPECT === '1')
+      for (const popup of page.context().pages().filter(item => item !== page))
+        console.log(JSON.stringify({ event: 'row-popup-page', path: new URL(popup.url()).pathname,
+          title: await popup.title(),
+          text: (await popup.locator('body').innerText().catch(() => '')).slice(0, 1400) }));
+    if (label === 'Service Pack Migration' &&
+        selector.includes('name="wizard"')) {
+      const popup = page.context().pages().find(item => item !== page &&
+        /\/ServicePackMigration\/Wizard\/index\.jsp$/.test(new URL(item.url()).pathname));
+      const title = popup ? await popup.title() : '';
+      writeDeep('discovered-91', state.sameDocument && popup &&
+        /Step 1 of 5/.test(title) ? 'passed' : 'failed',
+      `Add Migration Task Wizard ${popup ? 'opened' : 'did not open'} in its named window; ` +
+        `main page ${state.sameDocument ? 'stayed in the PJAX shell' : 'reloaded'}; ` +
+        `wizard title: ${title || 'none'}.`);
+    }
+    if (level === 'User' && label === 'BroadWorks Mobility - Off' &&
+        selector.includes('Profile Identity Alerting Policy')) {
+      const child = '/commpilot/User/BroadWorksMobility/ProfileIdentityAlertingPolicy/index.jsp';
+      const before = await formState(page);
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === child, { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+        .click({ noWaitAfter: true });
+      const saved = await response;
+      await page.waitForTimeout(300);
+      const sameDocument = await page.evaluate(() => document === window.__bwRowDrillDocument);
+      await page.evaluate(() => window.redirectPost('/commpilot/User/BroadWorksMobility/', {}));
+      await waitPath(page, '/commpilot/User/BroadWorksMobility/');
+      await page.locator('td[width="82%"] a:has-text("Profile Identity Alerting Policy")')
+        .first().click();
+      await waitPath(page, child);
+      const matched = JSON.stringify(before) === JSON.stringify(await formState(page));
+      writeDeep('discovered-614', saved?.status() === 200 && sameDocument && matched ?
+        'passed' : 'failed',
+      `Opened policy child in PJAX; current-values Apply HTTP ${saved?.status() || 'none'}; ` +
+        `${sameDocument ? 'same document' : 'reload'}; ` +
+        `fresh readback ${matched ? 'matched' : 'differed'}.`);
+    }
     if (process.env.BW_TAG_FIND_NAME && level === 'Reseller' &&
         label === 'Device Management Tag Sets') {
       await page.locator('td[width="82%"] input[name="findValue"]')
@@ -4821,10 +4879,109 @@ async function probe(page, label) {
       })) })) }));
     return;
   }
+  if (process.env.BW_TAG_SET_CLEAN_NAME && level === 'Reseller' &&
+      folder === 'Resources' && label === 'Device Management Tag Sets') {
+    const name = process.env.BW_TAG_SET_CLEAN_NAME;
+    const search = async () => {
+      await page.locator('td[width="82%"] input[name="findValue"]').fill(name);
+      await page.locator('td[width="82%"] select[name="findOp"]').selectOption({ label: 'Contains' });
+      await page.locator('td[width="82%"] a:text-is("Find")').first().click();
+      await page.waitForTimeout(450);
+      return page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: name });
+    };
+    const found = await search();
+    const present = await found.count() > 0;
+    console.log(JSON.stringify({ event: 'tag-set-clean-before', name, present,
+      path: new URL(page.url()).pathname }));
+    if (process.env.BW_TAG_SET_CLEAN_INSPECT === '1') {
+      console.log(JSON.stringify({ event: 'tag-set-clean-form', state: await page.evaluate(() => ({
+        forms: [...document.querySelectorAll('td[width="82%"] form')]
+          .map(form => ({ action: form.getAttribute('action'), method: form.method,
+            names: [...new FormData(form)].map(([name]) => name),
+            buttons: [...form.querySelectorAll('input[type="submit"]')]
+              .map(item => ({ name: item.name, value: item.value })) })),
+        history: history.state,
+        text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 600) })) }));
+      return;
+    }
+    if (present) {
+      await found.first().locator('input[type="checkbox"]').check();
+      page.once('dialog', dialog => dialog.accept());
+      await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+        .click({ noWaitAfter: true });
+      await page.waitForTimeout(650);
+      console.log(JSON.stringify({ event: 'tag-set-clean-after-apply',
+        path: new URL(page.url()).pathname, title: await page.title() }));
+    }
+    return;
+  }
+  if (process.env.BW_TAG_SET_PARENT_LIFECYCLE === '1' && level === 'Reseller' &&
+      folder === 'Resources' && label === 'Device Management Tag Sets') {
+    const name = `PJAX_AUDIT_SET_${Date.now().toString(36).toUpperCase()}`;
+    const list = '/commpilot/Reseller/DeviceTags/';
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, '/commpilot/Reseller/DeviceTags/Add/index.jsp');
+    await page.locator('td[width="82%"] input[name="tagSetName"]').fill(name);
+    await page.evaluate(() => { window.__bwTagSetDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === '/commpilot/Reseller/DeviceTags/Add/index.jsp',
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+      .click({ noWaitAfter: true });
+    const saved = await response;
+    await page.waitForTimeout(400);
+    const sameDocument = await page.evaluate(() => document === window.__bwTagSetDocument);
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem:text-is("Device Management Tag Sets")').click();
+    await waitPath(page, list);
+    const find = async () => {
+      await page.locator('td[width="82%"] input[name="findValue"]').fill(name);
+      await page.locator('td[width="82%"] select[name="findOp"]').selectOption({ label: 'Contains' });
+      await page.locator('td[width="82%"] a:text-is("Find")').first().click();
+      await page.waitForTimeout(350);
+      return page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: name });
+    };
+    let created = false, deleted = false;
+    try {
+      let row = await find();
+      created = await row.count() === 1;
+      if (created) {
+        const checkbox = row.locator('input[type="checkbox"]').first();
+        if (!await checkbox.count()) throw new Error('New Tag Set row has no Delete checkbox');
+        await checkbox.check();
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+          .click({ noWaitAfter: true });
+        await page.waitForTimeout(350);
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Device Management Tag Sets")').click();
+        await waitPath(page, list);
+        row = await find();
+        deleted = await row.count() === 0;
+      }
+    } finally {
+      writeDeep('discovered-577', saved?.status() === 200 && sameDocument &&
+        created && deleted ? 'passed' : 'failed',
+      `Disposable Tag Set ${name}: Add HTTP ${saved?.status() || 'none'}; ` +
+        `${sameDocument ? 'same document' : 'reload'}; ` +
+        `fresh list ${created ? 'found' : 'did not find'} it; ` +
+        `Delete ${deleted ? 'verified absent' : 'not verified'}.`);
+    }
+    return;
+  }
   const apply = page.locator('td[width="82%"] form[name="mainForm"] input[name="apply"][type="submit"]:visible').first();
   const hasFile = await page.locator('td[width="82%"] form[name="mainForm"] input[type="file"]').count() > 0;
   const hasPassword = await page.locator('td[width="82%"] form[name="mainForm"] input[type="password"]').count() > 0;
-  const unsuitable = /\/Add\/|\/Import\/|\/New\//i.test(entry.path) || hasPassword ||
+  const safeAutofillPassword = hasPassword && await page.locator(
+    'td[width="82%"] form[name="mainForm"] input[type="password"]')
+    .evaluateAll(items => items.every(item => item.name === 'autofillPwdDiscarded' && !item.value));
+  if (hasPassword && process.env.BW_APPLY_INSPECT === '1')
+    console.log(JSON.stringify({ event: 'password-fields', label,
+      fields: await page.locator('td[width="82%"] form[name="mainForm"] input[type="password"]')
+        .evaluateAll(items => items.map(item => ({ name: item.name,
+          empty: !item.value, required: item.required, disabled: item.disabled }))) }));
+  const unsuitable = /\/Add\/|\/Import\/|\/New\//i.test(entry.path) ||
+    (hasPassword && !safeAutofillPassword) ||
     (hasFile && process.env.BW_ALLOW_EMPTY_FILE_FORM !== '1');
   if (unsuitable || !await apply.count()) {
     console.log(JSON.stringify({ event: 'apply-skip', label, path: entry.path,
@@ -4833,7 +4990,7 @@ async function probe(page, label) {
     return;
   }
   const before = await formState(page);
-  if (!before?.length) {
+  if (!before?.length && process.env.BW_EMPTY_FORM_APPLY !== '1') {
     console.log(JSON.stringify({ event: 'apply-skip', label, path: entry.path, reason: 'no-editable-fields' }));
     return;
   }
@@ -4879,6 +5036,15 @@ async function probe(page, label) {
     return;
   }
   await page.evaluate(() => { window.__bwApplyDocument = document; });
+  const applyTraffic = [];
+  const onApplyResponse = item => {
+    const url = new URL(item.url());
+    if (url.origin === 'https://apps-sbx.avpaas.io' && url.pathname.startsWith('/commpilot/') &&
+        ['fetch', 'xhr', 'document'].includes(item.request().resourceType()))
+      applyTraffic.push({ path: url.pathname, status: item.status(),
+        method: item.request().method() });
+  };
+  if (process.env.BW_APPLY_INSPECT === '1') page.on('response', onApplyResponse);
   const response = page.waitForResponse(item => item.request().method() === 'POST' &&
     new URL(item.url()).pathname.startsWith('/commpilot/'), { timeout: 15000 }).catch(() => null);
   await apply.click();
@@ -4900,9 +5066,19 @@ async function probe(page, label) {
       location: found.headers().location || null }));
   }
   await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
+  if (process.env.BW_APPLY_INSPECT === '1') page.off('response', onApplyResponse);
   const after = await page.evaluate(() => ({ path: location.pathname, title: document.title,
     sameDocument: document === window.__bwApplyDocument,
     error: document.querySelector('.cp-alert-error')?.textContent?.trim() || '' }));
+  if (process.env.BW_APPLY_INSPECT === '1')
+    console.log(JSON.stringify({ event: 'apply-state', label, after,
+      form: await page.evaluate(() => ({
+        title: document.querySelector('td[width="82%"]')?.innerText.slice(0, 180),
+        hasLastName: !!document.querySelector('td[width="82%"] input[name="unicodeLastName"]'),
+        hasForward: !!document.querySelector('td[width="82%"] input[name="forwardToNumber"]'),
+        marker: document.documentElement.getAttribute('data-cp-path'),
+        historyNav: history.state?.cpNav?.url || null })),
+      traffic: applyTraffic }));
   const values = await formState(page);
   const sameValues = JSON.stringify(before) === JSON.stringify(values);
   if (!sameValues && process.env.BW_APPLY_INSPECT === '1')
