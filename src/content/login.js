@@ -5,6 +5,9 @@
   function setup() {
     var form = document.forms.namedItem("loginForm");
     if (!form || document.body.id !== "loginBody" || form.querySelector(".bw-saved-login")) return;
+    var runtime = typeof browser !== "undefined" ? browser.runtime : chrome.runtime;
+    document.documentElement.style.setProperty("--cp-login-photo",
+      'url("' + runtime.getURL("assets/login/comm-pilot-women-transparent.png") + '")');
     var user = form.elements.namedItem("EnteredUserID");
     var password = form.elements.namedItem("Password");
     var login = form.querySelector("td.logintext3 a");

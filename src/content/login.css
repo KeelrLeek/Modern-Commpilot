@@ -143,9 +143,7 @@ body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child
 }
 body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child(3) > td::before {
   content:""; position:absolute; top:calc(-1 * var(--lg-error-space)); right:0; bottom:0; width:44%;
-  background:url("/commpilot/Graphics/login.gif") right -40px top -88px/800px 460px no-repeat;
-  -webkit-mask-image:linear-gradient(to right,transparent 0,transparent 50px,#000 120px);
-  mask-image:linear-gradient(to right,transparent 0,transparent 50px,#000 120px);
+  background:var(--cp-login-photo,url("/commpilot/Graphics/login.gif")) right -40px top -82px/800px 465px no-repeat;
 }
 body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child(3) > td::after {
   content:"Welcome back."; position:absolute; top:155px; left:46px; width:44%;

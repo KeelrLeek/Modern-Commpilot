@@ -36,6 +36,18 @@ test('native login is centered with saved sign-ins and no setup password', async
     const page = await context.newPage();
     await page.goto('https://apps-sbx.avpaas.io/commpilot/Login/');
     await page.locator('.bw-saved-trigger').waitFor();
+    const photoUrl = await page.evaluate(() =>
+      document.documentElement.style.getPropertyValue('--cp-login-photo').match(/url\("([^"]+)"\)/)?.[1]);
+    assert.match(photoUrl, /^chrome-extension:\/\/.*\/assets\/login\/comm-pilot-women-transparent\.png$/);
+    const photoSize = await page.evaluate(url => new Promise((resolve, reject) => {
+      const photo = new Image();
+      photo.onload = () => resolve([photo.naturalWidth, photo.naturalHeight]);
+      photo.onerror = () => reject(new Error('Transparent login photo did not load'));
+      photo.src = url;
+    }), photoUrl);
+    assert.deepEqual(photoSize, [800, 450]);
+    const photoFile = fs.readFileSync(path.join(root, 'assets/login/comm-pilot-women-transparent.png'));
+    assert.equal(photoFile[25], 6, 'PNG must have an alpha channel');
     const box = await page.locator('form[name="loginForm"]').boundingBox();
     assert.ok(Math.abs(box.x - 200) <= 1, `login form x=${box.x}`);
     assert.ok(Math.abs(box.y - (900 - box.height) / 2) <= 1, `login form y=${box.y}`);
