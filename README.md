@@ -1,6 +1,6 @@
 # BroadWorks Enhancer PJAX Preview
 
-This branch combines the original BroadWorks Enhancer controls with the PJAX transport from Modern-Commpilot. The organized-rows theme styles CommPilot's existing menus, tables, forms, and header without moving their controls. The former `skin.js` and `skin.css` are retained in the Git history but are not loaded by this extension.
+This branch combines the original BroadWorks Enhancer controls with the PJAX transport from Modern-Commpilot. The CommPilot 2.0 theme redesigns the shared header, navigation, menus, lists, forms, tabs, and dialogs while keeping CommPilot's page structure and controls in their familiar locations. It bundles Inter and Geist fonts plus local navigation icons, so the interface does not depend on a font service. The former `skin.js` and `skin.css` are retained in Git history but are not loaded by this extension.
 
 ## Included behavior
 
@@ -29,7 +29,7 @@ The separate deep action audit is at `http://127.0.0.1:8766/pjax-deep-action-aud
 
 The original-branch feature port tracker is at `http://127.0.0.1:8766/feature-port-status.html`. It separates ported features, native controls kept in place, and interface features still under review.
 
-The Reseller Profile design mockups are at `http://127.0.0.1:8766/reseller-profile-ui-mockups.html`. They use the sandbox page's exact menu names and descriptions while keeping the native navigation structure. Option B is the applied theme.
+The local CommPilot 2.0 visual review is at `http://127.0.0.1:8766/native-theme-review.html`. It shows sandbox screenshots of reseller, group, user, service, and bulk-tool pages. The older Reseller Profile mockups remain at `http://127.0.0.1:8766/reseller-profile-ui-mockups.html` for design history.
 
 ## Live local preview
 
@@ -37,7 +37,7 @@ In the source checkout, run `python dev-preview/server.py` and open `http://127.
 
 ## Install this preview
 
-Extract [BroadWorks-Enhancer-PJAX-Preview-0.3.41.zip](release/BroadWorks-Enhancer-PJAX-Preview-0.3.41.zip). Chrome or Edge: open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder. Firefox: open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select `manifest.json`. Disable the stable BroadWorks Enhancer while testing this preview to avoid duplicate controls. No helper or separate installer is needed.
+Extract [BroadWorks-Enhancer-PJAX-Preview-0.3.42.zip](release/BroadWorks-Enhancer-PJAX-Preview-0.3.42.zip). Chrome or Edge: open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder. Firefox: open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select `manifest.json`. Disable the stable BroadWorks Enhancer while testing this preview to avoid duplicate controls. No helper or separate installer is needed.
 
 On the login page, open **Saved sign-ins**, choose **Add login**, enter your User ID and Password, and select **Sign in automatically** or **Ask for a four-digit PIN**. Later, choose an account if you have several saved. A PIN account asks for its PIN before using Cisco's original Login handler. Use **Remove** to delete a saved account. Saving is per BroadWorks host. Recent manual logout and login errors suppress an immediate automatic retry to avoid sign-in loops. Accounts saved by version 0.3.3 can be moved into this version by entering the previous vault password once.
 

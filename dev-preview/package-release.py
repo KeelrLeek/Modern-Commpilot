@@ -11,6 +11,8 @@ FILES = (
     "manifest.json",
     "README.md",
     "assets/help/help-content.json",
+    "assets/fonts/InterVariable.woff2",
+    "assets/fonts/GeistVariable.woff2",
     "src/bg/credential-bridge.js",
     "src/bg/rules.json",
     "src/content/cloak.js",
@@ -21,6 +23,7 @@ FILES = (
     "src/content/login.js",
     "src/content/native-pjax.css",
     "src/content/native-theme.css",
+    "src/content/native-theme.js",
     "src/content/native-help.css",
     "src/content/native-help.js",
     "src/content/number-bulk.css",
@@ -32,7 +35,7 @@ FILES = (
     "src/content/skin.css",
     "src/content/skin.js",
     "src/content/stubguard.js",
-)
+) + tuple(f"assets/icons/{item.name}" for item in sorted((SOURCE / "assets/icons").glob("*.svg")))
 
 
 def main():

@@ -1,0 +1,46 @@
+/* Add icon hints to CommPilot's existing navigation without moving its links. */
+(() => {
+  const iconByFolder = {
+    profile: "profile",
+    resources: "resources",
+    services: "services",
+    "call center": "callcenter",
+    "incoming calls": "incoming-calls",
+    "outgoing calls": "outgoing-calls",
+    "call control": "call-control",
+    "calling plan": "calling-plan",
+    "calling plans": "calling-plan",
+    messaging: "messaging",
+    utilities: "utilities",
+    "meet-me conferencing": "meetme",
+    "client applications": "client-apps",
+    "communication barring": "comm-barring",
+    menus: "services",
+    "routing policies": "call-control"
+  };
+
+  function decorate() {
+    if (document.body?.id !== "initBody.menuTemplate") return;
+    const links = document.querySelectorAll(
+      'form[name="leftNavForm"] a.leftnavfolder, ' +
+      'form[name="leftNavForm"] a.leftnavfolderopen'
+    );
+    for (const link of links) {
+      const label = link.textContent.trim().replace(/\s+/g, " ").toLowerCase();
+      const icon = iconByFolder[label] || "unknown";
+      link.dataset.cpNavIcon = icon;
+      // PJAX can retain the data attribute while replacing the inline style.
+      // Reapply the URL on every morph so icon hints survive navigation.
+      const url = `url("${chrome.runtime.getURL(`assets/icons/${icon}.svg`)}")`;
+      if (link.style.getPropertyValue("--cp-nav-icon") !== url) {
+        link.style.setProperty("--cp-nav-icon", url);
+      }
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", decorate, { once: true });
+  } else decorate();
+  document.addEventListener("cp:reskin", () => requestAnimationFrame(decorate));
+  document.addEventListener("cp:morphed", () => requestAnimationFrame(decorate));
+})();
