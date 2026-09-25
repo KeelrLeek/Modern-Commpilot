@@ -1,6 +1,6 @@
 # BroadWorks Enhancer PJAX Preview
 
-This branch combines the original BroadWorks Enhancer controls with the PJAX transport from Modern-Commpilot. It leaves CommPilot's own CSS, menus, tables, forms, and header in place. The former `skin.js` and `skin.css` are retained in the Git history but are not loaded by this extension.
+This branch combines the original BroadWorks Enhancer controls with the PJAX transport from Modern-Commpilot. The organized-rows theme styles CommPilot's existing menus, tables, forms, and header without moving their controls. The former `skin.js` and `skin.css` are retained in the Git history but are not loaded by this extension.
 
 ## Included behavior
 
@@ -17,7 +17,7 @@ This branch combines the original BroadWorks Enhancer controls with the PJAX tra
 - PJAX now waits for external BroadWorks scripts to attach their page-load handlers after a swap. This restores the native **Add >** controls on Group Numbers Edit and Assign Numbers Add pages.
 - Service Provider Communication Barring → Digit Pattern Criteria now keeps its short-ID tabs in PJAX and anchors the Digit Patterns tab to its actual controller. Adding and deleting a pattern inside a disposable criterion was verified with fresh sandbox readback.
 - Group Services → Music/Video on Hold now submits its no-file multipart Add and Apply actions in PJAX. A disposable department override was added, read back, and deleted in the sandbox.
-- Native CommPilot styling. The only added CSS styles the requested controls and small PJAX error notices.
+- The organized-rows theme gives native CommPilot pages a shared navy palette, clearer Basic/Advanced sections, separated menu and result rows, and matching form controls. It keeps the original sidebar, breadcrumbs, link order, search forms, and action buttons in place. The sandbox visual check covered Reseller and Group home pages, Users and Numbers search results, Users Add, a Number edit, and Auto Attendant Modify.
 - The existing Cisco login form is centered. Its logo, background image, fields, and submit logic remain intact. The old **Remember Password** row is removed. A compact **Saved sign-ins** drawer sits below the Cisco panel.
 - You can save multiple sign-ins per BroadWorks host. Each account can sign in automatically or ask for a four-digit PIN. With one automatic account, visiting the login page signs in immediately; with several accounts, the page shows an account chooser. A single PIN account opens its PIN prompt. Saved passwords are AES-256-GCM ciphertext in extension storage. A non-extractable encryption key persists in extension IndexedDB so automatic sign-in works after browser restart. The PIN gates use of an account but is not a strong encryption secret.
 
@@ -29,15 +29,15 @@ The separate deep action audit is at `http://127.0.0.1:8766/pjax-deep-action-aud
 
 The original-branch feature port tracker is at `http://127.0.0.1:8766/feature-port-status.html`. It separates ported features, native controls kept in place, and interface features still under review.
 
-The Reseller Profile design mockups are at `http://127.0.0.1:8766/reseller-profile-ui-mockups.html`. They use the sandbox page's exact menu names and descriptions while keeping the native navigation structure. They are a design preview and do not change the extension's live CSS.
+The Reseller Profile design mockups are at `http://127.0.0.1:8766/reseller-profile-ui-mockups.html`. They use the sandbox page's exact menu names and descriptions while keeping the native navigation structure. Option B is the applied theme.
 
 ## Live local preview
 
-In the source checkout, run `python dev-preview/server.py` and open `http://127.0.0.1:8765/preview`. This is a synthetic navigation test page using a saved CommPilot stylesheet; your actual site's own CSS is used when the extension is installed. The local page sends no requests to BroadWorks and refreshes after source edits. The install ZIP omits this development server.
+In the source checkout, run `python dev-preview/server.py` and open `http://127.0.0.1:8765/preview`. This is a synthetic navigation test page using a saved CommPilot stylesheet; the extension applies its shared theme over the actual site's CSS when installed. The local page sends no requests to BroadWorks and refreshes after source edits. The install ZIP omits this development server.
 
 ## Install this preview
 
-Extract [BroadWorks-Enhancer-PJAX-Preview-0.3.40.zip](release/BroadWorks-Enhancer-PJAX-Preview-0.3.40.zip). Chrome or Edge: open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder. Firefox: open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select `manifest.json`. Disable the stable BroadWorks Enhancer while testing this preview to avoid duplicate controls. No helper or separate installer is needed.
+Extract [BroadWorks-Enhancer-PJAX-Preview-0.3.41.zip](release/BroadWorks-Enhancer-PJAX-Preview-0.3.41.zip). Chrome or Edge: open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder. Firefox: open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select `manifest.json`. Disable the stable BroadWorks Enhancer while testing this preview to avoid duplicate controls. No helper or separate installer is needed.
 
 On the login page, open **Saved sign-ins**, choose **Add login**, enter your User ID and Password, and select **Sign in automatically** or **Ask for a four-digit PIN**. Later, choose an account if you have several saved. A PIN account asks for its PIN before using Cisco's original Login handler. Use **Remove** to delete a saved account. Saving is per BroadWorks host. Recent manual logout and login errors suppress an immediate automatic retry to avoid sign-in loops. Accounts saved by version 0.3.3 can be moved into this version by entering the previous vault password once.
 
@@ -51,4 +51,4 @@ The extension is scoped to the seven known BroadWorks hosts. The PJAX code only 
 
 ## Tests
 
-Run `npm ci` and `npm test`. The tests load the extension in Chromium, exercise the prior enhancer cases, navigate through representative PJAX page families including deeper route patterns and an iframe drill-in, verify native CSS remains active, and test a reload recovery path. The saved-login test checks ciphertext storage, the non-extractable browser key, correct and incorrect PINs, account selection, automatic sign-in, and removal. Firefox lint reports no errors; it still reports warnings for `innerHTML` assignments in the inherited PJAX code.
+Run `npm ci` and `npm test`. The tests load the extension in Chromium, exercise the prior enhancer cases, navigate through representative PJAX page families including deeper route patterns and an iframe drill-in, and test a reload recovery path. The shared theme was checked visually on live sandbox pages and at 1024px on the densest forms. The saved-login test checks ciphertext storage, the non-extractable browser key, correct and incorrect PINs, account selection, automatic sign-in, and removal. Firefox lint reports no errors; it still reports warnings for `innerHTML` assignments in the inherited PJAX code.

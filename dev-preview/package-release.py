@@ -20,6 +20,7 @@ FILES = (
     "src/content/login.css",
     "src/content/login.js",
     "src/content/native-pjax.css",
+    "src/content/native-theme.css",
     "src/content/native-help.css",
     "src/content/native-help.js",
     "src/content/number-bulk.css",
