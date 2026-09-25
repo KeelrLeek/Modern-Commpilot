@@ -759,6 +759,62 @@ test('Call Park Add short tab ID posts the Add controller in-shell', async () =>
   } finally { await browser.close(); }
 });
 
+test('Digit Pattern Criteria short tab ID posts Modify controller in-shell', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const modify = '/commpilot/ServiceProvider/CommBarring/DigitPatternCriteria/Modify/index.jsp';
+    const patterns = '/commpilot/ServiceProvider/CommBarring/DigitPatternCriteria/DigitPatterns/';
+    const shell = (active, token) => `<!doctype html><html><head><title>Digit Pattern Criteria</title></head><body>
+      <form name="leftNavForm"><a class="leftnavfolder">Communication Barring</a></form>
+      <input name="formtokenserial" value="${token}"><table><tr><td width="82%">
+      <div class="tabActive">${active}</div><form name="mainForm" method="post">
+      <input type="hidden" name="formtokenserial" value="${token}">
+      <input type="hidden" name="tabPage" value="">
+      <input type="hidden" name="key" value="PJAX test criterion">
+      ${active === 'General' ? '<a class="tab" id="patterns-tab">Digit Patterns</a>' : ''}
+      ${active === 'Digit Patterns' ? '<input name="digitPattern"><input name="add" type="submit" value="Add">' : ''}
+      </form></td></tr></table><script>
+      document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('patterns-tab')?.addEventListener('click', function () {
+          TabSubmit('digitpatterns'); }); });
+      window.redirectPost=function(){};</script></body></html>`;
+    const posts = [];
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (request.method() === 'POST') posts.push({ pathname, body: request.postData() || '' });
+      if (pathname === modify && request.method() === 'POST')
+        return route.fulfill({ status: 200, contentType: 'text/html',
+          body: `<html><body><input name="formtokenserial" value="token-2"><script>` +
+            `redirectPost('${patterns}', {});</script></body></html>` });
+      if (pathname === modify) return route.fulfill({ status: 200, contentType: 'text/html',
+        body: shell('General', 'token-1') });
+      if (pathname === patterns) return route.fulfill({ status: 200, contentType: 'text/html',
+        body: shell('Digit Patterns', request.method() === 'POST' ? 'token-3' : 'token-2') });
+      return route.fulfill({ status: 404, contentType: 'text/html', body: 'Invalid tab URL' });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${modify}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.originalDocument = document; });
+    await page.locator('#patterns-tab').click();
+    await page.locator('.tabActive:text-is("Digit Patterns")').waitFor();
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.equal(await page.evaluate(() => location.pathname), patterns);
+    assert.equal(posts.length, 2);
+    assert.equal(posts[0].pathname, modify);
+    assert.equal(new URLSearchParams(posts[0].body).get('tabPage'), 'digitpatterns');
+    assert.equal(new URLSearchParams(posts[0].body).get('key'), 'PJAX test criterion');
+    await page.locator('input[name="digitPattern"]').fill('987654321');
+    await page.locator('input[name="add"]').click();
+    await page.waitForFunction(() =>
+      document.querySelector('input[name="formtokenserial"]')?.value === 'token-3');
+    assert.equal(posts.at(-1).pathname, patterns);
+    assert.equal(new URLSearchParams(posts.at(-1).body).get('digitPattern'), '987654321');
+  } finally { await browser.close(); }
+});
+
 test('navigation waits for an already sent search POST to rotate the token', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });

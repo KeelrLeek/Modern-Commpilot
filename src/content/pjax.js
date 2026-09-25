@@ -2622,12 +2622,14 @@
         // directory ("/Group/..."). The browser treats it as an origin-root
         // path, so resolve that legacy spelling under /commpilot for transport.
         var target = tabUrl;
-        // Call Park Add uses a short tab ID. Its native form posts the Add
-        // controller with tabPage=altRecallUser; the ID is not a URL.
-        if (/^\/commpilot\/Group\/CallPark\/Add\/index\.jsp$/.test(location.pathname) &&
-            target === 'altRecallUser') {
-          target = location.pathname;
-        }
+        // Some TabSubmit arguments are controller tab IDs, not URLs. The
+        // native handler submits mainForm to its own action (or current page)
+        // with tabPage set; resolving the ID as a relative URL returns 404.
+        // Call Park's altRecallUser and Communication Barring's digitpatterns
+        // both use this form.
+        if (/^[A-Za-z][A-Za-z0-9]*$/.test(target) &&
+            form.elements.namedItem('tabPage'))
+          target = tabAction.pathname;
         // Executive's Alerting endpoint rejects a direct form POST. Its native
         // TabSubmit posts the current Assistants form with tabPage set instead.
         if (/^\/commpilot\/User\/Executive\/?$/.test(location.pathname) &&
@@ -4525,6 +4527,25 @@
                   if (_xm) {
                     canonical = url.replace(/(AssignXsiPolicyProfile)\/[A-Za-z]+\/?(index\.jsp)?$/, "$1/" + _xm[1] + "/");
                     document.documentElement.setAttribute("data-cp-path", canonical);
+                  }
+                }
+              } catch (e) {}
+              // Digit Pattern Criteria tabs use short tabPage IDs. The
+              // controller redirects to a sibling page, but cpFollow returns
+              // its content under the original POST URL. Anchor the visible
+              // tab to its actual controller so its Action buttons submit to
+              // that tab rather than to General/Modify.
+              try {
+                if (/^\/commpilot\/ServiceProvider\/CommBarring\/DigitPatternCriteria\//.test(url) &&
+                    params && params.tabPage && liveCell) {
+                  var _dpActive = (liveCell.querySelector('.tabActive')?.textContent || '').trim();
+                  var _dpBase = '/commpilot/ServiceProvider/CommBarring/DigitPatternCriteria/';
+                  var _dpPath = _dpActive === 'Digit Patterns' ? _dpBase + 'DigitPatterns/' :
+                    _dpActive === 'Usage' ? _dpBase + 'Usage/' :
+                    _dpActive === 'General' ? _dpBase + 'Modify/index.jsp' : '';
+                  if (_dpPath) {
+                    canonical = _dpPath;
+                    document.documentElement.setAttribute('data-cp-path', canonical);
                   }
                 }
               } catch (e) {}

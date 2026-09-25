@@ -1,9 +1,9 @@
 {
   "title": "CommPilot deep PJAX action audit",
-  "updated": "2026-09-25T03:18:08.685Z",
+  "updated": "2026-09-25T03:52:19.932Z",
   "environment": "apps-sbx.avpaas.io · saved test account · headless Edge",
   "scope": "Sandbox route and interaction checks are tracked separately from final writes. A passed list interaction confirms navigation and Back; a write passes only after save and readback.",
-  "current": "Video Add-On - Off › Apply current values",
+  "current": "Digit Pattern Criteria",
   "checks": [
     {
       "id": "reseller-groups",
@@ -15,9 +15,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.344Z",
       "navigationCheckedAt": "2026-09-25T01:15:54.096Z",
       "navigationStatus": "pass"
     },
@@ -45,9 +45,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 7,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.345Z",
       "navigationCheckedAt": "2026-09-25T01:02:31.725Z",
       "navigationStatus": "pass"
     },
@@ -109,7 +109,7 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "Disposable schedule opened its Modify page with the saved name.",
-      "checkedAt": "2026-09-24T23:53:36.786Z"
+      "checkedAt": "2026-09-25T03:34:52.650Z"
     },
     {
       "id": "event-modify",
@@ -121,9 +121,9 @@
       "family": "Edit / save",
       "deep": false,
       "submitControls": 0,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Event Modify Apply HTTP 200; same document; fresh schedule readback found renamed event.",
+      "checkedAt": "2026-09-25T03:34:55.229Z"
     },
     {
       "id": "codes-management",
@@ -163,9 +163,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 7,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.345Z",
       "navigationCheckedAt": "2026-09-25T01:15:53.068Z",
       "navigationStatus": "pass"
     },
@@ -193,9 +193,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.345Z",
       "navigationCheckedAt": "2026-09-25T01:15:54.639Z",
       "navigationStatus": "pass"
     },
@@ -209,9 +209,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.345Z",
       "navigationCheckedAt": "2026-09-25T01:15:55.201Z",
       "navigationStatus": "pass"
     },
@@ -273,9 +273,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.345Z",
       "navigationCheckedAt": "2026-09-25T01:15:59.460Z",
       "navigationStatus": "pass"
     },
@@ -321,9 +321,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.346Z",
       "navigationCheckedAt": "2026-09-25T01:15:33.312Z",
       "navigationStatus": "pass"
     },
@@ -673,9 +673,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.346Z",
       "navigationCheckedAt": "2026-09-25T01:14:41.249Z",
       "navigationStatus": "pass"
     },
@@ -849,9 +849,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Opened /commpilot/ServiceProvider/ServicePackUtilization/ in the same document; all settings are disabled in this sandbox; only OK navigation is available.",
+      "checkedAt": "2026-09-25T03:35:43.808Z",
       "navigationCheckedAt": "2026-09-25T01:14:51.974Z",
       "navigationStatus": "pass"
     },
@@ -1233,9 +1233,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List Find, disposable criterion Add/Modify/Delete, nested Digit Patterns tab, and pattern Add/Delete passed with fresh readback in PJAX.",
+      "checkedAt": "2026-09-25T03:52:19.932Z",
       "navigationCheckedAt": "2026-09-25T01:15:08.583Z",
       "navigationStatus": "pass"
     },
@@ -1521,9 +1521,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.346Z",
       "navigationCheckedAt": "2026-09-25T00:57:47.514Z",
       "navigationStatus": "pass"
     },
@@ -2465,9 +2465,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Group Codes Management Add and Delete stayed in PJAX; fresh reads confirmed 908150 appeared and was removed.",
+      "checkedAt": "2026-09-25T03:25:07.118Z",
       "navigationCheckedAt": "2026-09-25T01:00:43.056Z",
       "navigationStatus": "pass"
     },
@@ -2513,9 +2513,9 @@
       "family": "Import / file",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List Find, disposable Add, Modify Apply with fresh readback, and Delete all passed in PJAX.",
+      "checkedAt": "2026-09-25T03:40:29.171Z",
       "navigationCheckedAt": "2026-09-25T01:00:57.440Z",
       "navigationStatus": "pass"
     },
@@ -2641,9 +2641,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 7,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.347Z",
       "navigationCheckedAt": "2026-09-25T01:01:21.402Z",
       "navigationStatus": "pass"
     },
@@ -2865,9 +2865,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Custom Contact Directory Add saved a disposable row in-shell and fresh readback found it; its cleanup check passed.",
+      "checkedAt": "2026-09-25T03:20:53.199Z",
       "navigationCheckedAt": "2026-09-25T01:02:02.359Z",
       "navigationStatus": "pass"
     },
@@ -2913,9 +2913,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.347Z",
       "navigationCheckedAt": "2026-09-25T01:02:09.996Z",
       "navigationStatus": "pass"
     },
@@ -4801,9 +4801,9 @@
       "family": "Assignment / pick-list",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Opened /commpilot/User/DeviceActivation/ in the same document; all settings are disabled in this sandbox; only OK navigation is available.",
+      "checkedAt": "2026-09-25T03:34:16.126Z",
       "navigationCheckedAt": "2026-09-25T01:08:08.103Z",
       "navigationStatus": "pass"
     },
@@ -4849,9 +4849,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.347Z",
       "navigationCheckedAt": "2026-09-25T01:08:13.968Z",
       "navigationStatus": "pass"
     },
@@ -4865,9 +4865,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Opened /commpilot/User/MobileAppRegistrations/ in the same document; all settings are disabled in this sandbox; only OK navigation is available.",
+      "checkedAt": "2026-09-25T03:34:17.461Z",
       "navigationCheckedAt": "2026-09-25T01:08:15.849Z",
       "navigationStatus": "pass"
     },
@@ -4929,9 +4929,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Opened /commpilot/User/PushNotificationRegistrations/ in the same document; all settings are disabled in this sandbox; only OK navigation is available.",
+      "checkedAt": "2026-09-25T03:34:18.744Z",
       "navigationCheckedAt": "2026-09-25T01:08:23.377Z",
       "navigationStatus": "pass"
     },
@@ -4945,9 +4945,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Opened /commpilot/User/Registrations/ in the same document; all settings are disabled in this sandbox; only OK navigation is available.",
+      "checkedAt": "2026-09-25T03:34:19.054Z",
       "navigationCheckedAt": "2026-09-25T01:08:25.266Z",
       "navigationStatus": "pass"
     },
@@ -4977,9 +4977,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 7,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.347Z",
       "navigationCheckedAt": "2026-09-25T01:15:19.973Z",
       "navigationStatus": "pass"
     },
@@ -4993,9 +4993,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.348Z",
       "navigationCheckedAt": "2026-09-25T01:15:20.918Z",
       "navigationStatus": "pass"
     },
@@ -5009,9 +5009,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.348Z",
       "navigationCheckedAt": "2026-09-25T01:15:21.577Z",
       "navigationStatus": "pass"
     },
@@ -5089,9 +5089,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.348Z",
       "navigationCheckedAt": "2026-09-25T01:15:25.706Z",
       "navigationStatus": "pass"
     },
@@ -5265,9 +5265,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
+      "checkedAt": "2026-09-25T03:37:00.348Z",
       "navigationCheckedAt": "2026-09-25T01:02:55.303Z",
       "navigationStatus": "pass"
     },
@@ -5361,9 +5361,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 7,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Virtual On-Net Add and Add Range saved disposable entries in-shell; fresh readback found them and cleanup removed them.",
+      "checkedAt": "2026-09-25T03:20:53.200Z",
       "navigationCheckedAt": "2026-09-25T01:03:09.937Z",
       "navigationStatus": "pass"
     },
@@ -5633,9 +5633,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Communication Barring Authorization Codes Add and Delete stayed in PJAX; fresh reads confirmed 999863 appeared and was removed.",
+      "checkedAt": "2026-09-25T03:26:38.835Z",
       "navigationCheckedAt": "2026-09-25T01:09:05.862Z",
       "navigationStatus": "pass"
     },
@@ -8033,9 +8033,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 7,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Threshold Profile Modify Apply HTTP 200; same document; fresh readback matched description.",
+      "checkedAt": "2026-09-25T03:40:17.069Z",
       "navigationCheckedAt": "2026-09-25T01:01:00.708Z",
       "navigationStatus": "pass"
     },
@@ -8221,9 +8221,9 @@
       "family": "Edit / save",
       "deep": true,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable schedule opened its Modify page with the saved name.",
+      "checkedAt": "2026-09-25T03:38:02.627Z",
       "navigationCheckedAt": "2026-09-25T01:15:24.395Z",
       "navigationStatus": "pass"
     },
@@ -8255,7 +8255,7 @@
       "submitControls": 4,
       "status": "passed",
       "detail": "Disposable Time schedule Add returned HTTP 200; same document; search found 1 row(s).",
-      "checkedAt": "2026-09-24T23:53:34.975Z",
+      "checkedAt": "2026-09-25T03:34:52.448Z",
       "navigationCheckedAt": "2026-09-25T01:02:50.368Z",
       "navigationStatus": "pass"
     },
@@ -8683,9 +8683,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Group Code Add HTTP 200; same document at /commpilot/Group/AccountCodes/CodesMgmt/; fresh list readback found code.",
+      "checkedAt": "2026-09-25T03:25:06.001Z",
       "navigationCheckedAt": "2026-09-25T01:00:43.681Z",
       "navigationStatus": "pass"
     },
@@ -8747,9 +8747,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 5,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Threshold Profile Add HTTP 200; same document; fresh list contains disposable profile.",
+      "checkedAt": "2026-09-25T03:40:15.811Z",
       "navigationCheckedAt": "2026-09-25T01:00:59.412Z",
       "navigationStatus": "pass"
     },
@@ -9413,9 +9413,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Digit Pattern Criteria Add HTTP 200; same document; fresh list contains disposable criterion.",
+      "checkedAt": "2026-09-25T03:51:57.515Z",
       "navigationCheckedAt": "2026-09-25T01:15:08.768Z",
       "navigationStatus": "pass"
     },
@@ -9491,9 +9491,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable Time schedule Add returned HTTP 200; same document; search found 1 row(s).",
+      "checkedAt": "2026-09-25T03:38:02.085Z",
       "navigationCheckedAt": "2026-09-25T01:15:24.128Z",
       "navigationStatus": "pass"
     },
@@ -9889,9 +9889,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable Time schedule Add returned HTTP 200; same document; search found 1 row(s).",
+      "checkedAt": "2026-09-25T03:29:08.476Z",
       "navigationCheckedAt": "2026-09-25T01:08:43.963Z",
       "navigationStatus": "pass"
     },
@@ -9919,9 +9919,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Communication Barring Authorization Codes Add HTTP 200; same document at /commpilot/User/CommBarringAuthCodes/; fresh list readback found code.",
+      "checkedAt": "2026-09-25T03:26:37.689Z",
       "navigationCheckedAt": "2026-09-25T01:09:06.331Z",
       "navigationStatus": "pass"
     },
@@ -9951,9 +9951,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Submenu Add multipart POST HTTP 200; same document; fresh list contains disposable submenu.",
+      "checkedAt": "2026-09-25T03:41:48.810Z",
       "navigationCheckedAt": "2026-09-25T01:09:29.736Z",
       "navigationStatus": "pass"
     },
@@ -10063,9 +10063,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "SMDI Message Desk Add HTTP 200; same document at /commpilot/User/SmdiMessageDesk/Add/index.jsp; fresh list readback found terminal server.",
+      "checkedAt": "2026-09-25T03:23:09.678Z",
       "navigationCheckedAt": "2026-09-25T01:10:07.677Z",
       "navigationStatus": "pass"
     },
@@ -10715,9 +10715,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Schedule Event Add HTTP 200; same document at /commpilot/ServiceProvider/Schedules/Events/Add/index.jsp; fresh schedule readback found event.",
+      "checkedAt": "2026-09-25T03:38:05.366Z"
     },
     {
       "id": "discovered-677",
@@ -10729,9 +10729,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Event Name sort POST HTTP 200; same document; event remains at /commpilot/ServiceProvider/Schedules/Modify/index.jsp.",
+      "checkedAt": "2026-09-25T03:38:05.712Z"
     },
     {
       "id": "discovered-678",
@@ -10743,9 +10743,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Same Events/Add controller saved PJAX event mugeummg; fresh schedule readback found the event.",
+      "checkedAt": "2026-09-25T03:38:05.375Z"
     },
     {
       "id": "discovered-679",
@@ -10757,9 +10757,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Event Name sort POST HTTP 200; same document; event remains at /commpilot/ServiceProvider/Schedules/Modify/index.jsp.",
+      "checkedAt": "2026-09-25T03:38:06.168Z"
     },
     {
       "id": "discovered-680",
@@ -13125,9 +13125,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 0,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Assign Agents tab opened /commpilot/Group/Call_Center/Supervisors/Agents/ in the same document.",
+      "checkedAt": "2026-09-25T03:35:31.118Z",
       "navigationCheckedAt": "2026-09-25T01:12:20.024Z",
       "navigationStatus": "pass"
     },
@@ -16395,7 +16395,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/GroupPagingTargetsCapacity/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:27:37.806Z"
+      "checkedAt": "2026-09-25T03:36:03.219Z"
     },
     {
       "id": "apply:discovered-46",
@@ -16409,7 +16409,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/NetworkClassesOfService/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:27:43.832Z"
+      "checkedAt": "2026-09-25T03:36:05.634Z"
     },
     {
       "id": "apply:discovered-47",
@@ -16423,7 +16423,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/DnManagement/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:27:46.850Z"
+      "checkedAt": "2026-09-25T03:36:06.972Z"
     },
     {
       "id": "apply:discovered-48",
@@ -16437,7 +16437,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/NumberRanges/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:27:49.970Z"
+      "checkedAt": "2026-09-25T03:36:08.358Z"
     },
     {
       "id": "apply:discovered-49",
@@ -16451,7 +16451,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/NumberPrefixes/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:27:53.014Z"
+      "checkedAt": "2026-09-25T03:36:09.679Z"
     },
     {
       "id": "apply:discovered-52",
@@ -16465,7 +16465,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/Operator/ServiceProviders/AuthorizeServices/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:27:59.723Z"
+      "checkedAt": "2026-09-25T03:36:12.907Z"
     },
     {
       "id": "apply:discovered-55",
@@ -16479,7 +16479,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/SACCapacity/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:28:04.181Z"
+      "checkedAt": "2026-09-25T03:36:14.817Z"
     },
     {
       "id": "apply:discovered-58",
@@ -16493,7 +16493,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/TrunkingCallCapacity/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:28:08.714Z"
+      "checkedAt": "2026-09-25T03:36:16.652Z"
     },
     {
       "id": "apply:discovered-59",
@@ -16507,7 +16507,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/XsiPolicyProfile/Group/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:28:11.206Z"
+      "checkedAt": "2026-09-25T03:36:17.993Z"
     },
     {
       "id": "apply:discovered-60",
@@ -16521,7 +16521,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/Operator/ServiceProviders/AssignDomains/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:28:14.214Z"
+      "checkedAt": "2026-09-25T03:36:19.318Z"
     },
     {
       "id": "apply:discovered-61",
@@ -16535,7 +16535,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/AssignNetworkClassesOfService/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:28:17.290Z"
+      "checkedAt": "2026-09-25T03:36:20.631Z"
     },
     {
       "id": "apply:discovered-62",
@@ -16549,7 +16549,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/AssignRoutePointExternalSystems/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:28:20.366Z"
+      "checkedAt": "2026-09-25T03:36:21.942Z"
     },
     {
       "id": "apply:discovered-63",
@@ -16563,7 +16563,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/AssignXsiPolicyProfile/ServiceProvider/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:28:23.464Z"
+      "checkedAt": "2026-09-25T03:36:23.275Z"
     },
     {
       "id": "apply:discovered-64",
@@ -16577,7 +16577,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/IMRNsManagement/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:28:26.489Z"
+      "checkedAt": "2026-09-25T03:36:24.588Z"
     },
     {
       "id": "apply:discovered-65",
@@ -16591,7 +16591,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/MSDNManagement/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:28:29.511Z"
+      "checkedAt": "2026-09-25T03:36:25.922Z"
     },
     {
       "id": "apply:discovered-66",
@@ -18425,7 +18425,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/Feature_Codes/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:39:09.927Z"
+      "checkedAt": "2026-09-25T03:34:37.428Z"
     },
     {
       "id": "apply:discovered-307",
@@ -18439,7 +18439,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/Prepaid/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:39:12.163Z"
+      "checkedAt": "2026-09-25T03:34:39.805Z"
     },
     {
       "id": "apply:discovered-308",
@@ -18453,7 +18453,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/PushNotification/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:39:13.556Z"
+      "checkedAt": "2026-09-25T03:34:41.122Z"
     },
     {
       "id": "apply:discovered-311",
@@ -18467,7 +18467,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/SecurityClassification/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:39:15.541Z"
+      "checkedAt": "2026-09-25T03:34:43.011Z"
     },
     {
       "id": "apply:discovered-458",
@@ -20102,8 +20102,8 @@
       "deep": true,
       "submitControls": 1,
       "status": "passed",
-      "detail": "Disposable schedule PJAX-Audit-mug6txuo deleted and absent on fresh search.",
-      "checkedAt": "2026-09-24T23:55:15.304Z"
+      "detail": "Disposable schedule was absent after Delete and a fresh search.",
+      "checkedAt": "2026-09-25T03:34:57.069Z"
     },
     {
       "id": "lifecycle:group-department-delete",
@@ -20918,9 +20918,213 @@
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/VideoAddOn/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-25T03:18:08.685Z"
+    },
+    {
+      "id": "lifecycle:hunt-group-smdi-message-desk-delete",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "lifecycle hunt group smdi message desk delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable SMDI terminal server PJAX SMDI mugebg6q is absent after Delete.",
+      "checkedAt": "2026-09-25T03:23:11.546Z"
+    },
+    {
+      "id": "lifecycle:group-account-code-delete",
+      "area": "Group / Acct/Auth Codes",
+      "label": "lifecycle group account code delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable group account code 908150 is absent after Delete.",
+      "checkedAt": "2026-09-25T03:25:07.109Z"
+    },
+    {
+      "id": "lifecycle:user-comm-barring-auth-code-delete",
+      "area": "User / Profile",
+      "label": "lifecycle user comm barring auth code delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable Communication Barring Authorization Codes code 999863 is absent after Delete.",
+      "checkedAt": "2026-09-25T03:26:38.824Z"
+    },
+    {
+      "id": "lifecycle:user-schedule-modify",
+      "area": "User / Profile",
+      "label": "lifecycle user schedule modify",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable schedule opened its Modify page with the saved name.",
+      "checkedAt": "2026-09-25T03:29:09.000Z"
+    },
+    {
+      "id": "lifecycle:user-schedule-delete",
+      "area": "User / Profile",
+      "label": "lifecycle user schedule delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable schedule was absent after Delete and a fresh search.",
+      "checkedAt": "2026-09-25T03:29:11.419Z"
+    },
+    {
+      "id": "lifecycle:service-provider-schedule-delete",
+      "area": "Service Provider / Profile",
+      "label": "lifecycle service provider schedule delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable schedule was absent after Delete and a fresh search.",
+      "checkedAt": "2026-09-25T03:38:13.987Z"
+    },
+    {
+      "id": "lifecycle:service-provider-schedule-event-modify",
+      "area": "Service Provider / Profile",
+      "label": "lifecycle service provider schedule event modify",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Event Modify Apply HTTP 200; same document; fresh schedule readback found renamed event.",
+      "checkedAt": "2026-09-25T03:38:09.014Z"
+    },
+    {
+      "id": "lifecycle:serviceprovider-schedule-event-delete",
+      "area": "Service Provider / Profile",
+      "label": "lifecycle serviceprovider schedule event delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Event Delete Apply HTTP 200; same document; fresh schedule readback does not contain event.",
+      "checkedAt": "2026-09-25T03:38:11.433Z"
+    },
+    {
+      "id": "lifecycle:group-schedule-event-add",
+      "area": "Group / Profile",
+      "label": "lifecycle group schedule event add",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Schedule Event Add HTTP 200; same document at /commpilot/Group/Schedules/Events/Add/index.jsp; fresh schedule readback found event.",
+      "checkedAt": "2026-09-25T03:34:54.043Z"
+    },
+    {
+      "id": "lifecycle:group-schedule-event-delete",
+      "area": "Group / Profile",
+      "label": "lifecycle group schedule event delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Event Delete Apply HTTP 200; same document; fresh schedule readback does not contain event.",
+      "checkedAt": "2026-09-25T03:34:56.268Z"
+    },
+    {
+      "id": "lifecycle:agent-threshold-profile-delete",
+      "area": "Group / Call Center",
+      "label": "lifecycle agent threshold profile delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable profile PJAX Audit Threshold mugexgj6 is absent after Delete and fresh list.",
+      "checkedAt": "2026-09-25T03:40:18.306Z"
+    },
+    {
+      "id": "lifecycle:auto-attendant-submenu-delete",
+      "area": "Auto Attendant / Profile",
+      "label": "lifecycle auto attendant submenu delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable submenu PJAXSubmugezg8d is absent on fresh list.",
+      "checkedAt": "2026-09-25T03:41:49.884Z"
+    },
+    {
+      "id": "lifecycle:digit-pattern-criteria-delete",
+      "area": "Service Provider / Communication Barring",
+      "label": "lifecycle digit pattern criteria delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable criterion PJAX Pattern mugfch73 is absent on fresh list.",
+      "checkedAt": "2026-09-25T03:52:11.178Z"
+    },
+    {
+      "id": "lifecycle:digit-pattern-criteria-modify",
+      "area": "Service Provider / Communication Barring",
+      "label": "lifecycle digit pattern criteria modify",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Criterion Modify Apply HTTP 200; same document; fresh readback matched description.",
+      "checkedAt": "2026-09-25T03:52:00.194Z"
+    },
+    {
+      "id": "lifecycle:digit-pattern-criteria-patterns-tab",
+      "area": "Service Provider / Communication Barring",
+      "label": "lifecycle digit pattern criteria patterns tab",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Digit Patterns tab opened /commpilot/ServiceProvider/CommBarring/DigitPatternCriteria/DigitPatterns/ in the same document; active tab Digit Patterns; responses [{\"path\":\"/commpilot/ServiceProvider/CommBarring/DigitPatternCriteria/Modify/index.jsp\",\"status\":200,\"method\":\"POST\"},{\"path\":\"/commpilot/ServiceProvider/CommBarring/DigitPatternCriteria/DigitPatterns/\",\"status\":200,\"method\":\"POST\"}].",
+      "checkedAt": "2026-09-25T03:52:02.199Z"
+    },
+    {
+      "id": "lifecycle:digit-pattern-entry-add",
+      "area": "Service Provider / Communication Barring",
+      "label": "lifecycle digit pattern entry add",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Digit Pattern Add HTTP 200; same document; fresh readback contains 987654321.",
+      "checkedAt": "2026-09-25T03:52:05.276Z"
+    },
+    {
+      "id": "lifecycle:digit-pattern-entry-delete",
+      "area": "Service Provider / Communication Barring",
+      "label": "lifecycle digit pattern entry delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Digit Pattern 987654321 is absent after Delete and fresh readback.",
+      "checkedAt": "2026-09-25T03:52:08.049Z"
     }
   ],
   "incidents": [],
   "notes": [],
-  "currentNote": "Apply returned HTTP 200 at /commpilot/User/VideoAddOn/; same document; editable values preserved; fresh readback matched."
+  "currentNote": "List Find, disposable criterion Add/Modify/Delete, nested Digit Patterns tab, and pattern Add/Delete passed with fresh readback in PJAX."
 }

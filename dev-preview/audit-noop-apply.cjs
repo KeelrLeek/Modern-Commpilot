@@ -150,69 +150,241 @@ async function scheduleRows(page, name) {
   if (await find.count()) {
     await find.fill(name);
     const response = page.waitForResponse(item => item.request().method() === 'POST' &&
-      /\/commpilot\/(?:Common\/find|Group\/Schedules)/.test(new URL(item.url()).pathname),
+      /\/commpilot\/(?:Common\/find|(?:Group|User|ServiceProvider)\/Schedules)/.test(new URL(item.url()).pathname),
     { timeout: 12000 }).catch(() => null);
     await page.locator('td[width="82%"] #search0').click();
     await response;
   }
   return page.locator('td[width="82%"] a.tableLink').filter({ hasText: name });
 }
-async function deleteScheduleRow(page, name) {
+async function deleteScheduleRow(page, name, scope = 'Group') {
+  const listPath = `/commpilot/${scope}/Schedules/`;
   const row = page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: name });
   if (await row.count() !== 1) throw new Error(`Expected exactly one disposable schedule row for ${name}`);
   await row.locator('input[type="checkbox"]').check();
+  await page.evaluate(() => { window.__bwScheduleDeleteDocument = document; });
   page.once('dialog', dialog => dialog.accept());
   const response = page.waitForResponse(item => item.request().method() === 'POST' &&
-    new URL(item.url()).pathname === '/commpilot/Group/Schedules/',
+    new URL(item.url()).pathname.startsWith('/commpilot/'),
   { timeout: 15000 }).catch(() => null);
-  await page.locator('td[width="82%"] input[name="apply"]').first().click();
+  await page.locator('td[width="82%"] input[name="apply"]').first().click({ noWaitAfter: true });
   const found = await response;
-  await waitPath(page, '/commpilot/Group/Schedules/');
-  return found?.status() === 200 && await (await scheduleRows(page, name)).count() === 0;
+  await waitPath(page, listPath);
+  const sameDocument = await page.evaluate(() => document === window.__bwScheduleDeleteDocument);
+  await openFolder(page);
+  await page.locator('td[width="82%"] a.navMenuItem:text-is("Schedules")').click();
+  await waitPath(page, listPath);
+  const absent = await (await scheduleRows(page, name)).count() === 0;
+  console.log(JSON.stringify({ event: 'schedule-delete-readback', scope, name,
+    status: found?.status() || null, sameDocument, absent }));
+  return found?.status() === 200 && sameDocument && absent;
 }
-async function exerciseSchedule(page) {
+async function exerciseSchedule(page, scope = 'Group') {
+  const listPath = `/commpilot/${scope}/Schedules/`;
+  const addId = scope === 'User' ? 'discovered-620' :
+    scope === 'ServiceProvider' ? 'discovered-595' : 'discovered-517';
+  const modifyId = scope === 'User' ? 'lifecycle:user-schedule-modify' :
+    scope === 'ServiceProvider' ? 'discovered-515' : 'schedule-modify';
+  const deleteId = scope === 'User' ? 'lifecycle:user-schedule-delete' :
+    scope === 'ServiceProvider' ? 'lifecycle:service-provider-schedule-delete' :
+      'lifecycle:group-schedule-delete';
   const name = `PJAX-Audit-${Date.now().toString(36)}`;
   let created = false, modified = false, deleted = false;
   try {
     if (await (await scheduleRows(page, name)).count())
       throw new Error('Disposable schedule name already exists');
     await page.locator('td[width="82%"] input[value="Add"]').first().click();
-    await waitPath(page, '/commpilot/Group/Schedules/Add/index.jsp');
+    await waitPath(page, `${listPath}Add/index.jsp`);
     await page.locator('td[width="82%"] input[name="scheduleName"]').fill(name);
     await page.locator('td[width="82%"] input[name="scheduleType"][value="Time"]').check();
     await page.evaluate(() => { window.__bwScheduleDocument = document; });
     const save = page.waitForResponse(item => item.request().method() === 'POST' &&
-      new URL(item.url()).pathname.includes('/Group/Schedules/Add/'),
+      new URL(item.url()).pathname === `${listPath}Add/index.jsp`,
     { timeout: 15000 }).catch(() => null);
     await page.locator('td[width="82%"] input[name="ok"]').first().click();
     const saveResponse = await save;
-    await page.waitForFunction(() => location.pathname === '/commpilot/Group/Schedules/' &&
-      !!document.querySelector('td[width="82%"]'), null, { timeout: 15000 });
+    await waitPath(page, listPath);
     const sameDocument = await page.evaluate(() => document === window.__bwScheduleDocument);
     const row = await scheduleRows(page, name);
     created = saveResponse?.status() === 200 && sameDocument && await row.count() === 1;
-    writeDeep('discovered-517', created ? 'passed' : 'failed',
+    writeDeep(addId, created ? 'passed' : 'failed',
       `Disposable Time schedule Add returned HTTP ${saveResponse?.status() || 'none'}; ` +
       `${sameDocument ? 'same document' : 'reload'}; search found ${await row.count()} row(s).`);
     if (!created) return;
     await row.first().click();
-    await waitPath(page, '/commpilot/Group/Schedules/Modify/index.jsp');
+    await waitPath(page, `${listPath}Modify/index.jsp`);
     modified = await page.locator('td[width="82%"] input[name="scheduleName"]').inputValue() === name;
-    writeDeep('schedule-modify', modified ? 'passed' : 'failed',
+    writeDeep(modifyId, modified ? 'passed' : 'failed',
       `Disposable schedule opened its Modify page ${modified ? 'with the saved name' : 'without the saved name'}.`);
+    if (process.env.BW_SCHEDULE_EVENT_LIFECYCLE === '1' &&
+      ['ServiceProvider', 'Group'].includes(scope)) {
+      const eventName = `PJAX event ${Date.now().toString(36)}`;
+      const start = new Date(Date.now() + 86400000);
+      const end = new Date(Date.now() + 2 * 86400000);
+      const format = date => `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+      await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+      const eventPath = `${listPath}Events/Add/index.jsp`;
+      await waitPath(page, eventPath);
+      await page.locator('td[width="82%"] input[name="eventName"]').fill(eventName);
+      await page.locator('td[width="82%"] input[name="startDate"]').fill(format(start));
+      await page.locator('td[width="82%"] input[name="endDate"]').fill(format(end));
+      await page.locator('td[width="82%"] input[name="allDayEvent"]').check();
+      await page.evaluate(() => { window.__bwScheduleEventDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === eventPath, { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first().click({ noWaitAfter: true });
+      const found = await response;
+      await page.waitForTimeout(500);
+      const state = await page.evaluate(() => ({ path: location.pathname,
+        sameDocument: document === window.__bwScheduleEventDocument,
+        text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 430) }));
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Schedules")').click();
+      await waitPath(page, listPath);
+      await (await scheduleRows(page, name)).first().click();
+      await waitPath(page, `${listPath}Modify/index.jsp`);
+      const eventRow = page.locator('td[width="82%"] tr[id^="Row"]')
+        .filter({ hasText: eventName });
+      const added = found?.status() === 200 && state.sameDocument && await eventRow.count() === 1;
+      writeDeep(scope === 'ServiceProvider' ? 'discovered-676' :
+        'lifecycle:group-schedule-event-add', added ? 'passed' : 'failed',
+        `Schedule Event Add HTTP ${found?.status() || 'none'}; ` +
+        `${state.sameDocument ? 'same document' : 'reload'} at ${state.path}; ` +
+        `${await eventRow.count() ? 'fresh schedule readback found event' :
+          `event not found: ${state.text}`}.`);
+      if (added && scope === 'ServiceProvider') writeDeep('discovered-678', 'passed',
+        `Same Events/Add controller saved ${eventName}; fresh schedule readback found the event.`);
+      if (scope === 'ServiceProvider' && added) {
+        console.log(JSON.stringify({ event: 'schedule-event-sort-links',
+          links: await page.locator('td[width="82%"] a').evaluateAll(items => items
+            .filter(item => item.textContent.includes('Event Name'))
+            .map(item => item.outerHTML.slice(0, 400))) }));
+        for (const id of ['discovered-677', 'discovered-679']) {
+          const sortLink = page.locator('td[width="82%"] a.listSortHeader')
+            .filter({ hasText: /^Event Name/ }).first();
+          if (!await sortLink.count()) break;
+          await page.evaluate(() => { window.__bwScheduleSortDocument = document; });
+          const sortResponse = page.waitForResponse(item => item.request().method() === 'POST' &&
+            new URL(item.url()).pathname === '/commpilot/Common/sort.jsp',
+          { timeout: 12000 }).catch(() => null);
+          await sortLink.click({ noWaitAfter: true });
+          const sorted = await sortResponse;
+          await page.waitForTimeout(250);
+          const sortState = await page.evaluate(() => ({ path: location.pathname,
+            sameDocument: document === window.__bwScheduleSortDocument }));
+          const preserved = await page.locator('td[width="82%"] tr[id^="Row"]')
+            .filter({ hasText: eventName }).count() === 1;
+          writeDeep(id, sorted?.status() === 200 && sortState.sameDocument && preserved ?
+            'passed' : 'failed',
+          `Event Name sort POST HTTP ${sorted?.status() || 'none'}; ` +
+            `${sortState.sameDocument ? 'same document' : 'reload'}; ` +
+            `event ${preserved ? 'remains' : 'is absent'} at ${sortState.path}.`);
+        }
+      }
+      if (await eventRow.count()) console.log(JSON.stringify({ event: 'schedule-event-row',
+        scope, name, eventName,
+        html: await eventRow.first().evaluate(item => item.outerHTML.slice(0, 1250)) }));
+      if (await eventRow.count()) {
+        await eventRow.first().locator('a.tableLink').first().click();
+        await waitPath(page, `${listPath}Events/Modify/index.jsp`);
+        const changedName = `${eventName} updated`;
+        await page.locator('td[width="82%"] input[name="eventName"]').fill(changedName);
+        await page.evaluate(() => { window.__bwEventModifyDocument = document; });
+        const updateResponse = page.waitForResponse(item => item.request().method() === 'POST' &&
+          new URL(item.url()).pathname === `${listPath}Events/Modify/index.jsp`,
+        { timeout: 15000 }).catch(() => null);
+        await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+          .click({ noWaitAfter: true });
+        const update = await updateResponse;
+        await page.waitForTimeout(400);
+        const updateState = await page.evaluate(() => ({ path: location.pathname,
+          sameDocument: document === window.__bwEventModifyDocument }));
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Schedules")').click();
+        await waitPath(page, listPath);
+        await (await scheduleRows(page, name)).first().click();
+        await waitPath(page, `${listPath}Modify/index.jsp`);
+        const changedRow = page.locator('td[width="82%"] tr[id^="Row"]')
+          .filter({ hasText: changedName });
+        const changed = update?.status() === 200 && updateState.sameDocument &&
+          await changedRow.count() === 1;
+        writeDeep(scope === 'Group' ? 'event-modify' :
+          'lifecycle:service-provider-schedule-event-modify',
+        changed ? 'passed' : 'failed',
+        `Event Modify Apply HTTP ${update?.status() || 'none'}; ` +
+          `${updateState.sameDocument ? 'same document' : 'reload'}; ` +
+          `${await changedRow.count() ? 'fresh schedule readback found renamed event' :
+            `renamed event absent at ${updateState.path}`}.`);
+        console.log(JSON.stringify({ event: 'schedule-event-parent-controls', scope,
+          state: await page.evaluate(() => ({ path: location.pathname,
+            controls: [...document.querySelectorAll('td[width="82%"] input')]
+              .filter(item => item.getClientRects().length)
+              .map(item => ({ name: item.name, type: item.type, value: item.value }))
+              .slice(0, 30) })) }));
+        if (await changedRow.count() === 1) {
+          await changedRow.locator('input[type="checkbox"]').check();
+          await page.evaluate(() => { window.__bwEventDeleteDocument = document; });
+          page.once('dialog', dialog => dialog.accept());
+          const deleteResponse = page.waitForResponse(item => item.request().method() === 'POST' &&
+            new URL(item.url()).pathname.startsWith(listPath),
+          { timeout: 15000 }).catch(() => null);
+          await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+            .click({ noWaitAfter: true });
+          const deletedEvent = await deleteResponse;
+          await page.waitForTimeout(350);
+          const sameDeleteDocument = await page.evaluate(() =>
+            document === window.__bwEventDeleteDocument);
+          await openFolder(page);
+          await page.locator('td[width="82%"] a.navMenuItem:text-is("Schedules")').click();
+          await waitPath(page, listPath);
+          await (await scheduleRows(page, name)).first().click();
+          await waitPath(page, `${listPath}Modify/index.jsp`);
+          const absent = await page.locator('td[width="82%"] tr[id^="Row"]')
+            .filter({ hasText: changedName }).count() === 0;
+          writeDeep(`lifecycle:${scope.toLowerCase()}-schedule-event-delete`,
+            deletedEvent?.status() === 200 && sameDeleteDocument && absent ?
+              'passed' : 'failed',
+            `Event Delete Apply HTTP ${deletedEvent?.status() || 'none'}; ` +
+              `${sameDeleteDocument ? 'same document' : 'reload'}; ` +
+              `fresh schedule readback ${absent ? 'does not contain' : 'still contains'} event.`);
+        }
+      }
+    }
+    if (process.env.BW_SCHEDULE_EVENT_INSPECT === '1')
+      console.log(JSON.stringify({ event: 'schedule-event-inspect', scope, name,
+        state: await page.evaluate(() => ({ path: location.pathname,
+          text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 950),
+          controls: [...document.querySelectorAll('td[width="82%"] input, td[width="82%"] a')]
+            .filter(item => item.getClientRects().length)
+            .map(item => ({ tag: item.tagName, name: item.name, value: item.value,
+              text: item.textContent.trim().slice(0, 45) })).slice(0, 40) })) }));
+    if (process.env.BW_SCHEDULE_EVENT_INSPECT === '1') {
+      await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+      await page.waitForFunction(value => location.pathname !== value &&
+        !!document.querySelector('td[width="82%"]'), `${listPath}Modify/index.jsp`,
+      { timeout: 15000 });
+      console.log(JSON.stringify({ event: 'schedule-event-add-inspect', scope, name,
+        state: await page.evaluate(() => ({ path: location.pathname,
+          text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 900),
+          controls: [...document.querySelectorAll('td[width="82%"] input, td[width="82%"] select')]
+            .filter(item => item.getClientRects().length)
+            .map(item => ({ name: item.name, type: item.type, value: item.value,
+              options: item.tagName === 'SELECT' ? [...item.options].slice(0, 5)
+                .map(option => option.value) : undefined })).slice(0, 55) })) }));
+    }
   } finally {
     try {
       await openFolder(page);
       await page.locator('td[width="82%"] a.navMenuItem:text-is("Schedules")').click();
-      await waitPath(page, '/commpilot/Group/Schedules/');
+      await waitPath(page, listPath);
       const row = await scheduleRows(page, name);
-      if (await row.count() === 1) deleted = await deleteScheduleRow(page, name);
+      if (await row.count() === 1) deleted = await deleteScheduleRow(page, name, scope);
       else deleted = true;
-      writeDeep('lifecycle:group-schedule-delete', deleted ? 'passed' : 'failed',
+      writeDeep(deleteId, deleted ? 'passed' : 'failed',
         `Disposable schedule ${deleted ? 'was absent after Delete and a fresh search' :
           'was still present after the cleanup attempt'}.`);
     } catch (error) {
-      writeDeep('lifecycle:group-schedule-delete', 'failed',
+      writeDeep(deleteId, 'failed',
         `Disposable schedule cleanup needs inspection: ${error.message.slice(0, 180)}`);
     }
   }
@@ -1072,6 +1244,60 @@ async function exerciseUserRingCriterion(page, label) {
     }
   }
 }
+async function exerciseSmdiMessageDesk(page) {
+  const listPath = '/commpilot/User/SmdiMessageDesk/';
+  const name = `PJAX SMDI ${Date.now().toString(36)}`;
+  async function openList() {
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem')
+      .filter({ hasText: /^SMDI Message Desk - (?:On|Off)$/ }).click();
+    await waitPath(page, listPath);
+  }
+  async function row() { return aaRowId(page, name); }
+  try {
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, `${listPath}Add/index.jsp`);
+    await page.locator('td[width="82%"] input[name="name"]').fill(name);
+    await page.locator('td[width="82%"] input[name="addr"]').fill('192.0.2.1');
+    await page.locator('td[width="82%"] input[name="port"]').fill('65535');
+    await page.evaluate(() => { window.__bwSmdiDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === `${listPath}Add/index.jsp`,
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click({ noWaitAfter: true });
+    const found = await response;
+    await page.waitForTimeout(500);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwSmdiDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 480) }));
+    await openList();
+    const rowId = await row();
+    writeDeep('discovered-631', found?.status() === 200 && state.sameDocument && !!rowId ?
+      'passed' : 'failed', `SMDI Message Desk Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'} at ${state.path}; ` +
+      `${rowId ? 'fresh list readback found terminal server' : `not found: ${state.text}`}.`);
+    if (rowId) console.log(JSON.stringify({ event: 'smdi-row', name,
+      html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1200)) }));
+  } finally {
+    try {
+      await openList();
+      const rowId = await row();
+      if (rowId) {
+        await page.locator(`#${rowId} input[type="checkbox"]`).first().check();
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="apply"]:visible').first().click({ noWaitAfter: true });
+        await page.waitForTimeout(500);
+      }
+      await openList();
+      const deleted = !(await row());
+      writeDeep('lifecycle:hunt-group-smdi-message-desk-delete', deleted ? 'passed' : 'failed',
+        `Disposable SMDI terminal server ${name} ${deleted ? 'is absent' : 'still exists'} after Delete.`);
+    } catch (error) {
+      writeDeep('lifecycle:hunt-group-smdi-message-desk-delete', 'failed',
+        `Disposable SMDI terminal server ${name} cleanup needs inspection: ${error.message.slice(0, 160)}`);
+    }
+  }
+}
 async function exerciseDeviceProfile(page) {
   const listPath = '/commpilot/Group/DeviceInventory/';
   const name = `PJAX Audit Profile ${Date.now().toString(36)}`;
@@ -1793,6 +2019,357 @@ async function exerciseSimpleService(page, kind) {
     }
   }
 }
+async function exerciseAgentThresholdProfile(page) {
+  const listPath = '/commpilot/Group/Call_Center/ThresholdsProfiles/';
+  const addPath = `${listPath}Add/index.jsp`;
+  const name = `PJAX Audit Threshold ${Date.now().toString(36)}`;
+  const row = () => page.locator('td[width="82%"] tr[id^="Row"]')
+    .filter({ hasText: name });
+  try {
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, addPath);
+    await page.locator('td[width="82%"] input[name="profileName"]').fill(name);
+    await page.evaluate(() => { window.__bwThresholdDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === addPath, { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+      .click({ noWaitAfter: true });
+    const found = await response;
+    await page.waitForTimeout(400);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwThresholdDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 500) }));
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem:text-is("Agent Threshold Profiles")').click();
+    await waitPath(page, listPath);
+    const created = found?.status() === 200 && state.sameDocument && await row().count() === 1;
+    writeDeep('discovered-548', created ? 'passed' : 'failed',
+      `Threshold Profile Add HTTP ${found?.status() || 'none'}; ` +
+        `${state.sameDocument ? 'same document' : 'reload'}; ` +
+        `${created ? 'fresh list contains disposable profile' :
+          `no profile found after ${state.path}: ${state.text.slice(0, 170)}`}.`);
+    if (created) {
+      await row().locator('a.tableLink').filter({ hasText: name }).first().click();
+      await waitPath(page, `${listPath}Modify/index.jsp`);
+      console.log(JSON.stringify({ event: 'threshold-modify-controls', name,
+        controls: await page.locator('td[width="82%"] input:visible')
+          .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value,
+            type: item.type })).slice(0, 20)) }));
+      const description = `PJAX audit ${Date.now().toString(36)}`;
+      await page.locator('td[width="82%"] input[name="profileDescription"]').fill(description);
+      await page.evaluate(() => { window.__bwThresholdModifyDocument = document; });
+      const modifyResponse = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === `${listPath}Modify/index.jsp`,
+      { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+        .click({ noWaitAfter: true });
+      const updated = await modifyResponse;
+      await page.waitForTimeout(300);
+      const sameDocument = await page.evaluate(() =>
+        document === window.__bwThresholdModifyDocument);
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Agent Threshold Profiles")').click();
+      await waitPath(page, listPath);
+      await row().locator('a.tableLink').filter({ hasText: name }).first().click();
+      await waitPath(page, `${listPath}Modify/index.jsp`);
+      const saved = await page.locator('td[width="82%"] input[name="profileDescription"]')
+        .inputValue() === description;
+      writeDeep('discovered-503', updated?.status() === 200 && sameDocument && saved ?
+        'passed' : 'failed',
+        `Threshold Profile Modify Apply HTTP ${updated?.status() || 'none'}; ` +
+          `${sameDocument ? 'same document' : 'reload'}; ` +
+          `fresh readback ${saved ? 'matched' : 'did not match'} description.`);
+    }
+  } finally {
+    try {
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Agent Threshold Profiles")').click();
+      await waitPath(page, listPath);
+      if (await row().count() === 1) {
+        await row().locator('a.tableLink').filter({ hasText: name }).first().click();
+        await waitPath(page, `${listPath}Modify/index.jsp`);
+        const remove = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+        if (await remove.count()) {
+          page.once('dialog', dialog => dialog.accept());
+          await remove.click({ noWaitAfter: true });
+          await page.waitForTimeout(350);
+        }
+      }
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Agent Threshold Profiles")').click();
+      await waitPath(page, listPath);
+      const absent = await row().count() === 0;
+      writeDeep('lifecycle:agent-threshold-profile-delete', absent ? 'passed' : 'failed',
+        `Disposable profile ${name} ${absent ? 'is absent' : 'remains'} after Delete and fresh list.`);
+    } catch (error) {
+      writeDeep('lifecycle:agent-threshold-profile-delete', 'failed',
+        `Disposable profile ${name} cleanup needs inspection: ${error.message.slice(0, 150)}`);
+    }
+  }
+}
+async function exerciseAutoAttendantSubmenu(page) {
+  const listPath = '/commpilot/Group/Auto_Attendant/Submenus/';
+  const addPath = `${listPath}Add/index.jsp`;
+  const name = `PJAXSub${Date.now().toString(36)}`;
+  const row = () => page.locator('td[width="82%"] tr[id^="Row"]')
+    .filter({ hasText: name });
+  try {
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, addPath);
+    await page.locator('td[width="82%"] input[name="submenuId"]').fill(name);
+    await page.locator('td[width="82%"] input[name="fileSelectionSM"][value="default"]')
+      .check();
+    await page.evaluate(() => { window.__bwSubmenuDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === '/commpilot/servlet/AASubscriptionServlet',
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+      .click({ noWaitAfter: true });
+    const found = await response;
+    await page.waitForTimeout(500);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwSubmenuDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 520) }));
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem:text-is("Submenus")').click();
+    await waitPath(page, listPath);
+    const created = found?.status() === 200 && state.sameDocument && await row().count() === 1;
+    writeDeep('discovered-624', created ? 'passed' : 'failed',
+      `Submenu Add multipart POST HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${created ? 'fresh list contains disposable submenu' :
+        `no submenu found after ${state.path}: ${state.text.slice(0, 160)}`}.`);
+  } finally {
+    try {
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Submenus")').click();
+      await waitPath(page, listPath);
+      if (await row().count() === 1) {
+        await row().locator('input[type="checkbox"]').check();
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+          .click({ noWaitAfter: true });
+        await page.waitForTimeout(400);
+      }
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Submenus")').click();
+      await waitPath(page, listPath);
+      const absent = await row().count() === 0;
+      writeDeep('lifecycle:auto-attendant-submenu-delete', absent ? 'passed' : 'failed',
+        `Disposable submenu ${name} ${absent ? 'is absent' : 'remains'} on fresh list.`);
+    } catch (error) {
+      writeDeep('lifecycle:auto-attendant-submenu-delete', 'failed',
+        `Disposable submenu ${name} cleanup needs inspection: ${error.message.slice(0, 150)}`);
+    }
+  }
+}
+async function exerciseDigitPatternCriteria(page) {
+  const listPath = '/commpilot/ServiceProvider/CommBarring/DigitPatternCriteria/';
+  const name = `PJAX Pattern ${Date.now().toString(36)}`;
+  const row = () => page.locator('td[width="82%"] tr[id^="Row"]')
+    .filter({ hasText: name });
+  try {
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, `${listPath}Add/index.jsp`);
+    await page.locator('td[width="82%"] input[name="name"]').fill(name);
+    await page.evaluate(() => { window.__bwDigitPatternDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === `${listPath}Add/index.jsp`,
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+      .click({ noWaitAfter: true });
+    const found = await response;
+    await page.waitForTimeout(350);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwDigitPatternDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 450) }));
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem:text-is("Digit Pattern Criteria")').click();
+    await waitPath(page, listPath);
+    const created = found?.status() === 200 && state.sameDocument && await row().count() === 1;
+    writeDeep('discovered-590', created ? 'passed' : 'failed',
+      `Digit Pattern Criteria Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${created ? 'fresh list contains disposable criterion' :
+        `no criterion after ${state.path}: ${state.text.slice(0, 130)}`}.`);
+    if (created) {
+      await row().locator('a.tableLink').filter({ hasText: name }).first().click();
+      await waitPath(page, `${listPath}Modify/index.jsp`);
+      console.log(JSON.stringify({ event: 'digit-pattern-modify-inspect', name,
+        text: await page.locator('td[width="82%"]')
+          .evaluate(item => item.innerText.slice(0, 650)),
+        controls: await page.locator('td[width="82%"] input:visible')
+          .evaluateAll(items => items.map(item => ({ name: item.name, type: item.type,
+            value: item.value })).slice(0, 25)) }));
+      const description = `PJAX audit ${Date.now().toString(36)}`;
+      await page.locator('td[width="82%"] input[name="description"]').fill(description);
+      await page.evaluate(() => { window.__bwDigitPatternModifyDocument = document; });
+      const modifyResponse = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === `${listPath}Modify/index.jsp`,
+      { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+        .click({ noWaitAfter: true });
+      const updated = await modifyResponse;
+      await page.waitForTimeout(350);
+      const sameDocument = await page.evaluate(() =>
+        document === window.__bwDigitPatternModifyDocument);
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Digit Pattern Criteria")').click();
+      await waitPath(page, listPath);
+      await row().locator('a.tableLink').filter({ hasText: name }).first().click();
+      await waitPath(page, `${listPath}Modify/index.jsp`);
+      const saved = await page.locator('td[width="82%"] input[name="description"]')
+        .inputValue() === description;
+      writeDeep('lifecycle:digit-pattern-criteria-modify',
+        updated?.status() === 200 && sameDocument && saved ? 'passed' : 'failed',
+        `Criterion Modify Apply HTTP ${updated?.status() || 'none'}; ` +
+        `${sameDocument ? 'same document' : 'reload'}; ` +
+        `fresh readback ${saved ? 'matched' : 'did not match'} description.`);
+      if (process.env.BW_DIGIT_PATTERN_TAB_INSPECT === '1') {
+        console.log(JSON.stringify({ event: 'digit-pattern-tab-source',
+          source: await page.locator('td[width="82%"] a.tab:text-is("Digit Patterns")')
+            .evaluate(item => ({ html: item.outerHTML,
+              parent: item.parentElement?.outerHTML.slice(0, 1600),
+              next: item.nextElementSibling?.outerHTML.slice(0, 2200),
+              base: document.baseURI, href: location.href,
+              tabSubmit: String(window.TabSubmit).slice(0, 1200),
+              form: { action: document.forms.mainForm?.getAttribute('action'),
+                method: document.forms.mainForm?.method,
+                hidden: [...(document.forms.mainForm?.querySelectorAll('input[type="hidden"]') || [])]
+                  .map(input => ({ name: input.name, value: input.value })) } })) }));
+        return;
+      }
+      await page.evaluate(() => { window.__bwDigitPatternTabDocument = document; });
+      const tabResponses = [];
+      const tabPost = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === `${listPath}Modify/index.jsp`,
+      { timeout: 12000 }).catch(() => null);
+      const onTabResponse = item => { if (item.url().includes('/commpilot/'))
+        tabResponses.push({ path: new URL(item.url()).pathname, status: item.status(),
+          method: item.request().method() }); };
+      page.on('response', onTabResponse);
+      if (process.env.BW_DIGIT_PATTERN_TAB_NATIVE === '1')
+        await page.evaluate(() => window.TabSubmit('digitpatterns'));
+      else await page.locator('td[width="82%"] a.tab:text-is("Digit Patterns")').click();
+      const tabFound = await tabPost;
+      await page.waitForFunction(() =>
+        document.querySelector('td[width="82%"] .tabActive')?.textContent?.trim() ===
+          'Digit Patterns', null, { timeout: 15000 });
+      page.off('response', onTabResponse);
+      const tab = await page.evaluate(() => ({ path: location.pathname,
+        sameDocument: document === window.__bwDigitPatternTabDocument,
+        title: document.title,
+        activeTab: document.querySelector('td[width="82%"] .tabActive')?.textContent?.trim(),
+        text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 800),
+        controls: [...document.querySelectorAll('td[width="82%"] input')]
+          .filter(item => item.getClientRects().length)
+          .map(item => ({ name: item.name, type: item.type, value: item.value }))
+          .slice(0, 25) }));
+      writeDeep('lifecycle:digit-pattern-criteria-patterns-tab',
+        tab.sameDocument && tab.path.includes('DigitPatternCriteria') &&
+          tab.activeTab === 'Digit Patterns' && !/error|login/i.test(tab.title) ?
+          'passed' : 'failed',
+        `Digit Patterns tab opened ${tab.path} ` +
+          `${tab.sameDocument ? 'in the same document' : 'with a reload'}; ` +
+          `active tab ${tab.activeTab || 'none'}; ` +
+          `responses ${JSON.stringify(tabResponses)}.`);
+      console.log(JSON.stringify({ event: 'digit-pattern-tab-inspect', name, tab,
+        tabResponses,
+        post: tabFound && { status: tabFound.status(),
+          fields: [...new URLSearchParams(tabFound.request().postData() || '')]
+            .filter(([key]) => key !== 'formtokenserial'),
+          html: (await tabFound.text().catch(() => '')).slice(0, 1400) } }));
+      if (process.env.BW_DIGIT_PATTERN_ENTRY_LIFECYCLE === '1' &&
+          tab.activeTab === 'Digit Patterns') {
+        const pattern = '987654321';
+        const patternPath = `${listPath}DigitPatterns/`;
+        const patternRow = () => page.locator('td[width="82%"] tr[id^="Row"]')
+          .filter({ hasText: pattern });
+        await page.locator('td[width="82%"] input[name="digitPattern"]').fill(pattern);
+        await page.evaluate(() => { window.__bwPatternAddDocument = document; });
+        const addResponse = page.waitForResponse(item => item.request().method() === 'POST' &&
+          new URL(item.url()).pathname === patternPath,
+        { timeout: 15000 }).catch(() => null);
+        await page.locator('td[width="82%"] input[name="add"]:visible').first()
+          .click({ noWaitAfter: true });
+        const addedPattern = await addResponse;
+        await page.waitForTimeout(350);
+        const sameAddDocument = await page.evaluate(() =>
+          document === window.__bwPatternAddDocument);
+        console.log(JSON.stringify({ event: 'digit-pattern-add-state',
+          status: addedPattern?.status() || null,
+          requestPath: addedPattern && new URL(addedPattern.url()).pathname,
+          state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+            text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 650) })) }));
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Digit Pattern Criteria")').click();
+        await waitPath(page, listPath);
+        console.log(JSON.stringify({ event: 'digit-pattern-fresh-list', name,
+          rows: await row().count(), path: new URL(page.url()).pathname }));
+        await row().locator('a.tableLink').filter({ hasText: name }).first().click();
+        await waitPath(page, `${listPath}Modify/index.jsp`);
+        await page.locator('td[width="82%"] a.tab:text-is("Digit Patterns")').click();
+        await page.waitForFunction(() =>
+          document.querySelector('td[width="82%"] .tabActive')?.textContent?.trim() ===
+            'Digit Patterns', null, { timeout: 15000 });
+        const present = await patternRow().count() === 1;
+        writeDeep('lifecycle:digit-pattern-entry-add',
+          addedPattern?.status() === 200 && sameAddDocument && present ?
+            'passed' : 'failed',
+          `Digit Pattern Add HTTP ${addedPattern?.status() || 'none'}; ` +
+          `${sameAddDocument ? 'same document' : 'reload'}; ` +
+          `fresh readback ${present ? 'contains' : 'does not contain'} ${pattern}.`);
+        if (present) {
+          await patternRow().locator('input[type="checkbox"]').check();
+          page.once('dialog', dialog => dialog.accept());
+          await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+            .click({ noWaitAfter: true });
+          await page.waitForTimeout(350);
+          await openFolder(page);
+          await page.locator('td[width="82%"] a.navMenuItem:text-is("Digit Pattern Criteria")').click();
+          await waitPath(page, listPath);
+          await row().locator('a.tableLink').filter({ hasText: name }).first().click();
+          await waitPath(page, `${listPath}Modify/index.jsp`);
+          await page.locator('td[width="82%"] a.tab:text-is("Digit Patterns")').click();
+          await page.waitForFunction(() =>
+            document.querySelector('td[width="82%"] .tabActive')?.textContent?.trim() ===
+              'Digit Patterns', null, { timeout: 15000 });
+          const absent = await patternRow().count() === 0;
+          writeDeep('lifecycle:digit-pattern-entry-delete',
+            absent ? 'passed' : 'failed',
+            `Digit Pattern ${pattern} ${absent ? 'is absent' : 'remains'} after Delete and fresh readback.`);
+        }
+      }
+    }
+  } finally {
+    try {
+      if (!await page.locator('a.leftnavfolder, a.leftnavfolderopen').count())
+        await enterLevel(page);
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Digit Pattern Criteria")').click();
+      await waitPath(page, listPath);
+      if (await row().count() === 1) {
+        await row().locator('a.tableLink').filter({ hasText: name }).first().click();
+        await waitPath(page, `${listPath}Modify/index.jsp`);
+        const remove = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+        if (await remove.count()) {
+          page.once('dialog', dialog => dialog.accept());
+          await remove.click({ noWaitAfter: true });
+          await page.waitForTimeout(350);
+        }
+      }
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Digit Pattern Criteria")').click();
+      await waitPath(page, listPath);
+      const absent = await row().count() === 0;
+      writeDeep('lifecycle:digit-pattern-criteria-delete', absent ? 'passed' : 'failed',
+        `Disposable criterion ${name} ${absent ? 'is absent' : 'remains'} on fresh list.`);
+    } catch (error) {
+      writeDeep('lifecycle:digit-pattern-criteria-delete', 'failed',
+        `Disposable criterion ${name} cleanup needs inspection: ${error.message.slice(0, 150)}`);
+    }
+  }
+}
 async function exerciseUserService(page, kind) {
   const types = {
     'VoiceXML': { slug: 'voice-xml', list: 'Voice_XML', check: 'discovered-529' },
@@ -1942,6 +2519,71 @@ async function exerciseCallCenterCode(page, kind) {
     }
   }
 }
+async function exerciseAccountCode(page, user = false) {
+  const listPath = user ? '/commpilot/User/CommBarringAuthCodes/' :
+    '/commpilot/Group/AccountCodes/CodesMgmt/';
+  const label = user ? 'Communication Barring Authorization Codes' : 'Codes Management';
+  const addId = user ? 'discovered-622' : 'discovered-544';
+  const pageId = user ? 'discovered-353' : 'discovered-155';
+  const lifecycleId = user ? 'lifecycle:user-comm-barring-auth-code-delete' :
+    'lifecycle:group-account-code-delete';
+  const code = String(900000 + Date.now() % 99999);
+  const description = `PJAX audit ${Date.now().toString(36)}`;
+  async function openList() {
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem:text-is("' + label + '")').click();
+    await waitPath(page, listPath);
+  }
+  async function row() { return aaRowId(page, code); }
+  try {
+    if (await row()) throw new Error(`Disposable code ${code} already exists`);
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, `${listPath}Add/index.jsp`);
+    await page.locator('td[width="82%"] input[name="newCode"]').fill(code);
+    await page.locator('td[width="82%"] input[name="codeDesc"]').fill(description);
+    await page.evaluate(() => { window.__bwGroupCodeDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === `${listPath}Add/index.jsp`,
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click({ noWaitAfter: true });
+    const found = await response;
+    await page.waitForTimeout(450);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwGroupCodeDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 380) }));
+    await openList();
+    const rowId = await row();
+    const pass = found?.status() === 200 && state.sameDocument && !!rowId;
+    writeDeep(addId, pass ? 'passed' : 'failed',
+      `${label} Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'} at ${state.path}; ` +
+      `${rowId ? 'fresh list readback found code' : `not found: ${state.text}`}.`);
+    if (rowId) console.log(JSON.stringify({ event: 'group-account-code-row', code,
+      html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1300)) }));
+  } finally {
+    try {
+      await openList();
+      const rowId = await row();
+      if (rowId) {
+        const checkbox = page.locator(`#${rowId} input[type="checkbox"]`).first();
+        if (!await checkbox.count()) throw new Error(`Group Code row ${rowId} has no Delete checkbox`);
+        await checkbox.check();
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="apply"]:visible').first().click({ noWaitAfter: true });
+        await page.waitForTimeout(450);
+      }
+      await openList();
+      const deleted = !(await row());
+      writeDeep(lifecycleId, deleted ? 'passed' : 'failed',
+        `Disposable ${label} code ${code} ${deleted ? 'is absent' : 'still exists'} after Delete.`);
+      if (deleted) writeDeep(pageId, 'passed',
+        `${label} Add and Delete stayed in PJAX; fresh reads confirmed ${code} appeared and was removed.`);
+    } catch (error) {
+      writeDeep(lifecycleId, 'failed',
+        `Disposable ${label} code ${code} cleanup needs inspection: ${error.message.slice(0, 160)}`);
+    }
+  }
+}
 async function probe(page, label) {
   const link = page.locator('td[width="82%"] a.navMenuItem').filter({ hasText: new RegExp(
     `^\\s*${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`) }).first();
@@ -1951,6 +2593,70 @@ async function probe(page, label) {
   await page.waitForFunction(() => location.pathname !== '/commpilot/Common/folder_contents.jsp' &&
     !!document.querySelector('td[width="82%"]'), null, { timeout: 20000 });
   const entry = await page.evaluate(() => ({ path: location.pathname, title: document.title }));
+  if (process.env.BW_CC_SUPERVISORS_AGENTS === '1' &&
+      level === 'Call Center' && folder === 'Profile' && label === 'Supervisors') {
+    console.log(JSON.stringify({ event: 'supervisors-list-inspect',
+      state: await page.evaluate(() => ({ path: location.pathname,
+        text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 900),
+        links: [...document.querySelectorAll('td[width="82%"] a')]
+          .filter(item => item.getClientRects().length)
+          .map(item => ({ text: item.textContent.trim(), html: item.outerHTML.slice(0, 250) }))
+          .slice(0, 18) })) }));
+    await page.evaluate(() => { window.__bwSupervisorsDocument = document; });
+    await page.locator('td[width="82%"] a.tab:text-is("Assign Agents")').click();
+    await waitPath(page, '/commpilot/Group/Call_Center/Supervisors/Agents/');
+    const state = await page.evaluate(() => ({
+      sameDocument: document === window.__bwSupervisorsDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 700),
+      controls: [...document.querySelectorAll('td[width="82%"] input, td[width="82%"] select')]
+        .filter(item => item.getClientRects().length)
+        .map(item => ({ name: item.name, type: item.type, value: item.value }))
+        .slice(0, 30) }));
+    writeDeep('discovered-824', state.sameDocument ? 'passed' : 'failed',
+      `Assign Agents tab opened /commpilot/Group/Call_Center/Supervisors/Agents/ ` +
+        `${state.sameDocument ? 'in the same document' : 'with a reload'}.`);
+    console.log(JSON.stringify({ event: 'supervisors-agents-inspect', state }));
+    return;
+  }
+  if (process.env.BW_AGENT_THRESHOLD_LIFECYCLE === '1' && level === 'Group' &&
+      folder === 'Call Center' && label === 'Agent Threshold Profiles') {
+    await exerciseAgentThresholdProfile(page);
+    return;
+  }
+  if (process.env.BW_AA_SUBMENU_LIFECYCLE === '1' && level === 'Auto Attendant' &&
+      folder === 'Profile' && label === 'Submenus') {
+    await exerciseAutoAttendantSubmenu(page);
+    return;
+  }
+  if (process.env.BW_DIGIT_PATTERN_CRITERIA_LIFECYCLE === '1' &&
+      level === 'Service Provider' && folder === 'Communication Barring' &&
+      label === 'Digit Pattern Criteria') {
+    await exerciseDigitPatternCriteria(page);
+    return;
+  }
+  if (process.env.BW_DIGIT_PATTERN_CLEAN_NAME && level === 'Service Provider' &&
+      folder === 'Communication Barring' && label === 'Digit Pattern Criteria') {
+    const name = process.env.BW_DIGIT_PATTERN_CLEAN_NAME;
+    if (!/^PJAX Pattern mug[a-z0-9]+$/.test(name))
+      throw new Error('Unsafe digit pattern cleanup name');
+    const row = page.locator('td[width="82%"] tr[id^="Row"]')
+      .filter({ hasText: name });
+    if (await row.count() === 1) {
+      await row.locator('a.tableLink').filter({ hasText: name }).first().click();
+      await waitPath(page, '/commpilot/ServiceProvider/CommBarring/DigitPatternCriteria/Modify/index.jsp');
+      page.once('dialog', dialog => dialog.accept());
+      await page.locator('td[width="82%"] input[name="delete"]:visible').first()
+        .click({ noWaitAfter: true });
+      await page.waitForTimeout(400);
+    }
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem:text-is("Digit Pattern Criteria")').click();
+    await waitPath(page, '/commpilot/ServiceProvider/CommBarring/DigitPatternCriteria/');
+    const absent = await row.count() === 0;
+    writeDeep('lifecycle:digit-pattern-criteria-delete', absent ? 'passed' : 'failed',
+      `Disposable criterion ${name} ${absent ? 'is absent' : 'remains'} on fresh list.`);
+    return;
+  }
   if (process.env.BW_READ_ONLY_AUDIT === '1') {
     const state = await page.evaluate(() => ({
       sameDocument: document === window.__bwReadOnlyDocument,
@@ -2872,9 +3578,10 @@ async function probe(page, label) {
     }
     return;
   }
-  if (process.env.BW_SCHEDULE_LIFECYCLE === '1' && level === 'Group' &&
+  if (process.env.BW_SCHEDULE_LIFECYCLE === '1' &&
+      ['Group', 'User', 'Service Provider'].includes(level) &&
       folder === 'Profile' && label === 'Schedules') {
-    await exerciseSchedule(page);
+    await exerciseSchedule(page, level === 'Service Provider' ? 'ServiceProvider' : level);
     return;
   }
   if (process.env.BW_DEPARTMENT_LIFECYCLE === '1' && level === 'Group' &&
@@ -2912,6 +3619,16 @@ async function probe(page, label) {
       folder === 'Call Center' &&
       ['Agent Unavailable Codes', 'Call Disposition Codes'].includes(label)) {
     await exerciseCallCenterCode(page, label);
+    return;
+  }
+  if (process.env.BW_GROUP_ACCOUNT_CODE_LIFECYCLE === '1' && level === 'Group' &&
+      folder === 'Acct/Auth Codes' && label === 'Codes Management') {
+    await exerciseAccountCode(page);
+    return;
+  }
+  if (process.env.BW_USER_AUTH_CODE_LIFECYCLE === '1' && level === 'User' &&
+      folder === 'Profile' && label === 'Communication Barring Authorization Codes') {
+    await exerciseAccountCode(page, true);
     return;
   }
   if (process.env.BW_PHONE_LIST_LIFECYCLE === '1' && level === 'Group' &&
@@ -2989,6 +3706,28 @@ async function probe(page, label) {
       ['Sequential Ring - Off', 'Simultaneous Ring Family - Off',
         'Simultaneous Ring Personal - Off'].includes(label)) {
     await exerciseUserRingCriterion(page, label);
+    return;
+  }
+  if (process.env.BW_SMDI_LIFECYCLE === '1' && level === 'Hunt Group' &&
+      folder === 'Incoming Calls' && label.startsWith('SMDI Message Desk - ')) {
+    await exerciseSmdiMessageDesk(page);
+    return;
+  }
+  if (process.env.BW_SMDI_CLEAN_NAME && level === 'Hunt Group' &&
+      folder === 'Incoming Calls' && label.startsWith('SMDI Message Desk - ')) {
+    const name = process.env.BW_SMDI_CLEAN_NAME;
+    const rowId = await aaRowId(page, name);
+    if (rowId) {
+      await page.locator(`#${rowId} input[type="checkbox"]`).first().check();
+      page.once('dialog', dialog => dialog.accept());
+      await page.locator('td[width="82%"] input[name="apply"]:visible').first().click({ noWaitAfter: true });
+      await page.waitForTimeout(500);
+    }
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem')
+      .filter({ hasText: /^SMDI Message Desk - (?:On|Off)$/ }).click();
+    await waitPath(page, '/commpilot/User/SmdiMessageDesk/');
+    console.log(JSON.stringify({ event: 'smdi-clean', name, deleted: !(await aaRowId(page, name)) }));
     return;
   }
   if (process.env.BW_DEVICE_PROFILE_LIFECYCLE === '1' && level === 'Group' &&
@@ -3222,6 +3961,10 @@ async function probe(page, label) {
       }
       if (process.env.BW_NATIVE_ONLY === '1' || process.env.BW_INSPECT_ADD === '1' ||
           process.env.BW_INSPECT_SERVICE_LIST === '1' ||
+          process.env.BW_AGENT_THRESHOLD_LIFECYCLE === '1' ||
+          process.env.BW_AA_SUBMENU_LIFECYCLE === '1' ||
+          process.env.BW_DIGIT_PATTERN_CRITERIA_LIFECYCLE === '1' ||
+          process.env.BW_DIGIT_PATTERN_CLEAN_NAME ||
           process.env.BW_AA_CLEAN_ID ||
           process.env.BW_SIMPLE_CLEAN_NAME ||
           process.env.BW_USER_SERVICE_CLEAN_ID ||
@@ -3252,6 +3995,8 @@ async function probe(page, label) {
           process.env.BW_CUSTOM_RINGBACK_LIFECYCLE === '1' ||
           process.env.BW_PRE_ALERTING_LIFECYCLE === '1' ||
           process.env.BW_USER_RING_CRITERION_LIFECYCLE === '1' ||
+          process.env.BW_SMDI_LIFECYCLE === '1' ||
+          process.env.BW_SMDI_CLEAN_NAME ||
           process.env.BW_DEVICE_PROFILE_LIFECYCLE === '1' ||
           process.env.BW_SAC_LIFECYCLE === '1' ||
           process.env.BW_EMERGENCY_ZONE_LIFECYCLE === '1' ||
@@ -3276,6 +4021,8 @@ async function probe(page, label) {
           process.env.BW_SIMPLE_SERVICE_LIFECYCLE === '1') break;
       if (process.env.BW_USER_SERVICE_LIFECYCLE === '1') break;
       if (process.env.BW_CC_CODE_LIFECYCLE === '1') break;
+      if (process.env.BW_GROUP_ACCOUNT_CODE_LIFECYCLE === '1') break;
+      if (process.env.BW_USER_AUTH_CODE_LIFECYCLE === '1') break;
       if (new URL(page.url()).pathname === '/commpilot/Login/') {
         console.log(JSON.stringify({ event: 'session-ended', label }));
         break;
