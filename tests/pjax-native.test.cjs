@@ -256,6 +256,48 @@ test('Virtual On-Net Add Range reanchors a successful list response but keeps va
   } finally { await browser.close(); }
 });
 
+test('Group Numbers Edit reanchors a saved list response while keeping validation on the edit form', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const listPath = '/commpilot/Group/GroupDnManagement/index.jsp';
+    const editPath = '/commpilot/Group/GroupDnManagement/Nested/index.jsp';
+    const shell = (title, body) => `<!doctype html><html><head><title>${title}</title></head><body>
+      <input name="formtokenserial" value="token"><table><tr><td width="82%">${body}</td></tr></table>
+      <script>window.redirectPost=function(){};</script></body></html>`;
+    const list = shell('Numbers', '<h1>Numbers</h1><select name="findKey0"><option>Phone Number</option></select>');
+    const edit = error => shell('Assign Numbers Modify', '<h1>Assign Numbers Modify</h1>' +
+      (error ? '<p id="validation-error">Invalid department</p>' : '') +
+      '<form name="mainForm" method="post"><input name="department" value="None">' +
+      '<input type="submit" name="ok" value="OK"></form>');
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      const submitted = request.method() === 'POST' &&
+        new URLSearchParams(request.postData() || '').has('ok');
+      const invalid = new URLSearchParams(request.postData() || '').get('department') === 'invalid';
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: pathname === editPath ? submitted ? invalid ? edit(true) : list : edit(false) : list });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${listPath}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    await page.evaluate(pathname => window.redirectPost(pathname, { key: '+1-2244830030' }), editPath);
+    await page.getByRole('heading', { name: 'Assign Numbers Modify' }).waitFor();
+    await page.locator('input[name="ok"]').click();
+    await page.getByRole('heading', { name: 'Numbers' }).waitFor();
+    assert.equal(await page.evaluate(() => location.pathname), listPath);
+    await page.evaluate(pathname => window.redirectPost(pathname, { key: '+1-2244830030' }), editPath);
+    await page.getByRole('heading', { name: 'Assign Numbers Modify' }).waitFor();
+    await page.locator('input[name="department"]').fill('invalid');
+    await page.locator('input[name="ok"]').click();
+    await page.locator('#validation-error').waitFor();
+    assert.equal(await page.evaluate(() => location.pathname), editPath);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+  } finally { await browser.close(); }
+});
+
 test('service Add and Modify Delete return to their Group list URLs', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });

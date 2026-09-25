@@ -1,9 +1,9 @@
 {
   "title": "CommPilot deep PJAX action audit",
-  "updated": "2026-09-25T01:49:49.275Z",
+  "updated": "2026-09-25T02:13:27.703Z",
   "environment": "apps-sbx.avpaas.io · saved test account · headless Edge",
   "scope": "Sandbox route and interaction checks are tracked separately from final writes. A passed list interaction confirms navigation and Back; a write passes only after save and readback.",
-  "current": "lifecycle group sac delete",
+  "current": "Call Centers › Row detail › Assign Xsi Policy Profile",
   "checks": [
     {
       "id": "reseller-groups",
@@ -1537,9 +1537,9 @@
       "family": "Import / file",
       "deep": false,
       "submitControls": 7,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Group Device Profile list navigated in PJAX; three disposable profiles were added, found by fresh name search, and deleted.",
+      "checkedAt": "2026-09-25T01:52:30.032Z",
       "navigationCheckedAt": "2026-09-25T00:57:49.598Z",
       "navigationStatus": "pass"
     },
@@ -1585,9 +1585,9 @@
       "family": "Assignment / pick-list",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Group Numbers list navigation and search passed; Assign Numbers and Activate Numbers test ranges were saved, read back, and restored.",
+      "checkedAt": "2026-09-25T01:52:30.706Z",
       "navigationCheckedAt": "2026-09-25T00:57:59.588Z",
       "navigationStatus": "pass"
     },
@@ -1634,8 +1634,8 @@
       "deep": false,
       "submitControls": 2,
       "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "detail": "Office Zones list navigation and search passed; row editing and save/readback still need a sandbox fixture.",
+      "checkedAt": "2026-09-25T01:52:38.975Z",
       "navigationCheckedAt": "2026-09-25T00:58:05.510Z",
       "navigationStatus": "pass"
     },
@@ -1985,9 +1985,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Group Call Pickup list navigated in PJAX; disposable Add and Delete cycle passed.",
+      "checkedAt": "2026-09-25T01:50:45.782Z",
       "navigationCheckedAt": "2026-09-25T00:59:07.877Z",
       "navigationStatus": "pass"
     },
@@ -2065,9 +2065,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Group VoiceXML list navigated in PJAX; disposable Add and Delete cycle passed.",
+      "checkedAt": "2026-09-25T01:50:46.420Z",
       "navigationCheckedAt": "2026-09-25T00:59:30.186Z",
       "navigationStatus": "pass"
     },
@@ -2145,9 +2145,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Group BroadWorks Anywhere list navigated in PJAX; disposable Add and Delete cycle passed.",
+      "checkedAt": "2026-09-25T01:50:47.042Z",
       "navigationCheckedAt": "2026-09-25T00:59:43.586Z",
       "navigationStatus": "pass"
     },
@@ -2177,9 +2177,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Group Call Capacity list navigated in PJAX; disposable Add and Delete cycle passed.",
+      "checkedAt": "2026-09-25T01:50:47.672Z",
       "navigationCheckedAt": "2026-09-25T00:59:48.852Z",
       "navigationStatus": "pass"
     },
@@ -2305,9 +2305,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Group Instant Group Call list navigated in PJAX; disposable Add and Delete cycle passed.",
+      "checkedAt": "2026-09-25T01:50:48.293Z",
       "navigationCheckedAt": "2026-09-25T01:00:14.068Z",
       "navigationStatus": "pass"
     },
@@ -2369,9 +2369,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Route Point list navigated in PJAX; disposable Add, Profile drill-in, Delete, and fresh readback passed.",
+      "checkedAt": "2026-09-25T01:57:52.265Z",
       "navigationCheckedAt": "2026-09-25T01:00:24.526Z",
       "navigationStatus": "pass"
     },
@@ -2385,9 +2385,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Group Series Completion list navigated in PJAX; disposable Add and Delete cycle passed.",
+      "checkedAt": "2026-09-25T01:50:48.918Z",
       "navigationCheckedAt": "2026-09-25T01:00:27.872Z",
       "navigationStatus": "pass"
     },
@@ -2401,9 +2401,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Group Session Admission Control list navigated in PJAX; disposable Add, fresh readback, and Delete cycle passed.",
+      "checkedAt": "2026-09-25T01:50:49.560Z",
       "navigationCheckedAt": "2026-09-25T01:00:31.083Z",
       "navigationStatus": "pass"
     },
@@ -7969,9 +7969,9 @@
       "family": "Edit / save",
       "deep": true,
       "submitControls": 0,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable Hunt Group row opened EditRedirect in the same PJAX document; Profile Modify displayed the saved name, and Delete cleanup passed.",
+      "checkedAt": "2026-09-25T02:11:49.669Z",
       "navigationCheckedAt": "2026-09-25T00:59:16.244Z",
       "navigationStatus": "pass"
     },
@@ -8017,9 +8017,9 @@
       "family": "Edit / save",
       "deep": true,
       "submitControls": 0,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable Call Center row opened EditRedirect in the same PJAX document; Profile displayed the saved name, and Delete cleanup passed.",
+      "checkedAt": "2026-09-25T02:11:50.299Z",
       "navigationCheckedAt": "2026-09-25T01:00:52.772Z",
       "navigationStatus": "pass"
     },
@@ -8269,9 +8269,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Matching sandbox sort interaction returned HTTP 200 in the same PJAX document; the corresponding list header action is verified.",
+      "checkedAt": "2026-09-25T02:11:24.399Z"
     },
     {
       "id": "discovered-519",
@@ -8491,9 +8491,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Emergency Zones Add HTTP 200; same document; fresh list readback found the new address.",
+      "checkedAt": "2026-09-25T01:51:32.664Z",
       "navigationCheckedAt": "2026-09-25T00:59:54.836Z",
       "navigationStatus": "pass"
     },
@@ -8603,9 +8603,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Group MWI template Add HTTP 200; same document; fresh list readback found Default template.",
+      "checkedAt": "2026-09-25T01:53:18.240Z",
       "navigationCheckedAt": "2026-09-25T01:00:17.973Z",
       "navigationStatus": "pass"
     },
@@ -8619,9 +8619,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Route Point Add returned HTTP 200 in the same document; fresh sandbox list showed the new row with its exact ID in row data.",
+      "checkedAt": "2026-09-25T01:57:50.975Z",
       "navigationCheckedAt": "2026-09-25T01:00:25.302Z",
       "navigationStatus": "pass"
     },
@@ -8811,9 +8811,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Matching sandbox sort interaction returned HTTP 200 in the same PJAX document; the corresponding list header action is verified.",
+      "checkedAt": "2026-09-25T02:11:25.038Z"
     },
     {
       "id": "discovered-553",
@@ -8919,9 +8919,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Common Phone List CSV with Name and Number uploaded through multipart servlet; HTTP 200, same PJAX document, fresh list readback found disposable contact; contact then deleted.",
+      "checkedAt": "2026-09-25T02:01:01.460Z",
       "navigationCheckedAt": "2026-09-25T01:01:58.513Z",
       "navigationStatus": "pass"
     },
@@ -8951,9 +8951,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Matching sandbox sort interaction returned HTTP 200 in the same PJAX document; the corresponding list header action is verified.",
+      "checkedAt": "2026-09-25T02:11:25.693Z"
     },
     {
       "id": "discovered-562",
@@ -9507,9 +9507,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Matching sandbox sort interaction returned HTTP 200 in the same PJAX document; the corresponding list header action is verified.",
+      "checkedAt": "2026-09-25T02:11:26.326Z"
     },
     {
       "id": "discovered-597",
@@ -9745,9 +9745,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Personal Phone List CSV with Name and Number uploaded through multipart servlet; HTTP 200, same PJAX document, fresh list readback found disposable contact; contact then deleted.",
+      "checkedAt": "2026-09-25T02:01:23.680Z",
       "navigationCheckedAt": "2026-09-25T01:05:46.972Z",
       "navigationStatus": "pass"
     },
@@ -9905,9 +9905,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Matching sandbox sort interaction returned HTTP 200 in the same PJAX document; the corresponding list header action is verified.",
+      "checkedAt": "2026-09-25T02:11:26.955Z"
     },
     {
       "id": "discovered-622",
@@ -10253,9 +10253,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 9,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Auto Attendant Announcement Repository path and current-values Apply passed at the Auto Attendant entity level.",
+      "checkedAt": "2026-09-25T02:13:19.115Z"
     },
     {
       "id": "discovered-644",
@@ -10267,9 +10267,9 @@
       "family": "Assignment / pick-list",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Auto Attendant Assign Services path and current-values Apply passed at the Auto Attendant entity level.",
+      "checkedAt": "2026-09-25T02:13:20.042Z"
     },
     {
       "id": "discovered-645",
@@ -10281,9 +10281,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Auto Attendant Assign Xsi Policy Profile path and current-values Apply passed at the Auto Attendant entity level.",
+      "checkedAt": "2026-09-25T02:13:20.737Z"
     },
     {
       "id": "discovered-646",
@@ -10449,9 +10449,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Matching sandbox sort interaction returned HTTP 200 in the same PJAX document; the corresponding list header action is verified.",
+      "checkedAt": "2026-09-25T02:11:27.613Z"
     },
     {
       "id": "discovered-658",
@@ -10477,9 +10477,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 9,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Hunt Group Announcement Repository path and current-values Apply passed at the Hunt Group entity level.",
+      "checkedAt": "2026-09-25T02:13:21.405Z"
     },
     {
       "id": "discovered-660",
@@ -10491,9 +10491,9 @@
       "family": "Assignment / pick-list",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Hunt Group Assign Services path and current-values Apply passed at the Hunt Group entity level.",
+      "checkedAt": "2026-09-25T02:13:22.083Z"
     },
     {
       "id": "discovered-661",
@@ -10505,9 +10505,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Hunt Group Assign Xsi Policy Profile path and current-values Apply passed at the Hunt Group entity level.",
+      "checkedAt": "2026-09-25T02:13:22.739Z"
     },
     {
       "id": "discovered-662",
@@ -10547,9 +10547,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Disposable Call Center row opened its Profile page in PJAX and displayed the saved name.",
+      "checkedAt": "2026-09-25T02:13:23.428Z"
     },
     {
       "id": "discovered-665",
@@ -10561,9 +10561,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 7,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Call Center Agents path and current-values Apply passed at the Call Center entity level.",
+      "checkedAt": "2026-09-25T02:13:24.099Z"
     },
     {
       "id": "discovered-666",
@@ -10575,9 +10575,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 9,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Call Center Announcement Repository path and current-values Apply passed at the Call Center entity level.",
+      "checkedAt": "2026-09-25T02:13:24.765Z"
     },
     {
       "id": "discovered-667",
@@ -10589,9 +10589,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 7,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Call Center Supervisors path and current-values Apply passed at the Call Center entity level.",
+      "checkedAt": "2026-09-25T02:13:25.433Z"
     },
     {
       "id": "discovered-668",
@@ -10603,9 +10603,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Call Center Announcements path and current-values Apply passed at the Call Center entity level.",
+      "checkedAt": "2026-09-25T02:13:26.114Z"
     },
     {
       "id": "discovered-669",
@@ -10617,9 +10617,9 @@
       "family": "Assignment / pick-list",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Call Center Assign Services path and current-values Apply passed at the Call Center entity level.",
+      "checkedAt": "2026-09-25T02:13:26.817Z"
     },
     {
       "id": "discovered-670",
@@ -10631,9 +10631,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Call Center Assign Xsi Policy Profile path and current-values Apply passed at the Call Center entity level.",
+      "checkedAt": "2026-09-25T02:13:27.703Z"
     },
     {
       "id": "discovered-671",
@@ -10673,9 +10673,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Matching sandbox sort interaction returned HTTP 200 in the same PJAX document; the corresponding list header action is verified.",
+      "checkedAt": "2026-09-25T02:11:28.269Z"
     },
     {
       "id": "discovered-674",
@@ -13055,9 +13055,9 @@
       "family": "Assignment / pick-list",
       "deep": true,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Numbers row Edit opened through PJAX; sandbox number moved to Basement and fresh list showed it, then moved back to None. With the route fix, a subsequent OK returned HTTP 200 and the canonical Numbers list URL in the same document.",
+      "checkedAt": "2026-09-25T02:09:54.757Z"
     },
     {
       "id": "action:group-number-add-open-cancel",
@@ -13889,9 +13889,9 @@
       "family": "List interaction",
       "deep": true,
       "submitControls": 0,
-      "status": "blocked",
-      "detail": "import: upload-pending. The import entry opened in-shell; file submission needs a disposable fixture.",
-      "checkedAt": "2026-09-24T22:48:16.653Z",
+      "status": "passed",
+      "detail": "Real one-row Personal Phone List CSV import saved through PJAX and was verified and deleted after fresh readback.",
+      "checkedAt": "2026-09-25T02:01:24.332Z",
       "navigationCheckedAt": "2026-09-24T22:48:16.653Z",
       "navigationStatus": "upload-pending"
     },
@@ -14129,9 +14129,9 @@
       "family": "List interaction",
       "deep": true,
       "submitControls": 0,
-      "status": "blocked",
-      "detail": "import: upload-pending. The import entry opened in-shell; file submission needs a disposable fixture.",
-      "checkedAt": "2026-09-24T22:07:19.536Z",
+      "status": "passed",
+      "detail": "Real one-row Common Phone List CSV import saved through PJAX and was verified and deleted after fresh readback.",
+      "checkedAt": "2026-09-25T02:01:02.086Z",
       "navigationCheckedAt": "2026-09-24T22:07:19.536Z",
       "navigationStatus": "upload-pending"
     },
@@ -20556,9 +20556,57 @@
       "status": "passed",
       "detail": "Selected disposable SAC group Delete checkbox and Apply; fresh list readback shows No Entries Present.",
       "checkedAt": "2026-09-25T01:49:49.275Z"
+    },
+    {
+      "id": "lifecycle:group-emergency-zone-delete",
+      "area": "Group / Services",
+      "label": "lifecycle group emergency zone delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable 192.0.2.254 home-zone row was selected and removed with Apply; fresh list shows No Entries Present.",
+      "checkedAt": "2026-09-25T01:52:08.844Z"
+    },
+    {
+      "id": "lifecycle:group-mwi-template-delete",
+      "area": "Group / Services",
+      "label": "lifecycle group mwi template delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable English/Default MWI template opened through row detail and Delete; fresh list shows No Entries Present.",
+      "checkedAt": "2026-09-25T01:54:24.827Z"
+    },
+    {
+      "id": "lifecycle:group-route-point-delete",
+      "area": "Group / Services",
+      "label": "lifecycle group route point delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable Route Point was opened through EditRedirect and Profile, deleted, and absent in a fresh sandbox list.",
+      "checkedAt": "2026-09-25T01:57:51.611Z"
+    },
+    {
+      "id": "lifecycle:group-number-department-restore",
+      "area": "Group / Resources",
+      "label": "lifecycle group number department restore",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Sandbox number +1-2244830030 was moved back from Basement to None; fresh search confirmed its original no-department state.",
+      "checkedAt": "2026-09-25T02:09:55.408Z"
     }
   ],
   "incidents": [],
   "notes": [],
-  "currentNote": "Selected disposable SAC group Delete checkbox and Apply; fresh list readback shows No Entries Present."
+  "currentNote": "Call Center Assign Xsi Policy Profile path and current-values Apply passed at the Call Center entity level."
 }

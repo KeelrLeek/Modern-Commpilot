@@ -980,6 +980,198 @@ async function exerciseSacGroup(page) {
       `Disposable Session Admission Control Group ${deleted ? 'is absent' : 'still exists'} after cleanup.`);
   }
 }
+async function exerciseEmergencyZone(page) {
+  const listPath = '/commpilot/Group/EmergencyZones/';
+  const formPath = `${listPath}Add/index.jsp`;
+  const address = '192.0.2.254';
+  let rowSeen = false;
+  try {
+    if (await aaRowId(page, address)) throw new Error(`Emergency zone ${address} already exists`);
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, formPath);
+    await page.locator('td[width="82%"] input[name="entryType"][value="ipaddress"]').check();
+    await page.locator('td[width="82%"] input[name="homeZoneEntry"]').fill(address);
+    await page.evaluate(() => { window.__bwEmergencyDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === formPath, { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+    const found = await response;
+    await page.waitForTimeout(600);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwEmergencyDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 900) }));
+    console.log(JSON.stringify({ event: 'emergency-zone-submit', address,
+      status: found?.status() || null, state }));
+    await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+      .some(row => row.textContent.includes(value)), address, { timeout: 8000 }).catch(() => null);
+    rowSeen = !!await aaRowId(page, address);
+    writeDeep('discovered-532', found?.status() === 200 && state.sameDocument && rowSeen ?
+      'passed' : 'failed', `Emergency Zones Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${rowSeen ? 'fresh list readback found the new address' : 'address not found'}.`);
+  } finally {
+    await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+      .some(row => row.textContent.includes(value)), address, { timeout: 8000 }).catch(() => null);
+    const rowId = await aaRowId(page, address);
+    if (rowId) {
+      console.log(JSON.stringify({ event: 'emergency-zone-row', address,
+        html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1000)) }));
+      const checkbox = page.locator(`#${rowId} input[type="checkbox"]`);
+      if (await checkbox.count()) {
+        await checkbox.check();
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="apply"]:visible').first().click();
+        await page.waitForTimeout(500);
+        await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+      }
+    }
+    const deleted = !!rowId && !await aaRowId(page, address);
+    writeDeep('lifecycle:group-emergency-zone-delete', deleted ? 'passed' : 'failed',
+      `Disposable home-zone address ${address} ${deleted ? 'is absent' : 'still exists'} after cleanup.`);
+  }
+}
+async function exerciseMwiTemplate(page) {
+  const listPath = '/commpilot/Group/MWIMobile/';
+  const formPath = `${listPath}AddModify/index.jsp`;
+  const label = 'Default';
+  let created = false;
+  try {
+    if (await aaRowId(page, label)) throw new Error('A Default MWI template already exists');
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, formPath);
+    await page.locator('td[width="82%"] input[name="prefix0"]').fill('PJAX Audit ');
+    await page.evaluate(() => { window.__bwMwiDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === formPath, { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+    const found = await response;
+    await page.waitForTimeout(600);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwMwiDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 1000) }));
+    console.log(JSON.stringify({ event: 'mwi-template-submit',
+      status: found?.status() || null, state }));
+    await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+      .some(row => row.textContent.includes(value)), label, { timeout: 8000 }).catch(() => null);
+    created = !!await aaRowId(page, label);
+    writeDeep('discovered-539', found?.status() === 200 && state.sameDocument && created ?
+      'passed' : 'failed', `Group MWI template Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${created ? 'fresh list readback found Default template' : 'template not found'}.`);
+  } finally {
+    await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+      .some(row => row.textContent.includes(value)), label, { timeout: 8000 }).catch(() => null);
+    const rowId = await aaRowId(page, label);
+    if (rowId) {
+      console.log(JSON.stringify({ event: 'mwi-template-row',
+        html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1800)) }));
+      await page.locator(`#${rowId} a.tableLink`).first().click();
+      await waitPath(page, formPath);
+      console.log(JSON.stringify({ event: 'mwi-template-modify',
+        state: await page.evaluate(() => ({ path: location.pathname,
+          text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 700),
+          buttons: [...document.querySelectorAll('td[width="82%"] input[type="submit"]')]
+            .map(item => item.name) })) }));
+      const button = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+      if (await button.count()) {
+        page.once('dialog', dialog => dialog.accept());
+        await button.click();
+        await page.waitForTimeout(500);
+      }
+      await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+    }
+    const deleted = !!rowId && !await aaRowId(page, label);
+    writeDeep('lifecycle:group-mwi-template-delete', deleted ? 'passed' : 'failed',
+      `Disposable Default MWI template ${deleted ? 'is absent' : 'still exists'} after cleanup.`);
+  }
+}
+async function exerciseRoutePoint(page) {
+  const listPath = '/commpilot/Group/RoutePoint/';
+  const formPath = `${listPath}AddModify/index.jsp`;
+  const suffix = Date.now().toString(36);
+  const id = `pjaxrp${suffix}`;
+  const name = `PJAX Audit Route Point ${suffix}`;
+  const password = `Audit${suffix}Z7!`;
+  let saved = false;
+  const locate = () => page.evaluate(value =>
+    [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+      .find(row => row.outerHTML.includes(value))?.id || '', id);
+  try {
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, formPath);
+    await page.locator('td[width="82%"] input[name="userId"]').fill(id);
+    await page.locator('td[width="82%"] input[name="unicodeLastName"]').fill(name);
+    await page.locator('td[width="82%"] input[name="clidLastName"]').fill('PJAX Audit');
+    await page.locator('td[width="82%"] input[name="clidFirstName"]').fill('RP');
+    await page.locator('td[width="82%"] input[name="password"]').fill(password);
+    await page.locator('td[width="82%"] input[name="echoPassword"]').fill(password);
+    await page.evaluate(() => { window.__bwRoutePointDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === formPath, { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+    const found = await response;
+    await page.waitForTimeout(700);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwRoutePointDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 1000),
+      error: document.querySelector('.cp-alert-error')?.textContent?.trim() || '' }));
+    console.log(JSON.stringify({ event: 'route-point-submit', id, name,
+      status: found?.status() || null, state }));
+    await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+      .some(row => row.outerHTML.includes(value)), id, { timeout: 8000 }).catch(() => null);
+    saved = !!await locate();
+    writeDeep('discovered-540', found?.status() === 200 && state.sameDocument && saved ?
+      'passed' : 'failed', `Route Point Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${saved ? 'fresh list readback found the route point' :
+        `route point not found; ${state.path}; ${state.error || state.text?.slice(0, 160)}`}.`);
+  } finally {
+    try {
+      await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+        .some(row => row.outerHTML.includes(value)), id, { timeout: 8000 }).catch(() => null);
+      const rowId = await locate();
+      if (rowId) {
+        await page.locator(`#${rowId} a.tableLink`).first().click();
+        await page.waitForFunction(value => location.pathname !== value,
+          listPath, { timeout: 12000 });
+        console.log(JSON.stringify({ event: 'route-point-open', id,
+          state: await page.evaluate(() => ({ path: location.pathname,
+            text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 450),
+            buttons: [...document.querySelectorAll('td[width="82%"] input[type="submit"]')]
+              .map(item => item.name) })) }));
+        let deleteButton = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+        if (!await deleteButton.count()) {
+          const profile = page.locator('td[width="82%"] a.navMenuItem:text-is("Profile")');
+          if (await profile.count()) {
+            await profile.click();
+            await page.waitForFunction(value => location.pathname !== value,
+              '/commpilot/Group/RoutePoint/EditRedirect/index.jsp',
+              { timeout: 12000 }).catch(() => null);
+          }
+          deleteButton = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+        }
+        if (await deleteButton.count()) {
+          page.once('dialog', dialog => dialog.accept());
+          await deleteButton.click();
+          await page.waitForTimeout(500);
+        }
+        await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+      }
+      const deleted = !!rowId && !await locate();
+      writeDeep('lifecycle:group-route-point-delete', deleted ? 'passed' : 'failed',
+        `Disposable Route Point ${name} ${deleted ? 'is absent' : 'still exists'} after cleanup.`);
+    } catch (error) {
+      writeDeep('lifecycle:group-route-point-delete', 'failed',
+        `Route Point ${name} cleanup needs inspection: ${error.message.slice(0, 170)}`);
+    }
+  }
+}
 async function exerciseAutoAttendant(page) {
   const suffix = Date.now().toString(36);
   const id = `pjaxaa${suffix}`;
@@ -1512,6 +1704,87 @@ async function probe(page, label) {
     }
     return;
   }
+  if (process.env.BW_EMERGENCY_ZONE_CLEAN_ADDRESS && level === 'Group' &&
+      folder === 'Services' && label === 'Emergency Zones') {
+    const address = process.env.BW_EMERGENCY_ZONE_CLEAN_ADDRESS;
+    const rowId = await aaRowId(page, address);
+    console.log(JSON.stringify({ event: 'emergency-zone-clean-find', address, rowId }));
+    if (rowId) {
+      await page.locator(`#${rowId} input[type="checkbox"]`).check();
+      page.once('dialog', dialog => dialog.accept());
+      await page.locator('td[width="82%"] input[name="apply"]:visible').first().click();
+      await page.waitForTimeout(500);
+      await page.goto(new URL('/commpilot/Group/EmergencyZones/', page.url()).href,
+        { waitUntil: 'domcontentloaded' });
+      console.log(JSON.stringify({ event: 'emergency-zone-clean-result', address,
+        remaining: await aaRowId(page, address),
+        text: await page.locator('td[width="82%"]').innerText().then(x => x.slice(-400)) }));
+    }
+    return;
+  }
+  if (process.env.BW_MWI_CLEAN_DEFAULT === '1' && level === 'Group' &&
+      folder === 'Services' && label === 'MWI Delivery to Mobile Endpoint') {
+    const rowId = await aaRowId(page, 'Default');
+    console.log(JSON.stringify({ event: 'mwi-clean-find', rowId }));
+    if (rowId) {
+      await page.locator(`#${rowId} a.tableLink`).first().click();
+      await waitPath(page, '/commpilot/Group/MWIMobile/AddModify/index.jsp');
+      console.log(JSON.stringify({ event: 'mwi-clean-modify',
+        state: await page.evaluate(() => ({ path: location.pathname,
+          text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 700),
+          buttons: [...document.querySelectorAll('td[width="82%"] input[type="submit"]')]
+            .map(item => item.name) })) }));
+      const button = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+      if (await button.count()) {
+        page.once('dialog', dialog => dialog.accept());
+        await button.click();
+        await page.waitForTimeout(500);
+        await page.goto(new URL('/commpilot/Group/MWIMobile/', page.url()).href,
+          { waitUntil: 'domcontentloaded' });
+        console.log(JSON.stringify({ event: 'mwi-clean-result',
+          remaining: await aaRowId(page, 'Default'),
+          text: await page.locator('td[width="82%"]').innerText().then(x => x.slice(-350)) }));
+      }
+    }
+    return;
+  }
+  if (process.env.BW_ROUTE_POINT_CLEAN_ID && level === 'Group' &&
+      folder === 'Services' && label === 'Route Point') {
+    const id = process.env.BW_ROUTE_POINT_CLEAN_ID;
+    const locate = () => page.evaluate(value =>
+      [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+        .find(row => row.outerHTML.includes(value))?.id || '', id);
+    const rowId = await locate();
+    console.log(JSON.stringify({ event: 'route-point-clean-find', id, rowId }));
+    if (rowId) {
+      await page.locator(`#${rowId} a.tableLink`).first().click();
+      await waitPath(page, '/commpilot/Group/RoutePoint/EditRedirect/index.jsp');
+      const profile = page.locator('td[width="82%"] a.navMenuItem:text-is("Profile")');
+      if (await profile.count()) {
+        await profile.click();
+        await page.waitForFunction(value => location.pathname !== value,
+          '/commpilot/Group/RoutePoint/EditRedirect/index.jsp',
+          { timeout: 12000 }).catch(() => null);
+      }
+      console.log(JSON.stringify({ event: 'route-point-clean-profile', id,
+        state: await page.evaluate(() => ({ path: location.pathname,
+          text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 700),
+          buttons: [...document.querySelectorAll('td[width="82%"] input[type="submit"]')]
+            .map(item => item.name) })) }));
+      const button = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+      if (await button.count()) {
+        page.once('dialog', dialog => dialog.accept());
+        await button.click();
+        await page.waitForTimeout(500);
+        await page.goto(new URL('/commpilot/Group/RoutePoint/', page.url()).href,
+          { waitUntil: 'domcontentloaded' });
+        console.log(JSON.stringify({ event: 'route-point-clean-result', id,
+          remaining: await locate(),
+          text: await page.locator('td[width="82%"]').innerText().then(x => x.slice(-350)) }));
+      }
+    }
+    return;
+  }
   if (process.env.BW_DIAL_PLAN_CLEAN_CODE && folder === 'Profile' && label === 'Dial Plan Policy') {
     const code = process.env.BW_DIAL_PLAN_CLEAN_CODE;
     const rowId = await aaRowId(page, code);
@@ -1544,6 +1817,214 @@ async function probe(page, label) {
           .map(item => ({ name: item.name, type: item.type, value: item.value })).slice(0, 30),
         rows: [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
           .slice(0, 2).map(item => item.outerHTML.slice(0, 1200)) })) }));
+    return;
+  }
+  if (process.env.BW_INSPECT_SEARCH_LIST === '1') {
+    const value = process.env.BW_INSPECT_SEARCH_VALUE || '';
+    const field = page.locator('td[width="82%"] input[name="findValue0"]');
+    if (await field.count()) await field.fill(value);
+    const search = page.locator('td[width="82%"] #search0, td[width="82%"] input[name="search"]:visible').first();
+    const searchCount = await search.count();
+    if (searchCount) await search.click();
+    if (value) await page.waitForFunction(value =>
+      [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+        .some(row => row.textContent.includes(value)), value,
+    { timeout: 8000 }).catch(() => null);
+    else await page.waitForTimeout(600);
+    console.log(JSON.stringify({ event: 'search-list-inspect', level, folder, label, value, searchCount,
+      state: await page.evaluate(() => ({ path: location.pathname,
+        text: document.querySelector('td[width="82%"]')?.innerText?.slice(-900),
+        rows: [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+          .slice(0, 3).map(item => item.outerHTML.slice(0, 2000)) })) }));
+    return;
+  }
+  if (process.env.BW_INSPECT_NUMBER_EDIT === '1' && level === 'Group' &&
+      folder === 'Resources' && label === 'Numbers') {
+    const number = '+1-2244830030';
+    await page.locator('td[width="82%"] input[name="findValue0"]').fill('2244830030');
+    await page.locator('td[width="82%"] input[name="search"]:visible').first().click();
+    await page.waitForFunction(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+      .some(row => row.textContent.includes(value)), number, { timeout: 12000 });
+    const rowId = await aaRowId(page, number);
+    console.log(JSON.stringify({ event: 'number-edit-row', number, rowId,
+      html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(-1700)) }));
+    await page.locator(`#${rowId} a.headerLink`).last().click();
+    await waitPath(page, '/commpilot/Group/GroupDnManagement/Nested/index.jsp');
+    console.log(JSON.stringify({ event: 'number-edit-form', number,
+      state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+        text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 1100),
+        forms: [...document.querySelectorAll('td[width="82%"] form')].map(form => ({
+          action: form.getAttribute('action'), enctype: form.enctype,
+          fields: [...form.elements].filter(item => item.name && item.type !== 'hidden')
+            .map(item => ({ name: item.name, type: item.type, value: item.value })) })),
+        buttons: [...document.querySelectorAll('td[width="82%"] input[type="button"]')]
+          .map(item => ({ name: item.name, value: item.value, onclick: String(item.onclick || '').slice(0, 250) })) })) }));
+    if (process.env.BW_NUMBER_EDIT_SAVE_NOOP === '1') {
+      await page.evaluate(() => { window.__bwNumberNoopDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === '/commpilot/Group/GroupDnManagement/Nested/index.jsp',
+      { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first().click({ noWaitAfter: true });
+      const found = await response;
+      await page.waitForFunction(() => location.pathname ===
+        '/commpilot/Group/GroupDnManagement/index.jsp', null,
+      { timeout: 12000 }).catch(() => null);
+      console.log(JSON.stringify({ event: 'number-edit-noop-save', number,
+        status: found?.status() || null,
+        state: await page.evaluate(() => ({ path: location.pathname,
+          sameDocument: document === window.__bwNumberNoopDocument,
+          title: document.title,
+          listSearch: !!document.querySelector('td[width="82%"] input[name="search"]') })) }));
+      return;
+    }
+    if (process.env.BW_NUMBER_DEPT_INSPECT === '1') {
+      await page.locator('td[width="82%"] select[name="deptDropDownList"]').selectOption({ label: 'Basement' });
+      await page.waitForTimeout(450);
+      console.log(JSON.stringify({ event: 'number-edit-basement',
+        state: await page.evaluate(() => ({ path: location.pathname,
+          selects: [...document.querySelectorAll('td[width="82%"] select')]
+            .map(item => ({ name: item.name, value: item.value,
+              options: [...item.options].map(option => ({ value: option.value,
+                text: option.textContent.trim() })).slice(0, 5) })) })) }));
+      const left = page.locator('td[width="82%"] select[name="assignedList"]');
+      if (await left.count() && await left.locator('option').count()) {
+        await left.selectOption({ index: 0 });
+        await page.locator('td[width="82%"] input[type="button"][value^="Add"]').first().click();
+        await page.waitForFunction(value => [...document.querySelectorAll(
+          'td[width="82%"] select[name="unassignList"] option')]
+          .some(option => option.value === value), number,
+        { timeout: 8000 }).catch(() => null);
+      }
+      console.log(JSON.stringify({ event: 'number-edit-add-preview',
+        state: await page.evaluate(() => ({ path: location.pathname,
+          selects: [...document.querySelectorAll('td[width="82%"] select')]
+            .map(item => ({ name: item.name, value: item.value,
+              options: [...item.options].map(option => ({ value: option.value,
+                text: option.textContent.trim() })).slice(0, 5) })) })) }));
+    }
+    return;
+  }
+  if (process.env.BW_NUMBER_DEPARTMENT_CYCLE === '1' && level === 'Group' &&
+      folder === 'Resources' && label === 'Numbers') {
+    const number = '+1-2244830030';
+    const listPath = '/commpilot/Group/GroupDnManagement/index.jsp';
+    const formPath = '/commpilot/Group/GroupDnManagement/Nested/index.jsp';
+    async function search() {
+      if (new URL(page.url()).pathname !== listPath)
+        await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+      await page.locator('td[width="82%"] input[name="findValue0"]').fill('2244830030');
+      await page.locator('td[width="82%"] input[name="search"]:visible').first().click();
+      await page.waitForFunction(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+        .some(row => row.textContent.includes(value)), number, { timeout: 12000 });
+      const rowId = await aaRowId(page, number);
+      return { rowId, text: await page.locator(`#${rowId}`).innerText() };
+    }
+    async function open() {
+      const row = await search();
+      await page.locator(`#${row.rowId} a.headerLink`).last().click();
+      await waitPath(page, formPath);
+      return row;
+    }
+    async function save() {
+      await page.evaluate(() => { window.__bwNumberDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === formPath, { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+      const found = await response;
+      await page.waitForFunction(value => location.pathname === value,
+        listPath, { timeout: 12000 }).catch(() => null);
+      const state = await page.evaluate(() => ({ path: location.pathname,
+        sameDocument: document === window.__bwNumberDocument }));
+      return { status: found?.status() || null, ...state };
+    }
+    let before, after, saved, restored, restoreSave;
+    try {
+      const row = await open();
+      before = row.text;
+      if (before.includes('Basement')) throw new Error('Test number is already in Basement');
+      await page.locator('td[width="82%"] select[name="deptDropDownList"]')
+        .selectOption({ label: 'Basement' });
+      await page.locator('td[width="82%"] select[name="assignedList"]')
+        .selectOption(number);
+      await page.locator('td[width="82%"] input[type="button"][value^="Add"]').first().click();
+      await page.waitForFunction(value => [...document.querySelectorAll(
+        'td[width="82%"] select[name="unassignList"] option')]
+        .some(option => option.value === value), number, { timeout: 12000 });
+      saved = await save();
+      after = (await search()).text;
+      console.log(JSON.stringify({ event: 'number-department-assigned', number,
+        before: before.slice(0, 250), after: after.slice(0, 250), saved }));
+      writeDeep('discovered-823', saved.status === 200 && saved.sameDocument &&
+        after.includes('Basement') ? 'passed' : 'failed',
+      `Numbers Edit moved ${number} into Basement; POST HTTP ${saved.status}; ` +
+      `${saved.sameDocument ? 'same document' : 'reload'}; ` +
+      `${after.includes('Basement') ? 'fresh list readback matched' : 'readback did not match'}.`);
+    } finally {
+      try {
+        const current = await search();
+        if (current.text.includes('Basement')) {
+          await page.locator(`#${current.rowId} a.headerLink`).last().click();
+          await waitPath(page, formPath);
+          await page.locator('td[width="82%"] select[name="deptDropDownList"]')
+            .selectOption({ label: 'None' });
+          await page.locator('td[width="82%"] select[name="assignedList"]')
+            .selectOption(number);
+          await page.locator('td[width="82%"] input[type="button"][value^="Add"]').first().click();
+          await page.waitForFunction(value => [...document.querySelectorAll(
+            'td[width="82%"] select[name="unassignList"] option')]
+            .some(option => option.value === value), number, { timeout: 12000 });
+          restoreSave = await save();
+        }
+        restored = (await search()).text;
+        const pass = !restored.includes('Basement');
+        writeDeep('lifecycle:group-number-department-restore', pass ? 'passed' : 'failed',
+          `Number ${number} ${pass ? 'returned to its original no-department state' :
+            'still appears in Basement'} after reverse transfer; HTTP ${restoreSave?.status || 'not needed'}.`);
+        console.log(JSON.stringify({ event: 'number-department-restored', number,
+          restored: restored.slice(0, 250), restoreSave }));
+      } catch (error) {
+        writeDeep('lifecycle:group-number-department-restore', 'failed',
+          `Number ${number} restore needs inspection: ${error.message.slice(0, 180)}`);
+      }
+    }
+    return;
+  }
+  if (process.env.BW_NUMBER_DEPARTMENT_RESTORE === '1' && level === 'Group' &&
+      folder === 'Resources' && label === 'Numbers') {
+    const number = '+1-2244830030';
+    await page.locator('td[width="82%"] input[name="findValue0"]').fill('2244830030');
+    await page.locator('td[width="82%"] input[name="search"]:visible').first().click();
+    await page.waitForFunction(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+      .some(row => row.textContent.includes(value)), number, { timeout: 12000 });
+    const rowId = await aaRowId(page, number);
+    const before = await page.locator(`#${rowId}`).innerText();
+    if (!before.includes('Basement')) {
+      console.log(JSON.stringify({ event: 'number-department-restore-skip', number,
+        reason: 'already absent from Basement', before }));
+      return;
+    }
+    await page.locator(`#${rowId} a.headerLink`).last().click();
+    await waitPath(page, '/commpilot/Group/GroupDnManagement/Nested/index.jsp');
+    await page.locator('td[width="82%"] select[name="deptDropDownList"]')
+      .selectOption({ label: 'None' });
+    await page.locator('td[width="82%"] select[name="assignedList"]')
+      .selectOption(number);
+    await page.locator('td[width="82%"] input[type="button"][value^="Add"]').first().click();
+    await page.waitForFunction(value => [...document.querySelectorAll(
+      'td[width="82%"] select[name="unassignList"] option')]
+      .some(option => option.value === value), number, { timeout: 12000 });
+    await page.evaluate(() => { window.__bwNumberRestoreDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === '/commpilot/Group/GroupDnManagement/Nested/index.jsp',
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click({ noWaitAfter: true });
+    const found = await response;
+    await page.waitForTimeout(600);
+    console.log(JSON.stringify({ event: 'number-department-restore-submit', number,
+      status: found?.status() || null,
+      state: await page.evaluate(() => ({ path: location.pathname,
+        sameDocument: document === window.__bwNumberRestoreDocument,
+        text: document.querySelector('td[width="82%"]')?.innerText?.slice(-650) })) }));
     return;
   }
   if (process.env.BW_INSPECT_ADD_RANGE === '1' && level === 'Group' &&
@@ -2100,6 +2581,21 @@ async function probe(page, label) {
     await exerciseSacGroup(page);
     return;
   }
+  if (process.env.BW_EMERGENCY_ZONE_LIFECYCLE === '1' && level === 'Group' &&
+      folder === 'Services' && label === 'Emergency Zones') {
+    await exerciseEmergencyZone(page);
+    return;
+  }
+  if (process.env.BW_MWI_TEMPLATE_LIFECYCLE === '1' && level === 'Group' &&
+      folder === 'Services' && label === 'MWI Delivery to Mobile Endpoint') {
+    await exerciseMwiTemplate(page);
+    return;
+  }
+  if (process.env.BW_ROUTE_POINT_LIFECYCLE === '1' && level === 'Group' &&
+      folder === 'Services' && label === 'Route Point') {
+    await exerciseRoutePoint(page);
+    return;
+  }
   if (process.env.BW_INSPECT_ADD === '1' || process.env.BW_INSPECT_ADD_ALL === '1') {
     const add = page.locator('td[width="82%"] input[type="button"][value^="Add"], ' +
       'td[width="82%"] input[type="submit"][value^="Add"], ' +
@@ -2309,6 +2805,10 @@ async function probe(page, label) {
           process.env.BW_DIGIT_STRING_LIFECYCLE === '1' ||
           process.env.BW_DIALABLE_CALLER_ID_LIFECYCLE === '1' ||
           process.env.BW_INSPECT_SIMPLE_LIST === '1' ||
+          process.env.BW_INSPECT_SEARCH_LIST === '1' ||
+          process.env.BW_INSPECT_NUMBER_EDIT === '1' ||
+          process.env.BW_NUMBER_DEPARTMENT_CYCLE === '1' ||
+          process.env.BW_NUMBER_DEPARTMENT_RESTORE === '1' ||
           process.env.BW_INSPECT_ADD_RANGE === '1' ||
           process.env.BW_COMM_BARRING_CODE_LIFECYCLE === '1' ||
           process.env.BW_DIAL_PLAN_CODE_LIFECYCLE === '1' ||
@@ -2320,6 +2820,12 @@ async function probe(page, label) {
           process.env.BW_SPEED_DIAL_LIFECYCLE === '1' ||
           process.env.BW_DEVICE_PROFILE_LIFECYCLE === '1' ||
           process.env.BW_SAC_LIFECYCLE === '1' ||
+          process.env.BW_EMERGENCY_ZONE_LIFECYCLE === '1' ||
+          process.env.BW_MWI_TEMPLATE_LIFECYCLE === '1' ||
+          process.env.BW_ROUTE_POINT_LIFECYCLE === '1' ||
+          process.env.BW_ROUTE_POINT_CLEAN_ID ||
+          process.env.BW_MWI_CLEAN_DEFAULT === '1' ||
+          process.env.BW_EMERGENCY_ZONE_CLEAN_ADDRESS ||
           process.env.BW_SAC_CLEAN_NAME ||
           process.env.BW_DEVICE_PROFILE_FIND_NAME ||
           process.env.BW_INSPECT_PROFILE_BUTTONS === '1' ||

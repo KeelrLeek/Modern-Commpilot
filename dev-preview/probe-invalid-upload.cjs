@@ -104,6 +104,87 @@ if (!profile || process.env.BW_INVALID_UPLOAD_PROBE !== '1')
       location.pathname === expected &&
       !!document.querySelector('form[name="mainForm"] input[type="file"]'),
     spec.import, { timeout: 20000 });
+    if (process.env.BW_INSPECT_IMPORT === '1') {
+      console.log(JSON.stringify({ event: 'import-inspect', kind,
+        state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+          text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 1800),
+          links: [...document.querySelectorAll('a')]
+            .filter(item => /help|download|csv/i.test(item.textContent || item.title || ''))
+            .map(item => ({ text: item.textContent.trim(), href: item.getAttribute('href'),
+              onclick: item.getAttribute('onclick') })),
+          fields: [...document.querySelectorAll('form[name="mainForm"] input')]
+            .filter(item => item.name && item.type !== 'hidden')
+            .map(item => ({ name: item.name, type: item.type, value: item.value })) })) }));
+      return;
+    }
+    if (process.env.BW_INSPECT_HELP === '1') {
+      const popup = context.waitForEvent('page', { timeout: 5000 }).catch(() => null);
+      await page.locator('a:text-is("Help")').first().click();
+      const helpPage = await popup;
+      if (helpPage) {
+        await helpPage.waitForLoadState('domcontentloaded').catch(() => null);
+        await helpPage.waitForTimeout(1200);
+      }
+      console.log(JSON.stringify({ event: 'import-help', kind,
+        state: helpPage ? { url: helpPage.url(), title: await helpPage.title(),
+          text: (await helpPage.locator('body').innerText().catch(() => '')).slice(0, 5000) } :
+          { path: new URL(page.url()).pathname,
+            text: (await page.locator('body').innerText()).slice(0, 5000) } }));
+      return;
+    }
+    if (process.env.BW_VALID_PHONE_IMPORT === '1') {
+      if (!['group-phone-list', 'user-phone-list'].includes(kind))
+        throw new Error('Valid phone import probe requires a phone-list kind');
+      const name = `PJAX Audit Import ${Date.now().toString(36)}`;
+      const number = '2025550199';
+      const csv = `"Name","Number"\r\n"${name}","${number}"\r\n`;
+      const locate = () => page.evaluate(value =>
+        [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+          .find(row => row.textContent.includes(value))?.id || '', name);
+      try {
+        await page.locator('form[name="mainForm"] input[type="file"]').setInputFiles({
+          name: 'pjax-audit-one.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+        await page.evaluate(() => { window.__bwValidImportDocument = document; });
+        const responsePromise = page.waitForResponse(response =>
+          response.request().method() === 'POST' &&
+          new URL(response.url()).pathname === spec.servlet, { timeout: 20000 });
+        await page.locator('form[name="mainForm"] input[name="ok"]:visible').first().click({ noWaitAfter: true });
+        const response = await responsePromise;
+        await page.waitForTimeout(700);
+        const state = await page.evaluate(() => ({ path: location.pathname, title: document.title,
+          sameDocument: document === window.__bwValidImportDocument,
+          text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 900) }));
+        await page.goto(new URL(spec.list, page.url()).href, { waitUntil: 'domcontentloaded' });
+        await page.waitForFunction(value =>
+          [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+            .some(row => row.textContent.includes(value)), name,
+        { timeout: 8000 }).catch(() => null);
+        console.log(JSON.stringify({ event: 'valid-phone-import', kind, name, number,
+          responseStatus: response.status(), state, rowId: await locate() }));
+      } finally {
+        await page.goto(new URL(spec.list, page.url()).href, { waitUntil: 'domcontentloaded' });
+        await page.waitForFunction(value =>
+          [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+            .some(row => row.textContent.includes(value)), name,
+        { timeout: 8000 }).catch(() => null);
+        const rowId = await locate();
+        if (rowId) {
+          await page.locator(`#${rowId} a.tableLink`).first().click();
+          await page.waitForFunction(value => location.pathname !== value,
+            spec.list, { timeout: 12000 });
+          const deleteButton = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+          if (await deleteButton.count()) {
+            page.once('dialog', dialog => dialog.accept());
+            await deleteButton.click({ noWaitAfter: true });
+            await page.waitForTimeout(600);
+          }
+          await page.goto(new URL(spec.list, page.url()).href, { waitUntil: 'domcontentloaded' });
+        }
+        console.log(JSON.stringify({ event: 'valid-phone-import-cleanup', kind, name,
+          rowSeen: !!rowId, remaining: await locate() }));
+      }
+      return;
+    }
     if (process.env.BW_PROBE_CANCEL === '1') {
       const beforeCancel = await page.evaluate(() => {
         window.__bwCancelMarker = Date.now();
