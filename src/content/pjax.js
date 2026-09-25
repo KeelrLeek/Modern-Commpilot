@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.34-native";
+  var CP_PJAX_VERSION = "0.3.35-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -4529,6 +4529,22 @@
               // the result to the real Group list so the next Add/Edit resolves.
               try {
                 if (_submitNav && params && params.delete != null && liveCell && liveCell.querySelector) {
+                  if (url === '/commpilot/ServiceProvider/CommBarring/Profiles/General/index.jsp' &&
+                      liveCell.querySelector('input[name="add"], select[name="findKey"]')) {
+                    canonical = '/commpilot/ServiceProvider/CommBarring/Profiles/';
+                  }
+                  if (url === '/commpilot/User/Profile/' &&
+                      liveCell.querySelector('select[name="findKey0"], input[name="findValue0"]') &&
+                      !liveCell.querySelector('input[name="unicodeLastName"]') &&
+                      cpFormOrigin === '/commpilot/Group/Members/') {
+                    canonical = '/commpilot/Group/Members/';
+                  }
+                  if (url === '/commpilot/Group/Profile/' &&
+                      liveCell.querySelector('select[name="findKey0"], input[name="findValue0"]') &&
+                      !liveCell.querySelector('input[name="unicodeCompanyName"]') &&
+                      cpFormOrigin === '/commpilot/ServiceProvider/Members/') {
+                    canonical = '/commpilot/ServiceProvider/Members/';
+                  }
                   var serviceList = /\/Group\/([^/]+)\/Modify\//.exec(url);
                   if (serviceList && liveCell.querySelector('input[name="addBasic"], input[name="add"]'))
                     canonical = '/commpilot/Group/' + serviceList[1] + '/' +
@@ -4741,19 +4757,23 @@
     }
 
     // Tag Set Add's legacy OK handler calls a native submit before the shared
-    // submit listener can own the request. A filtered Tag Set grid sits at
-    // Common/find.jsp, although its Apply still belongs to TagSet/index.jsp.
-    // Post both actions to their owning controllers through PJAX.
+    // submit listener can own the request. Filtered list grids sit at
+    // Common/find.jsp, although their Apply/OK still belongs to the list's
+    // returnPage controller. Post those actions there through PJAX.
     document.addEventListener("click", function (e) {
       try {
         var tagAdd = location.pathname ===
           "/commpilot/Operator/System/DeviceTags/Modify/TagSet/Add/index.jsp";
         var filteredTags = /\/commpilot\/Common\/find(?:All)?\.jsp$/.test(location.pathname) &&
           !!document.querySelector('td[width="82%"] input[name="newTagSetName"]');
-        var filteredTagSets = /\/commpilot\/Common\/find(?:All)?\.jsp$/.test(location.pathname) &&
-          !!(history.state && history.state.cpNav && history.state.cpNav.params &&
-            history.state.cpNav.params.tableName === 'resellerTagSetTable');
-        if (!tagAdd && !filteredTags && !filteredTagSets) return;
+        var returnPage = history.state && history.state.cpNav && history.state.cpNav.params &&
+          history.state.cpNav.params.returnPage;
+        var filteredOwner = /\/commpilot\/Common\/find(?:All)?\.jsp$/.test(location.pathname) &&
+          !filteredTags && typeof returnPage === 'string' &&
+          /^\/(?:Reseller|ServiceProvider|Group|User|Operator)\/[A-Za-z0-9_/-]+\/$/.test(returnPage) &&
+          !!document.querySelector('td[width="82%"] input[name^="hiddenCheckbox_"]') ?
+          '/commpilot' + returnPage : null;
+        if (!tagAdd && !filteredTags && !filteredOwner) return;
         var button = e.target && e.target.closest ?
           e.target.closest(tagAdd ? 'input[type="submit"][name="ok"]' :
             'input[type="submit"][name="ok"], input[type="submit"][name="apply"]') : null;
@@ -4766,10 +4786,26 @@
           params[name] = value;
         });
         params.__cpFormEntries = entries;
-        cpHook(tagAdd ? location.pathname : filteredTagSets ?
-          '/commpilot/Reseller/DeviceTags/' :
+        cpHook(tagAdd ? location.pathname : filteredOwner ? filteredOwner :
           '/commpilot/Operator/System/DeviceTags/Modify/TagSet/index.jsp', params);
       } catch (err) { console.warn("[pjax] Tag Set Add submit", err); }
+    }, true);
+
+    // Communication Barring Profile search rows wire their default-profile
+    // checkbox in a DOMContentLoaded callback. A PJAX-filled Find result can
+    // display the checkbox without that callback, leaving profileSelected
+    // empty even while the box appears checked.
+    document.addEventListener("change", function (e) {
+      try {
+        if (!/\/commpilot\/Common\/find(?:All)?\.jsp$/.test(location.pathname) ||
+            !history.state || !history.state.cpNav || !history.state.cpNav.params ||
+            history.state.cpNav.params.tableName !== 'spCBProfileTable') return;
+        var cb = e.target;
+        if (!cb || !cb.matches ||
+            !cb.matches('td[width="82%"] input[type="checkbox"][name^="checkbox___DFLT_COL_ID____DELIMITER__"]')) return;
+        var selected = cb.form && cb.form.querySelector('input[name="profileSelected"]');
+        if (selected) selected.value = cb.checked ? cb.id : '';
+      } catch (err) { console.warn("[pjax] profile selection", err); }
     }, true);
 
     document.addEventListener("submit", function (e) {
@@ -4792,7 +4828,8 @@
         // is .../Admins/Modify/. An empty action posts to self = modify.jsp, which only RE-RENDERS (no save — the
         // "OK does nothing, breadcrumb just refreshes" symptom). Verified live that posting the same fields to
         // Modify/ saves and returns to the list. Redirect the self-post there (covers OK and Delete).
-        if (/\/Reseller\/Admins\/modify\.jsp$/i.test(act)) act = "/commpilot/Reseller/Admins/Modify/";
+        if (/\/(Reseller|ServiceProvider|Group)\/Admins\/modify\.jsp$/i.test(act))
+          act = act.replace(/\/modify\.jsp$/i, '/Modify/');
         // Enterprise Trunk's generic Modify/index.jsp only selects the trunk
         // and redirects to the routing controller. A self-POST loses the
         // clicked save/delete action on that redirect (a native Delete also

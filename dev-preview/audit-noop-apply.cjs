@@ -1345,9 +1345,14 @@ async function exerciseSmdiMessageDesk(page) {
     }
   }
 }
-async function exerciseDeviceProfile(page) {
-  const listPath = '/commpilot/Group/DeviceInventory/';
+async function exerciseDeviceProfile(page, scope = 'Group') {
+  const listPath = `/commpilot/${scope}/DeviceInventory/`;
   const name = `PJAX Audit Profile ${Date.now().toString(36)}`;
+  async function reenterList() {
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem:text-is("Identity/Device Profiles")').click();
+    await waitPath(page, listPath);
+  }
   async function locate() {
     await page.locator('td[width="82%"] select[name="findOp0"]').waitFor({
       state: 'attached', timeout: 12000 });
@@ -1360,11 +1365,13 @@ async function exerciseDeviceProfile(page) {
     if (await op.count()) await op.selectOption('CONTAINS');
     await page.locator('td[width="82%"] input[name="findValue0"]').fill(name);
     const response = page.waitForResponse(item => item.request().method() === 'POST' &&
-      /\/commpilot\/(?:Common\/find|Group\/DeviceInventory)/.test(new URL(item.url()).pathname),
+      new URL(item.url()).pathname.startsWith('/commpilot/Common/find') ||
+      new URL(item.url()).pathname.startsWith(listPath),
     { timeout: 12000 }).catch(() => null);
     await page.locator('td[width="82%"] #search0').click();
     await response;
-    await page.waitForTimeout(500);
+    await page.waitForFunction(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+      .some(row => row.textContent.includes(value)), name, { timeout: 8000 }).catch(() => null);
     return aaRowId(page, name);
   }
   try {
@@ -1393,22 +1400,24 @@ async function exerciseDeviceProfile(page) {
       status: found?.status() || null, state,
       responseMatches: found ? (await found.text()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
         .match(/.{0,100}(?:fail|error|invalid|require|missing|access device).{0,170}/ig)?.slice(-12) : [] }));
+    if (state.path === listPath) await reenterList();
     const rowId = state.path === listPath ? await locate() : '';
     const created = found?.status() === 200 && state.sameDocument && !!rowId;
-    writeDeep('discovered-519', created ? 'passed' : 'failed',
-      `Group Device Profile Add HTTP ${found?.status() || 'none'}; ` +
+    writeDeep(scope === 'Group' ? 'discovered-519' : 'discovered-582',
+      created ? 'passed' : 'failed',
+      `${scope} Device Profile Add HTTP ${found?.status() || 'none'}; ` +
       `${state.sameDocument ? 'same document' : 'reload'}; ` +
       `${created ? 'saved profile found' : `not saved at ${state.path}: ${state.text.slice(0, 170)}`}.`);
     if (created) console.log(JSON.stringify({ event: 'device-profile-row', name, rowId,
       html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1450)) }));
   } finally {
     try {
-      await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+      await reenterList();
       const rowId = await locate();
       if (rowId) {
         await page.locator(`#${rowId} a.headerLink`).last().click();
-        await page.waitForFunction(() => location.pathname.includes('/Group/DeviceInventory/Modify/'),
-          null, { timeout: 15000 });
+        await page.waitForFunction(value => location.pathname.includes(value),
+          `${listPath}Modify/`, { timeout: 15000 });
         const deleteButton = page.locator('td[width="82%"] input[name="delete"]:visible').first();
         if (!await deleteButton.count()) {
           const tab = page.locator('td[width="82%"] a.tab:text-is("Profile")');
@@ -1419,10 +1428,11 @@ async function exerciseDeviceProfile(page) {
         await waitPath(page, listPath);
       }
       const deleted = !(await locate());
-      writeDeep('lifecycle:group-device-profile-delete', deleted ? 'passed' : 'failed',
+      writeDeep(`lifecycle:${scope.toLowerCase().replace(/\W+/g, '-')}-device-profile-delete`,
+        deleted ? 'passed' : 'failed',
         `Disposable Device Profile ${deleted ? 'is absent' : 'still exists'} after Delete.`);
     } catch (error) {
-      writeDeep('lifecycle:group-device-profile-delete', 'failed',
+      writeDeep(`lifecycle:${scope.toLowerCase().replace(/\W+/g, '-')}-device-profile-delete`, 'failed',
         `Disposable Device Profile cleanup needs inspection: ${error.message.slice(0, 150)}`);
     }
   }
@@ -1585,6 +1595,55 @@ async function exerciseMwiTemplate(page) {
     const deleted = !!rowId && !await aaRowId(page, label);
     writeDeep('lifecycle:group-mwi-template-delete', deleted ? 'passed' : 'failed',
       `Disposable Default MWI template ${deleted ? 'is absent' : 'still exists'} after cleanup.`);
+  }
+}
+async function exerciseSpMwiTemplate(page) {
+  const list = '/commpilot/ServiceProvider/MWIMobile/';
+  const form = `${list}AddModify/index.jsp`;
+  const label = 'Default';
+  async function reenter() {
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem:text-is("MWI Delivery to Mobile Endpoint")').click();
+    await waitPath(page, list);
+  }
+  if (await aaRowId(page, label)) throw new Error('Service Provider Default MWI template already exists');
+  let saved = null, sameDocument = false, created = false, deleted = false;
+  try {
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, form);
+    await page.locator('td[width="82%"] input[name="prefix0"]').fill('PJAX Audit ');
+    await page.evaluate(() => { window.__bwSpMwiDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === form, { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+      .click({ noWaitAfter: true });
+    saved = await response;
+    await page.waitForTimeout(400);
+    sameDocument = await page.evaluate(() => document === window.__bwSpMwiDocument);
+    console.log(JSON.stringify({ event: 'sp-mwi-submit', status: saved?.status() || null,
+      path: new URL(page.url()).pathname,
+      text: (await page.locator('td[width="82%"]').innerText()).slice(0, 500) }));
+    await reenter();
+    let rowId = await aaRowId(page, label);
+    created = !!rowId;
+    if (created) {
+      await page.locator(`#${rowId} a.tableLink`).first().click();
+      await waitPath(page, form);
+      page.once('dialog', dialog => dialog.accept());
+      await page.locator('td[width="82%"] input[name="delete"]:visible').first()
+        .click({ noWaitAfter: true });
+      await page.waitForTimeout(400);
+      await reenter();
+      rowId = await aaRowId(page, label);
+      deleted = !rowId;
+    }
+  } finally {
+    writeDeep('discovered-589', saved?.status() === 200 && sameDocument &&
+      created && deleted ? 'passed' : 'failed',
+    `Disposable Service Provider Default MWI template: Add HTTP ${saved?.status() || 'none'}; ` +
+      `${sameDocument ? 'same document' : 'reload'}; ` +
+      `fresh list ${created ? 'found' : 'did not find'} it; ` +
+      `Delete ${deleted ? 'verified absent' : 'not verified'}.`);
   }
 }
 async function exerciseRoutePoint(page) {
@@ -3791,9 +3850,11 @@ async function probe(page, label) {
     console.log(JSON.stringify({ event: 'von-clean', value, deleted, remaining: await find() }));
     return;
   }
-  if (process.env.BW_DEVICE_PROFILE_FIND_NAME && level === 'Group' &&
+  if (process.env.BW_DEVICE_PROFILE_FIND_NAME &&
+      ['Group', 'Service Provider'].includes(level) &&
       folder === 'Resources' && label === 'Identity/Device Profiles') {
     const name = process.env.BW_DEVICE_PROFILE_FIND_NAME;
+    const listPath = `/commpilot/${level.replace(' ', '')}/DeviceInventory/`;
     await page.locator('td[width="82%"] select[name="findOp0"]').selectOption('CONTAINS');
     await page.locator('td[width="82%"] input[name="findValue0"]').fill(name);
     await page.locator('td[width="82%"] #search0').click();
@@ -3804,8 +3865,8 @@ async function probe(page, label) {
         text: document.querySelector('td[width="82%"]')?.innerText?.slice(-500) })) }));
     if (rowId && process.env.BW_DEVICE_PROFILE_CLEAN === '1') {
       await page.locator(`#${rowId} a.headerLink`).last().click();
-      await page.waitForFunction(() => location.pathname.includes('/Group/DeviceInventory/Modify/'),
-        null, { timeout: 15000 });
+      await page.waitForFunction(value => location.pathname.includes(value),
+        `${listPath}Modify/`, { timeout: 15000 });
       console.log(JSON.stringify({ event: 'device-profile-clean-modify', name,
         state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
           text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 600),
@@ -3813,7 +3874,7 @@ async function probe(page, label) {
             .map(item => item.name) })) }));
       page.once('dialog', dialog => dialog.accept());
       await page.locator('td[width="82%"] input[name="delete"]:visible').first().click();
-      await waitPath(page, '/commpilot/Group/DeviceInventory/');
+      await waitPath(page, listPath);
       await page.locator('td[width="82%"] input[name="findValue0"]').fill(name);
       await page.locator('td[width="82%"] #search0').click();
       await page.waitForTimeout(1000);
@@ -4803,9 +4864,10 @@ async function probe(page, label) {
     console.log(JSON.stringify({ event: 'smdi-clean', name, deleted: !(await aaRowId(page, name)) }));
     return;
   }
-  if (process.env.BW_DEVICE_PROFILE_LIFECYCLE === '1' && level === 'Group' &&
+  if (process.env.BW_DEVICE_PROFILE_LIFECYCLE === '1' &&
+      ['Group', 'Service Provider'].includes(level) &&
       folder === 'Resources' && label === 'Identity/Device Profiles') {
-    await exerciseDeviceProfile(page);
+    await exerciseDeviceProfile(page, level.replace(' ', ''));
     return;
   }
   if (process.env.BW_SAC_LIFECYCLE === '1' && level === 'Group' &&
@@ -4823,6 +4885,12 @@ async function probe(page, label) {
     await exerciseMwiTemplate(page);
     return;
   }
+  if (process.env.BW_SP_MWI_TEMPLATE_LIFECYCLE === '1' &&
+      level === 'Service Provider' && folder === 'Services' &&
+      label === 'MWI Delivery to Mobile Endpoint') {
+    await exerciseSpMwiTemplate(page);
+    return;
+  }
   if (process.env.BW_ROUTE_POINT_LIFECYCLE === '1' && level === 'Group' &&
       folder === 'Services' && label === 'Route Point') {
     await exerciseRoutePoint(page);
@@ -4837,7 +4905,8 @@ async function probe(page, label) {
     await exerciseUserCriterion(page, label);
     return;
   }
-  if (process.env.BW_INSPECT_ADD === '1' || process.env.BW_INSPECT_ADD_ALL === '1') {
+  if (process.env.BW_INSPECT_ADD === '1' || process.env.BW_INSPECT_ADD_ALL === '1' ||
+      process.env.BW_ADD_VALIDATE === '1') {
     const add = page.locator('td[width="82%"] input[type="button"][value^="Add"], ' +
       'td[width="82%"] input[type="submit"][value^="Add"], ' +
       'td[width="82%"] button:text-is("Add")').first();
@@ -4877,6 +4946,25 @@ async function probe(page, label) {
             options: item.tagName === 'SELECT' ? [...item.options].slice(0, 10)
               .map(option => ({ value: option.value, label: option.textContent.trim() })) : undefined }))
       })) })) }));
+    if (process.env.BW_ADD_VALIDATE === '1') {
+      const dialogs = [], responses = [];
+      const onDialog = async dialog => { dialogs.push(dialog.message()); await dialog.accept(); };
+      const onResponse = response => {
+        if (response.request().method() === 'POST' &&
+            new URL(response.url()).pathname.startsWith('/commpilot/'))
+          responses.push({ path: new URL(response.url()).pathname, status: response.status() });
+      };
+      page.on('dialog', onDialog);
+      page.on('response', onResponse);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+        .click({ noWaitAfter: true });
+      await page.waitForTimeout(750);
+      page.off('dialog', onDialog);
+      page.off('response', onResponse);
+      console.log(JSON.stringify({ event: 'add-validation', label,
+        path: new URL(page.url()).pathname, dialogs, responses,
+        text: (await page.locator('td[width="82%"]').innerText()).slice(0, 550) }));
+    }
     return;
   }
   if (process.env.BW_TAG_SET_CLEAN_NAME && level === 'Reseller' &&
@@ -4912,6 +5000,1230 @@ async function probe(page, label) {
       await page.waitForTimeout(650);
       console.log(JSON.stringify({ event: 'tag-set-clean-after-apply',
         path: new URL(page.url()).pathname, title: await page.title() }));
+    }
+    return;
+  }
+  if (process.env.BW_DEVICE_FAMILY_LIFECYCLE === '1' && level === 'Reseller' &&
+      folder === 'Resources' && label === 'Device Management Device Families') {
+    const name = `PJAX_AUDIT_FAMILY_${Date.now().toString(36).toUpperCase()}`;
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, '/commpilot/Reseller/DeviceFamilies/Add/index.jsp');
+    await page.locator('td[width="82%"] input[name="deviceFamilyName"]').fill(name);
+    await page.evaluate(() => { window.__bwFamilyDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === '/commpilot/Reseller/DeviceFamilies/Add/index.jsp',
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+      .click({ noWaitAfter: true });
+    const saved = await response;
+    await page.waitForTimeout(450);
+    const sameDocument = await page.evaluate(() => document === window.__bwFamilyDocument);
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem:text-is("Device Management Device Families")').click();
+    await waitPath(page, '/commpilot/Reseller/DeviceFamilies/');
+    const find = async () => {
+      await page.locator('td[width="82%"] input[name="findValue"]').fill(name);
+      await page.locator('td[width="82%"] select[name="findOp"]').selectOption({ label: 'Contains' });
+      await page.locator('td[width="82%"] a:text-is("Find")').first().click();
+      await page.waitForTimeout(450);
+      return page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: name });
+    };
+    let created = false, deleted = false;
+    try {
+      let row = await find();
+      for (let retry = 0; retry < 3 && await row.count() === 0; retry++) {
+        await page.waitForTimeout(650);
+        row = await find();
+      }
+      created = await row.count() === 1;
+      if (created) {
+        console.log(JSON.stringify({ event: 'device-family-row', name,
+          html: await row.first().evaluate(item => item.outerHTML.slice(0, 650)) }));
+        const checkbox = row.first().locator('input[type="checkbox"]');
+        if (!await checkbox.count()) throw new Error('New Device Family row has no Delete checkbox');
+        await checkbox.check();
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+          .click({ noWaitAfter: true });
+        await page.waitForTimeout(450);
+        console.log(JSON.stringify({ event: 'device-family-after-delete',
+          path: new URL(page.url()).pathname, title: await page.title() }));
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Device Management Device Families")').click();
+        await waitPath(page, '/commpilot/Reseller/DeviceFamilies/');
+        row = await find();
+        deleted = await row.count() === 0;
+      }
+    } finally {
+      writeDeep('discovered-575', saved?.status() === 200 && sameDocument &&
+        created && deleted ? 'passed' : 'failed',
+      `Disposable Device Family ${name}: Add HTTP ${saved?.status() || 'none'}; ` +
+        `${sameDocument ? 'same document' : 'reload'}; ` +
+        `fresh list ${created ? 'found' : 'did not find'} it; ` +
+        `Delete ${deleted ? 'verified absent' : 'not verified'}.`);
+    }
+    return;
+  }
+  if (process.env.BW_DEVICE_FAMILY_CLEAN_NAME && level === 'Reseller' &&
+      folder === 'Resources' && label === 'Device Management Device Families') {
+    const name = process.env.BW_DEVICE_FAMILY_CLEAN_NAME;
+    await page.locator('td[width="82%"] input[name="findValue"]').fill(name);
+    await page.locator('td[width="82%"] select[name="findOp"]').selectOption({ label: 'Contains' });
+    await page.locator('td[width="82%"] a:text-is("Find")').first().click();
+    await page.waitForTimeout(450);
+    const row = page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: name });
+    const present = await row.count() > 0;
+    console.log(JSON.stringify({ event: 'device-family-clean-before', name, present,
+      path: new URL(page.url()).pathname }));
+    if (present && process.env.BW_DEVICE_FAMILY_CLEAN_INSPECT !== '1') {
+      await row.first().locator('input[type="checkbox"]').check();
+      page.once('dialog', dialog => dialog.accept());
+      await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+        .click({ noWaitAfter: true });
+      await page.waitForTimeout(500);
+      console.log(JSON.stringify({ event: 'device-family-clean-after-apply',
+        path: new URL(page.url()).pathname, title: await page.title() }));
+    }
+    return;
+  }
+  if ((process.env.BW_RESELLER_DOMAIN_LIFECYCLE === '1' ||
+       process.env.BW_RESELLER_DOMAIN_CLEAN_NAME) &&
+      level === 'Reseller' && folder === 'Resources' && label === 'Domains') {
+    const name = process.env.BW_RESELLER_DOMAIN_CLEAN_NAME ||
+      `pjax-audit-${Date.now().toString(36)}.invalid`;
+    let saved = null, sameDocument = true;
+    if (!process.env.BW_RESELLER_DOMAIN_CLEAN_NAME) {
+      await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+      await waitPath(page, '/commpilot/Reseller/Domains/Add/index.jsp');
+      await page.locator('td[width="82%"] input[name="domain"]').fill(name);
+      await page.evaluate(() => { window.__bwDomainDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === '/commpilot/Reseller/Domains/Add/index.jsp',
+      { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+        .click({ noWaitAfter: true });
+      saved = await response;
+      await page.waitForTimeout(400);
+      sameDocument = await page.evaluate(() => document === window.__bwDomainDocument);
+      console.log(JSON.stringify({ event: 'domain-add-response', name,
+        status: saved?.status() || null, path: new URL(page.url()).pathname,
+        text: (await page.locator('td[width="82%"]').innerText()).slice(0, 350) }));
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Domains")').click();
+      await waitPath(page, '/commpilot/Reseller/Domains/');
+    }
+    const find = async () => {
+      await page.locator('td[width="82%"] input[name="findValue0"]').fill(name);
+      await page.locator('td[width="82%"] input[name="search"]:visible').first().click();
+      await page.waitForTimeout(400);
+      return page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: name });
+    };
+    let created = false, deleted = false;
+    try {
+      let row = await find();
+      created = await row.count() === 1;
+      console.log(JSON.stringify({ event: 'domain-list-search', name, created,
+        row: created ? await row.first().evaluate(item => item.outerHTML.slice(0, 700)) : null }));
+      if (created) {
+        await row.first().locator('a.headerLink:text-is("Edit")').click();
+        await waitPath(page, '/commpilot/Reseller/Domains/Modify/index.jsp');
+        console.log(JSON.stringify({ event: 'domain-modify', name,
+          buttons: await page.locator('td[width="82%"] input[type="submit"]')
+            .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+        if (process.env.BW_RESELLER_DOMAIN_MODIFY_INSPECT === '1') return;
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="delete"]:visible').first()
+          .click({ noWaitAfter: true });
+        await page.waitForTimeout(500);
+        console.log(JSON.stringify({ event: 'domain-after-delete',
+          path: new URL(page.url()).pathname, title: await page.title() }));
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Domains")').click();
+        await waitPath(page, '/commpilot/Reseller/Domains/');
+        row = await find();
+        deleted = await row.count() === 0;
+      }
+    } finally {
+      if (!process.env.BW_RESELLER_DOMAIN_CLEAN_NAME)
+        writeDeep('discovered-574', saved?.status() === 200 && sameDocument &&
+          created && deleted ? 'passed' : 'failed',
+        `Disposable Domain ${name}: Add HTTP ${saved?.status() || 'none'}; ` +
+          `${sameDocument ? 'same document' : 'reload'}; ` +
+          `fresh list ${created ? 'found' : 'did not find'} it; ` +
+          `Delete ${deleted ? 'verified absent' : 'not verified'}.`);
+    }
+    return;
+  }
+  if ((process.env.BW_SP_COMM_BARRING_PROFILE_LIFECYCLE === '1' ||
+       process.env.BW_SP_CB_PROFILE_CLEAN_NAME) &&
+      level === 'Service Provider' && folder === 'Communication Barring' &&
+      label === 'Profiles') {
+    const name = process.env.BW_SP_CB_PROFILE_CLEAN_NAME ||
+      `PJAX Audit CB ${Date.now().toString(36)}`;
+    const list = '/commpilot/ServiceProvider/CommBarring/Profiles/';
+    const add = `${list}Add/index.jsp`;
+    let saved = null, sameDocument = true;
+    if (!process.env.BW_SP_CB_PROFILE_CLEAN_NAME) {
+      await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, add);
+    await page.locator('td[width="82%"] input[name="name"]').fill(name);
+    await page.locator('td[width="82%"] input[name="description"]').fill('Disposable PJAX audit');
+    await page.evaluate(() => { window.__bwCbProfileDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === add, { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+      .click({ noWaitAfter: true });
+    saved = await response;
+    await page.waitForTimeout(400);
+    sameDocument = await page.evaluate(() => document === window.__bwCbProfileDocument);
+    console.log(JSON.stringify({ event: 'sp-cb-profile-add', name,
+      status: saved?.status() || null, path: new URL(page.url()).pathname,
+      text: (await page.locator('td[width="82%"]').innerText()).slice(0, 450) }));
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem:text-is("Profiles")').click();
+    await waitPath(page, list);
+    }
+    const find = async () => {
+      await page.locator('td[width="82%"] input[name="findValue"]').fill(name);
+      await page.locator('td[width="82%"] select[name="findOp"]').selectOption({ label: 'Contains' });
+      await page.locator('td[width="82%"] a:text-is("Find")').first().click();
+      await page.waitForTimeout(400);
+      return page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: name });
+    };
+    let created = false, deleted = false;
+    try {
+      let row = await find();
+      created = await row.count() === 1;
+      if (created) {
+        await row.first().locator('a.headerLink:text-is("Edit")').click();
+        await waitPath(page, `${list}General/index.jsp`);
+        page.once('dialog', dialog => dialog.accept());
+        const applied = page.waitForResponse(item => item.request().method() === 'POST' &&
+          new URL(item.url()).pathname.startsWith('/commpilot/ServiceProvider/CommBarring/Profiles/'),
+        { timeout: 15000 }).catch(() => null);
+        await page.locator('td[width="82%"] input[name="delete"]:visible').first()
+          .click({ noWaitAfter: true });
+        const applyResponse = await applied;
+        await page.waitForTimeout(450);
+        console.log(JSON.stringify({ event: 'sp-cb-profile-after-delete',
+          path: new URL(page.url()).pathname, title: await page.title(),
+          status: applyResponse?.status() || null }));
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Profiles")').click();
+        await waitPath(page, list);
+        row = await find();
+        deleted = await row.count() === 0;
+      }
+    } finally {
+      if (!process.env.BW_SP_CB_PROFILE_CLEAN_NAME)
+      writeDeep('discovered-591', saved?.status() === 200 && sameDocument &&
+        created && deleted ? 'passed' : 'failed',
+      `Disposable Communication Barring Profile ${name}: ` +
+        `Add HTTP ${saved?.status() || 'none'}; ${sameDocument ? 'same document' : 'reload'}; ` +
+        `fresh list ${created ? 'found' : 'did not find'} it; ` +
+        `Delete ${deleted ? 'verified absent' : 'not verified'}.`);
+    }
+    return;
+  }
+  if ((process.env.BW_BWA_LOCATION_LIFECYCLE === '1' ||
+       process.env.BW_BWA_LOCATION_CLEAN_NUMBER) && level === 'User' &&
+      folder === 'Call Control' && label === 'BroadWorks Anywhere') {
+    const number = process.env.BW_BWA_LOCATION_CLEAN_NUMBER || '+1-2025550199';
+    const list = '/commpilot/User/BroadWorksAnywhere/';
+    const add = `${list}Add/index.jsp`;
+    let saved = null, sameDocument = true;
+    if (!process.env.BW_BWA_LOCATION_CLEAN_NUMBER) {
+      await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+      await waitPath(page, add);
+      await page.locator('td[width="82%"] input[name="number"]').fill(number);
+      await page.locator('td[width="82%"] input[name="description"]')
+        .fill('Disposable PJAX audit location');
+      await page.locator('td[width="82%"] input[name="enableLocation"]').uncheck();
+      await page.evaluate(() => { window.__bwBwaDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === add, { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+        .click({ noWaitAfter: true });
+      saved = await response;
+      await page.waitForTimeout(450);
+      sameDocument = await page.evaluate(() => document === window.__bwBwaDocument);
+      console.log(JSON.stringify({ event: 'bwa-location-add', number,
+        status: saved?.status() || null, path: new URL(page.url()).pathname,
+        text: (await page.locator('td[width="82%"]').innerText()).slice(0, 500) }));
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("BroadWorks Anywhere")').click();
+      await waitPath(page, list);
+    }
+    const find = async () => {
+      await page.locator('td[width="82%"] input[name="findValue"]').fill('2025550199');
+      await page.locator('td[width="82%"] select[name="findOp"]').selectOption({ label: 'Contains' });
+      await page.locator('td[width="82%"] a:text-is("Find")').first().click();
+      await page.waitForTimeout(450);
+      return page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: '2025550199' });
+    };
+    let created = false, deleted = false;
+    try {
+      let row = await find();
+      created = await row.count() === 1;
+      console.log(JSON.stringify({ event: 'bwa-location-find', number, created,
+        row: created ? await row.first().evaluate(item => item.outerHTML.slice(0, 650)) : null }));
+      if (created) {
+        await row.first().locator('a.headerLink:text-is("Edit")').click();
+        await waitPath(page, `${list}Modify/index.jsp`);
+        console.log(JSON.stringify({ event: 'bwa-location-modify', number,
+          buttons: await page.locator('td[width="82%"] input[type="submit"]')
+            .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+        if (process.env.BW_BWA_LOCATION_MODIFY_INSPECT === '1') return;
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="delete"]:visible').first()
+          .click({ noWaitAfter: true });
+        await page.waitForTimeout(400);
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("BroadWorks Anywhere")').click();
+        await waitPath(page, list);
+        row = await find();
+        deleted = await row.count() === 0;
+      }
+    } finally {
+      if (!process.env.BW_BWA_LOCATION_CLEAN_NUMBER)
+        writeDeep('discovered-612', saved?.status() === 200 && sameDocument &&
+          created && deleted ? 'passed' : 'failed',
+        `Disabled disposable BroadWorks Anywhere location ${number}: ` +
+          `Add HTTP ${saved?.status() || 'none'}; ${sameDocument ? 'same document' : 'reload'}; ` +
+          `fresh list ${created ? 'found' : 'did not find'} it; ` +
+          `Delete ${deleted ? 'verified absent' : 'not verified'}.`);
+    }
+    return;
+  }
+  if ((process.env.BW_SP_SERVICE_PACK_LIFECYCLE === '1' ||
+       process.env.BW_SP_SERVICE_PACK_CLEAN_NAME) && level === 'Service Provider' &&
+      folder === 'Resources' && label === 'Service Packs') {
+    const name = process.env.BW_SP_SERVICE_PACK_CLEAN_NAME ||
+      `PJAX Audit Pack ${Date.now().toString(36)}`;
+    const list = '/commpilot/ServiceProvider/ServicePacks/';
+    const add = `${list}Add/index.jsp`;
+    let saved = null, sameDocument = true;
+    if (!process.env.BW_SP_SERVICE_PACK_CLEAN_NAME) {
+      await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+      await waitPath(page, add);
+      await page.locator('td[width="82%"] input[name="svcPackName"]').fill(name);
+      await page.locator('td[width="82%"] input[name="svcPackDescription"]')
+        .fill('Disposable PJAX audit');
+      await page.locator('td[width="82%"] input[name="availableForUse"]').uncheck();
+      await page.evaluate(() => { window.__bwPackDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === add, { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+        .click({ noWaitAfter: true });
+      saved = await response;
+      await page.waitForTimeout(450);
+      sameDocument = await page.evaluate(() => document === window.__bwPackDocument);
+      console.log(JSON.stringify({ event: 'sp-service-pack-add', name,
+        status: saved?.status() || null, path: new URL(page.url()).pathname,
+        text: (await page.locator('td[width="82%"]').innerText()).slice(0, 850) }));
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Service Packs")').click();
+      await waitPath(page, list);
+    }
+    const find = async () => {
+      await page.locator('td[width="82%"] input[name="findValue"]').fill(name);
+      await page.locator('td[width="82%"] select[name="findOp"]').selectOption({ label: 'Contains' });
+      await page.locator('td[width="82%"] a:text-is("Find")').first().click();
+      await page.waitForTimeout(450);
+      return page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: name });
+    };
+    let created = false, deleted = false;
+    try {
+      let row = await find();
+      created = await row.count() === 1;
+      console.log(JSON.stringify({ event: 'sp-service-pack-find', name, created,
+        row: created ? await row.first().evaluate(item => item.outerHTML.slice(0, 650)) : null }));
+      if (created) {
+        await row.first().locator('a.headerLink:text-is("Edit")').click();
+        await waitPath(page, `${list}Modify/index.jsp`);
+        console.log(JSON.stringify({ event: 'sp-service-pack-modify', name,
+          buttons: await page.locator('td[width="82%"] input[type="submit"]')
+            .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+        if (process.env.BW_SP_SERVICE_PACK_MODIFY_INSPECT === '1') return;
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="delete"]:visible').first()
+          .click({ noWaitAfter: true });
+        await page.waitForTimeout(450);
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Service Packs")').click();
+        await waitPath(page, list);
+        row = await find();
+        deleted = await row.count() === 0;
+      }
+    } finally {
+      if (!process.env.BW_SP_SERVICE_PACK_CLEAN_NAME)
+        writeDeep('discovered-586', saved?.status() === 200 && sameDocument &&
+          created && deleted ? 'passed' : 'failed',
+        `Unavailable disposable Service Pack ${name}: Add HTTP ${saved?.status() || 'none'}; ` +
+          `${sameDocument ? 'same document' : 'reload'}; ` +
+          `fresh list ${created ? 'found' : 'did not find'} it; ` +
+          `Delete ${deleted ? 'verified absent' : 'not verified'}.`);
+    }
+    return;
+  }
+  if (process.env.BW_GROUP_USER_CLEAN_PREFIX && level === 'Group' &&
+      folder === 'Profile' && label === 'Users') {
+    const prefix = process.env.BW_GROUP_USER_CLEAN_PREFIX;
+    const list = '/commpilot/Group/Members/';
+    async function search() {
+      await page.locator('td[width="82%"] select[name="findKey0"]').selectOption('UserID');
+      await page.locator('td[width="82%"] select[name="findOp0"]').selectOption('CONTAINS');
+      await page.locator('td[width="82%"] input[name="findValue0"]').fill(prefix);
+      await page.locator('td[width="82%"] input[name="search"]:visible').first().click();
+      await page.waitForFunction(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+        .some(row => row.textContent.includes(value)), prefix, { timeout: 9000 }).catch(() => null);
+      await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
+      await page.waitForTimeout(1200);
+      return page.locator('td[width="82%"] tr[id^="Row"]')
+        .filter({ hasText: prefix });
+    }
+    const rows = await search();
+    const ids = await rows.evaluateAll(items => items.map(item =>
+      item.innerText.match(/pjaxaudit[a-z0-9]+/i)?.[0]).filter(Boolean));
+    console.log(JSON.stringify({ event: 'group-user-clean-list', prefix, ids }));
+    const target = process.env.BW_GROUP_USER_CLEAN_TARGET || ids[0];
+    if (target && ids.includes(target)) {
+      await rows.filter({ hasText: target }).first()
+        .locator('a.headerLink:text-is("Edit")').click();
+      await waitPath(page, `${list}Modify/index.jsp`);
+      console.log(JSON.stringify({ event: 'group-user-clean-modify', id: target,
+        path: new URL(page.url()).pathname,
+        buttons: await page.locator('td[width="82%"] input[type="submit"]')
+          .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+      await openFolder(page);
+      console.log(JSON.stringify({ event: 'group-user-clean-menu',
+        items: await page.locator('td[width="82%"] a.navMenuItem')
+          .evaluateAll(items => items.map(item => item.textContent.trim()).slice(0, 20)) }));
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Profile")').click();
+      await waitPath(page, '/commpilot/User/Profile/');
+      console.log(JSON.stringify({ event: 'group-user-clean-profile', id: target,
+        path: new URL(page.url()).pathname,
+        buttons: await page.locator('td[width="82%"] input[type="submit"]')
+          .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+      if (process.env.BW_GROUP_USER_CLEAN_EXEC === '1') {
+        page.once('dialog', dialog => dialog.accept());
+        const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+          new URL(item.url()).pathname === '/commpilot/User/Profile/',
+        { timeout: 15000 }).catch(() => null);
+        await page.locator('td[width="82%"] input[name="delete"]:visible').first()
+          .click({ noWaitAfter: true });
+        const found = await response;
+        await page.waitForTimeout(1000);
+        console.log(JSON.stringify({ event: 'group-user-clean-delete', id: target,
+          status: found?.status() || null, path: new URL(page.url()).pathname,
+          title: await page.title(),
+          redirects: found ? [...(await found.text()).matchAll(/redirectPost\s*\(\s*['"]([^'"]+)/g)]
+            .map(item => item[1]) : [] }));
+      }
+    }
+    return;
+  }
+  if ((process.env.BW_GROUP_USER_ADD_LIFECYCLE === '1' ||
+       process.env.BW_GROUP_USER_CLEAN_ID) && level === 'Group' &&
+      folder === 'Profile' && label === 'Users') {
+    const suffix = Date.now().toString(36);
+    const id = process.env.BW_GROUP_USER_CLEAN_ID || `pjaxaudit${suffix}`;
+    const password = `Audit${suffix}Z7!`;
+    const list = '/commpilot/Group/Members/';
+    const add = `${list}Add/index.jsp`;
+    let saved = null, sameDocument = true;
+    if (!process.env.BW_GROUP_USER_CLEAN_ID) {
+      await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+      await waitPath(page, add);
+      for (const [name, value] of [
+        ['name', id], ['unicodeLastName', 'PJAX Audit'], ['unicodeFirstName', 'User'],
+        ['lastName', 'PJAX Audit'], ['firstName', 'User']
+      ]) await page.locator(`td[width="82%"] input[name="${name}"]`).fill(value);
+      await page.locator('td[width="82%"] input[name="password"]').fill(password);
+      await page.locator('td[width="82%"] input[name="echoPassword"]').fill(password);
+      if (process.env.BW_GROUP_USER_NATIVE_ONLY === '1') {
+        const browser = await chromium.launch({
+          executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+          headless: true });
+        try {
+          const context = await browser.newContext({ storageState: await page.context().storageState() });
+          const nativePage = await context.newPage();
+          await nativePage.route('https://apps-sbx.avpaas.io/bw-native-test', route =>
+            route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body></body></html>' }));
+          await nativePage.goto('https://apps-sbx.avpaas.io/bw-native-test',
+            { waitUntil: 'domcontentloaded' });
+          await nativePage.evaluate(value => history.replaceState(null, '', value), add);
+          await nativePage.setContent(await page.content(), { waitUntil: 'domcontentloaded' });
+          const token = await page.locator('input[name="formtokenserial"]').first().inputValue();
+          await nativePage.evaluate(value => {
+            document.querySelector('input[name="formtokenserial"]').value = value;
+          }, token);
+          for (const [name, value] of [
+            ['name', id], ['unicodeLastName', 'PJAX Audit'], ['unicodeFirstName', 'User'],
+            ['lastName', 'PJAX Audit'], ['firstName', 'User'],
+            ['password', password], ['echoPassword', password]
+          ]) await nativePage.locator(`td[width="82%"] input[name="${name}"]`).fill(value);
+          const nativeResponse = nativePage.waitForResponse(item => item.request().method() === 'POST' &&
+            new URL(item.url()).pathname === add, { timeout: 15000 }).catch(() => null);
+          await nativePage.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+          const result = await nativeResponse;
+          await nativePage.waitForTimeout(700);
+          console.log(JSON.stringify({ event: 'group-user-native-add', id,
+            status: result?.status() || null, path: new URL(nativePage.url()).pathname,
+            title: await nativePage.title(),
+            redirects: result ? [...(await result.text()).matchAll(/redirectPost\s*\(\s*['"]([^'"]+)/g)]
+              .map(item => item[1]) : [] }));
+          await context.close();
+        } finally { await browser.close(); }
+        return;
+      }
+      await page.evaluate(() => { window.__bwGroupUserDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === add, { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+        .click({ noWaitAfter: true });
+      saved = await response;
+      await page.waitForTimeout(500);
+      sameDocument = await page.evaluate(() => document === window.__bwGroupUserDocument);
+      console.log(JSON.stringify({ event: 'group-user-add', id,
+        status: saved?.status() || null, path: new URL(page.url()).pathname,
+        sent: saved ? (() => { const params = new URLSearchParams(saved.request().postData() || '');
+          return { names: [...params.keys()], buttonClicked: params.getAll('buttonClicked'),
+            name: params.get('name'), lastName: params.get('lastName'),
+            unicodeLastName: params.get('unicodeLastName'),
+            passwordPresent: !!params.get('password') }; })() : null,
+        afterName: await page.locator('td[width="82%"] input[name="name"]').first()
+          .inputValue().catch(() => null),
+        responseLength: saved ? (await saved.body()).length : null,
+        redirects: saved ? [...(await saved.text()).matchAll(/redirectPost\s*\(\s*['"]([^'"]+)/g)]
+          .map(item => item[1]) : [],
+        notices: await page.evaluate(() => [...document.querySelectorAll('.cp-alert, .error, .errorMessage')]
+          .map(item => item.textContent.trim().slice(0, 250)).filter(Boolean).slice(0, 8)),
+        text: (await page.locator('td[width="82%"]').innerText()).slice(-950),
+        responseMatches: saved ? (await saved.text()).replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ').match(/.{0,70}(?:fail|error|invalid|required|password|license|quantity).{0,150}/ig)
+          ?.slice(-8) : [] }));
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Users")').click();
+      await waitPath(page, list);
+    }
+    const find = async () => {
+      await page.locator('td[width="82%"] select[name="findKey0"]')
+        .selectOption('UserID');
+      await page.locator('td[width="82%"] input[name="findValue0"]').fill(id);
+      await page.locator('td[width="82%"] input[name="search"]:visible').first().click();
+      await page.waitForTimeout(450);
+      return page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: id });
+    };
+    let created = false, deleted = false;
+    try {
+      let row = await find();
+      created = await row.count() === 1;
+      console.log(JSON.stringify({ event: 'group-user-find', id, created,
+        row: created ? await row.first().evaluate(item => item.outerHTML.slice(0, 800)) : null }));
+      if (created) {
+        await row.first().locator('a.headerLink:text-is("Edit")').click();
+        await waitPath(page, `${list}Modify/index.jsp`);
+        console.log(JSON.stringify({ event: 'group-user-modify', id,
+          buttons: await page.locator('td[width="82%"] input[type="submit"]')
+            .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+        if (process.env.BW_GROUP_USER_MODIFY_INSPECT === '1') return;
+        const del = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+        if (!await del.count()) throw new Error('Group User Modify has no Delete button');
+        page.once('dialog', dialog => dialog.accept());
+        await del.click({ noWaitAfter: true });
+        await page.waitForTimeout(450);
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Users")').click();
+        await waitPath(page, list);
+        row = await find();
+        deleted = await row.count() === 0;
+      }
+    } finally {
+      if (!process.env.BW_GROUP_USER_CLEAN_ID)
+        writeDeep('discovered-562', saved?.status() === 200 && sameDocument &&
+          created && deleted ? 'passed' : 'failed',
+        `Disposable numberless Group User ${id}: Add HTTP ${saved?.status() || 'none'}; ` +
+          `${sameDocument ? 'same document' : 'reload'}; ` +
+          `fresh list ${created ? 'found' : 'did not find'} it; ` +
+          `Delete ${deleted ? 'verified absent' : 'not verified'}.`);
+    }
+    return;
+  }
+  if (((process.env.BW_GROUP_ADMIN_ADD_LIFECYCLE === '1' && level === 'Group') ||
+       process.env.BW_ADMIN_ADD_LIFECYCLE === '1' ||
+       process.env.BW_GROUP_ADMIN_CLEAN_ID || process.env.BW_ADMIN_CLEAN_ID) &&
+      ['Group', 'Service Provider', 'Reseller'].includes(level) &&
+      folder === 'Profile' && label === 'Administrators') {
+    const suffix = Date.now().toString(36);
+    const cleanId = process.env.BW_GROUP_ADMIN_CLEAN_ID || process.env.BW_ADMIN_CLEAN_ID;
+    const id = cleanId || `pjaxadm${suffix}`;
+    const password = `Audit${suffix}Z7!`;
+    const scope = level.replace(' ', '');
+    const list = `/commpilot/${scope}/Admins/`;
+    const add = `${list}Add/index.jsp`;
+    let saved = null, sameDocument = true;
+    if (!cleanId) {
+      await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+      await waitPath(page, add);
+      await page.locator('td[width="82%"] input[name="userId"]').fill(id);
+      await page.locator('td[width="82%"] input[name="lastName"]').fill('PJAX Audit');
+      await page.locator('td[width="82%"] input[name="firstName"]').fill('Admin');
+      await page.locator('td[width="82%"] input[name="password"]').fill(password);
+      await page.locator('td[width="82%"] input[name="echoPassword"]').fill(password);
+      if (scope === 'Group')
+        await page.locator('td[width="82%"] input[name="level"][value="dept"]').check();
+      await page.evaluate(() => { window.__bwGroupAdminDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === add, { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+        .click({ noWaitAfter: true });
+      saved = await response;
+      await page.waitForTimeout(600);
+      sameDocument = await page.evaluate(() => document === window.__bwGroupAdminDocument);
+      console.log(JSON.stringify({ event: 'group-admin-add', scope, id,
+        status: saved?.status() || null, path: new URL(page.url()).pathname,
+        text: (await page.locator('td[width="82%"]').innerText()).slice(-500) }));
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Administrators")').click();
+      await waitPath(page, list);
+    }
+    const find = async () => {
+      await page.locator('td[width="82%"] input[name="findValue"]').fill(id);
+      await page.locator('td[width="82%"] select[name="findOp"]').selectOption({ label: 'Contains' });
+      await page.locator('td[width="82%"] a:text-is("Find")').first().click();
+      await page.waitForFunction(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+        .some(row => row.textContent.includes(value)), id, { timeout: 7000 }).catch(() => null);
+      await page.waitForLoadState('networkidle', { timeout: 7000 }).catch(() => {});
+      return page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: id });
+    };
+    let created = false, deleted = false;
+    try {
+      let row = await find();
+      created = await row.count() === 1;
+      console.log(JSON.stringify({ event: 'group-admin-find', id, created,
+        row: created ? await row.first().evaluate(item => item.outerHTML.slice(0, 700)) : null }));
+      if (created) {
+        await row.first().locator('a.headerLink:text-is("Edit")').click();
+        await page.waitForFunction(value => location.pathname.startsWith(value) &&
+          /\/(?:Modify\/|modify\.jsp)/.test(location.pathname),
+          list, { timeout: 15000 });
+        console.log(JSON.stringify({ event: 'group-admin-modify', id,
+          path: new URL(page.url()).pathname,
+          buttons: await page.locator('td[width="82%"] input[type="submit"]')
+            .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+        if (process.env.BW_GROUP_ADMIN_MODIFY_INSPECT === '1') return;
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="delete"]:visible').first()
+          .click({ noWaitAfter: true });
+        await page.waitForTimeout(500);
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Administrators")').click();
+        await waitPath(page, list);
+        row = await find();
+        deleted = await row.count() === 0;
+      }
+    } finally {
+      if (!cleanId)
+        writeDeep(scope === 'Group' ? 'discovered-563' :
+          scope === 'Reseller' ? 'discovered-580' : 'discovered-594',
+          saved?.status() === 200 && sameDocument &&
+          created && deleted ? 'passed' : 'failed',
+        `Disposable ${scope} Administrator ${id}: Add HTTP ${saved?.status() || 'none'}; ` +
+          `${sameDocument ? 'same document' : 'reload'}; ` +
+          `fresh list ${created ? 'found' : 'did not find'} it; ` +
+          `Delete ${deleted ? 'verified absent' : 'not verified'}.`);
+    }
+    return;
+  }
+  if ((process.env.BW_DEVICE_TYPE_LIFECYCLE === '1' || process.env.BW_DEVICE_TYPE_CLEAN_NAME) &&
+      level === 'Reseller' && folder === 'Resources' &&
+      label === 'Identity/Device Profile Types') {
+    const name = process.env.BW_DEVICE_TYPE_CLEAN_NAME ||
+      `PJAX_AUDIT_TYPE_${Date.now().toString(36).toUpperCase()}`;
+    const list = '/commpilot/Reseller/DeviceType/';
+    const add = '/commpilot/Operator/System/DeviceType/Add/index.jsp';
+    let saved = null, sameDocument = true;
+    if (!process.env.BW_DEVICE_TYPE_CLEAN_NAME) {
+      await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+      await waitPath(page, add);
+      await page.locator('td[width="82%"] input[name="deviceType"]').fill(name);
+      await page.evaluate(() => { window.__bwDeviceTypeDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === add, { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+        .click({ noWaitAfter: true });
+      saved = await response;
+      await page.waitForTimeout(600);
+      sameDocument = await page.evaluate(() => document === window.__bwDeviceTypeDocument);
+      console.log(JSON.stringify({ event: 'device-type-add', name,
+        status: saved?.status() || null, sameDocument,
+        path: new URL(page.url()).pathname,
+        text: (await page.locator('td[width="82%"]').innerText()).slice(0, 350) }));
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Identity/Device Profile Types")').click();
+      await waitPath(page, list);
+    }
+    const find = async () => {
+      await page.locator('td[width="82%"] select[name="findOp0"]').selectOption('CONTAINS');
+      await page.locator('td[width="82%"] input[name="findValue0"]').fill(name);
+      await page.locator('td[width="82%"] input[name="search"]:visible').first().click();
+      await page.waitForLoadState('networkidle', { timeout: 7000 }).catch(() => {});
+      return page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: name });
+    };
+    let row = await find();
+    const created = await row.count() === 1;
+    let deleted = false;
+    console.log(JSON.stringify({ event: 'device-type-find', name, created,
+      row: created ? await row.first().evaluate(item => item.outerHTML.slice(0, 650)) : null }));
+    if (created) {
+      await row.first().locator('a.headerLink:text-is("Edit")').click();
+      await page.waitForFunction(() => location.pathname !== '/commpilot/Reseller/DeviceType/',
+        null, { timeout: 15000 });
+      console.log(JSON.stringify({ event: 'device-type-modify', name,
+        path: new URL(page.url()).pathname,
+        buttons: await page.locator('td[width="82%"] input[type="submit"]')
+          .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+      if (process.env.BW_DEVICE_TYPE_INSPECT === '1') return;
+      const deletion = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+      if (await deletion.count()) {
+        page.once('dialog', dialog => dialog.accept());
+        await deletion.click({ noWaitAfter: true });
+        await page.waitForTimeout(600);
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Identity/Device Profile Types")').click();
+        await waitPath(page, list);
+        row = await find();
+        deleted = await row.count() === 0;
+      }
+    }
+    console.log(JSON.stringify({ event: 'device-type-cleanup', name, deleted }));
+    if (!process.env.BW_DEVICE_TYPE_CLEAN_NAME)
+      writeDeep('discovered-572', saved?.status() === 200 && sameDocument &&
+        created && deleted ? 'passed' : 'blocked',
+      `Disposable Identity/Device Profile Type ${name}: Add HTTP ${saved?.status() || 'none'}; ` +
+      `${sameDocument ? 'same document' : 'reload'}; ` +
+      `fresh list ${created ? 'found' : 'did not find'} it; ` +
+      `Delete ${deleted ? 'verified absent' : 'not verified'}.`);
+    return;
+  }
+  if ((process.env.BW_CONFERENCE_BRIDGE_LIFECYCLE === '1' ||
+       process.env.BW_CONFERENCE_BRIDGE_CLEAN_ID) && level === 'Group' &&
+      folder === 'Meet-Me Conferencing' && label === 'Meet-Me Conference Bridges') {
+    const id = process.env.BW_CONFERENCE_BRIDGE_CLEAN_ID ||
+      `pjaxbridge${Date.now().toString(36)}`;
+    const displayName = process.env.BW_CONFERENCE_BRIDGE_CLEAN_ID ?
+      'PJAX Audit Bridge' : `PJAX Audit Bridge ${id}`;
+    const list = '/commpilot/Group/ConferenceBridges/';
+    const add = `${list}AddModify/index.jsp`;
+    let saved = null, sameDocument = true;
+    if (!process.env.BW_CONFERENCE_BRIDGE_CLEAN_ID) {
+      await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+      await waitPath(page, add);
+      await page.locator('td[width="82%"] input[name="userId"]').fill(id);
+      await page.locator('td[width="82%"] input[name="unicodeLastName"]')
+        .fill(displayName);
+      await page.locator('td[width="82%"] input[name="clidLastName"]').fill('Audit Bridge');
+      await page.locator('td[width="82%"] input[name="clidFirstName"]').fill('PJAX');
+      await page.evaluate(() => { window.__bwBridgeDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === add, { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+        .click({ noWaitAfter: true });
+      saved = await response;
+      await page.waitForTimeout(650);
+      sameDocument = await page.evaluate(() => document === window.__bwBridgeDocument);
+      console.log(JSON.stringify({ event: 'conference-bridge-add', id,
+        status: saved?.status() || null, sameDocument,
+        path: new URL(page.url()).pathname,
+        text: (await page.locator('td[width="82%"]').innerText()).slice(0, 700) }));
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Meet-Me Conference Bridges")').click();
+      await waitPath(page, list);
+    }
+    let row = page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: displayName });
+    const created = await row.count() === 1;
+    let deleted = false;
+    console.log(JSON.stringify({ event: 'conference-bridge-find', id, created,
+      row: created ? await row.first().evaluate(item => item.outerHTML.slice(0, 650)) : null }));
+    if (created) {
+      await row.first().locator('a.headerLink:text-is("Edit")').click();
+      await waitPath(page, `${list}EditRedirect/index.jsp`);
+      console.log(JSON.stringify({ event: 'conference-bridge-modify', id,
+        path: new URL(page.url()).pathname,
+        title: await page.title(),
+        menu: await page.locator('td[width="82%"] a.navMenuItem')
+          .evaluateAll(items => items.map(item => item.textContent.trim()).slice(0, 15)),
+        buttons: await page.locator('td[width="82%"] input[type="submit"]')
+          .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Profile")').click();
+      await page.waitForFunction(() => location.pathname !==
+        '/commpilot/Group/ConferenceBridges/EditRedirect/index.jsp',
+        null, { timeout: 15000 });
+      console.log(JSON.stringify({ event: 'conference-bridge-profile', id,
+        path: new URL(page.url()).pathname,
+        buttons: await page.locator('td[width="82%"] input[type="submit"]')
+          .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+      if (process.env.BW_CONFERENCE_BRIDGE_INSPECT === '1') return;
+      const deletion = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+      if (await deletion.count()) {
+        page.once('dialog', dialog => dialog.accept());
+        await deletion.click({ noWaitAfter: true });
+        await page.waitForTimeout(550);
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Meet-Me Conference Bridges")').click();
+        await waitPath(page, list);
+        row = page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: displayName });
+        deleted = await row.count() === 0;
+      }
+    }
+    console.log(JSON.stringify({ event: 'conference-bridge-cleanup', id, deleted }));
+    if (!process.env.BW_CONFERENCE_BRIDGE_CLEAN_ID)
+      writeDeep('discovered-557', saved?.status() === 200 && sameDocument &&
+        created && deleted ? 'passed' : 'blocked',
+      `Disposable Meet-Me Conference Bridge ${id}: Add HTTP ${saved?.status() || 'none'}; ` +
+      `${sameDocument ? 'same document' : 'reload'}; ` +
+      `fresh list ${created ? 'found' : 'did not find'} it; ` +
+      `Delete ${deleted ? 'verified absent' : 'not verified'}.`);
+    return;
+  }
+  if ((process.env.BW_TRUNK_GROUP_LIFECYCLE === '1' || process.env.BW_TRUNK_GROUP_CLEAN_NAME) &&
+      level === 'Group' && folder === 'Services' && label === 'Trunk Group') {
+    const name = process.env.BW_TRUNK_GROUP_CLEAN_NAME ||
+      `PJAX Audit Trunk ${Date.now().toString(36)}`;
+    const list = '/commpilot/Group/TrunkGroup/';
+    const add = `${list}Add/index.jsp`;
+    let saved = null, sameDocument = true;
+    if (!process.env.BW_TRUNK_GROUP_CLEAN_NAME) {
+      await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+      await waitPath(page, add);
+      await page.locator('td[width="82%"] input[name="newName"]').fill(name);
+      for (const field of ['maxActiveCalls', 'incomingCalls', 'outgoingCalls'])
+        await page.locator(`td[width="82%"] input[name="${field}"]`).fill('1');
+      await page.evaluate(() => { window.__bwTrunkDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === add, { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+        .click({ noWaitAfter: true });
+      saved = await response;
+      await page.waitForTimeout(550);
+      sameDocument = await page.evaluate(() => document === window.__bwTrunkDocument);
+      console.log(JSON.stringify({ event: 'trunk-group-add', name,
+        status: saved?.status() || null, sameDocument,
+        path: new URL(page.url()).pathname,
+        text: (await page.locator('td[width="82%"]').innerText()).slice(0, 500) }));
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Trunk Group")').click();
+      await waitPath(page, list);
+    }
+    let row = page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: name });
+    const created = await row.count() === 1;
+    let deleted = false;
+    console.log(JSON.stringify({ event: 'trunk-group-find', name, created,
+      row: created ? await row.first().evaluate(item => item.outerHTML.slice(0, 650)) : null }));
+    if (created) {
+      await row.first().locator('a.headerLink:text-is("Edit")').click();
+      await page.waitForTimeout(350);
+      console.log(JSON.stringify({ event: 'trunk-group-modify', name,
+        path: new URL(page.url()).pathname,
+        buttons: await page.locator('td[width="82%"] input[type="submit"]')
+          .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+      if (process.env.BW_TRUNK_GROUP_INSPECT === '1') return;
+      const deletion = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+      if (await deletion.count()) {
+        page.once('dialog', dialog => dialog.accept());
+        await deletion.click({ noWaitAfter: true });
+        await page.waitForTimeout(550);
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Trunk Group")').click();
+        await waitPath(page, list);
+        row = page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: name });
+        deleted = await row.count() === 0;
+      }
+    }
+    console.log(JSON.stringify({ event: 'trunk-group-cleanup', name, deleted }));
+    if (!process.env.BW_TRUNK_GROUP_CLEAN_NAME)
+      writeDeep('discovered-153', saved?.status() === 200 && sameDocument &&
+        created && deleted ? 'passed' : 'blocked',
+      `Disposable Trunk Group ${name}: Add HTTP ${saved?.status() || 'none'}; ` +
+      `${sameDocument ? 'same document' : 'reload'}; ` +
+      `fresh list ${created ? 'found' : 'did not find'} it; ` +
+      `Delete ${deleted ? 'verified absent' : 'not verified'}.`);
+    return;
+  }
+  if (process.env.BW_SP_CARRIER_LIFECYCLE === '1' && level === 'Service Provider' &&
+      folder === 'Resources' && label === 'Carriers') {
+    const list = '/commpilot/ServiceProvider/Carriers/';
+    const add = `${list}Add/index.jsp`;
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, add);
+    await page.locator('td[width="82%"] select[name="countryCode"]').selectOption('0');
+    await page.evaluate(() => { window.__bwCarrierDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === add, { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+      .click({ noWaitAfter: true });
+    const saved = await response;
+    await page.waitForTimeout(500);
+    const sameDocument = await page.evaluate(() => document === window.__bwCarrierDocument);
+    console.log(JSON.stringify({ event: 'sp-carrier-add', status: saved?.status() || null,
+      sameDocument, path: new URL(page.url()).pathname,
+      text: (await page.locator('td[width="82%"]').innerText()).slice(0, 500) }));
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem:text-is("Carriers")').click();
+    await waitPath(page, list);
+    let row = page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: '0' });
+    const created = await row.count() === 1;
+    let deleted = false;
+    console.log(JSON.stringify({ event: 'sp-carrier-find', created,
+      row: created ? await row.first().evaluate(item => item.outerHTML.slice(0, 800)) : null }));
+    if (created) {
+      await row.first().locator('a.headerLink:text-is("Edit")').click();
+      await waitPath(page, `${list}Modify/index.jsp`);
+      console.log(JSON.stringify({ event: 'sp-carrier-modify',
+        buttons: await page.locator('td[width="82%"] input[type="submit"]')
+          .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+      page.once('dialog', dialog => dialog.accept());
+      await page.locator('td[width="82%"] input[name="delete"]:visible').first()
+        .click({ noWaitAfter: true });
+      await page.waitForTimeout(500);
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Carriers")').click();
+      await waitPath(page, list);
+      row = page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: '0' });
+      deleted = await row.count() === 0;
+    }
+    console.log(JSON.stringify({ event: 'sp-carrier-cleanup', deleted }));
+    writeDeep('discovered-581', saved?.status() === 200 && sameDocument &&
+      created && deleted ? 'passed' : 'blocked',
+      `Disposable country code 0 carrier with available PIC choices (None only): Add HTTP ${saved?.status() || 'none'}; ` +
+      `${sameDocument ? 'same document' : 'reload'}; ` +
+      `fresh list ${created ? 'found' : 'did not find'} it; ` +
+      `Delete ${deleted ? 'verified absent' : 'not verified'}.`);
+    return;
+  }
+  if (process.env.BW_SP_NUMBER_RESOURCE_LIFECYCLE === '1' &&
+      level === 'Service Provider' && folder === 'Resources' &&
+      ['Enterprise Trunk Number Ranges', 'Enterprise Trunk Number Prefixes'].includes(label)) {
+    const isRange = label.endsWith('Ranges');
+    const key = isRange ? 'NumberRanges' : 'NumberPrefixes';
+    const list = `/commpilot/ServiceProvider/${key}/`;
+    const add = `${list}Add/index.jsp`;
+    const marker = isRange ? '+1-2025550198' : `98${Date.now().toString().slice(-6)}`;
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, add);
+    if (isRange) {
+      await page.locator('td[width="82%"] input[name="startdn1"]').fill(marker);
+      await page.locator('td[width="82%"] input[name="enddn1"]').fill('+1-2025550199');
+      await page.locator('td[width="82%"] input[name="extnlen1"]').fill('4');
+    } else {
+      await page.locator('td[width="82%"] input[name="prefix1"]').fill(marker);
+      await page.locator('td[width="82%"] input[name="startextn1"]').fill('9900');
+      await page.locator('td[width="82%"] input[name="endextn1"]').fill('9901');
+    }
+    await page.evaluate(() => { window.__bwSpNumberDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === add, { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+      .click({ noWaitAfter: true });
+    const saved = await response;
+    await page.waitForTimeout(600);
+    const sameDocument = await page.evaluate(() => document === window.__bwSpNumberDocument);
+    console.log(JSON.stringify({ event: 'sp-number-add', label, marker,
+      status: saved?.status() || null, sameDocument,
+      path: new URL(page.url()).pathname,
+      text: (await page.locator('td[width="82%"]').innerText()).slice(0, 550) }));
+    await openFolder(page);
+    await page.locator(`td[width="82%"] a.navMenuItem:text-is("${label}")`).click();
+    await waitPath(page, list);
+    let row = page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: marker });
+    let created = await row.count() === 1;
+    console.log(JSON.stringify({ event: 'sp-number-find', label, marker, created,
+      row: created ? await row.first().evaluate(item => item.outerHTML.slice(0, 800)) : null }));
+    let deleted = false;
+    if (created) {
+      const checkbox = row.first().locator('input[type="checkbox"]');
+      if (await checkbox.count()) {
+        await checkbox.check();
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+          .click({ noWaitAfter: true });
+        await page.waitForTimeout(600);
+        await openFolder(page);
+        await page.locator(`td[width="82%"] a.navMenuItem:text-is("${label}")`).click();
+        await waitPath(page, list);
+        row = page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: marker });
+        deleted = await row.count() === 0;
+      }
+    }
+    console.log(JSON.stringify({ event: 'sp-number-cleanup', label, marker, deleted }));
+    writeDeep(isRange ? 'discovered-584' : 'discovered-585',
+      saved?.status() === 200 && sameDocument && created && deleted ? 'passed' : 'blocked',
+      `Disposable ${label} ${marker}: Add HTTP ${saved?.status() || 'none'}; ` +
+      `${sameDocument ? 'same document' : 'reload'}; ` +
+      `fresh list ${created ? 'found' : 'did not find'} it; ` +
+      `Delete ${deleted ? 'verified absent' : 'not verified'}. ` +
+      (created ? '' : 'Sandbox did not accept a disposable allocation; blank-form validation remained on the Add page.'));
+    return;
+  }
+  if ((process.env.BW_RECORDING_PLATFORM_LIFECYCLE === '1' ||
+       process.env.BW_RECORDING_PLATFORM_CLEAN_NAME) && level === 'Reseller' &&
+      folder === 'Resources' && label === 'Call Recording Platforms') {
+    const name = process.env.BW_RECORDING_PLATFORM_CLEAN_NAME ||
+      `PJAX_AUDIT_REC_${Date.now().toString(36).toUpperCase()}`;
+    const list = '/commpilot/Reseller/CallRecordingPlatforms/';
+    const add = `${list}Add/index.jsp`;
+    let saved = null, sameDocument = true;
+    if (!process.env.BW_RECORDING_PLATFORM_CLEAN_NAME) {
+      await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+      await waitPath(page, add);
+      await page.locator('td[width="82%"] input[name="name"]').fill(name);
+      await page.locator('td[width="82%"] input[name="ipAddress"]').fill('192.0.2.1');
+      await page.evaluate(() => { window.__bwRecordingDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === add, { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+        .click({ noWaitAfter: true });
+      saved = await response;
+      await page.waitForTimeout(500);
+      sameDocument = await page.evaluate(() => document === window.__bwRecordingDocument);
+      console.log(JSON.stringify({ event: 'recording-platform-add', name,
+        status: saved?.status() || null, path: new URL(page.url()).pathname,
+        text: (await page.locator('td[width="82%"]').innerText()).slice(0, 450) }));
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Call Recording Platforms")').click();
+      await waitPath(page, list);
+    }
+    const find = async () => {
+      await page.locator('td[width="82%"] input[name="findValue"]').fill(name);
+      await page.locator('td[width="82%"] input[name="findValue"]').press('Enter');
+      await page.waitForLoadState('networkidle', { timeout: 7000 }).catch(() => {});
+      return page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: name });
+    };
+    let created = false, deleted = false;
+    try {
+      let row = await find();
+      for (let retry = 0; retry < 3 && await row.count() === 0; retry++) {
+        await page.waitForTimeout(650);
+        row = await find();
+      }
+      created = await row.count() === 1;
+      console.log(JSON.stringify({ event: 'recording-platform-find', name, created,
+        row: created ? await row.first().evaluate(item => item.outerHTML.slice(0, 600)) : null }));
+      if (created) {
+        await row.first().locator('a.headerLink:text-is("Edit")').click();
+        await waitPath(page, `${list}Modify/Profile/index.jsp`);
+        console.log(JSON.stringify({ event: 'recording-platform-modify', name,
+          path: new URL(page.url()).pathname,
+          buttons: await page.locator('td[width="82%"] input[type="submit"]')
+            .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+        if (process.env.BW_RECORDING_PLATFORM_INSPECT === '1') return;
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="delete"]:visible').first()
+          .click({ noWaitAfter: true });
+        await page.waitForTimeout(550);
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Call Recording Platforms")').click();
+        await waitPath(page, list);
+        row = await find();
+        deleted = await row.count() === 0;
+        console.log(JSON.stringify({ event: 'recording-platform-deleted', name, deleted }));
+      }
+    } finally {
+      if (!process.env.BW_RECORDING_PLATFORM_CLEAN_NAME &&
+          process.env.BW_RECORDING_PLATFORM_INSPECT !== '1')
+        writeDeep('discovered-571', saved?.status() === 200 && sameDocument &&
+          created && deleted ? 'passed' : 'failed',
+        `Disposable Call Recording Platform ${name}: Add HTTP ${saved?.status() || 'none'}; ` +
+          `${sameDocument ? 'same document' : 'reload'}; ` +
+          `fresh list ${created ? 'found' : 'did not find'} it; ` +
+          `Delete ${deleted ? 'verified absent' : 'not verified'}.`);
+    }
+    return;
+  }
+  if ((process.env.BW_RESELLER_SP_LIFECYCLE === '1' || process.env.BW_RESELLER_SP_CLEAN_ID) &&
+      level === 'Reseller' && folder === 'Profile' && label === 'Service Providers') {
+    const id = process.env.BW_RESELLER_SP_CLEAN_ID || `pjaxsp${Date.now().toString(36)}`;
+    const list = '/commpilot/Reseller/ServiceProviders/index.jsp';
+    const add = '/commpilot/Operator/ServiceProviders/Add/index.jsp';
+    let saved = null, sameDocument = true;
+    if (!process.env.BW_RESELLER_SP_CLEAN_ID) {
+      await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+      await waitPath(page, add);
+      await page.locator('td[width="82%"] input[name="name"]').fill(id);
+      await page.evaluate(() => { window.__bwResellerSpDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === add, { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+        .click({ noWaitAfter: true });
+      saved = await response;
+      await page.waitForTimeout(700);
+      sameDocument = await page.evaluate(() => document === window.__bwResellerSpDocument);
+      console.log(JSON.stringify({ event: 'reseller-sp-add', id,
+        status: saved?.status() || null, path: new URL(page.url()).pathname,
+        text: (await page.locator('td[width="82%"]').innerText()).slice(0, 500) }));
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Service Providers")').click();
+      await waitPath(page, list);
+    }
+    const find = async () => {
+      await page.locator('td[width="82%"] select[name="findOp0"]').selectOption('CONTAINS');
+      await page.locator('td[width="82%"] input[name="findValue0"]').fill(id);
+      await page.locator('td[width="82%"] input[name="search"]:visible').first().click();
+      await page.waitForLoadState('networkidle', { timeout: 7000 }).catch(() => {});
+      return page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: id });
+    };
+    let created = false, deleted = false;
+    try {
+      let row = await find();
+      for (let retry = 0; retry < 3 && await row.count() === 0; retry++) {
+        await page.waitForTimeout(650);
+        row = await find();
+      }
+      created = await row.count() === 1;
+      console.log(JSON.stringify({ event: 'reseller-sp-find', id, created,
+        row: created ? await row.first().evaluate(item => item.outerHTML.slice(0, 650)) : null }));
+      if (created) {
+        await row.first().locator('a.headerLink:text-is("Edit")').click();
+        await waitPath(page, '/commpilot/Reseller/ServiceProviders/Modify/index.jsp');
+        console.log(JSON.stringify({ event: 'reseller-sp-edit', id,
+          path: new URL(page.url()).pathname,
+          text: (await page.locator('td[width="82%"]').innerText()).slice(0, 450),
+          buttons: await page.locator('td[width="82%"] input[type="submit"]')
+            .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Profile")').click();
+        await page.waitForFunction(() => location.pathname !== '/commpilot/Common/folder_contents.jsp',
+          null, { timeout: 15000 });
+        console.log(JSON.stringify({ event: 'reseller-sp-profile', id,
+          path: new URL(page.url()).pathname,
+          text: (await page.locator('td[width="82%"]').innerText()).slice(0, 350),
+          buttons: await page.locator('td[width="82%"] input[type="submit"]')
+            .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+        if (process.env.BW_RESELLER_SP_INSPECT === '1') return;
+        const deleteButton = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+        if (await deleteButton.count()) {
+          page.once('dialog', dialog => dialog.accept());
+          await deleteButton.click({ noWaitAfter: true });
+          await page.waitForTimeout(800);
+          await openFolder(page);
+          await page.locator('td[width="82%"] a.navMenuItem:text-is("Service Providers")').click();
+          await waitPath(page, list);
+          row = await find();
+          deleted = await row.count() === 0;
+          console.log(JSON.stringify({ event: 'reseller-sp-deleted', id, deleted,
+            path: new URL(page.url()).pathname }));
+        }
+      }
+    } finally {
+      if (!process.env.BW_RESELLER_SP_CLEAN_ID && process.env.BW_RESELLER_SP_INSPECT !== '1')
+        writeDeep('discovered-579', saved?.status() === 200 && sameDocument &&
+          created && deleted ? 'passed' : 'failed',
+        `Disposable Service Provider ${id}: Add HTTP ${saved?.status() || 'none'}; ` +
+          `${sameDocument ? 'same document' : 'reload'}; ` +
+          `fresh list ${created ? 'found' : 'did not find'} it; ` +
+          `Delete ${deleted ? 'verified absent' : 'not verified'}.`);
+    }
+    return;
+  }
+  if ((process.env.BW_SP_GROUP_LIFECYCLE === '1' || process.env.BW_SP_GROUP_CLEAN_ID) &&
+      level === 'Service Provider' && folder === 'Profile' && label === 'Groups') {
+    const id = process.env.BW_SP_GROUP_CLEAN_ID || `pjaxgrp${Date.now().toString(36)}`;
+    const list = '/commpilot/ServiceProvider/Members/';
+    const add = `${list}Add/index.jsp`;
+    console.log(JSON.stringify({ event: 'sp-group-entry', id,
+      state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+        names: [...document.querySelectorAll('td[width="82%"] input, td[width="82%"] select')]
+          .map(item => item.name).filter(Boolean).slice(0, 20),
+        text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 350) })) }));
+    let saved = null, sameDocument = true;
+    if (!process.env.BW_SP_GROUP_CLEAN_ID) {
+      await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+      await waitPath(page, add);
+      await page.locator('td[width="82%"] input[name="name"]').fill(id);
+      await page.locator('td[width="82%"] input[name="unicodeCompanyName"]')
+        .fill('PJAX Audit Group');
+      await page.locator('td[width="82%"] input[name="companyName"]')
+        .fill('PJAX Audit Group');
+      await page.locator('td[width="82%"] input[name="userLimitText"]').fill('1');
+      await page.evaluate(() => { window.__bwSpGroupDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === add, { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+        .click({ noWaitAfter: true });
+      saved = await response;
+      await page.waitForTimeout(550);
+      sameDocument = await page.evaluate(() => document === window.__bwSpGroupDocument);
+      console.log(JSON.stringify({ event: 'sp-group-add', id,
+        status: saved?.status() || null, path: new URL(page.url()).pathname,
+        text: (await page.locator('td[width="82%"]').innerText()).slice(0, 650) }));
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Groups")').click();
+      await waitPath(page, list);
+    }
+    const find = async () => {
+      await page.locator('td[width="82%"] select[name="findOp0"]').selectOption('CONTAINS');
+      await page.locator('td[width="82%"] input[name="findValue0"]').fill(id);
+      await page.locator('td[width="82%"] input[name="search"]:visible').first().click();
+      await page.waitForFunction(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+        .some(row => row.textContent.includes(value)), id, { timeout: 8000 }).catch(() => null);
+      await page.waitForLoadState('networkidle', { timeout: 7000 }).catch(() => {});
+      return page.locator('td[width="82%"] tr[id^="Row"]').filter({ hasText: id });
+    };
+    let created = false, deleted = false;
+    try {
+      let row = await find();
+      created = await row.count() === 1;
+      console.log(JSON.stringify({ event: 'sp-group-find', id, created,
+        row: created ? await row.first().evaluate(item => item.outerHTML.slice(0, 650)) : null }));
+      if (created) {
+        await row.first().locator('a.headerLink:text-is("Edit")').click();
+        await waitPath(page, `${list}Modify/index.jsp`);
+        console.log(JSON.stringify({ event: 'sp-group-modify', id,
+          path: new URL(page.url()).pathname,
+          buttons: await page.locator('td[width="82%"] input[type="submit"]')
+            .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+        await openFolder(page);
+        console.log(JSON.stringify({ event: 'sp-group-menu', id,
+          items: await page.locator('td[width="82%"] a.navMenuItem')
+            .evaluateAll(items => items.map(item => item.textContent.trim()).slice(0, 15)) }));
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Profile")').click();
+        await page.waitForFunction(() => location.pathname !== '/commpilot/Common/folder_contents.jsp',
+          null, { timeout: 15000 });
+        console.log(JSON.stringify({ event: 'sp-group-profile', id,
+          path: new URL(page.url()).pathname,
+          buttons: await page.locator('td[width="82%"] input[type="submit"]')
+            .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+        if (process.env.BW_SP_GROUP_MODIFY_INSPECT === '1') return;
+        page.once('dialog', dialog => dialog.accept());
+        const deletion = page.waitForResponse(item => item.request().method() === 'POST' &&
+          new URL(item.url()).pathname === '/commpilot/Group/Profile/',
+        { timeout: 15000 }).catch(() => null);
+        await page.locator('td[width="82%"] input[name="delete"]:visible').first()
+          .click({ noWaitAfter: true });
+        const deletedResponse = await deletion;
+        await page.waitForTimeout(850);
+        console.log(JSON.stringify({ event: 'sp-group-after-delete', id,
+          status: deletedResponse?.status() || null,
+          path: new URL(page.url()).pathname, title: await page.title(),
+          level: await page.locator('.headerAuthLevel').first().innerText().catch(() => null),
+          folders: await page.locator('a.leftnavfolder, a.leftnavfolderopen')
+            .evaluateAll(items => items.map(item => item.textContent.trim()).slice(0, 12)) }));
+        if (process.env.BW_SP_GROUP_NO_REENTER === '1') return;
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Groups")').click();
+        await waitPath(page, list);
+        row = await find();
+        deleted = await row.count() === 0;
+      }
+    } finally {
+      if (!process.env.BW_SP_GROUP_CLEAN_ID)
+        writeDeep('discovered-593', saved?.status() === 200 && sameDocument &&
+          created && deleted ? 'passed' : 'failed',
+        `Disposable empty Group ${id}: Add HTTP ${saved?.status() || 'none'}; ` +
+          `${sameDocument ? 'same document' : 'reload'}; ` +
+          `fresh list ${created ? 'found' : 'did not find'} it; ` +
+          `Delete ${deleted ? 'verified absent' : 'not verified'}.`);
     }
     return;
   }
@@ -5233,6 +6545,7 @@ async function probe(page, label) {
           process.env.BW_SAC_LIFECYCLE === '1' ||
           process.env.BW_EMERGENCY_ZONE_LIFECYCLE === '1' ||
           process.env.BW_MWI_TEMPLATE_LIFECYCLE === '1' ||
+          process.env.BW_SP_MWI_TEMPLATE_LIFECYCLE === '1' ||
           process.env.BW_ROUTE_POINT_LIFECYCLE === '1' ||
           process.env.BW_USER_CRITERION_LIFECYCLE === '1' ||
           process.env.BW_ROUTE_POINT_CLEAN_ID ||

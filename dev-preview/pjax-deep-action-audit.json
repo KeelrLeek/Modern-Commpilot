@@ -1,9 +1,9 @@
 {
   "title": "CommPilot deep PJAX action audit",
-  "updated": "2026-09-25T05:24:19.555Z",
+  "updated": "2026-09-25T06:32:02.801Z",
   "environment": "apps-sbx.avpaas.io · saved test account · headless Edge",
   "scope": "Sandbox route and interaction checks are tracked separately from final writes. A passed list interaction confirms navigation and Back; a write passes only after save and readback.",
-  "current": "Device Management Tag Sets › Add",
+  "current": "Group profile menu",
   "checks": [
     {
       "id": "reseller-groups",
@@ -33,7 +33,7 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "Stan Mikita Donuts group profile opened from Service Provider Members in the same document.",
-      "checkedAt": "2026-09-25T05:20:47.641Z"
+      "checkedAt": "2026-09-25T06:32:02.801Z"
     },
     {
       "id": "group-users",
@@ -63,7 +63,7 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "SMDonuts21 user profile opened from Group Members in the same document.",
-      "checkedAt": "2026-09-25T05:20:48.552Z"
+      "checkedAt": "2026-09-25T05:43:50.361Z"
     },
     {
       "id": "user-addresses",
@@ -109,7 +109,7 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "Disposable schedule opened its Modify page with the saved name.",
-      "checkedAt": "2026-09-25T03:34:52.650Z"
+      "checkedAt": "2026-09-25T03:34:52.65Z"
     },
     {
       "id": "event-modify",
@@ -227,7 +227,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Reseller/Profile/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:29:54.030Z",
+      "checkedAt": "2026-09-24T23:29:54.03Z",
       "navigationCheckedAt": "2026-09-25T01:15:55.753Z",
       "navigationStatus": "pass"
     },
@@ -276,7 +276,7 @@
       "status": "passed",
       "detail": "Menu opened in PJAX; list search returned HTTP 200 in the same document. Nested actions remain tracked in their own rows.",
       "checkedAt": "2026-09-25T03:37:00.345Z",
-      "navigationCheckedAt": "2026-09-25T01:15:59.460Z",
+      "navigationCheckedAt": "2026-09-25T01:15:59.46Z",
       "navigationStatus": "pass"
     },
     {
@@ -291,7 +291,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Reseller/StirShaken/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:29:55.450Z",
+      "checkedAt": "2026-09-24T23:29:55.45Z",
       "navigationCheckedAt": "2026-09-25T01:16:00.101Z",
       "navigationStatus": "pass"
     },
@@ -388,7 +388,7 @@
       "status": "passed",
       "detail": "List search ran in the same document from /commpilot/Reseller/DnManagement/ to /commpilot/Common/findAll.jsp; 20 result rows remained visible.",
       "checkedAt": "2026-09-25T04:20:31.022Z",
-      "navigationCheckedAt": "2026-09-25T01:15:37.580Z",
+      "navigationCheckedAt": "2026-09-25T01:15:37.58Z",
       "navigationStatus": "pass"
     },
     {
@@ -435,7 +435,7 @@
       "submitControls": 2,
       "status": "passed",
       "detail": "List search ran in the same document from /commpilot/Reseller/NumberPrefixes/ to /commpilot/Common/findAll.jsp; 0 result rows remained visible.",
-      "checkedAt": "2026-09-25T04:20:33.850Z",
+      "checkedAt": "2026-09-25T04:20:33.85Z",
       "navigationCheckedAt": "2026-09-25T01:15:39.428Z",
       "navigationStatus": "pass"
     },
@@ -452,7 +452,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Reseller/XsiPolicyProfile/ServiceProvider/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:30:03.633Z",
-      "navigationCheckedAt": "2026-09-25T01:15:40.070Z",
+      "navigationCheckedAt": "2026-09-25T01:15:40.07Z",
       "navigationStatus": "pass"
     },
     {
@@ -467,7 +467,7 @@
       "submitControls": 8,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Reseller/DeviceFamilies/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:30:04.170Z",
+      "checkedAt": "2026-09-24T23:30:04.17Z",
       "navigationCheckedAt": "2026-09-25T01:15:41.563Z",
       "navigationStatus": "pass"
     },
@@ -660,7 +660,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/ServiceProvider/GroupPagingTargetsCapacity/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:27:37.806Z",
-      "navigationCheckedAt": "2026-09-25T01:14:40.610Z",
+      "navigationCheckedAt": "2026-09-25T01:14:40.61Z",
       "navigationStatus": "pass"
     },
     {
@@ -755,7 +755,7 @@
       "submitControls": 8,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/ServiceProvider/NumberRanges/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:27:49.970Z",
+      "checkedAt": "2026-09-24T23:27:49.97Z",
       "navigationCheckedAt": "2026-09-25T01:14:44.951Z",
       "navigationStatus": "pass"
     },
@@ -788,7 +788,7 @@
       "status": "passed",
       "detail": "List search ran in the same document from /commpilot/ServiceProvider/OfficeZones/ to /commpilot/ServiceProvider/OfficeZones/; 0 result rows remained visible.",
       "checkedAt": "2026-09-25T04:21:03.166Z",
-      "navigationCheckedAt": "2026-09-25T01:14:47.440Z",
+      "navigationCheckedAt": "2026-09-25T01:14:47.44Z",
       "navigationStatus": "pass"
     },
     {
@@ -963,7 +963,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/ServiceProvider/AssignNetworkClassesOfService/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:28:17.290Z",
+      "checkedAt": "2026-09-24T23:28:17.29Z",
       "navigationCheckedAt": "2026-09-25T01:14:56.867Z",
       "navigationStatus": "pass"
     },
@@ -1075,7 +1075,7 @@
       "submitControls": 6,
       "status": "blocked",
       "detail": "Integrated IM&P contains a credential field; navigation passed, but a no-op save could clear the stored server password.",
-      "checkedAt": "2026-09-25T05:21:25.632964+00:00",
+      "checkedAt": "2026-09-25T00:21:25.632964-05:00",
       "navigationCheckedAt": "2026-09-25T01:15:02.027Z",
       "navigationStatus": "pass"
     },
@@ -1155,7 +1155,7 @@
       "submitControls": 8,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/ServiceProvider/MWIMobile/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:28:56.500Z",
+      "checkedAt": "2026-09-24T23:28:56.5Z",
       "navigationCheckedAt": "2026-09-25T01:15:05.087Z",
       "navigationStatus": "pass"
     },
@@ -1188,7 +1188,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/ServiceProvider/SACWhiteList/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:29:02.785Z",
-      "navigationCheckedAt": "2026-09-25T01:15:06.620Z",
+      "navigationCheckedAt": "2026-09-25T01:15:06.62Z",
       "navigationStatus": "pass"
     },
     {
@@ -1219,7 +1219,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/ServiceProvider/ZoneCallingRestrictions/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:29:09.020Z",
+      "checkedAt": "2026-09-24T23:29:09.02Z",
       "navigationCheckedAt": "2026-09-25T01:15:07.794Z",
       "navigationStatus": "pass"
     },
@@ -1251,7 +1251,7 @@
       "submitControls": 8,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/ServiceProvider/CommBarring/Profiles/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:29:21.160Z",
+      "checkedAt": "2026-09-24T23:29:21.16Z",
       "navigationCheckedAt": "2026-09-25T01:15:09.498Z",
       "navigationStatus": "pass"
     },
@@ -1363,7 +1363,7 @@
       "submitControls": 6,
       "status": "blocked",
       "detail": "Passcode Rules contains default passcode fields; navigation passed, but saving blank values could change credentials.",
-      "checkedAt": "2026-09-25T05:21:25.632964+00:00",
+      "checkedAt": "2026-09-25T00:21:25.632964-05:00",
       "navigationCheckedAt": "2026-09-25T01:15:14.224Z",
       "navigationStatus": "pass"
     },
@@ -1379,7 +1379,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Common/SipAuthPasswordRules/index.jsp; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:29:43.660Z",
+      "checkedAt": "2026-09-24T23:29:43.66Z",
       "navigationCheckedAt": "2026-09-25T01:15:14.761Z",
       "navigationStatus": "pass"
     },
@@ -1459,7 +1459,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/ServiceProvider/VPBranding/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:49:35.550Z",
+      "checkedAt": "2026-09-24T23:49:35.55Z",
       "navigationCheckedAt": "2026-09-25T01:15:18.658Z",
       "navigationStatus": "pass"
     },
@@ -1555,7 +1555,7 @@
       "submitControls": 2,
       "status": "passed",
       "detail": "List search ran in the same document from /commpilot/Group/Domains/ to /commpilot/Group/Domains/; 1 result rows remained visible.",
-      "checkedAt": "2026-09-25T04:21:43.010Z",
+      "checkedAt": "2026-09-25T04:21:43.01Z",
       "navigationCheckedAt": "2026-09-25T00:57:53.067Z",
       "navigationStatus": "pass"
     },
@@ -1572,7 +1572,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Group/NetworkClassesOfService/; same document; editable values preserved.",
       "checkedAt": "2026-09-24T23:12:46.822Z",
-      "navigationCheckedAt": "2026-09-25T00:57:57.580Z",
+      "navigationCheckedAt": "2026-09-25T00:57:57.58Z",
       "navigationStatus": "pass"
     },
     {
@@ -1604,7 +1604,7 @@
       "status": "passed",
       "detail": "List search ran in the same document from /commpilot/Group/NumberRangesUsage/index.jsp to /commpilot/Group/NumberRangesUsage/index.jsp; 0 result rows remained visible.",
       "checkedAt": "2026-09-25T04:21:48.484Z",
-      "navigationCheckedAt": "2026-09-25T00:58:01.560Z",
+      "navigationCheckedAt": "2026-09-25T00:58:01.56Z",
       "navigationStatus": "pass"
     },
     {
@@ -1636,7 +1636,7 @@
       "status": "passed",
       "detail": "List search ran in the same document from /commpilot/Group/OfficeZones/ to /commpilot/Group/OfficeZones/; 0 result rows remained visible.",
       "checkedAt": "2026-09-25T04:21:52.252Z",
-      "navigationCheckedAt": "2026-09-25T00:58:05.510Z",
+      "navigationCheckedAt": "2026-09-25T00:58:05.51Z",
       "navigationStatus": "pass"
     },
     {
@@ -1652,7 +1652,7 @@
       "status": "passed",
       "detail": "List search ran in the same document from /commpilot/Group/RoutePointExternalSystems/ to /commpilot/Group/RoutePointExternalSystems/; 0 result rows remained visible.",
       "checkedAt": "2026-09-25T04:21:54.092Z",
-      "navigationCheckedAt": "2026-09-25T00:58:07.550Z",
+      "navigationCheckedAt": "2026-09-25T00:58:07.55Z",
       "navigationStatus": "pass"
     },
     {
@@ -1667,7 +1667,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/ServiceProvider/Members/AuthorizeServices/; same document; editable values preserved.",
-      "checkedAt": "2026-09-24T23:12:56.980Z",
+      "checkedAt": "2026-09-24T23:12:56.98Z",
       "navigationCheckedAt": "2026-09-25T00:58:10.581Z",
       "navigationStatus": "pass"
     },
@@ -1700,7 +1700,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Group/SACCapacity/; same document; editable values preserved.",
       "checkedAt": "2026-09-24T23:13:01.333Z",
-      "navigationCheckedAt": "2026-09-25T00:58:14.550Z",
+      "navigationCheckedAt": "2026-09-25T00:58:14.55Z",
       "navigationStatus": "pass"
     },
     {
@@ -1747,7 +1747,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Group/AssignNetworkClassesOfService/; same document; editable values preserved.",
-      "checkedAt": "2026-09-24T23:13:07.850Z",
+      "checkedAt": "2026-09-24T23:13:07.85Z",
       "navigationCheckedAt": "2026-09-25T00:58:23.112Z",
       "navigationStatus": "pass"
     },
@@ -1956,7 +1956,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Group/Auto_Attendant/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:14:08.044Z",
-      "navigationCheckedAt": "2026-09-25T00:58:58.710Z",
+      "navigationCheckedAt": "2026-09-25T00:58:58.71Z",
       "navigationStatus": "pass"
     },
     {
@@ -1972,7 +1972,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Group/CallPark/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:14:09.554Z",
-      "navigationCheckedAt": "2026-09-25T00:59:04.530Z",
+      "navigationCheckedAt": "2026-09-25T00:59:04.53Z",
       "navigationStatus": "pass"
     },
     {
@@ -2003,7 +2003,7 @@
       "submitControls": 6,
       "status": "blocked",
       "detail": "Exchange Integration contains a server password; navigation passed, but saving blank values could clear it.",
-      "checkedAt": "2026-09-25T05:21:25.632964+00:00",
+      "checkedAt": "2026-09-25T00:21:25.632964-05:00",
       "navigationCheckedAt": "2026-09-25T00:59:11.195Z",
       "navigationStatus": "pass"
     },
@@ -2035,7 +2035,7 @@
       "submitControls": 6,
       "status": "blocked",
       "detail": "Integrated IM&P contains a credential field; navigation passed, but saving blank values could clear it.",
-      "checkedAt": "2026-09-25T05:21:25.632964+00:00",
+      "checkedAt": "2026-09-25T00:21:25.632964-05:00",
       "navigationCheckedAt": "2026-09-25T00:59:18.911Z",
       "navigationStatus": "pass"
     },
@@ -2052,7 +2052,7 @@
       "status": "passed",
       "detail": "Group Music/Video on Hold row opened and Apply preserved settings in PJAX; fresh readback matched.",
       "checkedAt": "2026-09-25T03:59:21.033Z",
-      "navigationCheckedAt": "2026-09-25T00:59:20.850Z",
+      "navigationCheckedAt": "2026-09-25T00:59:20.85Z",
       "navigationStatus": "pass"
     },
     {
@@ -2067,7 +2067,7 @@
       "submitControls": 8,
       "status": "passed",
       "detail": "Group VoiceXML list navigated in PJAX; disposable Add and Delete cycle passed.",
-      "checkedAt": "2026-09-25T01:50:46.420Z",
+      "checkedAt": "2026-09-25T01:50:46.42Z",
       "navigationCheckedAt": "2026-09-25T00:59:30.186Z",
       "navigationStatus": "pass"
     },
@@ -2100,7 +2100,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Group/Voice_Mail_Retrieval/General/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:14:14.642Z",
-      "navigationCheckedAt": "2026-09-25T00:59:35.510Z",
+      "navigationCheckedAt": "2026-09-25T00:59:35.51Z",
       "navigationStatus": "pass"
     },
     {
@@ -2403,7 +2403,7 @@
       "submitControls": 8,
       "status": "passed",
       "detail": "Group Session Admission Control list navigated in PJAX; disposable Add, fresh readback, and Delete cycle passed.",
-      "checkedAt": "2026-09-25T01:50:49.560Z",
+      "checkedAt": "2026-09-25T01:50:49.56Z",
       "navigationCheckedAt": "2026-09-25T01:00:31.083Z",
       "navigationStatus": "pass"
     },
@@ -2433,10 +2433,10 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
-      "navigationCheckedAt": "2026-09-25T01:00:36.310Z",
+      "status": "blocked",
+      "detail": "Trunk Group list and Add opened in the same PJAX document. A disposable one-call Add returned HTTP 200 and CommPilot Error 5119 because this sandbox group permits zero trunk calls; no record was created.",
+      "checkedAt": "2026-09-25T06:31:33.0717764Z",
+      "navigationCheckedAt": "2026-09-25T01:00:36.31Z",
       "navigationStatus": "pass"
     },
     {
@@ -2484,7 +2484,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Group/Call_Center/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:16:42.798Z",
-      "navigationCheckedAt": "2026-09-25T01:00:46.870Z",
+      "navigationCheckedAt": "2026-09-25T01:00:46.87Z",
       "navigationStatus": "pass"
     },
     {
@@ -2516,7 +2516,7 @@
       "status": "passed",
       "detail": "List Find, disposable Add, Modify Apply with fresh readback, and Delete all passed in PJAX.",
       "checkedAt": "2026-09-25T03:40:29.171Z",
-      "navigationCheckedAt": "2026-09-25T01:00:57.440Z",
+      "navigationCheckedAt": "2026-09-25T01:00:57.44Z",
       "navigationStatus": "pass"
     },
     {
@@ -2579,7 +2579,7 @@
       "submitControls": 6,
       "status": "blocked",
       "detail": "Current-values Apply returns HTTP 500 in both PJAX and an unextended native sandbox session. Backend failure prevents save verification.",
-      "checkedAt": "2026-09-25T05:17:37.302380+00:00",
+      "checkedAt": "2026-09-25T00:17:37.30238-05:00",
       "navigationCheckedAt": "2026-09-25T01:01:11.909Z",
       "navigationStatus": "pass"
     },
@@ -2708,7 +2708,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Group/Calling_Plan/TransferNumbers/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:22:46.958Z",
-      "navigationCheckedAt": "2026-09-25T01:01:34.000Z",
+      "navigationCheckedAt": "2026-09-25T01:01:34Z",
       "navigationStatus": "pass"
     },
     {
@@ -2756,7 +2756,7 @@
       "status": "passed",
       "detail": "Outgoing Digit Plan Apply with disposable Digit Strings returned HTTP 200; same document; fresh readback matched all department policies.",
       "checkedAt": "2026-09-25T04:13:20.478Z",
-      "navigationCheckedAt": "2026-09-25T01:01:40.130Z",
+      "navigationCheckedAt": "2026-09-25T01:01:40.13Z",
       "navigationStatus": "pass"
     },
     {
@@ -2817,9 +2817,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Meet-Me Conference Bridges list, Add, Edit submenu, Profile, and Delete verified in PJAX with a disposable bridge; fresh list confirmed it was removed.",
+      "checkedAt": "2026-09-25T06:31:33.0717764Z",
       "navigationCheckedAt": "2026-09-25T01:01:49.446Z",
       "navigationStatus": "pass"
     },
@@ -2931,7 +2931,7 @@
       "submitControls": 4,
       "status": "blocked",
       "detail": "Inventory Report requires an email destination and sends a report; navigation passed, delivery was not authorized.",
-      "checkedAt": "2026-09-25T05:21:25.632964+00:00",
+      "checkedAt": "2026-09-25T00:21:25.632964-05:00",
       "navigationCheckedAt": "2026-09-25T01:02:11.956Z",
       "navigationStatus": "pass"
     },
@@ -2947,7 +2947,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Common/Password_Rules/index.jsp; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:24:11.050Z",
+      "checkedAt": "2026-09-24T23:24:11.05Z",
       "navigationCheckedAt": "2026-09-25T01:02:13.932Z",
       "navigationStatus": "pass"
     },
@@ -3012,7 +3012,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Group/ExtensionMgmt/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:24:21.971Z",
-      "navigationCheckedAt": "2026-09-25T01:02:25.080Z",
+      "navigationCheckedAt": "2026-09-25T01:02:25.08Z",
       "navigationStatus": "pass"
     },
     {
@@ -3204,7 +3204,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/CF/Not_Reachable/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:33:32.641Z",
-      "navigationCheckedAt": "2026-09-25T01:04:28.430Z",
+      "navigationCheckedAt": "2026-09-25T01:04:28.43Z",
       "navigationStatus": "pass"
     },
     {
@@ -3283,7 +3283,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/InternalCLIDDelivery/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:33:39.810Z",
+      "checkedAt": "2026-09-24T23:33:39.81Z",
       "navigationCheckedAt": "2026-09-25T01:04:37.898Z",
       "navigationStatus": "pass"
     },
@@ -3347,7 +3347,7 @@
       "submitControls": 8,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/SCF/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:33:45.560Z",
+      "checkedAt": "2026-09-24T23:33:45.56Z",
       "navigationCheckedAt": "2026-09-25T01:04:45.455Z",
       "navigationStatus": "pass"
     },
@@ -3412,7 +3412,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/ExternalCustomRingback/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:33:50.324Z",
-      "navigationCheckedAt": "2026-09-25T01:04:55.390Z",
+      "navigationCheckedAt": "2026-09-25T01:04:55.39Z",
       "navigationStatus": "pass"
     },
     {
@@ -3508,7 +3508,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/SeqRing/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:33:55.395Z",
-      "navigationCheckedAt": "2026-09-25T01:05:12.040Z",
+      "navigationCheckedAt": "2026-09-25T01:05:12.04Z",
       "navigationStatus": "pass"
     },
     {
@@ -3603,8 +3603,8 @@
       "submitControls": 2,
       "status": "passed",
       "detail": "Opened /commpilot/User/CallReturn/ in the same document; CommPilot states that this service has no configuration and exposes only OK navigation.",
-      "checkedAt": "2026-09-25T02:56:07.760Z",
-      "navigationCheckedAt": "2026-09-25T01:05:26.870Z",
+      "checkedAt": "2026-09-25T02:56:07.76Z",
+      "navigationCheckedAt": "2026-09-25T01:05:26.87Z",
       "navigationStatus": "pass"
     },
     {
@@ -3636,7 +3636,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/LegacyAutomaticCallback/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:35:57.008Z",
-      "navigationCheckedAt": "2026-09-25T01:05:30.690Z",
+      "navigationCheckedAt": "2026-09-25T01:05:30.69Z",
       "navigationStatus": "pass"
     },
     {
@@ -4068,7 +4068,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/BroadWorksMobility/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:36:53.621Z",
-      "navigationCheckedAt": "2026-09-25T01:06:28.600Z",
+      "navigationCheckedAt": "2026-09-25T01:06:28.6Z",
       "navigationStatus": "pass"
     },
     {
@@ -4180,7 +4180,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/HotelingGuest/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:37:16.987Z",
-      "navigationCheckedAt": "2026-09-25T01:06:44.690Z",
+      "navigationCheckedAt": "2026-09-25T01:06:44.69Z",
       "navigationStatus": "pass"
     },
     {
@@ -4244,7 +4244,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/PTT/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:37:27.195Z",
-      "navigationCheckedAt": "2026-09-25T01:06:52.400Z",
+      "navigationCheckedAt": "2026-09-25T01:06:52.4Z",
       "navigationStatus": "pass"
     },
     {
@@ -4292,7 +4292,7 @@
       "status": "passed",
       "detail": "Shared Call Appearance list accepted and displayed two saved appearances; deletion of both saved with HTTP 200 and readback showed none remaining.",
       "checkedAt": "2026-09-24T20:25:56.054Z",
-      "navigationCheckedAt": "2026-09-25T01:06:58.050Z",
+      "navigationCheckedAt": "2026-09-25T01:06:58.05Z",
       "navigationStatus": "pass"
     },
     {
@@ -4339,7 +4339,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/Calling_Plan/Incoming/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:37:49.900Z",
+      "checkedAt": "2026-09-24T23:37:49.9Z",
       "navigationCheckedAt": "2026-09-25T01:07:08.188Z",
       "navigationStatus": "pass"
     },
@@ -4372,7 +4372,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/Calling_Plan/OutgoingAuthCodes/index.jsp; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:37:52.617Z",
-      "navigationCheckedAt": "2026-09-25T01:07:12.010Z",
+      "navigationCheckedAt": "2026-09-25T01:07:12.01Z",
       "navigationStatus": "pass"
     },
     {
@@ -4388,7 +4388,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/Calling_Plan/OutgoingDigitPlan/index.jsp; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:37:54.034Z",
-      "navigationCheckedAt": "2026-09-25T01:07:13.950Z",
+      "navigationCheckedAt": "2026-09-25T01:07:13.95Z",
       "navigationStatus": "pass"
     },
     {
@@ -4596,7 +4596,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/VM/Greetings/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:38:47.867Z",
-      "navigationCheckedAt": "2026-09-25T01:07:42.720Z",
+      "navigationCheckedAt": "2026-09-25T01:07:42.72Z",
       "navigationStatus": "pass"
     },
     {
@@ -4659,7 +4659,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/VoicePortal/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:38:52.470Z",
+      "checkedAt": "2026-09-24T23:38:52.47Z",
       "navigationCheckedAt": "2026-09-25T01:07:50.485Z",
       "navigationStatus": "pass"
     },
@@ -4676,7 +4676,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/FaxMessaging/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:38:53.893Z",
-      "navigationCheckedAt": "2026-09-25T01:07:52.370Z",
+      "navigationCheckedAt": "2026-09-25T01:07:52.37Z",
       "navigationStatus": "pass"
     },
     {
@@ -4739,7 +4739,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/ExternalVoiceMail/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:38:58.420Z",
+      "checkedAt": "2026-09-24T23:38:58.42Z",
       "navigationCheckedAt": "2026-09-25T01:08:00.017Z",
       "navigationStatus": "pass"
     },
@@ -4771,7 +4771,7 @@
       "submitControls": 6,
       "status": "blocked",
       "detail": "Authentication contains new-password fields; navigation passed, a save would change credentials.",
-      "checkedAt": "2026-09-25T05:21:25.632964+00:00",
+      "checkedAt": "2026-09-25T00:21:25.632964-05:00",
       "navigationCheckedAt": "2026-09-25T01:08:04.275Z",
       "navigationStatus": "pass"
     },
@@ -4819,7 +4819,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "User Enhanced Call Logs Received, Missed, and Placed tabs each opened by HTTP 200 in the same document. The sandbox list has no entries to delete.",
-      "checkedAt": "2026-09-25T04:09:44.640Z",
+      "checkedAt": "2026-09-25T04:09:44.64Z",
       "navigationCheckedAt": "2026-09-25T01:08:10.013Z",
       "navigationStatus": "pass"
     },
@@ -4900,7 +4900,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/Prepaid/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:39:12.163Z",
-      "navigationCheckedAt": "2026-09-25T01:08:19.650Z",
+      "navigationCheckedAt": "2026-09-25T01:08:19.65Z",
       "navigationStatus": "pass"
     },
     {
@@ -4916,7 +4916,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/PushNotification/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:39:13.556Z",
-      "navigationCheckedAt": "2026-09-25T01:08:21.510Z",
+      "navigationCheckedAt": "2026-09-25T01:08:21.51Z",
       "navigationStatus": "pass"
     },
     {
@@ -5043,7 +5043,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "List search ran in the same document from /commpilot/ServiceProvider/Admins/ to /commpilot/Common/findAll.jsp; 0 result rows remained visible.",
-      "checkedAt": "2026-09-25T04:36:28.100Z",
+      "checkedAt": "2026-09-25T04:36:28.1Z",
       "navigationCheckedAt": "2026-09-25T01:15:22.762Z",
       "navigationStatus": "pass"
     },
@@ -5107,7 +5107,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/ServiceProvider/CallProcessingPolicy/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:27:18.640Z",
+      "checkedAt": "2026-09-24T23:27:18.64Z",
       "navigationCheckedAt": "2026-09-25T01:15:26.305Z",
       "navigationStatus": "pass"
     },
@@ -5124,7 +5124,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/ServiceProvider/DialPlanPolicy/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:27:19.904Z",
-      "navigationCheckedAt": "2026-09-25T01:15:26.890Z",
+      "navigationCheckedAt": "2026-09-25T01:15:26.89Z",
       "navigationStatus": "pass"
     },
     {
@@ -5139,7 +5139,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/ServiceProvider/RoutingProfile/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:27:21.170Z",
+      "checkedAt": "2026-09-24T23:27:21.17Z",
       "navigationCheckedAt": "2026-09-25T01:15:27.798Z",
       "navigationStatus": "pass"
     },
@@ -5155,7 +5155,7 @@
       "submitControls": 8,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/ServiceProvider/DialableCallerID/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:27:22.410Z",
+      "checkedAt": "2026-09-24T23:27:22.41Z",
       "navigationCheckedAt": "2026-09-25T01:15:28.408Z",
       "navigationStatus": "pass"
     },
@@ -5332,7 +5332,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Group/Policies/; same document; editable values preserved.",
       "checkedAt": "2026-09-24T23:11:56.364Z",
-      "navigationCheckedAt": "2026-09-25T01:03:05.800Z",
+      "navigationCheckedAt": "2026-09-25T01:03:05.8Z",
       "navigationStatus": "pass"
     },
     {
@@ -5363,7 +5363,7 @@
       "submitControls": 7,
       "status": "passed",
       "detail": "Virtual On-Net Add and Add Range saved disposable entries in-shell; fresh readback found them and cleanup removed them.",
-      "checkedAt": "2026-09-25T03:20:53.200Z",
+      "checkedAt": "2026-09-25T03:20:53.2Z",
       "navigationCheckedAt": "2026-09-25T01:03:09.937Z",
       "navigationStatus": "pass"
     },
@@ -5396,7 +5396,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Group/StirShaken/; same document; editable values preserved.",
       "checkedAt": "2026-09-24T23:12:04.198Z",
-      "navigationCheckedAt": "2026-09-25T01:03:17.880Z",
+      "navigationCheckedAt": "2026-09-25T01:03:17.88Z",
       "navigationStatus": "pass"
     },
     {
@@ -5443,7 +5443,7 @@
       "submitControls": 6,
       "status": "blocked",
       "detail": "User Passwords contains new-password fields; navigation passed, a save would change credentials.",
-      "checkedAt": "2026-09-25T05:21:25.632964+00:00",
+      "checkedAt": "2026-09-25T00:21:25.632964-05:00",
       "navigationCheckedAt": "2026-09-25T01:08:41.628Z",
       "navigationStatus": "pass"
     },
@@ -5507,7 +5507,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/AlternateUserIDs/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:31:16.360Z",
+      "checkedAt": "2026-09-24T23:31:16.36Z",
       "navigationCheckedAt": "2026-09-25T01:08:50.422Z",
       "navigationStatus": "pass"
     },
@@ -5668,7 +5668,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/Privacy/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:31:43.232Z",
-      "navigationCheckedAt": "2026-09-25T01:09:10.750Z",
+      "navigationCheckedAt": "2026-09-25T01:09:10.75Z",
       "navigationStatus": "pass"
     },
     {
@@ -5715,7 +5715,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/DND/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:39:48.190Z",
+      "checkedAt": "2026-09-24T23:39:48.19Z",
       "navigationCheckedAt": "2026-09-25T01:09:18.527Z",
       "navigationStatus": "pass"
     },
@@ -5763,7 +5763,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/Calling_Plan/Incoming/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:40:01.130Z",
+      "checkedAt": "2026-09-24T23:40:01.13Z",
       "navigationCheckedAt": "2026-09-25T01:09:20.433Z",
       "navigationStatus": "pass"
     },
@@ -6035,7 +6035,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/DND/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:41:44.790Z",
+      "checkedAt": "2026-09-24T23:41:44.79Z",
       "navigationCheckedAt": "2026-09-25T01:09:50.085Z",
       "navigationStatus": "pass"
     },
@@ -6068,7 +6068,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/SCF/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:41:47.453Z",
-      "navigationCheckedAt": "2026-09-25T01:09:52.740Z",
+      "navigationCheckedAt": "2026-09-25T01:09:52.74Z",
       "navigationStatus": "pass"
     },
     {
@@ -6099,8 +6099,8 @@
       "submitControls": 8,
       "status": "passed",
       "detail": "Custom Ringback Add and Delete stayed in PJAX; fresh reads confirmed PJAX ring mugdx0o1 appeared and was removed.",
-      "checkedAt": "2026-09-25T03:11:59.600Z",
-      "navigationCheckedAt": "2026-09-25T01:09:56.030Z",
+      "checkedAt": "2026-09-25T03:11:59.6Z",
+      "navigationCheckedAt": "2026-09-25T01:09:56.03Z",
       "navigationStatus": "pass"
     },
     {
@@ -6116,7 +6116,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/ExternalCustomRingback/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:41:50.094Z",
-      "navigationCheckedAt": "2026-09-25T01:09:58.010Z",
+      "navigationCheckedAt": "2026-09-25T01:09:58.01Z",
       "navigationStatus": "pass"
     },
     {
@@ -6132,7 +6132,7 @@
       "status": "passed",
       "detail": "Pre-alerting Announcement Add and Delete stayed in PJAX; fresh reads confirmed PJAX alert mugdyyul appeared and was removed.",
       "checkedAt": "2026-09-25T03:13:28.106Z",
-      "navigationCheckedAt": "2026-09-25T01:09:59.370Z",
+      "navigationCheckedAt": "2026-09-25T01:09:59.37Z",
       "navigationStatus": "pass"
     },
     {
@@ -6228,7 +6228,7 @@
       "status": "passed",
       "detail": "Opened /commpilot/User/DiversionInhibitor/ in the same document; CommPilot states that this service has no configuration and exposes only OK navigation.",
       "checkedAt": "2026-09-25T02:56:49.197Z",
-      "navigationCheckedAt": "2026-09-25T01:10:11.160Z",
+      "navigationCheckedAt": "2026-09-25T01:10:11.16Z",
       "navigationStatus": "pass"
     },
     {
@@ -6324,7 +6324,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/Calling_Plan/Outgoing/index.jsp; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:42:32.055Z",
-      "navigationCheckedAt": "2026-09-25T01:10:19.370Z",
+      "navigationCheckedAt": "2026-09-25T01:10:19.37Z",
       "navigationStatus": "pass"
     },
     {
@@ -6660,7 +6660,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/CNAM/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:45:54.011Z",
-      "navigationCheckedAt": "2026-09-25T01:11:12.160Z",
+      "navigationCheckedAt": "2026-09-25T01:11:12.16Z",
       "navigationStatus": "pass"
     },
     {
@@ -6691,7 +6691,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/CF/AlwaysSecondary/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:45:56.610Z",
+      "checkedAt": "2026-09-24T23:45:56.61Z",
       "navigationCheckedAt": "2026-09-25T01:11:14.693Z",
       "navigationStatus": "pass"
     },
@@ -6724,7 +6724,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/Icn/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:45:59.211Z",
-      "navigationCheckedAt": "2026-09-25T01:11:17.310Z",
+      "navigationCheckedAt": "2026-09-25T01:11:17.31Z",
       "navigationStatus": "pass"
     },
     {
@@ -6852,7 +6852,7 @@
       "status": "passed",
       "detail": "Pre-alerting Announcement Add and Delete stayed in PJAX; fresh reads confirmed PJAX alert mugdz3wr appeared and was removed.",
       "checkedAt": "2026-09-25T03:13:34.662Z",
-      "navigationCheckedAt": "2026-09-25T01:11:28.780Z",
+      "navigationCheckedAt": "2026-09-25T01:11:28.78Z",
       "navigationStatus": "pass"
     },
     {
@@ -6980,7 +6980,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/ChargeNumber/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:46:34.932Z",
-      "navigationCheckedAt": "2026-09-25T01:11:42.440Z",
+      "navigationCheckedAt": "2026-09-25T01:11:42.44Z",
       "navigationStatus": "pass"
     },
     {
@@ -7060,7 +7060,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/Calling_Plan/OutgoingAuthCodes/index.jsp; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:46:57.762Z",
-      "navigationCheckedAt": "2026-09-25T01:11:49.290Z",
+      "navigationCheckedAt": "2026-09-25T01:11:49.29Z",
       "navigationStatus": "pass"
     },
     {
@@ -7251,7 +7251,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Call Center Enhanced Call Logs Received, Missed, and Placed tabs each opened by HTTP 200 in the same document. The sandbox list has no entries to delete.",
-      "checkedAt": "2026-09-25T04:10:13.090Z",
+      "checkedAt": "2026-09-25T04:10:13.09Z",
       "navigationCheckedAt": "2026-09-25T01:12:06.205Z",
       "navigationStatus": "pass"
     },
@@ -7300,7 +7300,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Group/Auto_Attendant/Modify/index.jsp; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-25T05:06:23.904Z",
-      "navigationCheckedAt": "2026-09-25T01:09:26.880Z",
+      "navigationCheckedAt": "2026-09-25T01:09:26.88Z",
       "navigationStatus": "pass"
     },
     {
@@ -7347,7 +7347,7 @@
       "submitControls": 6,
       "status": "blocked",
       "detail": "Auto Attendant Password contains new-password fields; navigation passed, a save would change credentials.",
-      "checkedAt": "2026-09-25T05:21:25.632964+00:00",
+      "checkedAt": "2026-09-25T00:21:25.632964-05:00",
       "navigationCheckedAt": "2026-09-25T01:09:28.904Z",
       "navigationStatus": "pass"
     },
@@ -7507,7 +7507,7 @@
       "submitControls": 6,
       "status": "blocked",
       "detail": "Hunt Group Password contains new-password fields; navigation passed, a save would change credentials.",
-      "checkedAt": "2026-09-25T05:21:25.632964+00:00",
+      "checkedAt": "2026-09-25T00:21:25.632964-05:00",
       "navigationCheckedAt": "2026-09-25T01:10:47.412Z",
       "navigationStatus": "pass"
     },
@@ -7699,7 +7699,7 @@
       "submitControls": 6,
       "status": "blocked",
       "detail": "Call Center Password contains new-password fields; navigation passed, a save would change credentials.",
-      "checkedAt": "2026-09-25T05:21:25.632964+00:00",
+      "checkedAt": "2026-09-25T00:21:25.632964-05:00",
       "navigationCheckedAt": "2026-09-25T01:12:16.623Z",
       "navigationStatus": "pass"
     },
@@ -7748,7 +7748,7 @@
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Group/Call_Center/Thresholds/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:43:54.171Z",
-      "navigationCheckedAt": "2026-09-25T01:12:21.710Z",
+      "navigationCheckedAt": "2026-09-25T01:12:21.71Z",
       "navigationStatus": "pass"
     },
     {
@@ -7795,7 +7795,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/User/Services/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:44:01.520Z",
+      "checkedAt": "2026-09-24T23:44:01.52Z",
       "navigationCheckedAt": "2026-09-25T01:12:25.571Z",
       "navigationStatus": "pass"
     },
@@ -7956,7 +7956,7 @@
       "status": "passed",
       "detail": "Sandbox range +1-2244830998–0999 moved from Deactivated to Activated, OK persisted both, and list readback showed activated=true. Fixed stale Modify URL after save; repeat OK now lands on /Group/DnActivation/.",
       "checkedAt": "2026-09-24T20:23:53.12Z",
-      "navigationCheckedAt": "2026-09-25T00:58:38.380Z",
+      "navigationCheckedAt": "2026-09-25T00:58:38.38Z",
       "navigationStatus": "pass"
     },
     {
@@ -8003,7 +8003,7 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "Voice Portal row opened EditRedirect in the same document.",
-      "checkedAt": "2026-09-25T04:06:46.220Z",
+      "checkedAt": "2026-09-25T04:06:46.22Z",
       "navigationCheckedAt": "2026-09-25T00:59:39.105Z",
       "navigationStatus": "pass"
     },
@@ -8162,7 +8162,7 @@
       "status": "passed",
       "detail": "Service Pack 1.0 Basic Business Line (Sandbox) current-values OK HTTP 200; same document; fresh readback matched.",
       "checkedAt": "2026-09-25T04:45:47.384Z",
-      "navigationCheckedAt": "2026-09-25T01:14:51.260Z",
+      "navigationCheckedAt": "2026-09-25T01:14:51.26Z",
       "navigationStatus": "pass"
     },
     {
@@ -8194,7 +8194,7 @@
       "status": "passed",
       "detail": "TF_SBX_Polycom_VVX400 Configuration opened in PJAX.",
       "checkedAt": "2026-09-25T04:43:17.939Z",
-      "navigationCheckedAt": "2026-09-25T01:15:16.660Z",
+      "navigationCheckedAt": "2026-09-25T01:15:16.66Z",
       "navigationStatus": "pass"
     },
     {
@@ -8240,7 +8240,7 @@
       "status": "passed",
       "detail": "Polycom Phone Services Modify Apply HTTP 200; same document; fresh readback matched.",
       "checkedAt": "2026-09-25T04:01:26.355Z",
-      "navigationCheckedAt": "2026-09-25T01:07:35.040Z",
+      "navigationCheckedAt": "2026-09-25T01:07:35.04Z",
       "navigationStatus": "pass"
     },
     {
@@ -8331,9 +8331,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "blocked",
+      "detail": "Add form opened in PJAX, but the sandbox has no available numbers in the source/assignment list, so a valid allocation cannot be saved and read back.",
+      "checkedAt": "2026-09-25T00:45:26.47354-05:00",
       "navigationCheckedAt": "2026-09-25T00:58:52.126Z",
       "navigationStatus": "pass"
     },
@@ -8347,9 +8347,9 @@
       "family": "Assignment / pick-list",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "blocked",
+      "detail": "Add form opened in PJAX, but the sandbox has no available numbers in the source/assignment list, so a valid allocation cannot be saved and read back.",
+      "checkedAt": "2026-09-25T00:45:26.47354-05:00",
       "navigationCheckedAt": "2026-09-25T00:58:55.433Z",
       "navigationStatus": "pass"
     },
@@ -8413,7 +8413,7 @@
       "submitControls": 5,
       "status": "passed",
       "detail": "Disposable Hunt Group pjaxhgmug79zb9 Add returned HTTP 200; same document; created row found.",
-      "checkedAt": "2026-09-25T00:06:03.770Z",
+      "checkedAt": "2026-09-25T00:06:03.77Z",
       "navigationCheckedAt": "2026-09-25T00:59:15.138Z",
       "navigationStatus": "pass"
     },
@@ -8429,7 +8429,7 @@
       "submitControls": 4,
       "status": "passed",
       "detail": "Department Music/Video on Hold Add multipart POST HTTP 200; same document; fresh list contains Basement row.",
-      "checkedAt": "2026-09-25T03:59:58.840Z",
+      "checkedAt": "2026-09-25T03:59:58.84Z",
       "navigationCheckedAt": "2026-09-25T00:59:25.056Z",
       "navigationStatus": "pass"
     },
@@ -8605,7 +8605,7 @@
       "submitControls": 4,
       "status": "passed",
       "detail": "Group MWI template Add HTTP 200; same document; fresh list readback found Default template.",
-      "checkedAt": "2026-09-25T01:53:18.240Z",
+      "checkedAt": "2026-09-25T01:53:18.24Z",
       "navigationCheckedAt": "2026-09-25T01:00:17.973Z",
       "navigationStatus": "pass"
     },
@@ -8828,7 +8828,7 @@
       "status": "blocked",
       "detail": "Scheduled Report Add opened in PJAX. A completed save would schedule report email delivery; a sandbox recipient and non-delivery test fixture are needed before creating one.",
       "checkedAt": "2026-09-25T04:40:13.518Z",
-      "navigationCheckedAt": "2026-09-25T01:01:22.220Z",
+      "navigationCheckedAt": "2026-09-25T01:01:22.22Z",
       "navigationStatus": "pass"
     },
     {
@@ -8873,9 +8873,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 5,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable Meet-Me Conference Bridge pjaxbridgemugktfre saved with HTTP 200 in the same document, appeared in a fresh list, and was deleted through Profile; fresh list confirmed absence.",
+      "checkedAt": "2026-09-25T06:31:33.0717764Z",
       "navigationCheckedAt": "2026-09-25T01:01:50.319Z",
       "navigationStatus": "pass"
     },
@@ -8907,7 +8907,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Common Phone List CSV with Name and Number uploaded through multipart servlet; HTTP 200, same PJAX document, fresh list readback found disposable contact; contact then deleted.",
-      "checkedAt": "2026-09-25T02:01:01.460Z",
+      "checkedAt": "2026-09-25T02:01:01.46Z",
       "navigationCheckedAt": "2026-09-25T01:01:58.513Z",
       "navigationStatus": "pass"
     },
@@ -8951,9 +8951,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable numberless Group Users Add returned HTTP 200 in PJAX; fresh prefix search found five saved test users. User Profile Delete returned to the Group Users list, and a final fresh prefix search found none.",
+      "checkedAt": "2026-09-25T01:00:14.993302-05:00",
       "navigationCheckedAt": "2026-09-25T01:02:32.487Z",
       "navigationStatus": "pass"
     },
@@ -8967,9 +8967,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable department Administrator pjaxadmmugk17hq: Add HTTP 200; same document; fresh list found it; Delete verified absent.",
+      "checkedAt": "2026-09-25T06:03:20.978Z",
       "navigationCheckedAt": "2026-09-25T01:02:37.942Z",
       "navigationStatus": "pass"
     },
@@ -8983,9 +8983,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "blocked",
+      "detail": "Announcement Add opened in PJAX. Generated PCM and G.711 WAV test uploads were rejected by both PJAX and native CommPilot; a known-good announcement fixture is needed for a save/readback test.",
+      "checkedAt": "2026-09-25T00:45:26.47354-05:00",
       "navigationCheckedAt": "2026-09-25T01:02:41.209Z",
       "navigationStatus": "pass"
     },
@@ -9017,7 +9017,7 @@
       "submitControls": 4,
       "status": "passed",
       "detail": "Communication Barring Authorization Code Add HTTP 200; same document; saved row found.",
-      "checkedAt": "2026-09-25T01:27:03.000Z",
+      "checkedAt": "2026-09-25T01:27:03Z",
       "navigationCheckedAt": "2026-09-25T01:02:59.912Z",
       "navigationStatus": "pass"
     },
@@ -9095,9 +9095,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable reseller Call Recording Platform PJAX_AUDIT_REC_MUGKKKVV saved with HTTP 200, appeared in the list, and was deleted; a fresh list confirmed absence and the reseller default returned to blank.",
+      "checkedAt": "2026-09-25T06:31:33.0717764Z",
       "navigationCheckedAt": "2026-09-25T01:15:32.557Z",
       "navigationStatus": "pass"
     },
@@ -9111,9 +9111,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable reseller Identity/Device Profile Type PJAX_AUDIT_TYPE_MUGL0D34 saved with HTTP 200, appeared in a fresh list, and was deleted; fresh list confirmed absence.",
+      "checkedAt": "2026-09-25T06:31:33.0717764Z",
       "navigationCheckedAt": "2026-09-25T01:15:34.606Z",
       "navigationStatus": "pass"
     },
@@ -9127,9 +9127,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "blocked",
+      "detail": "Import form opened in PJAX; a valid vendor-specific import file is needed before final upload and readback can be tested.",
+      "checkedAt": "2026-09-25T00:45:26.47354-05:00",
       "navigationCheckedAt": "2026-09-25T01:15:35.038Z",
       "navigationStatus": "pass"
     },
@@ -9143,9 +9143,9 @@
       "family": "Assignment / pick-list",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable Domain pjax-audit-mugixqyw.invalid: Add HTTP 200; same document; fresh list found it; Delete verified absent.",
+      "checkedAt": "2026-09-25T05:32:30.012Z",
       "navigationCheckedAt": "2026-09-25T01:15:36.766Z",
       "navigationStatus": "pass"
     },
@@ -9159,9 +9159,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable Device Family PJAX_AUDIT_FAMILY_MUGITCJG: Add HTTP 200; same document; fresh list found it; Delete verified absent.",
+      "checkedAt": "2026-09-25T05:29:04.608Z",
       "navigationCheckedAt": "2026-09-25T01:15:41.805Z",
       "navigationStatus": "pass"
     },
@@ -9175,9 +9175,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "blocked",
+      "detail": "Import form opened in PJAX; a valid vendor-specific import file is needed before final upload and readback can be tested.",
+      "checkedAt": "2026-09-25T00:45:26.47354-05:00",
       "navigationCheckedAt": "2026-09-25T01:15:42.208Z",
       "navigationStatus": "pass"
     },
@@ -9207,9 +9207,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "blocked",
+      "detail": "Import form opened in PJAX; a valid vendor-specific import file is needed before final upload and readback can be tested.",
+      "checkedAt": "2026-09-25T00:45:26.47354-05:00",
       "navigationCheckedAt": "2026-09-25T01:15:44.273Z",
       "navigationStatus": "pass"
     },
@@ -9223,9 +9223,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable Service Provider pjaxspmugki44a: Add HTTP 200; same document; fresh list found it; Delete verified absent.",
+      "checkedAt": "2026-09-25T06:16:20.18Z",
       "navigationCheckedAt": "2026-09-25T01:15:52.342Z",
       "navigationStatus": "pass"
     },
@@ -9239,9 +9239,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable Reseller Administrator pjaxadmmugk3olv: Add HTTP 200; same document; fresh list found it; Delete verified absent.",
+      "checkedAt": "2026-09-25T06:05:14.154Z",
       "navigationCheckedAt": "2026-09-25T01:15:57.363Z",
       "navigationStatus": "pass"
     },
@@ -9255,9 +9255,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable country code 0 carrier with available PIC choices (None only): Add HTTP 200; same document; fresh list found it; Delete verified absent.",
+      "checkedAt": "2026-09-25T06:23:26.673Z",
       "navigationCheckedAt": "2026-09-25T01:14:39.878Z",
       "navigationStatus": "pass"
     },
@@ -9271,9 +9271,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Service Provider Device Profile Add returned HTTP 200 in the same document; fresh separate sandbox session found the saved TF_SBX_Polycom_VVX400 profile by name; Modify/Delete removed it; a final search confirmed absence.",
+      "checkedAt": "2026-09-25T00:35:24.590531-05:00",
       "navigationCheckedAt": "2026-09-25T01:14:42.195Z",
       "navigationStatus": "pass"
     },
@@ -9303,9 +9303,9 @@
       "family": "Assignment / pick-list",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable Enterprise Trunk Number Ranges +1-2025550198: Add HTTP 200; same document; fresh list found it; Delete verified absent. ",
+      "checkedAt": "2026-09-25T06:21:41.658Z",
       "navigationCheckedAt": "2026-09-25T01:14:45.116Z",
       "navigationStatus": "pass"
     },
@@ -9319,9 +9319,9 @@
       "family": "Assignment / pick-list",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable Enterprise Trunk Number Prefixes 98286389: Add HTTP 200; same document; fresh list found it; Delete verified absent. ",
+      "checkedAt": "2026-09-25T06:21:30.702Z",
       "navigationCheckedAt": "2026-09-25T01:14:46.503Z",
       "navigationStatus": "pass"
     },
@@ -9335,9 +9335,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Unavailable disposable Service Pack PJAX Audit Pack mugjddpm: Add HTTP 200; same document; fresh list found it; Delete verified absent.",
+      "checkedAt": "2026-09-25T05:44:41.619Z",
       "navigationCheckedAt": "2026-09-25T01:14:50.993Z",
       "navigationStatus": "pass"
     },
@@ -9351,9 +9351,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "blocked",
+      "detail": "Add form opened in PJAX, but the sandbox has no available numbers in the source/assignment list, so a valid allocation cannot be saved and read back.",
+      "checkedAt": "2026-09-25T00:45:26.47354-05:00",
       "navigationCheckedAt": "2026-09-25T01:14:58.979Z",
       "navigationStatus": "pass"
     },
@@ -9367,9 +9367,9 @@
       "family": "Assignment / pick-list",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "blocked",
+      "detail": "Add form opened in PJAX, but the sandbox has no available numbers in the source/assignment list, so a valid allocation cannot be saved and read back.",
+      "checkedAt": "2026-09-25T00:45:26.47354-05:00",
       "navigationCheckedAt": "2026-09-25T01:14:59.939Z",
       "navigationStatus": "pass"
     },
@@ -9383,9 +9383,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable Service Provider Default MWI template: Add HTTP 200; same document; fresh list found it; Delete verified absent.",
+      "checkedAt": "2026-09-25T05:46:35.442Z",
       "navigationCheckedAt": "2026-09-25T01:15:05.277Z",
       "navigationStatus": "pass"
     },
@@ -9415,9 +9415,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable Communication Barring Profile PJAX Audit CB mugj84do: Add HTTP 200; same document; fresh list found it; Delete verified absent.",
+      "checkedAt": "2026-09-25T05:40:33.616Z",
       "navigationCheckedAt": "2026-09-25T01:15:09.681Z",
       "navigationStatus": "pass"
     },
@@ -9433,7 +9433,7 @@
       "submitControls": 2,
       "status": "blocked",
       "detail": "Configure Device may deploy device configuration; navigation passed, final action needs a disposable device fixture.",
-      "checkedAt": "2026-09-25T05:21:25.632964+00:00"
+      "checkedAt": "2026-09-25T00:21:25.632964-05:00"
     },
     {
       "id": "discovered-593",
@@ -9445,10 +9445,10 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
-      "navigationCheckedAt": "2026-09-25T01:15:20.210Z",
+      "status": "passed",
+      "detail": "Disposable empty Group pjaxgrpmugkcrhh: Add HTTP 200; same document; fresh list found it; Delete verified absent.",
+      "checkedAt": "2026-09-25T06:12:48.939Z",
+      "navigationCheckedAt": "2026-09-25T01:15:20.21Z",
       "navigationStatus": "pass"
     },
     {
@@ -9461,9 +9461,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disposable ServiceProvider Administrator pjaxadmmugk2trq: Add HTTP 200; same document; fresh list found it; Delete verified absent.",
+      "checkedAt": "2026-09-25T06:04:34.535Z",
       "navigationCheckedAt": "2026-09-25T01:15:22.941Z",
       "navigationStatus": "pass"
     },
@@ -9542,7 +9542,7 @@
       "status": "passed",
       "detail": "Call Me Now - Off Add HTTP 200; same document; fresh list readback found the criterion.",
       "checkedAt": "2026-09-25T02:19:31.554Z",
-      "navigationCheckedAt": "2026-09-25T01:04:47.930Z",
+      "navigationCheckedAt": "2026-09-25T01:04:47.93Z",
       "navigationStatus": "pass"
     },
     {
@@ -9606,7 +9606,7 @@
       "status": "passed",
       "detail": "Priority Alert - Off Add HTTP 200; same document; fresh list readback found the criterion.",
       "checkedAt": "2026-09-25T02:19:54.066Z",
-      "navigationCheckedAt": "2026-09-25T01:05:03.820Z",
+      "navigationCheckedAt": "2026-09-25T01:05:03.82Z",
       "navigationStatus": "pass"
     },
     {
@@ -9686,7 +9686,7 @@
       "status": "passed",
       "detail": "Simultaneous Ring Personal - Off Add HTTP 200; same document at /commpilot/User/SimRing/; fresh list readback found criterion.",
       "checkedAt": "2026-09-25T03:14:50.072Z",
-      "navigationCheckedAt": "2026-09-25T01:05:18.430Z",
+      "navigationCheckedAt": "2026-09-25T01:05:18.43Z",
       "navigationStatus": "pass"
     },
     {
@@ -9701,7 +9701,7 @@
       "submitControls": 4,
       "status": "passed",
       "detail": "Speed Dial 100 Add HTTP 200; same document; saved code 00 found.",
-      "checkedAt": "2026-09-25T01:38:12.740Z",
+      "checkedAt": "2026-09-25T01:38:12.74Z",
       "navigationCheckedAt": "2026-09-25T01:05:41.231Z",
       "navigationStatus": "pass"
     },
@@ -9733,7 +9733,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Personal Phone List CSV with Name and Number uploaded through multipart servlet; HTTP 200, same PJAX document, fresh list readback found disposable contact; contact then deleted.",
-      "checkedAt": "2026-09-25T02:01:23.680Z",
+      "checkedAt": "2026-09-25T02:01:23.68Z",
       "navigationCheckedAt": "2026-09-25T01:05:46.972Z",
       "navigationStatus": "pass"
     },
@@ -9747,9 +9747,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Disabled disposable BroadWorks Anywhere location +1-2025550199: Add HTTP 200; same document; fresh list found it; Delete verified absent.",
+      "checkedAt": "2026-09-25T05:43:55.012Z",
       "navigationCheckedAt": "2026-09-25T01:06:25.107Z",
       "navigationStatus": "pass"
     },
@@ -9781,7 +9781,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Opened policy child in PJAX; current-values Apply HTTP 200; same document; fresh readback matched.",
-      "checkedAt": "2026-09-25T05:20:49.910Z",
+      "checkedAt": "2026-09-25T05:20:49.91Z",
       "navigationCheckedAt": "2026-09-25T01:06:29.124Z",
       "navigationStatus": "pass"
     },
@@ -9921,9 +9921,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "blocked",
+      "detail": "Announcement Add opened in PJAX. Generated PCM and G.711 WAV test uploads were rejected by both PJAX and native CommPilot; a known-good announcement fixture is needed for a save/readback test.",
+      "checkedAt": "2026-09-25T00:45:26.47354-05:00",
       "navigationCheckedAt": "2026-09-25T01:09:28.199Z",
       "navigationStatus": "pass"
     },
@@ -9939,7 +9939,7 @@
       "submitControls": 4,
       "status": "passed",
       "detail": "Submenu Add multipart POST HTTP 200; same document; fresh list contains disposable submenu.",
-      "checkedAt": "2026-09-25T03:41:48.810Z",
+      "checkedAt": "2026-09-25T03:41:48.81Z",
       "navigationCheckedAt": "2026-09-25T01:09:29.736Z",
       "navigationStatus": "pass"
     },
@@ -9988,7 +9988,7 @@
       "status": "passed",
       "detail": "Pre-alerting Announcement Add HTTP 200; same document at /commpilot/User/PreAlertingAnnouncement/; fresh list readback found criterion.",
       "checkedAt": "2026-09-25T03:13:26.702Z",
-      "navigationCheckedAt": "2026-09-25T01:09:59.740Z",
+      "navigationCheckedAt": "2026-09-25T01:09:59.74Z",
       "navigationStatus": "pass"
     },
     {
@@ -10003,7 +10003,7 @@
       "submitControls": 4,
       "status": "passed",
       "detail": "Priority Alert - Off Add HTTP 200; same document; fresh list readback found the criterion.",
-      "checkedAt": "2026-09-25T02:21:59.690Z",
+      "checkedAt": "2026-09-25T02:21:59.69Z",
       "navigationCheckedAt": "2026-09-25T01:10:01.767Z",
       "navigationStatus": "pass"
     },
@@ -10068,7 +10068,7 @@
       "status": "passed",
       "detail": "Messaging Alias Add HTTP 200; same document at /commpilot/User/VM/Aliases/; fresh list readback found alias.",
       "checkedAt": "2026-09-25T03:08:33.645Z",
-      "navigationCheckedAt": "2026-09-25T01:10:26.610Z",
+      "navigationCheckedAt": "2026-09-25T01:10:26.61Z",
       "navigationStatus": "pass"
     },
     {
@@ -10081,9 +10081,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "blocked",
+      "detail": "Announcement Add opened in PJAX. Generated PCM and G.711 WAV test uploads were rejected by both PJAX and native CommPilot; a known-good announcement fixture is needed for a save/readback test.",
+      "checkedAt": "2026-09-25T00:45:26.47354-05:00",
       "navigationCheckedAt": "2026-09-25T01:10:45.754Z",
       "navigationStatus": "pass"
     },
@@ -10147,8 +10147,8 @@
       "submitControls": 4,
       "status": "passed",
       "detail": "Priority Alert - Off Add HTTP 200; same document; fresh list readback found the criterion.",
-      "checkedAt": "2026-09-25T02:23:31.290Z",
-      "navigationCheckedAt": "2026-09-25T01:11:31.150Z",
+      "checkedAt": "2026-09-25T02:23:31.29Z",
+      "navigationCheckedAt": "2026-09-25T01:11:31.15Z",
       "navigationStatus": "pass"
     },
     {
@@ -10164,7 +10164,7 @@
       "status": "passed",
       "detail": "Selective Acceptance - Off Add HTTP 200; same document; fresh list readback found the criterion.",
       "checkedAt": "2026-09-25T02:23:55.832Z",
-      "navigationCheckedAt": "2026-09-25T01:11:33.150Z",
+      "navigationCheckedAt": "2026-09-25T01:11:33.15Z",
       "navigationStatus": "pass"
     },
     {
@@ -10209,9 +10209,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "blocked",
+      "detail": "Announcement Add opened in PJAX. Generated PCM and G.711 WAV test uploads were rejected by both PJAX and native CommPilot; a known-good announcement fixture is needed for a save/readback test.",
+      "checkedAt": "2026-09-25T00:45:26.47354-05:00",
       "navigationCheckedAt": "2026-09-25T01:12:14.982Z",
       "navigationStatus": "pass"
     },
@@ -10281,9 +10281,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "blocked",
+      "detail": "Announcement Add opened in PJAX. Generated PCM and G.711 WAV test uploads were rejected by both PJAX and native CommPilot; a known-good announcement fixture is needed for a save/readback test.",
+      "checkedAt": "2026-09-25T00:45:26.47354-05:00"
     },
     {
       "id": "discovered-647",
@@ -10367,7 +10367,7 @@
       "submitControls": 6,
       "status": "passed",
       "detail": "Assign Call Centers opened from Existing User Services user detail in the same document at /commpilot/User/AssignCallCenters/.",
-      "checkedAt": "2026-09-25T04:19:18.390Z"
+      "checkedAt": "2026-09-25T04:19:18.39Z"
     },
     {
       "id": "discovered-653",
@@ -10407,9 +10407,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "blocked",
+      "detail": "Announcement Add opened in PJAX. Generated PCM and G.711 WAV test uploads were rejected by both PJAX and native CommPilot; a known-good announcement fixture is needed for a save/readback test.",
+      "checkedAt": "2026-09-25T00:45:26.47354-05:00"
     },
     {
       "id": "discovered-656",
@@ -10631,9 +10631,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "blocked",
+      "detail": "Announcement Add opened in PJAX. Generated PCM and G.711 WAV test uploads were rejected by both PJAX and native CommPilot; a known-good announcement fixture is needed for a save/readback test.",
+      "checkedAt": "2026-09-25T00:45:26.47354-05:00"
     },
     {
       "id": "discovered-672",
@@ -10931,8 +10931,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "search returned HTTP 200 in the same document.",
-      "checkedAt": "2026-09-24T22:57:11.750Z",
-      "navigationCheckedAt": "2026-09-24T22:57:11.750Z",
+      "checkedAt": "2026-09-24T22:57:11.75Z",
+      "navigationCheckedAt": "2026-09-24T22:57:11.75Z",
       "navigationStatus": "pass"
     },
     {
@@ -11027,8 +11027,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "search returned HTTP 200 in the same document.",
-      "checkedAt": "2026-09-24T22:57:24.500Z",
-      "navigationCheckedAt": "2026-09-24T22:57:24.500Z",
+      "checkedAt": "2026-09-24T22:57:24.5Z",
+      "navigationCheckedAt": "2026-09-24T22:57:24.5Z",
       "navigationStatus": "pass"
     },
     {
@@ -11155,8 +11155,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "search returned HTTP 200 in the same document.",
-      "checkedAt": "2026-09-24T22:52:21.640Z",
-      "navigationCheckedAt": "2026-09-24T22:52:21.640Z",
+      "checkedAt": "2026-09-24T22:52:21.64Z",
+      "navigationCheckedAt": "2026-09-24T22:52:21.64Z",
       "navigationStatus": "pass"
     },
     {
@@ -11827,8 +11827,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "search returned HTTP 200 in the same document.",
-      "checkedAt": "2026-09-24T22:55:58.370Z",
-      "navigationCheckedAt": "2026-09-24T22:55:58.370Z",
+      "checkedAt": "2026-09-24T22:55:58.37Z",
+      "navigationCheckedAt": "2026-09-24T22:55:58.37Z",
       "navigationStatus": "pass"
     },
     {
@@ -11891,8 +11891,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "search returned HTTP 200 in the same document.",
-      "checkedAt": "2026-09-24T22:56:01.050Z",
-      "navigationCheckedAt": "2026-09-24T22:56:01.050Z",
+      "checkedAt": "2026-09-24T22:56:01.05Z",
+      "navigationCheckedAt": "2026-09-24T22:56:01.05Z",
       "navigationStatus": "pass"
     },
     {
@@ -11987,8 +11987,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "search returned HTTP 200 in the same document.",
-      "checkedAt": "2026-09-24T22:56:07.300Z",
-      "navigationCheckedAt": "2026-09-24T22:56:07.300Z",
+      "checkedAt": "2026-09-24T22:56:07.3Z",
+      "navigationCheckedAt": "2026-09-24T22:56:07.3Z",
       "navigationStatus": "pass"
     },
     {
@@ -12083,8 +12083,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "search returned HTTP 200 in the same document.",
-      "checkedAt": "2026-09-24T22:56:19.130Z",
-      "navigationCheckedAt": "2026-09-24T22:56:19.130Z",
+      "checkedAt": "2026-09-24T22:56:19.13Z",
+      "navigationCheckedAt": "2026-09-24T22:56:19.13Z",
       "navigationStatus": "pass"
     },
     {
@@ -12387,8 +12387,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "search returned HTTP 200 in the same document.",
-      "checkedAt": "2026-09-24T22:49:07.660Z",
-      "navigationCheckedAt": "2026-09-24T22:49:07.660Z",
+      "checkedAt": "2026-09-24T22:49:07.66Z",
+      "navigationCheckedAt": "2026-09-24T22:49:07.66Z",
       "navigationStatus": "pass"
     },
     {
@@ -12659,8 +12659,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "subpage-search returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:06:07.550Z",
-      "navigationCheckedAt": "2026-09-24T22:06:07.550Z",
+      "checkedAt": "2026-09-24T22:06:07.55Z",
+      "navigationCheckedAt": "2026-09-24T22:06:07.55Z",
       "navigationStatus": "pass"
     },
     {
@@ -13257,8 +13257,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:07:29.880Z",
-      "navigationCheckedAt": "2026-09-24T22:07:29.880Z",
+      "checkedAt": "2026-09-24T22:07:29.88Z",
+      "navigationCheckedAt": "2026-09-24T22:07:29.88Z",
       "navigationStatus": "pass"
     },
     {
@@ -13305,7 +13305,7 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "Saved weighted-routing trunk opened Add Users at the exact route with HTTP 200 in the same document; unfilled Add forms return HTTP 500.",
-      "checkedAt": "2026-09-25T00:52:00.130Z"
+      "checkedAt": "2026-09-25T00:52:00.13Z"
     },
     {
       "id": "discovered-827",
@@ -13333,8 +13333,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "subpage-search returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:06:52.120Z",
-      "navigationCheckedAt": "2026-09-24T22:06:52.120Z",
+      "checkedAt": "2026-09-24T22:06:52.12Z",
+      "navigationCheckedAt": "2026-09-24T22:06:52.12Z",
       "navigationStatus": "pass"
     },
     {
@@ -13349,8 +13349,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "sort returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:07:03.610Z",
-      "navigationCheckedAt": "2026-09-24T22:07:03.610Z",
+      "checkedAt": "2026-09-24T22:07:03.61Z",
+      "navigationCheckedAt": "2026-09-24T22:07:03.61Z",
       "navigationStatus": "pass"
     },
     {
@@ -13445,8 +13445,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:50:34.840Z",
-      "navigationCheckedAt": "2026-09-24T22:50:34.840Z",
+      "checkedAt": "2026-09-24T22:50:34.84Z",
+      "navigationCheckedAt": "2026-09-24T22:50:34.84Z",
       "navigationStatus": "pass"
     },
     {
@@ -13653,8 +13653,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:54:14.820Z",
-      "navigationCheckedAt": "2026-09-24T22:54:14.820Z",
+      "checkedAt": "2026-09-24T22:54:14.82Z",
+      "navigationCheckedAt": "2026-09-24T22:54:14.82Z",
       "navigationStatus": "pass"
     },
     {
@@ -13941,8 +13941,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:48:57.020Z",
-      "navigationCheckedAt": "2026-09-24T22:48:57.020Z",
+      "checkedAt": "2026-09-24T22:48:57.02Z",
+      "navigationCheckedAt": "2026-09-24T22:48:57.02Z",
       "navigationStatus": "pass"
     },
     {
@@ -13957,8 +13957,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:48:59.960Z",
-      "navigationCheckedAt": "2026-09-24T22:48:59.960Z",
+      "checkedAt": "2026-09-24T22:48:59.96Z",
+      "navigationCheckedAt": "2026-09-24T22:48:59.96Z",
       "navigationStatus": "pass"
     },
     {
@@ -14005,8 +14005,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:49:28.630Z",
-      "navigationCheckedAt": "2026-09-24T22:49:28.630Z",
+      "checkedAt": "2026-09-24T22:49:28.63Z",
+      "navigationCheckedAt": "2026-09-24T22:49:28.63Z",
       "navigationStatus": "pass"
     },
     {
@@ -14213,8 +14213,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:54:22.850Z",
-      "navigationCheckedAt": "2026-09-24T22:54:22.850Z",
+      "checkedAt": "2026-09-24T22:54:22.85Z",
+      "navigationCheckedAt": "2026-09-24T22:54:22.85Z",
       "navigationStatus": "pass"
     },
     {
@@ -14325,8 +14325,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:54:27.900Z",
-      "navigationCheckedAt": "2026-09-24T22:54:27.900Z",
+      "checkedAt": "2026-09-24T22:54:27.9Z",
+      "navigationCheckedAt": "2026-09-24T22:54:27.9Z",
       "navigationStatus": "pass"
     },
     {
@@ -14389,8 +14389,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:54:30.760Z",
-      "navigationCheckedAt": "2026-09-24T22:54:30.760Z",
+      "checkedAt": "2026-09-24T22:54:30.76Z",
+      "navigationCheckedAt": "2026-09-24T22:54:30.76Z",
       "navigationStatus": "pass"
     },
     {
@@ -14517,8 +14517,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:57:14.570Z",
-      "navigationCheckedAt": "2026-09-24T22:57:14.570Z",
+      "checkedAt": "2026-09-24T22:57:14.57Z",
+      "navigationCheckedAt": "2026-09-24T22:57:14.57Z",
       "navigationStatus": "pass"
     },
     {
@@ -14597,8 +14597,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:48:57.820Z",
-      "navigationCheckedAt": "2026-09-24T22:48:57.820Z",
+      "checkedAt": "2026-09-24T22:48:57.82Z",
+      "navigationCheckedAt": "2026-09-24T22:48:57.82Z",
       "navigationStatus": "pass"
     },
     {
@@ -14677,8 +14677,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:49:13.110Z",
-      "navigationCheckedAt": "2026-09-24T22:49:13.110Z",
+      "checkedAt": "2026-09-24T22:49:13.11Z",
+      "navigationCheckedAt": "2026-09-24T22:49:13.11Z",
       "navigationStatus": "pass"
     },
     {
@@ -14741,8 +14741,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:49:14.280Z",
-      "navigationCheckedAt": "2026-09-24T22:49:14.280Z",
+      "checkedAt": "2026-09-24T22:49:14.28Z",
+      "navigationCheckedAt": "2026-09-24T22:49:14.28Z",
       "navigationStatus": "pass"
     },
     {
@@ -14837,8 +14837,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:49:16.190Z",
-      "navigationCheckedAt": "2026-09-24T22:49:16.190Z",
+      "checkedAt": "2026-09-24T22:49:16.19Z",
+      "navigationCheckedAt": "2026-09-24T22:49:16.19Z",
       "navigationStatus": "pass"
     },
     {
@@ -15013,8 +15013,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:52:03.300Z",
-      "navigationCheckedAt": "2026-09-24T22:52:03.300Z",
+      "checkedAt": "2026-09-24T22:52:03.3Z",
+      "navigationCheckedAt": "2026-09-24T22:52:03.3Z",
       "navigationStatus": "pass"
     },
     {
@@ -15157,8 +15157,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:52:10.850Z",
-      "navigationCheckedAt": "2026-09-24T22:52:10.850Z",
+      "checkedAt": "2026-09-24T22:52:10.85Z",
+      "navigationCheckedAt": "2026-09-24T22:52:10.85Z",
       "navigationStatus": "pass"
     },
     {
@@ -15189,8 +15189,8 @@
       "submitControls": 0,
       "status": "passed",
       "detail": "tab returned HTTP 200 in the same document. Back restored the page.",
-      "checkedAt": "2026-09-24T22:52:11.350Z",
-      "navigationCheckedAt": "2026-09-24T22:52:11.350Z",
+      "checkedAt": "2026-09-24T22:52:11.35Z",
+      "navigationCheckedAt": "2026-09-24T22:52:11.35Z",
       "navigationStatus": "pass"
     },
     {
@@ -15513,7 +15513,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/Members/AuthorizeServices/; same document; editable values preserved.",
-      "checkedAt": "2026-09-24T23:12:56.980Z"
+      "checkedAt": "2026-09-24T23:12:56.98Z"
     },
     {
       "id": "apply:discovered-106",
@@ -15583,7 +15583,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/Group/AssignNetworkClassesOfService/; same document; editable values preserved.",
-      "checkedAt": "2026-09-24T23:13:07.850Z"
+      "checkedAt": "2026-09-24T23:13:07.85Z"
     },
     {
       "id": "apply:discovered-111",
@@ -16031,7 +16031,7 @@
       "submitControls": 1,
       "status": "blocked",
       "detail": "Current-values Apply returns HTTP 500 in both PJAX and an unextended native sandbox session. Backend failure prevents save verification.",
-      "checkedAt": "2026-09-25T05:17:37.302380+00:00"
+      "checkedAt": "2026-09-25T00:17:37.30238-05:00"
     },
     {
       "id": "apply:discovered-163",
@@ -16199,7 +16199,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/Common/Password_Rules/index.jsp; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:24:11.050Z"
+      "checkedAt": "2026-09-24T23:24:11.05Z"
     },
     {
       "id": "apply:discovered-186",
@@ -16311,7 +16311,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/CallProcessingPolicy/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:27:18.640Z"
+      "checkedAt": "2026-09-24T23:27:18.64Z"
     },
     {
       "id": "apply:discovered-321",
@@ -16339,7 +16339,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/RoutingProfile/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:27:21.170Z"
+      "checkedAt": "2026-09-24T23:27:21.17Z"
     },
     {
       "id": "apply:discovered-323",
@@ -16353,7 +16353,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/DialableCallerID/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:27:22.410Z"
+      "checkedAt": "2026-09-24T23:27:22.41Z"
     },
     {
       "id": "apply:discovered-324",
@@ -16619,7 +16619,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/VM/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-25T03:00:20.530Z"
+      "checkedAt": "2026-09-25T03:00:20.53Z"
     },
     {
       "id": "apply:discovered-70",
@@ -16647,7 +16647,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/BroadWorksMobility/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-25T03:00:23.230Z"
+      "checkedAt": "2026-09-25T03:00:23.23Z"
     },
     {
       "id": "apply:discovered-73",
@@ -16729,9 +16729,9 @@
       "family": "Edit / save",
       "deep": true,
       "submitControls": 1,
-      "status": "passed",
-      "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/CommBarring/Profiles/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:29:21.160Z"
+      "status": "blocked",
+      "detail": "The list Apply changes the selected default Communication Barring Profile; Add and Modify/Delete passed, but selecting an active default profile has not been exercised.",
+      "checkedAt": "2026-09-25T00:42:13.89631-05:00"
     },
     {
       "id": "apply:discovered-80",
@@ -16815,7 +16815,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/Common/SipAuthPasswordRules/index.jsp; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:29:43.660Z"
+      "checkedAt": "2026-09-24T23:29:43.66Z"
     },
     {
       "id": "apply:discovered-90",
@@ -16843,7 +16843,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/Reseller/Profile/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:29:54.030Z"
+      "checkedAt": "2026-09-24T23:29:54.03Z"
     },
     {
       "id": "apply:reseller-activation",
@@ -16871,7 +16871,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/Reseller/StirShaken/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:29:55.450Z"
+      "checkedAt": "2026-09-24T23:29:55.45Z"
     },
     {
       "id": "apply:discovered-29",
@@ -16898,8 +16898,8 @@
       "deep": true,
       "submitControls": 1,
       "status": "passed",
-      "detail": "Apply returned HTTP 200 at /commpilot/Reseller/DeviceFamilies/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:30:04.170Z"
+      "detail": "Filtered Device Families Apply/Delete posted to its owning list, returned in PJAX, and fresh search confirmed the disposable family was removed.",
+      "checkedAt": "2026-09-25T00:42:13.89631-05:00"
     },
     {
       "id": "apply:discovered-33",
@@ -17081,7 +17081,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/AlternateUserIDs/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:31:16.360Z"
+      "checkedAt": "2026-09-24T23:31:16.36Z"
     },
     {
       "id": "apply:discovered-346",
@@ -17417,7 +17417,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/InternalCLIDDelivery/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:33:39.810Z"
+      "checkedAt": "2026-09-24T23:33:39.81Z"
     },
     {
       "id": "apply:discovered-207",
@@ -17473,7 +17473,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/SCF/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:33:45.560Z"
+      "checkedAt": "2026-09-24T23:33:45.56Z"
     },
     {
       "id": "apply:discovered-211",
@@ -17655,7 +17655,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/LegacyAutomaticCallback/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-25T02:52:10.890Z"
+      "checkedAt": "2026-09-25T02:52:10.89Z"
     },
     {
       "id": "apply:discovered-230",
@@ -18103,7 +18103,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/Calling_Plan/Incoming/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:37:49.900Z"
+      "checkedAt": "2026-09-24T23:37:49.9Z"
     },
     {
       "id": "apply:discovered-273",
@@ -18299,7 +18299,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/VoicePortal/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:38:52.470Z"
+      "checkedAt": "2026-09-24T23:38:52.47Z"
     },
     {
       "id": "apply:discovered-293",
@@ -18355,7 +18355,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/ExternalVoiceMail/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:38:58.420Z"
+      "checkedAt": "2026-09-24T23:38:58.42Z"
     },
     {
       "id": "apply:discovered-298",
@@ -18551,7 +18551,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/DND/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:39:48.190Z"
+      "checkedAt": "2026-09-24T23:39:48.19Z"
     },
     {
       "id": "apply:discovered-359",
@@ -18593,7 +18593,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/Calling_Plan/Incoming/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:40:01.130Z"
+      "checkedAt": "2026-09-24T23:40:01.13Z"
     },
     {
       "id": "apply:discovered-362",
@@ -18943,7 +18943,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/DND/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:41:44.790Z"
+      "checkedAt": "2026-09-24T23:41:44.79Z"
     },
     {
       "id": "apply:discovered-379",
@@ -19419,7 +19419,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/Services/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:44:01.520Z"
+      "checkedAt": "2026-09-24T23:44:01.52Z"
     },
     {
       "id": "apply:discovered-489",
@@ -19601,7 +19601,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/CF/AlwaysSecondary/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:45:56.610Z"
+      "checkedAt": "2026-09-24T23:45:56.61Z"
     },
     {
       "id": "apply:discovered-420",
@@ -20021,7 +20021,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/ServiceProvider/VPBranding/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:49:35.550Z"
+      "checkedAt": "2026-09-24T23:49:35.55Z"
     },
     {
       "id": "apply:discovered-88",
@@ -20121,7 +20121,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Disposable Call Pickup PJAX Audit Pickup mug7r3li is absent after cleanup.",
-      "checkedAt": "2026-09-25T00:19:23.610Z"
+      "checkedAt": "2026-09-25T00:19:23.61Z"
     },
     {
       "id": "lifecycle:call-park-delete",
@@ -20133,7 +20133,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Disposable Call Park PJAX Audit Park mug7qt98 is absent after cleanup.",
-      "checkedAt": "2026-09-25T00:19:10.220Z"
+      "checkedAt": "2026-09-25T00:19:10.22Z"
     },
     {
       "id": "lifecycle:call-capacity-delete",
@@ -20333,7 +20333,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Disposable custom directory PJAX Audit Directory mug9zur8 opened its Modify page.",
-      "checkedAt": "2026-09-25T01:22:11.530Z"
+      "checkedAt": "2026-09-25T01:22:11.53Z"
     },
     {
       "id": "lifecycle:group-custom-directory-delete",
@@ -20381,7 +20381,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Disposable Dialable Caller ID criteria pjaxcidmuga38gs opened Modify.",
-      "checkedAt": "2026-09-25T01:24:49.310Z"
+      "checkedAt": "2026-09-25T01:24:49.31Z"
     },
     {
       "id": "lifecycle:group-dialable-caller-id-delete",
@@ -20441,7 +20441,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Disposable Group Dial Plan code is absent after Delete.",
-      "checkedAt": "2026-09-25T01:28:34.410Z"
+      "checkedAt": "2026-09-25T01:28:34.41Z"
     },
     {
       "id": "lifecycle:service-provider-dial-plan-code-delete",
@@ -20477,7 +20477,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "All disposable two-number Virtual On-Net ranges from the AddRange probes were removed; fresh last-name searches for each test range returned no rows.",
-      "checkedAt": "2026-09-25T01:36:19.120Z"
+      "checkedAt": "2026-09-25T01:36:19.12Z"
     },
     {
       "id": "lifecycle:user-speed-dial-100-delete",
@@ -20645,7 +20645,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Disposable Selective Acceptance - Off criterion PJAX selec mugc5cql is absent after Delete.",
-      "checkedAt": "2026-09-25T02:22:34.740Z"
+      "checkedAt": "2026-09-25T02:22:34.74Z"
     },
     {
       "id": "lifecycle:hunt-group-selective-rejection-delete",
@@ -20657,7 +20657,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Disposable Selective Rejection - Off criterion PJAX selec mugc5soo is absent after Delete.",
-      "checkedAt": "2026-09-25T02:22:55.510Z"
+      "checkedAt": "2026-09-25T02:22:55.51Z"
     },
     {
       "id": "lifecycle:call-center-call-me-now-delete",
@@ -20741,7 +20741,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Disposable messaging alias 2025550198 is absent after Delete.",
-      "checkedAt": "2026-09-25T03:08:35.550Z"
+      "checkedAt": "2026-09-25T03:08:35.55Z"
     },
     {
       "id": "lifecycle:call-center-messaging-alias-delete",
@@ -20923,7 +20923,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Disposable schedule opened its Modify page with the saved name.",
-      "checkedAt": "2026-09-25T03:29:09.000Z"
+      "checkedAt": "2026-09-25T03:29:09Z"
     },
     {
       "id": "lifecycle:user-schedule-delete",
@@ -21229,12 +21229,38 @@
       "family": "Edit / save",
       "deep": true,
       "submitControls": 1,
-      "status": "failed",
-      "detail": "Probe failed: locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('a.leftnavfolder, a.leftnavfolderopen').filter({ hasText: /^\\s*Resources\\s*$/ })\u001b[22m\n",
-      "checkedAt": "2026-09-25T05:22:36.259Z"
+      "status": "passed",
+      "detail": "Filtered Tag Sets Apply/Delete posted to its owning list, returned in PJAX, and fresh search confirmed the disposable set was removed.",
+      "checkedAt": "2026-09-25T00:42:13.89631-05:00"
+    },
+    {
+      "id": "lifecycle:serviceprovider-device-profile-delete",
+      "area": "Service Provider / Resources",
+      "label": "lifecycle serviceprovider device profile delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Fresh sandbox search found both disposable Service Provider profiles; each Modify/Delete returned to the list, and a final search found no matching profile.",
+      "checkedAt": "2026-09-25T00:35:24.590531-05:00"
+    },
+    {
+      "id": "lifecycle:group-user-delete",
+      "area": "Group / Profile",
+      "label": "Users › disposable account cleanup",
+      "path": "/commpilot/User/Profile/",
+      "sourcePath": "/commpilot/Group/Members/",
+      "kind": "action-check",
+      "family": "Delete and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "All five disposable Group Users were deleted; final fresh prefix search returned zero rows.",
+      "checkedAt": "2026-09-25T01:00:14.993302-05:00"
     }
   ],
   "incidents": [],
   "notes": [],
-  "currentNote": "Disposable Tag Set PJAX_AUDIT_SET_MUGIN8UW: Add HTTP 200; same document; fresh list found it; Delete verified absent."
+  "currentNote": "Stan Mikita Donuts group profile opened from Service Provider Members in the same document."
 }

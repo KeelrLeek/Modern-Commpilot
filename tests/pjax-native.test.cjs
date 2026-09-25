@@ -1743,6 +1743,216 @@ test('filtered Reseller Tag Sets Delete posts to its owning list', async () => {
   } finally { await browser.close(); }
 });
 
+test('filtered Device Families Delete uses its returnPage controller', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const list = '/commpilot/Reseller/DeviceFamilies/';
+    const find = '/commpilot/Common/find.jsp';
+    const posts = [];
+    const html = `<!doctype html><html><head><title>Device Management Device Families</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">Reseller</span></td></tr></table>
+      <form name="leftNavForm"></form><table><tr><td width="82%">
+      <h1>Device Management Device Families</h1><form name="mainForm" method="post">
+      <input name="hiddenCheckbox_PJAX_AUDIT_FAMILY" type="checkbox" value="true">
+      <input name="apply" type="submit" value="Apply"></form></td></tr></table>
+      <input name="formtokenserial" value="token">
+      <script>window.redirectPost=function(){};</script></body></html>`;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      if (request.method() === 'POST') posts.push({ path: new URL(request.url()).pathname,
+        body: request.postData() || '' });
+      return route.fulfill({ status: 200, contentType: 'text/html', body: html });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + list, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    await page.evaluate(pathname => window.redirectPost(pathname, {
+      returnPage: '/Reseller/DeviceFamilies/', tableName: 'resellerDeviceFamilyTable',
+      key: '2', op: '2', value: 'PJAX_AUDIT_FAMILY'
+    }), find);
+    await page.waitForFunction(pathname => location.pathname === pathname, find);
+    await page.locator('input[name="hiddenCheckbox_PJAX_AUDIT_FAMILY"]').check();
+    await page.locator('input[name="apply"]').click();
+    await page.waitForFunction(pathname => location.pathname === pathname, list);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+    assert.ok(posts.some(post => post.path === list &&
+      post.body.includes('hiddenCheckbox_PJAX_AUDIT_FAMILY=true') &&
+      post.body.includes('apply=Apply')));
+  } finally { await browser.close(); }
+});
+
+test('Communication Barring profile selection and Delete survive a filtered list', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const list = '/commpilot/ServiceProvider/CommBarring/Profiles/';
+    const find = '/commpilot/Common/find.jsp';
+    const general = `${list}General/index.jsp`;
+    const shell = (title, body) => `<!doctype html><html><head><title>${title}</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">Service Provider</span></td></tr></table>
+      <form name="leftNavForm"></form><table><tr><td width="82%">${body}</td></tr></table>
+      <input name="formtokenserial" value="token">
+      <script>window.redirectPost=function(){};</script></body></html>`;
+    const listHtml = shell('Communication Barring Profiles',
+      '<h1>Communication Barring Profiles</h1><form name="mainForm" method="post">' +
+      '<input name="profileSelected" type="hidden" value="">' +
+      '<input id="PJAX Audit CB" name="checkbox___DFLT_COL_ID____DELIMITER__PJAX Audit CB" ' +
+      'type="checkbox"><input name="hiddenCheckbox_PJAX Audit CB" type="hidden" value="true">' +
+      '<input name="add" type="button" value="Add">' +
+      '<input name="apply" type="submit" value="Apply"></form>');
+    const generalHtml = shell('Communication Barring Profile',
+      '<h1>Communication Barring Profile</h1><form name="mainForm" method="post">' +
+      '<input name="delete" type="submit" value="Delete"></form>');
+    const posts = [];
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const req = route.request();
+      const path = new URL(req.url()).pathname;
+      if (req.method() === 'POST') posts.push({ path, body: req.postData() || '' });
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: path === general && !(req.postData() || '').includes('delete=Delete') ?
+          generalHtml : listHtml });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + list, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    await page.evaluate(pathname => window.redirectPost(pathname, {
+      returnPage: '/ServiceProvider/CommBarring/Profiles/', tableName: 'spCBProfileTable',
+      key: '1', op: '2', value: 'PJAX Audit CB'
+    }), find);
+    await page.waitForFunction(pathname => location.pathname === pathname, find);
+    await page.locator('input[type="checkbox"]').check();
+    assert.equal(await page.locator('input[name="profileSelected"]').inputValue(), 'PJAX Audit CB');
+    await page.locator('input[type="checkbox"]').uncheck();
+    assert.equal(await page.locator('input[name="profileSelected"]').inputValue(), '');
+    await page.evaluate(pathname => window.redirectPost(pathname, {}), general);
+    await page.waitForFunction(pathname => location.pathname === pathname, general);
+    await page.locator('input[name="delete"]').click();
+    await page.waitForFunction(pathname => location.pathname === pathname, list);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+    assert.ok(posts.some(post => post.path === general && post.body.includes('delete=Delete')));
+  } finally { await browser.close(); }
+});
+
+test('User Profile Delete returns to the owning Group Users list', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const list = '/commpilot/Group/Members/';
+    const modify = '/commpilot/Group/Members/Modify/index.jsp';
+    const profile = '/commpilot/User/Profile/';
+    const shell = (title, body) => `<!doctype html><html><head><title>${title}</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">Group</span></td></tr></table>
+      <form name="leftNavForm"></form><table><tr><td width="82%">${body}</td></tr></table>
+      <input name="formtokenserial" value="token">
+      <script>window.redirectPost=function(){};</script></body></html>`;
+    const listHtml = shell('Group Users', '<h1>Users</h1><form name="mainForm">' +
+      '<select name="findKey0"><option>User ID</option></select>' +
+      '<input name="findValue0"><input name="add" type="button" value="Add"></form>');
+    const profileHtml = shell('User Profile', '<h1>User Profile</h1>' +
+      '<form name="mainForm" method="post"><input name="unicodeLastName" value="Audit">' +
+      '<input name="delete" type="submit" value="Delete"></form>');
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: pathname === profile && !(request.postData() || '').includes('delete=Delete') ?
+          profileHtml : pathname === modify ? shell('User entry', '<h1>User entry</h1>') : listHtml });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + list, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    await page.evaluate(pathname => window.redirectPost(pathname, { key: 'pjaxaudit' }), modify);
+    await page.waitForFunction(pathname => location.pathname === pathname, modify);
+    await page.evaluate(pathname => window.redirectPost(pathname, {}), profile);
+    await page.waitForFunction(pathname => location.pathname === pathname, profile);
+    await page.locator('input[name="delete"]').click();
+    await page.waitForFunction(pathname => location.pathname === pathname, list);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+    assert.equal(await page.getByRole('heading', { name: 'Users' }).count(), 1);
+  } finally { await browser.close(); }
+});
+
+test('Group Administrator Delete posts to Modify rather than its context endpoint', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const context = '/commpilot/Group/Admins/modify.jsp';
+    const modify = '/commpilot/Group/Admins/Modify/';
+    const list = '/commpilot/Group/Admins/';
+    const shell = (title, body) => `<!doctype html><html><head><title>${title}</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">Group</span></td></tr></table>
+      <form name="leftNavForm"></form><table><tr><td width="82%">${body}</td></tr></table>
+      <input name="formtokenserial" value="token">
+      <script>window.redirectPost=function(){};</script></body></html>`;
+    const form = shell('Administrator Modify', '<h1>Administrator Modify</h1>' +
+      '<form name="mainForm" method="post"><input name="userId" value="pjaxadm">' +
+      '<input name="password" type="password"><input name="delete" type="submit" value="Delete"></form>');
+    const listing = shell('Administrators', '<h1>Administrators</h1>' +
+      '<form name="mainForm"><input name="add" type="button" value="Add"></form>');
+    const posts = [];
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (request.method() === 'POST') posts.push(path);
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: path === context ? form : listing });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + context, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    await page.locator('input[name="delete"]').click();
+    await page.waitForFunction(pathname => location.pathname === pathname, list);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+    assert.ok(posts.includes(modify));
+    assert.ok(!posts.includes(context));
+  } finally { await browser.close(); }
+});
+
+test('Group Profile Delete returns to the Service Provider Groups list', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const list = '/commpilot/ServiceProvider/Members/';
+    const modify = '/commpilot/ServiceProvider/Members/Modify/index.jsp';
+    const profile = '/commpilot/Group/Profile/';
+    const shell = (title, body) => `<!doctype html><html><head><title>${title}</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">Service Provider</span></td></tr></table>
+      <form name="leftNavForm"></form><table><tr><td width="82%">${body}</td></tr></table>
+      <input name="formtokenserial" value="token">
+      <script>window.redirectPost=function(){};</script></body></html>`;
+    const listHtml = shell('Groups', '<h1>Groups</h1><form name="mainForm">' +
+      '<select name="findKey0"><option>Group ID</option></select>' +
+      '<input name="findValue0"><input name="add" type="button" value="Add"></form>');
+    const profileHtml = shell('Group Profile', '<h1>Group Profile</h1>' +
+      '<form name="mainForm" method="post"><input name="unicodeCompanyName" value="Audit">' +
+      '<input name="delete" type="submit" value="Delete"></form>');
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: pathname === profile && !(request.postData() || '').includes('delete=Delete') ?
+          profileHtml : pathname === modify ? shell('Group entry', '<h1>Group entry</h1>') : listHtml });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + list, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    await page.evaluate(pathname => window.redirectPost(pathname, { key: 'pjaxgrp' }), modify);
+    await page.waitForFunction(pathname => location.pathname === pathname, modify);
+    await page.evaluate(pathname => window.redirectPost(pathname, {}), profile);
+    await page.waitForFunction(pathname => location.pathname === pathname, profile);
+    await page.locator('input[name="delete"]').click();
+    await page.waitForFunction(pathname => location.pathname === pathname, list);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+    assert.equal(await page.getByRole('heading', { name: 'Groups' }).count(), 1);
+  } finally { await browser.close(); }
+});
+
 test('Back from a Group child restores User context before replaying Addresses', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });
