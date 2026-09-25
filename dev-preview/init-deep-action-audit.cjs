@@ -14,7 +14,7 @@ function family(route) {
   const value = `${route.label || ''} ${route.path || ''}`;
   if (/Import|Upload|File|Configuration|Branding/i.test(value)) return 'Import / file';
   if (/Assign|Activation|Number|Domain|Profile/i.test(value)) return 'Assignment / pick-list';
-  if (/Add|Create|New/i.test(value)) return 'Add / create';
+  if (/(?:\/Add\/|\bAdd(?:\s|$)|\bCreate\b|\bNew\b)/i.test(value)) return 'Add / create';
   if (/Modify|Edit|Nested|Redirect/i.test(value)) return 'Edit / save';
   if (/Delete|Remove/i.test(value)) return 'Delete / remove';
   if (route.kind === 'interaction') return 'List interaction';

@@ -470,7 +470,7 @@ test('Answer Confirmation saves a multipart form with no selected file in-shell'
   } finally { await browser.close(); }
 });
 
-test('Audio, Auto Attendant, and Call Center multipart Apply stays in-shell', async () => {
+test('Audio, User Ringback, Auto Attendant, and Call Center multipart Apply stays in-shell', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });
   try {
@@ -478,6 +478,7 @@ test('Audio, Auto Attendant, and Call Center multipart Apply stays in-shell', as
       { path: '/commpilot/Group/PreAlertingAnnouncement/', servlet: 'PreAlertingAnnouncementGroupServlet' },
       { path: '/commpilot/User/PreAlertingAnnouncement/', servlet: 'PreAlertingAnnouncementUserServlet' },
       { path: '/commpilot/Group/CustomRingback/', servlet: 'CustomRingbackGroupServlet' },
+      { path: '/commpilot/User/CustomRingback/', servlet: 'CustomRingbackUserServlet' },
       { path: '/commpilot/Group/VPBranding/', servlet: 'VPBrandingServlet' },
       { path: '/commpilot/Group/Auto_Attendant/MenuBusinessHours/index.jsp', servlet: 'AASubscriptionServlet' },
       { path: '/commpilot/Group/Call_Center/RoutingPolicies/Overflow/', servlet: 'CallCenterOverflowRoutingPolicyServlet' },

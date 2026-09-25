@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.29-native";
+  var CP_PJAX_VERSION = "0.3.30-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -4601,13 +4601,13 @@
         var deviceProfile = action.pathname === '/commpilot/servlet/DeviceInventoryProvisionServlet';
         var mohUser = action.pathname === '/commpilot/servlet/MusicOnHoldUserServlet';
         var callCenterAnnouncements = /^\/commpilot\/servlet\/CallCenterAnnouncements[A-Za-z]*Servlet$/.test(action.pathname);
-        var groupAudioSettings = /^\/commpilot\/servlet\/(?:PreAlertingAnnouncement(?:Group|User)|CustomRingbackGroup)Servlet$/.test(action.pathname);
+        var groupAudioSettings = /^\/commpilot\/servlet\/(?:PreAlertingAnnouncement(?:Group|User)|CustomRingback(?:Group|User))Servlet$/.test(action.pathname);
         var vpBranding = action.pathname === '/commpilot/servlet/VPBrandingServlet';
         var autoAttendantMenu = action.pathname === '/commpilot/servlet/AASubscriptionServlet';
         var callCenterRouting = /^\/commpilot\/servlet\/CallCenter(?:Overflow|StrandedCalls(?:Unavailable)?)RoutingPolicyServlet$/.test(action.pathname);
         if (!form.querySelector('input[type="file"]') && !deviceProfile && !mohUser && !callCenterAnnouncements && !groupAudioSettings && !vpBranding && !autoAttendantMenu && !callCenterRouting) return null;
         return action.origin === location.origin &&
-          (/^\/commpilot\/servlet\/(?:DeviceManagementImportServlet|PhoneListImportServlet|AnswerConfirmationServlet|VPBrandingServlet|SysAdminPrefsServlet|CCReportBrandingServlet|InterceptServiceServlet|AnnouncementRepositoryServlet|CallCenterEnhancedReportingReportTemplateServlet|SystemDmsFileProvisionServlet|DeviceInventoryProvisionServlet|MusicOnHoldUserServlet|PreAlertingAnnouncementGroupServlet|PreAlertingAnnouncementUserServlet|CustomRingbackGroupServlet|AASubscriptionServlet)$/.test(action.pathname) || callCenterAnnouncements || callCenterRouting) ? action : null;
+          (/^\/commpilot\/servlet\/(?:DeviceManagementImportServlet|PhoneListImportServlet|AnswerConfirmationServlet|VPBrandingServlet|SysAdminPrefsServlet|CCReportBrandingServlet|InterceptServiceServlet|AnnouncementRepositoryServlet|CallCenterEnhancedReportingReportTemplateServlet|SystemDmsFileProvisionServlet|DeviceInventoryProvisionServlet|MusicOnHoldUserServlet|PreAlertingAnnouncementGroupServlet|PreAlertingAnnouncementUserServlet|CustomRingbackGroupServlet|CustomRingbackUserServlet|AASubscriptionServlet)$/.test(action.pathname) || callCenterAnnouncements || callCenterRouting) ? action : null;
       } catch (e) { return null; }
     }
     function cpUploadNotice(message) {

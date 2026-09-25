@@ -59,6 +59,22 @@ function writeDeep(id, outcome, detail) {
   fs.writeFileSync(auditFile, JSON.stringify(audit, null, 2) + '\n');
   console.log(JSON.stringify({ event: 'deep-check', id, status: outcome, detail }));
 }
+function writeReadOnlyPage(label, detail) {
+  const audit = JSON.parse(fs.readFileSync(auditFile, 'utf8'));
+  const route = JSON.parse(fs.readFileSync(routeFile, 'utf8')).routes
+    .find(item => item.area === `${level} / ${folder}` && item.label === label &&
+      item.kind !== 'interaction');
+  const check = route && audit.checks.find(item => item.id === route.id);
+  if (!check || check.status !== 'pending') return;
+  check.status = 'passed';
+  check.detail = detail;
+  check.checkedAt = new Date().toISOString();
+  audit.updated = check.checkedAt;
+  audit.current = check.label;
+  audit.currentNote = detail;
+  fs.writeFileSync(auditFile, JSON.stringify(audit, null, 2) + '\n');
+  console.log(JSON.stringify({ event: 'read-only-page', id: check.id, label, status: 'passed', detail }));
+}
 
 async function waitPath(page, expected) {
   try {
@@ -844,6 +860,215 @@ async function exerciseSpeedDial100(page) {
     } catch (error) {
       writeDeep('lifecycle:user-speed-dial-100-delete', 'failed',
         `Disposable Speed Dial 100 cleanup needs inspection: ${error.message.slice(0, 150)}`);
+    }
+  }
+}
+async function exerciseMessagingAlias(page) {
+  const listPath = '/commpilot/User/VM/Aliases/';
+  const index = ['User', 'Hunt Group', 'Call Center'].indexOf(level);
+  const ids = [
+    ['discovered-286', 'discovered-617'],
+    ['discovered-401', 'discovered-632'],
+    ['discovered-446', 'discovered-640']
+  ][index];
+  const number = `202555019${7 + index}`;
+  let saved = false;
+  async function row() { return aaRowId(page, number); }
+  try {
+    if (await row()) throw new Error(`Disposable alias ${number} is already present`);
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, `${listPath}Add/index.jsp`);
+    await page.locator('td[width="82%"] input[name="dnAlias"]').fill(number);
+    await page.evaluate(() => { window.__bwAliasDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === `${listPath}Add/index.jsp`,
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click({ noWaitAfter: true });
+    const found = await response;
+    await page.waitForTimeout(500);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwAliasDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 320) }));
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem:text-is("Aliases")').click();
+    await waitPath(page, listPath);
+    const rowId = await row();
+    saved = found?.status() === 200 && state.sameDocument && !!rowId;
+    writeDeep(ids[1], saved ? 'passed' : 'failed',
+      `Messaging Alias Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'} at ${state.path}; ` +
+      `${rowId ? 'fresh list readback found alias' : `alias not found: ${state.text}`}.`);
+    if (rowId) console.log(JSON.stringify({ event: 'alias-row', level, number,
+      html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1400)) }));
+  } finally {
+    try {
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Aliases")').click();
+      await waitPath(page, listPath);
+      const rowId = await row();
+      if (rowId) {
+        const checkbox = page.locator(`#${rowId} input[type="checkbox"]`).first();
+        if (!await checkbox.count()) throw new Error(`Alias row ${rowId} has no Delete checkbox`);
+        await checkbox.check();
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="apply"]:visible').first().click({ noWaitAfter: true });
+        await page.waitForTimeout(500);
+      }
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Aliases")').click();
+      await waitPath(page, listPath);
+      const deleted = !(await row());
+      writeDeep(`lifecycle:${level.toLowerCase().replace(/\W+/g, '-')}-messaging-alias-delete`,
+        deleted ? 'passed' : 'failed',
+        `Disposable messaging alias ${number} ${deleted ? 'is absent' : 'still exists'} after Delete.`);
+      if (saved && deleted) writeDeep(ids[0], 'passed',
+        `Messaging Alias Add and Delete stayed in PJAX; fresh reads confirmed ${number} appeared and was removed.`);
+    } catch (error) {
+      writeDeep(`lifecycle:${level.toLowerCase().replace(/\W+/g, '-')}-messaging-alias-delete`,
+        'failed', `Disposable messaging alias ${number} cleanup needs inspection: ${error.message.slice(0, 160)}`);
+    }
+  }
+}
+async function exerciseSelectiveAnnouncement(page, preAlerting = false) {
+  const service = preAlerting ? 'Pre-alerting Announcement' : 'Custom Ringback';
+  const listPath = preAlerting ? '/commpilot/User/PreAlertingAnnouncement/' :
+    '/commpilot/User/CustomRingback/';
+  const index = ['User', 'Hunt Group', 'Call Center'].indexOf(level);
+  const ids = (preAlerting ? [
+    ['discovered-216', 'discovered-602'],
+    ['discovered-384', 'discovered-627'],
+    ['discovered-429', 'discovered-636']
+  ] : [
+    ['discovered-213', 'discovered-600'],
+    ['discovered-382', 'discovered-626'],
+    ['discovered-427', 'discovered-635']
+  ])[index];
+  const name = `PJAX ${preAlerting ? 'alert' : 'ring'} ${Date.now().toString(36)}`;
+  let saved = false;
+  async function openList() {
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem')
+      .filter({ hasText: preAlerting ? /^Pre-alerting Announcement - (?:On|Off)$/ :
+        /^Custom Ringback User - (?:On|Off)$/ }).click();
+    await waitPath(page, listPath);
+  }
+  async function row() { return aaRowId(page, name); }
+  try {
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, `${listPath}Add/index.jsp`);
+    await page.locator('td[width="82%"] input[name="description"]').fill(name);
+    await page.locator('td[width="82%"] input[name="blacklistSelection"][value="true"]').check();
+    await page.evaluate(() => { window.__bwRingbackDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === (preAlerting ? `${listPath}Add/index.jsp` :
+        '/commpilot/servlet/CustomRingbackUserServlet'),
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click({ noWaitAfter: true });
+    const found = await response;
+    await page.waitForTimeout(600);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwRingbackDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 420) }));
+    await openList();
+    const rowId = await row();
+    saved = found?.status() === 200 && state.sameDocument && !!rowId;
+    writeDeep(ids[1], saved ? 'passed' : 'failed',
+      `${service} Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'} at ${state.path}; ` +
+      `${rowId ? 'fresh list readback found criterion' : `not found: ${state.text}`}.`);
+    if (rowId) console.log(JSON.stringify({ event: 'selective-announcement-row', service, level, name,
+      html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1500)) }));
+  } finally {
+    try {
+      await openList();
+      const rowId = await row();
+      if (rowId) {
+        await page.locator(`#${rowId} a.tableLink`).first().click();
+        await waitPath(page, `${listPath}Modify/index.jsp`);
+        const deleteButton = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+        if (!await deleteButton.count()) throw new Error(`${service} Modify has no Delete`);
+        page.once('dialog', dialog => dialog.accept());
+        await deleteButton.click({ noWaitAfter: true });
+        await page.waitForTimeout(600);
+      }
+      await openList();
+      const deleted = !(await row());
+      writeDeep(`lifecycle:${level.toLowerCase().replace(/\W+/g, '-')}-${preAlerting ? 'pre-alerting' : 'custom-ringback'}-delete`,
+        deleted ? 'passed' : 'failed',
+        `Disposable ${service} ${name} ${deleted ? 'is absent' : 'still exists'} after Delete.`);
+      if (saved && deleted) writeDeep(ids[0], 'passed',
+        `${service} Add and Delete stayed in PJAX; fresh reads confirmed ${name} appeared and was removed.`);
+    } catch (error) {
+      writeDeep(`lifecycle:${level.toLowerCase().replace(/\W+/g, '-')}-${preAlerting ? 'pre-alerting' : 'custom-ringback'}-delete`,
+        'failed', `${service} ${name} cleanup needs inspection: ${error.message.slice(0, 160)}`);
+    }
+  }
+}
+async function exerciseUserRingCriterion(page, label) {
+  const types = {
+    'Sequential Ring - Off': { list: '/commpilot/User/SeqRing/', add: 'Add/index.jsp', id: 'discovered-606' },
+    'Simultaneous Ring Family - Off': { list: '/commpilot/User/SimRing/Family/', add: 'Add/index.jsp', id: 'discovered-607' },
+    'Simultaneous Ring Personal - Off': { list: '/commpilot/User/SimRing/', add: 'Add/', id: 'discovered-608' }
+  };
+  const type = types[label];
+  if (!type) throw new Error(`Unknown user ring criterion ${label}`);
+  const name = `PJAX ${label.startsWith('Sequential') ? 'seq' :
+    label.includes('Family') ? 'family' : 'personal'} ${Date.now().toString(36)}`;
+  let saved = false;
+  async function openList() {
+    await openFolder(page);
+    const prefix = label.replace(/ - Off$/, ' - ');
+    await page.locator('td[width="82%"] a.navMenuItem')
+      .filter({ hasText: new RegExp(`^${prefix}(?:On|Off)$`) }).click();
+    await waitPath(page, type.list);
+  }
+  async function row() { return aaRowId(page, name); }
+  try {
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, `${type.list}${type.add}`);
+    await page.locator('td[width="82%"] input[name="description"]').fill(name);
+    await page.locator('td[width="82%"] input[name="blacklistSelection"][value="true"]').check();
+    await page.evaluate(() => { window.__bwRingCriterionDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === `${type.list}${type.add}`,
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click({ noWaitAfter: true });
+    const found = await response;
+    await page.waitForTimeout(450);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwRingCriterionDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 330) }));
+    await openList();
+    const rowId = await row();
+    saved = found?.status() === 200 && state.sameDocument && !!rowId;
+    writeDeep(type.id, saved ? 'passed' : 'failed',
+      `${label} Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'} at ${state.path}; ` +
+      `${rowId ? 'fresh list readback found criterion' : `not found: ${state.text}`}.`);
+    if (rowId) console.log(JSON.stringify({ event: 'ring-criterion-row', label, name,
+      html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1100)) }));
+  } finally {
+    try {
+      await openList();
+      const rowId = await row();
+      if (rowId) {
+        await page.locator(`#${rowId} a.tableLink`).first().click();
+        await page.waitForFunction(value => location.pathname.includes(value) &&
+          location.pathname.includes('/Modify/'), type.list, { timeout: 15000 });
+        const deleteButton = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+        if (!await deleteButton.count()) throw new Error(`${label} Modify has no Delete`);
+        page.once('dialog', dialog => dialog.accept());
+        await deleteButton.click({ noWaitAfter: true });
+        await page.waitForTimeout(500);
+      }
+      await openList();
+      const deleted = !(await row());
+      writeDeep(`lifecycle:user-${label.toLowerCase().replace(/\W+/g, '-')}-delete`,
+        deleted ? 'passed' : 'failed',
+        `Disposable ${label} criterion ${name} ${deleted ? 'is absent' : 'still exists'} after Delete.`);
+    } catch (error) {
+      writeDeep(`lifecycle:user-${label.toLowerCase().replace(/\W+/g, '-')}-delete`,
+        'failed', `${label} criterion ${name} cleanup needs inspection: ${error.message.slice(0, 160)}`);
     }
   }
 }
@@ -1720,10 +1945,36 @@ async function exerciseCallCenterCode(page, kind) {
 async function probe(page, label) {
   const link = page.locator('td[width="82%"] a.navMenuItem').filter({ hasText: new RegExp(
     `^\\s*${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`) }).first();
+  if (process.env.BW_READ_ONLY_AUDIT === '1')
+    await page.evaluate(() => { window.__bwReadOnlyDocument = document; });
   await link.click();
   await page.waitForFunction(() => location.pathname !== '/commpilot/Common/folder_contents.jsp' &&
     !!document.querySelector('td[width="82%"]'), null, { timeout: 20000 });
   const entry = await page.evaluate(() => ({ path: location.pathname, title: document.title }));
+  if (process.env.BW_READ_ONLY_AUDIT === '1') {
+    const state = await page.evaluate(() => ({
+      sameDocument: document === window.__bwReadOnlyDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText || '',
+      editableCount: [...document.querySelectorAll('td[width="82%"] input, td[width="82%"] select, td[width="82%"] textarea')]
+        .filter(item => item.getClientRects().length && !item.disabled &&
+          !['hidden', 'button', 'submit', 'reset'].includes(item.type)).length,
+      rowCount: document.querySelectorAll('td[width="82%"] tr[id^="Row"]').length,
+      actions: [...document.querySelectorAll('td[width="82%"] input, td[width="82%"] button')]
+        .filter(item => item.getClientRects().length &&
+          ['submit', 'button'].includes(item.type))
+        .map(item => item.name || item.value || item.textContent.trim()) }));
+    if (state.sameDocument && state.rowCount === 0 && state.actions.length > 0 &&
+        (/This service has no configuration\./i.test(state.text) || state.editableCount === 0) &&
+        state.actions.every(action => /^ok$/i.test(action)))
+      writeReadOnlyPage(label, `Opened ${entry.path} in the same document; ` +
+        `${/This service has no configuration\./i.test(state.text) ?
+          'CommPilot states that this service has no configuration' :
+          'all settings are disabled in this sandbox'}; only OK navigation is available.`);
+    else console.log(JSON.stringify({ event: 'read-only-needs-action', label,
+      path: entry.path, sameDocument: state.sameDocument,
+      actions: state.actions.slice(0, 12) }));
+    return;
+  }
   if (process.env.BW_VON_FIND_LASTNAME && level === 'Group' &&
       folder === 'Profile' && label === 'Virtual On-Net Enterprise Extensions') {
     const value = process.env.BW_VON_FIND_LASTNAME;
@@ -1944,12 +2195,21 @@ async function probe(page, label) {
     return;
   }
   if (process.env.BW_INSPECT_SIMPLE_LIST === '1') {
+    if (process.env.BW_INSPECT_SCRIPTS === '1') console.log(JSON.stringify({
+      event: 'simple-page-scripts', label, scripts: await page.evaluate(() =>
+        [...document.querySelectorAll('td[width="82%"] script')]
+          .map(item => item.textContent || '')
+          .filter(item => /useSPSettings|aocdDelay|addClickListenerToButtons|buttonClicked/.test(item))
+          .map(item => item.slice(0, 2400)).slice(0, 5)) }));
     console.log(JSON.stringify({ event: 'simple-list-inspect', level, folder, label,
       state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
         text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 700),
         controls: [...document.querySelectorAll('td[width="82%"] input, td[width="82%"] select')]
           .filter(item => item.getClientRects().length)
-          .map(item => ({ name: item.name, type: item.type, value: item.value })).slice(0, 30),
+          .map(item => ({ name: item.name, type: item.type, value: item.value,
+            disabled: item.disabled, checked: item.checked,
+            onclick: item.getAttribute('onclick')?.slice(0, 180) || null,
+            formAction: item.form?.getAttribute('action') || null })).slice(0, 30),
         rows: [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
           .slice(0, 2).map(item => item.outerHTML.slice(0, 1200)) })) }));
     return;
@@ -2706,6 +2966,31 @@ async function probe(page, label) {
     await exerciseSpeedDial100(page);
     return;
   }
+  if (process.env.BW_ALIAS_LIFECYCLE === '1' &&
+      ['User', 'Hunt Group', 'Call Center'].includes(level) &&
+      folder === 'Messaging' && label === 'Aliases') {
+    await exerciseMessagingAlias(page);
+    return;
+  }
+  if (process.env.BW_CUSTOM_RINGBACK_LIFECYCLE === '1' &&
+      ['User', 'Hunt Group', 'Call Center'].includes(level) &&
+      folder === 'Incoming Calls' && label.startsWith('Custom Ringback User - ')) {
+    await exerciseSelectiveAnnouncement(page);
+    return;
+  }
+  if (process.env.BW_PRE_ALERTING_LIFECYCLE === '1' &&
+      ['User', 'Hunt Group', 'Call Center'].includes(level) &&
+      folder === 'Incoming Calls' && label.startsWith('Pre-alerting Announcement - ')) {
+    await exerciseSelectiveAnnouncement(page, true);
+    return;
+  }
+  if (process.env.BW_USER_RING_CRITERION_LIFECYCLE === '1' && level === 'User' &&
+      folder === 'Incoming Calls' &&
+      ['Sequential Ring - Off', 'Simultaneous Ring Family - Off',
+        'Simultaneous Ring Personal - Off'].includes(label)) {
+    await exerciseUserRingCriterion(page, label);
+    return;
+  }
   if (process.env.BW_DEVICE_PROFILE_LIFECYCLE === '1' && level === 'Group' &&
       folder === 'Resources' && label === 'Identity/Device Profiles') {
     await exerciseDeviceProfile(page);
@@ -2768,8 +3053,7 @@ async function probe(page, label) {
   const apply = page.locator('td[width="82%"] form[name="mainForm"] input[name="apply"][type="submit"]:visible').first();
   const hasFile = await page.locator('td[width="82%"] form[name="mainForm"] input[type="file"]').count() > 0;
   const hasPassword = await page.locator('td[width="82%"] form[name="mainForm"] input[type="password"]').count() > 0;
-  const unsuitable = /\/Add\/|\/Import\/|\/New\//i.test(entry.path) ||
-    /\b(?:Add|Import|New)\b/i.test(entry.title) || hasPassword ||
+  const unsuitable = /\/Add\/|\/Import\/|\/New\//i.test(entry.path) || hasPassword ||
     (hasFile && process.env.BW_ALLOW_EMPTY_FILE_FORM !== '1');
   if (unsuitable || !await apply.count()) {
     console.log(JSON.stringify({ event: 'apply-skip', label, path: entry.path,
@@ -2964,6 +3248,10 @@ async function probe(page, label) {
           process.env.BW_VON_FIND_LASTNAME ||
           process.env.BW_VON_CLEAN_LASTNAME ||
           process.env.BW_SPEED_DIAL_LIFECYCLE === '1' ||
+          process.env.BW_ALIAS_LIFECYCLE === '1' ||
+          process.env.BW_CUSTOM_RINGBACK_LIFECYCLE === '1' ||
+          process.env.BW_PRE_ALERTING_LIFECYCLE === '1' ||
+          process.env.BW_USER_RING_CRITERION_LIFECYCLE === '1' ||
           process.env.BW_DEVICE_PROFILE_LIFECYCLE === '1' ||
           process.env.BW_SAC_LIFECYCLE === '1' ||
           process.env.BW_EMERGENCY_ZONE_LIFECYCLE === '1' ||
