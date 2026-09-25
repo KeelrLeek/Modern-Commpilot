@@ -79,8 +79,13 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body {
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body .screenName,
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body > script { display:none !important; }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body > table { width:100%; }
-html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body td[width="50%"][valign="TOP"] > table:has(> tbody > tr > td.menuCategory) {
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body td:is([width="50%"],[width="100%"])[valign="TOP"] > table:has(> tbody > tr > td.menuCategory) {
   box-shadow:none;
+}
+/* CommPilot uses a 100% cell when a folder has Basic only. Keep that one
+   column at the same width as Basic beside Advanced in a two-column folder. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body td[width="100%"][valign="TOP"] > table:has(> tbody > tr > td.menuCategory) {
+  width:calc(50% - 10px) !important;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-loading {
   color:var(--d-muted);

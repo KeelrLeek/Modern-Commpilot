@@ -219,7 +219,7 @@ body[id="initBody.menuTemplate"] .tip {
 }
 body[id="initBody.menuTemplate"] td[width="50%"][valign="TOP"]:first-child { padding-right: 10px; }
 body[id="initBody.menuTemplate"] td[width="50%"][valign="TOP"]:last-child { padding-left: 10px; }
-body[id="initBody.menuTemplate"] td[width="50%"][valign="TOP"] > table:has(> tbody > tr > td.menuCategory) {
+body[id="initBody.menuTemplate"] td:is([width="50%"],[width="100%"])[valign="TOP"] > table:has(> tbody > tr > td.menuCategory) {
   overflow: hidden;
   border: 1px solid var(--cp-line);
   border-radius: 14px;
@@ -247,12 +247,12 @@ body[id="initBody.menuTemplate"] .menuCategory::before {
   box-shadow: 0 0 10px #69ddd499;
   vertical-align: 1px;
 }
-body[id="initBody.menuTemplate"] td[width="50%"][valign="TOP"] > table tr:has(> td[height="5"]) { display: none; }
-body[id="initBody.menuTemplate"] td[width="50%"][valign="TOP"] > table tr:has(a.navMenuItem) > td {
+body[id="initBody.menuTemplate"] td:is([width="50%"],[width="100%"])[valign="TOP"] > table tr:has(> td[height="5"]) { display: none; }
+body[id="initBody.menuTemplate"] td:is([width="50%"],[width="100%"])[valign="TOP"] > table tr:has(a.navMenuItem) > td {
   position: relative;
   padding: 13px 18px 0;
 }
-body[id="initBody.menuTemplate"] td[width="50%"][valign="TOP"] > table tr:has(a.navMenuItem) > td::after {
+body[id="initBody.menuTemplate"] td:is([width="50%"],[width="100%"])[valign="TOP"] > table tr:has(a.navMenuItem) > td::after {
   content: "↗";
   position: absolute;
   right: 18px;
@@ -260,14 +260,14 @@ body[id="initBody.menuTemplate"] td[width="50%"][valign="TOP"] > table tr:has(a.
   color: #83a3b8;
   font: 17px/1 "Inter", sans-serif;
 }
-body[id="initBody.menuTemplate"] td[width="50%"][valign="TOP"] > table tr:has(a.navMenuItem) + tr > td {
+body[id="initBody.menuTemplate"] td:is([width="50%"],[width="100%"])[valign="TOP"] > table tr:has(a.navMenuItem) + tr > td {
   padding: 4px 32px 14px 18px;
   border-bottom: 1px solid var(--cp-line-soft);
   color: var(--cp-muted);
   font: 400 12.5px/1.48 "Inter", sans-serif;
 }
-body[id="initBody.menuTemplate"] td[width="50%"][valign="TOP"] > table tr:has(a.navMenuItem):hover > td,
-body[id="initBody.menuTemplate"] td[width="50%"][valign="TOP"] > table tr:has(a.navMenuItem):hover + tr > td {
+body[id="initBody.menuTemplate"] td:is([width="50%"],[width="100%"])[valign="TOP"] > table tr:has(a.navMenuItem):hover > td,
+body[id="initBody.menuTemplate"] td:is([width="50%"],[width="100%"])[valign="TOP"] > table tr:has(a.navMenuItem):hover + tr > td {
   background: #25435d;
 }
 body[id="initBody.menuTemplate"] a.navMenuItem {
