@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.35-native";
+  var CP_PJAX_VERSION = "0.3.36-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -1688,7 +1688,7 @@
         return { headings: headings, rows: rows };
       };
       var out = scan(txt);
-      if (!out.rows.length && /&lt;row&gt;/.test(txt)) out = scan(cpUxpDecodeEnt(txt));
+      if (!out.headings.length && /&lt;colHeading&gt;/.test(txt)) out = scan(cpUxpDecodeEnt(txt));
       return out;
     }
     function cpUxpReportFetch(deptValue) {
@@ -1709,7 +1709,12 @@
         credentials: "same-origin", redirect: "manual", body: params.toString()
       }).then(function (r) {
         if (r.type === "opaqueredirect" || r.status === 0 || r.status >= 300) return { auth: false };
-        return r.text().then(function (txt) { return cpUxpParseReport(txt); });
+        return r.text().then(function (txt) {
+          if (/Please login again|not authorized to access the system|<form[^>]+(?:login|password)/i.test(txt)) return { auth: false };
+          var report = cpUxpParseReport(txt);
+          if (!report.headings.length) throw new Error("CommPilot did not return the directory report");
+          return report;
+        });
       });
     }
     // Row TYPE: a populated "Service Name" ⇒ a service instance (Hunt Group / Call Center / Auto Attendant /
@@ -6377,10 +6382,33 @@
       }
     }
 
+    function cpAttachNativeDirectoryExport() {
+      if (!/\/Group\/CompanyDir\//.test(location.pathname)) return;
+      var search = document.getElementById("searchTable");
+      var field = document.getElementById("findKey0");
+      if (!search || !field || document.getElementById("cp-native-directory-export")) return;
+      var button = document.createElement("button");
+      button.id = "cp-native-directory-export";
+      button.type = "button";
+      button.textContent = "Export directory";
+      button.title = "Download the full group directory as two Excel workbooks in a ZIP file";
+      button.addEventListener("click", function () {
+        var opts = [].map.call(field.options, function (o) {
+          return { value: o.value, label: (o.textContent || "").trim() };
+        });
+        cpExportUsers({
+          fieldOpts: opts,
+          entity: (document.title || "").replace(/:\s*Group Directory\s*$/i, "").trim()
+        });
+      });
+      search.parentNode.insertBefore(button, search);
+    }
+
     function cpAutoConsole() {
       // Keep the server's menu, list/search table, and page layout intact.
       // PJAX still handles the same navigation URLs and response transport.
-      return;
+      // The PJAX reskin event can fire just before history updates the URL.
+      setTimeout(cpAttachNativeDirectoryExport, 0);
     }
 
     // Build console on reskin (runs after every pjax swap)

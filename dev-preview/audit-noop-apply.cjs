@@ -4034,6 +4034,31 @@ async function probe(page, label) {
           .filter(row => row.textContent.includes(code)).length })) }));
     return;
   }
+  if (process.env.BW_INSPECT_DIRECTORY_EXPORT === '1') {
+    const button = page.locator('#cp-native-directory-export');
+    await button.waitFor({ timeout: 10000 });
+    const count = await button.count();
+    await button.click();
+    const modal = page.locator('.cp-modal-back .cp-uxp');
+    await modal.waitFor();
+    const modes = await modal.locator('input[name="cp-uxp-mode"]').evaluateAll(items =>
+      items.map(item => item.value));
+    if (process.env.BW_DIRECTORY_EXPORT_MODE === 'all') {
+      await modal.locator('input[name="cp-uxp-mode"][value="all"]').check();
+    }
+    await modal.locator('.cp-uxp-start').click();
+    const settled = await page.waitForFunction(() => /Export complete|Export stopped/.test(
+      document.querySelector('.cp-uxp-h')?.textContent || ''), null, { timeout: 15000 })
+      .then(() => true, () => false);
+    console.log(JSON.stringify({ event: 'directory-export-inspect', count, modes, settled,
+      state: await page.evaluate(() => ({ path: location.pathname,
+        heading: document.querySelector('.cp-uxp-h')?.textContent,
+        entries: document.querySelector('.cp-uxp-n')?.textContent,
+        detail: document.querySelector('.cp-uxp-sub')?.textContent,
+        warning: document.querySelector('.cp-uxp-warns')?.textContent?.slice(0, 400),
+        downloadReady: !document.querySelector('.cp-uxp-dl')?.classList.contains('cp-uxp-hide') })) }));
+    return;
+  }
   if (process.env.BW_INSPECT_SIMPLE_LIST === '1') {
     if (process.env.BW_INSPECT_SCRIPTS === '1') console.log(JSON.stringify({
       event: 'simple-page-scripts', label, scripts: await page.evaluate(() =>
@@ -6522,6 +6547,7 @@ async function probe(page, label) {
           process.env.BW_DIGIT_STRING_LIFECYCLE === '1' ||
           process.env.BW_DIALABLE_CALLER_ID_LIFECYCLE === '1' ||
           process.env.BW_INSPECT_SIMPLE_LIST === '1' ||
+          process.env.BW_INSPECT_DIRECTORY_EXPORT === '1' ||
           process.env.BW_INSPECT_SEARCH_LIST === '1' ||
           process.env.BW_INSPECT_NUMBER_EDIT === '1' ||
           process.env.BW_NUMBER_DEPARTMENT_CYCLE === '1' ||

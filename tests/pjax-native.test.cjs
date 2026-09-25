@@ -2188,3 +2188,58 @@ test('Personal Assistant Delete replaces the stale invalid-criterion page with t
     assert.equal(await page.evaluate(() => document === window.initialDocument), true);
   } finally { await browser.close(); }
 });
+
+test('native Group Directory exposes the legacy two-workbook export without the old grid', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const requests = [];
+    const directory = `<!doctype html><html><head><title>Test Group: Group Directory</title></head><body>
+      <form name="leftNavForm"></form><input name="formtokenserial" value="token">
+      <table><tr><td width="82%"><form name="mainForm">
+        <input name="formtokenserial" value="token"><input name="xslURL" value="bglist_detail.xsl">
+        <table id="searchTable"><tr><td><select id="findKey0" name="findKey0">
+          <option value="UserLastName">Last Name</option>
+          <option value="ExactUserDepartment">Department</option>
+        </select><input name="findValue0"></td></tr></table>
+      </form></td></tr></table>
+      <script>window.redirectPost = function() {};</script></body></html>`;
+    const report = `<report><colHeading>Name</colHeading><colHeading>User Id</colHeading>
+      <colHeading>First Name</colHeading><colHeading>Last Name</colHeading>
+      <colHeading>Service Name</colHeading><colHeading>Department</colHeading>
+      <colHeading>Number</colHeading><colHeading>Extension</colHeading>
+      <colHeading>E-mail Address</colHeading>
+      <row><col>Doe, Jane</col><col>jane@example.test</col><col>Jane</col><col>Doe</col><col/>
+      <col>Support</col><col>+15551230000</col><col>1000</col><col>jane@example.test</col></row>
+      <row><col>Support Queue</col><col>queue@example.test</col><col/><col/><col>Hunt Group</col>
+      <col>Support</col><col>+15551230001</col><col>1001</col><col/></row></report>`;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      if (new URL(request.url()).pathname === '/commpilot/servlet/ClientBGListServlet') {
+        requests.push(new URLSearchParams(request.postData() || ''));
+        return route.fulfill({ status: 200, contentType: 'text/xml', body: report });
+      }
+      return route.fulfill({ status: 200, contentType: 'text/html', body: directory });
+    });
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Group/CompanyDir/');
+    await page.addScriptTag({ path: pjaxPath });
+    await page.locator('#cp-native-directory-export').waitFor();
+    await page.evaluate(() => document.dispatchEvent(new Event('cp:reskin')));
+    assert.equal(await page.locator('#cp-native-directory-export').count(), 1);
+    await page.locator('#cp-native-directory-export').click();
+    await page.locator('.cp-uxp-start').click();
+    await page.getByText('Export complete', { exact: true }).waitFor();
+    assert.match(await page.locator('.cp-uxp-n').innerText(), /1 users exported/);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].get('xslURL'), 'bglist_detail.xsl');
+    assert.equal(requests[0].get('formtokenserial'), 'token');
+    await page.locator('.cp-uxp-cancel').click();
+    await page.locator('#cp-native-directory-export').click();
+    await page.locator('input[name="cp-uxp-mode"][value="all"]').check();
+    await page.locator('.cp-uxp-start').click();
+    await page.getByText('Export complete', { exact: true }).waitFor();
+    assert.match(await page.locator('.cp-uxp-n').innerText(), /2 entries exported/);
+    assert.equal(requests.length, 2);
+  } finally { await browser.close(); }
+});
