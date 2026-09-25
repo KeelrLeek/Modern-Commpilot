@@ -112,6 +112,7 @@
   var cpSectionRunning = false;
   var cpSectionAborted = false;
   var cpConsoleObserver = null;
+  var cpPeekObserver = null;
   var cpFrameSeq = 0;
   var cpSpEntry = null;
   // The list LANDING a Find/Find All search was launched from. After a search the address bar reads
@@ -5334,7 +5335,7 @@
       function cancel(ev) { if (ev) { ev.stopPropagation(); ev.preventDefault(); } done(); }
       okB.addEventListener("click", save);
       noB.addEventListener("click", cancel);
-      inp.addEventListener("click", function (ev) { ev.stopPropagation(); ev.preventDefault(); });
+      inp.addEventListener("click", function (ev) { ev.stopPropagation(); });
       inp.addEventListener("keydown", function (ev) {
         ev.stopPropagation();
         if (ev.key === "Enter") { ev.preventDefault(); save(); }
@@ -5356,6 +5357,8 @@
             if (nt) { var ts = document.getElementsByName("formtokenserial"); for (var i = 0; i < ts.length; i++) ts[i].value = nt.value; }
             var form = res.doc.querySelector('form[name="mainForm"]');
             if (!form) { resolve(false); return; }
+            var sourceInputs = [].slice.call(form.getElementsByTagName("input")).filter(function (el) { return el.name === edit.name && el.type === "text"; });
+            if (sourceInputs.length !== 1) { resolve(false); return; }
             var params = {};
             [].slice.call(form.querySelectorAll("input, select, textarea")).forEach(function (el) {
               if (!el.name) return;
@@ -5372,8 +5375,16 @@
               if (!res2 || res2.auth === false || res2.err || !res2.doc) { resolve(false); return; }
               var nt2 = res2.doc.getElementsByName("formtokenserial")[0];
               if (nt2) { var ts2 = document.getElementsByName("formtokenserial"); for (var j = 0; j < ts2.length; j++) ts2[j].value = nt2.value; }
-              var chk = res2.doc.querySelector('input[name="' + edit.name + '"]');
-              resolve(chk ? (chk.value || "").trim() === newValue : true);
+              var chk = [].slice.call(res2.doc.getElementsByName(edit.name)).find(function (el) { return el.tagName === "INPUT"; });
+              if (!chk || (chk.value || "").trim() !== newValue) { resolve(false); return; }
+              var tok3 = document.getElementsByName("formtokenserial")[0];
+              return cpFollow(edit.path, {}, tok3 ? tok3.value : null, 0).then(function (res3) {
+                if (!res3 || res3.auth === false || res3.err || !res3.doc) { resolve(false); return; }
+                var nt3 = res3.doc.getElementsByName("formtokenserial")[0];
+                if (nt3) { var ts3 = document.getElementsByName("formtokenserial"); for (var k = 0; k < ts3.length; k++) ts3[k].value = nt3.value; }
+                var saved = [].slice.call(res3.doc.getElementsByName(edit.name)).find(function (el) { return el.tagName === "INPUT"; });
+                resolve(!!saved && (saved.value || "").trim() === newValue);
+              });
             });
           }).catch(function () { resolve(false); });
         });
@@ -5472,10 +5483,26 @@
 
     function cpSummarizeLeaves(bodyEl) {
       if (!bodyEl) return;
+      var board = bodyEl.closest(".cp-console");
+      if (!board) return;
+      if (!cpPeekObserver && typeof IntersectionObserver === "function") {
+        var observer = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting) return;
+            observer.unobserve(entry.target);
+            if (entry.target.__cpPeekLoad) entry.target.__cpPeekLoad();
+          });
+        }, { root:board, rootMargin:"160px" });
+        cpPeekObserver = observer;
+      }
       CP_LEAF_ALLOW.forEach(function (target) {
         var anchor = bodyEl.querySelector('a[name="' + target + '"]');
         if (!anchor) return;
-        var card = anchor.closest(".cp-menu-card") || anchor.parentNode;
+        // The native menu keeps title and description in consecutive TRs. Put
+        // Peek under that option's description without rebuilding the menu card.
+        var titleRow = anchor.closest("tr");
+        var descRow = titleRow && titleRow.nextElementSibling;
+        var card = descRow && !descRow.querySelector("a.navMenuItem") && descRow.querySelector("td");
         if (!card || card.querySelector(".cp-leaf-summary")) return;  // already summarized
         var box = document.createElement("div");
         box.className = "cp-leaf-summary";
@@ -5484,7 +5511,7 @@
         loading.textContent = "\u2026";
         box.appendChild(loading);
         card.appendChild(box);
-        cpFetchLeaf("/commpilot" + target).then(function (rows) {
+        box.__cpPeekLoad = function () { cpFetchLeaf("/commpilot" + target).then(function (rows) {
           if (cpSectionAborted || !document.querySelector(".cp-console") || !box.isConnected) { return; }
           if (!rows) { box.remove(); return; }
           box.innerHTML = "";
@@ -5555,7 +5582,9 @@
               if (off >= 0 && off < 320) lfCons.scrollTop += off;
             }
           }
-        }).catch(function () { try { box.remove(); } catch (e) {} });
+        }).catch(function () { try { box.remove(); } catch (e) {} }); };
+        if (cpPeekObserver) cpPeekObserver.observe(box);
+        else box.__cpPeekLoad();
       });
     }
     // Navigate to a breadcrumb segment's level (ancestor segments are clickable links). The auth-trail
@@ -5873,6 +5902,7 @@
       if (document.querySelector(".cp-console")) return;
       var contentCell = document.querySelector('td[width="82%"]');
       if (!contentCell) return;
+      if (cpPeekObserver) { cpPeekObserver.disconnect(); cpPeekObserver = null; }
       cpSectionAborted = false;
       // Enumerate folders from the sidebar
       var folders = [];
@@ -5966,6 +5996,22 @@
         event.preventDefault();
         event.stopImmediatePropagation();
         cpShowBoardFailure();
+      }, true);
+      // CommPilot puts each option's title and description in separate table rows.
+      // Forward clicks from either row to its real anchor so the complete visible
+      // option is selectable while PJAX still sees the native link and its wiring.
+      consoleDiv.addEventListener("click", function (event) {
+        if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+        if (document.body.classList.contains("cp-help-active")) return;
+        if (event.target.closest("a, button, input, select, textarea, label, [role='button']")) return;
+        var row = event.target.closest("tr");
+        if (!row || !row.closest(".cp-console-body")) return;
+        var titleRow = row.querySelector("a.navMenuItem") ? row : row.previousElementSibling;
+        if (!titleRow || (titleRow !== row && titleRow.nextElementSibling !== row)) return;
+        var link = titleRow.querySelector("a.navMenuItem");
+        if (!link || !link.closest(".cp-console-body")) return;
+        event.preventDefault();
+        link.click();
       }, true);
       // The native breadcrumb remains in the fixed header. This board contains
       // only the folder options, so the right pane can scroll independently.
@@ -6421,6 +6467,9 @@
           cpScrollSpy();
         }
         cpHeadFade();
+        if (!cpBoardFailed && secs.length && /^R\d+$/.test(secs[0].getAttribute("data-cp-folder") || "")) {
+          secs.forEach(function (s) { cpSummarizeLeaves(s.querySelector(".cp-console-body")); });
+        }
         return;
       }
       var sec = secs[order[i]];
@@ -6514,6 +6563,7 @@
       var isFolderMenu = !!(cell && cell.querySelector('a.navMenuItem') &&
         document.querySelector('form[name="leftNavForm"] a.leftnavfolder, form[name="leftNavForm"] a.leftnavfolderopen'));
       if (!isFolderMenu) {
+        if (cpPeekObserver) { cpPeekObserver.disconnect(); cpPeekObserver = null; }
         document.documentElement.classList.remove("cp-board-active");
         if (cpPopScroll !== null && cell) {
           var restoreTop = cpPopScroll;
