@@ -36,6 +36,7 @@
         link.style.setProperty("--cp-nav-icon", url);
       }
     }
+    document.dispatchEvent(new Event("cp:navigation-decorated"));
   }
 
   if (document.readyState === "loading") {

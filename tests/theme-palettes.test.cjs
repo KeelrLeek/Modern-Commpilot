@@ -19,23 +19,36 @@ test('palette follows stored setting through changes and PJAX shell replacement'
     await page.addInitScript(() => {
       let listener;
       window.chrome.storage = {
-        local: { get: (_, done) => done({ cpThemePalette: 'atlas' }) },
+        local: {
+          get: (_, done) => done({}),
+          set: (value, done) => {
+            listener({ cpThemePalette: { newValue: value.cpThemePalette } }, 'local');
+            done();
+          }
+        },
         onChanged: { addListener: fn => { listener = fn; } }
       };
+      window.chrome.runtime = { getURL: path => `chrome-extension://test/${path}` };
       window.__choosePalette = value => listener({ cpThemePalette: { newValue: value } }, 'local');
     });
     await page.route('https://apps-sbx.avpaas.io/**', route => route.fulfill({
       status: 200, contentType: 'text/html', body: `<!doctype html><html><body id="initBody.menuTemplate">
-        <table><tr><td class="headerBar"><img src="/conf/clientLogo.gif"></td></tr></table>
+        <table><tr><td class="headerBar"><img src="/conf/clientLogo.gif"></td>
+        <td class="headerBar"><a class="headerLink">Help</a><a class="headerLink">Home</a></td></tr></table>
         <table height="100%"><tbody><tr><td class="headandfoot" width="18%">
-          <form name="leftNavForm"><a class="leftnavfolder" href="#">Profile</a></form>
+          <form name="leftNavForm">${['Profile', 'Incoming Calls', 'Outgoing Calls', 'Call Control',
+            'Calling Plans', 'Client Applications', 'Messaging', 'Utilities']
+              .map(label => `<a class="leftnavfolder" href="#">${label}</a>`).join('')}</form>
         </td><td width="82%" valign="top"><h1 class="screenName">Profile</h1></td></tr></tbody></table>
       </body></html>`
     }));
     await page.goto('https://apps-sbx.avpaas.io/commpilot/Common/folder_contents.jsp');
     await page.addStyleTag({ path: path.join(root, 'src/content/native-theme.css') });
     await page.addStyleTag({ path: path.join(root, 'src/content/theme-palettes.css') });
+    await page.addStyleTag({ path: path.join(root, 'src/content/theme-settings.css') });
     await page.addScriptTag({ path: path.join(root, 'src/content/theme-settings.js') });
+    await page.addScriptTag({ path: path.join(root, 'src/content/theme-icons.js') });
+    await page.addScriptTag({ path: path.join(root, 'src/content/native-theme.js') });
     const snapshot = () => page.evaluate(() => ({
       palette: document.documentElement.dataset.cpDirection || 'midnight',
       background: getComputedStyle(document.body).backgroundColor,
@@ -46,6 +59,29 @@ test('palette follows stored setting through changes and PJAX shell replacement'
     assert.equal(initial.palette, 'atlas');
     assert.equal(initial.background, 'rgb(237, 242, 247)');
     assert.match(initial.shellTop, /^\d+px$/);
+    await page.waitForFunction(() => [...document.querySelectorAll('a.leftnavfolder')]
+      .every(link => link.dataset.cpNavIcon &&
+        getComputedStyle(link, '::before').backgroundImage.includes('/assets/icons/palette-')));
+    await page.getByRole('button', { name: 'Appearance' }).click();
+    await page.getByRole('dialog', { name: 'Appearance settings' }).waitFor();
+    await page.getByText('Graphite', { exact: true }).click();
+    assert.equal((await snapshot()).background, 'rgb(21, 25, 29)');
+    assert.equal(await page.locator('#cp-appearance-panel input[value="graphite"]').isChecked(), true);
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#cp-appearance-panel').isHidden(), true);
+    await page.evaluate(() => {
+      document.querySelector('#cp-appearance-toggle').parentElement.innerHTML =
+        '<a class="headerLink">Help</a><a class="headerLink">Home</a>';
+      document.querySelector('form[name="leftNavForm"]').innerHTML =
+        ['Profile', 'Incoming Calls', 'Outgoing Calls', 'Call Control', 'Calling Plans',
+          'Client Applications', 'Messaging', 'Utilities']
+          .map(label => `<a class="leftnavfolder" href="#">${label}</a>`).join('');
+      document.dispatchEvent(new Event('cp:morphed'));
+    });
+    await page.getByRole('button', { name: 'Appearance' }).waitFor();
+    await page.waitForFunction(() => [...document.querySelectorAll('a.leftnavfolder')]
+      .every(link => link.dataset.cpNavIcon &&
+        getComputedStyle(link, '::before').backgroundImage.includes('/assets/icons/palette-')));
     await page.evaluate(() => window.__choosePalette('graphite'));
     assert.equal((await snapshot()).background, 'rgb(21, 25, 29)');
     await page.evaluate(() => window.__choosePalette('terra'));
@@ -81,11 +117,15 @@ test('extension popup changes the active CommPilot page and keeps the choice in 
       args: [`--disable-extensions-except=${root}`, `--load-extension=${root}`]
     });
     await context.route('https://apps-sbx.avpaas.io/commpilot/Common/folder_contents.jsp', route =>
-      route.fulfill({ status: 200, contentType: 'text/html', body:
+      route.fulfill({ status: 200, contentType: 'text/html',
+        headers: { 'content-security-policy': "default-src 'self'; img-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" },
+        body:
         `<!doctype html><html><title>Profile</title><body id="initBody.menuTemplate">
-          <table><tr><td class="headerBar"><img src="/conf/clientLogo.gif"></td></tr></table>
+          <table><tr><td class="headerBar"><img src="/conf/clientLogo.gif"></td>
+            <td class="headerBar"><a class="headerLink">Help</a><a class="headerLink">Home</a></td></tr>
+            <tr><td class="headerBar"><span class="headerBarWelcome">Welcome Test User</span></td></tr></table>
           <table height="100%"><tr><td class="headandfoot" width="18%">
-            <form name="leftNavForm"><a class="leftnavfolder">Profile</a></form>
+            <form name="leftNavForm"><a class="leftnavfolder">Profile</a><a class="leftnavfolder">Incoming Calls</a></form>
           </td><td width="82%" valign="top"><h1 class="screenName">Profile</h1></td></tr></table>
         </body></html>` }));
     await context.route('https://apps-sbx.avpaas.io/commpilot/Login/', route =>
@@ -104,9 +144,40 @@ test('extension popup changes the active CommPilot page and keeps the choice in 
     }
     const page = await context.newPage();
     await openApp(page);
+    await page.waitForFunction(() => document.documentElement.dataset.cpDirection === 'atlas');
+    async function assertIconsLoad(palette) {
+      await page.waitForFunction(() => {
+        const targets = [
+          ...document.querySelectorAll('a.leftnavfolder, td.headerBar a.headerLink'),
+          document.querySelector('.headerBarWelcome')
+        ];
+        return targets.length === 5 && targets.every(target =>
+          getComputedStyle(target, '::before').backgroundImage.includes('chrome-extension://'));
+      });
+      const iconLoads = await page.evaluate(async () => {
+        const sources = [...document.querySelectorAll('a.leftnavfolder, td.headerBar a.headerLink')]
+          .map(link => getComputedStyle(link, '::before').backgroundImage.match(/url\("?([^"\)]+)/)?.[1]);
+        sources.push(getComputedStyle(document.querySelector('.headerBarWelcome'), '::before')
+          .backgroundImage.match(/url\("?([^"\)]+)/)?.[1]);
+        return Promise.all(sources.map(src => new Promise(resolve => {
+          const image = new Image();
+          image.onload = () => resolve({ src, loaded: image.naturalWidth > 0 });
+          image.onerror = () => resolve({ src, loaded: false });
+          image.src = src;
+        })));
+      });
+      assert.equal(iconLoads.length, 5);
+      assert.ok(iconLoads.every(({ src, loaded }) => src?.startsWith('chrome-extension://') && loaded),
+        `${palette} icons must load with CommPilot's CSP: ${JSON.stringify(iconLoads)}`);
+    }
+    await assertIconsLoad('Atlas');
+    await page.getByRole('button', { name: 'Appearance' }).click();
+    await page.getByRole('dialog', { name: 'Appearance settings' }).getByText('Graphite', { exact: true }).click();
+    await page.waitForFunction(() => document.documentElement.dataset.cpDirection === 'graphite');
+    await assertIconsLoad('Graphite');
     const popup = await context.newPage();
     await popup.goto('chrome-extension://gahgpfcnalnjfnlchhlhknidgnpllojg/src/popup/popup.html');
-    await popup.locator('input[value="midnight"]:checked').waitFor();
+    await popup.locator('input[value="graphite"]:checked').waitFor();
     await popup.locator('label[for="palette-atlas"]').click();
     await page.waitForFunction(() => document.documentElement.dataset.cpDirection === 'atlas');
     assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(237, 242, 247)');

@@ -1,4 +1,4 @@
-/* Optional CommPilot palettes; Midnight remains the default design. */
+/* CommPilot palettes; Atlas is the first-run default, and saved choices take priority. */
 html[data-cp-direction="atlas"] body[id="initBody.menuTemplate"] {
   --d-canvas:#edf2f7; --d-main:#f5f8fb; --d-surface:#ffffff; --d-raised:#f0f5f9;
   --d-header:#ffffff; --d-crumb:#eaf1f7; --d-side:#132d47; --d-side-hover:#254561;

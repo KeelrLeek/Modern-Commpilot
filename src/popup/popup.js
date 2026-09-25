@@ -6,11 +6,11 @@
   const status = document.getElementById("save-status");
   const footer = status.closest(".settings-footer");
   const options = [...document.querySelectorAll('input[name="palette"]')];
-  let savedPalette = "midnight";
+  let savedPalette = "atlas";
   let selectionChanged = false;
 
   function normalize(value) {
-    return palettes.has(value) ? value : "midnight";
+    return palettes.has(value) ? value : "atlas";
   }
 
   function showSelection(value) {

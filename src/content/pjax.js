@@ -4393,6 +4393,13 @@
                 cpHistoryCommitted = true;
                 cpPopReplaying = false;
               } catch (e) {}
+              // A new page must start at its top. Without this, a long form's
+              // body scroll carries into the next PJAX page and hides the
+              // CommPilot logo/Help row above the viewport. Leave replace
+              // entries alone so Back/Forward can restore their scroll.
+              if (cpHistoryMode === "push" && cpHistoryCommitted) {
+                try { window.scrollTo(0, 0); } catch (e) {}
+              }
               try { document.documentElement.setAttribute("data-cp-path", url); } catch (e) {}
 
               // Re-execute swapped scripts under nonce-CSP. CAPTURE each page DOMContentLoaded handler (e.g. the

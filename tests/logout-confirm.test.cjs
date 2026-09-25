@@ -73,7 +73,8 @@ test('native Logout confirms once, posts through PJAX, and opens Login directly'
     assert.equal(new URL(page.url()).pathname, '/commpilot/Common/folder_contents.jsp');
 
     await trigger.click();
-    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Sign out of CommPilot?' })
+      .getByRole('button', { name: 'Sign out', exact: true }).click();
     await page.waitForURL('**/commpilot/Login/', { timeout: 15000 });
     assert.equal(logoutPosts, 1);
     assert.equal(navigations.includes('/commpilot/servlet/Logout'), false);

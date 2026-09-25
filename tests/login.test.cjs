@@ -45,7 +45,7 @@ test('native login is centered with saved sign-ins and no setup password', async
       photo.onerror = () => reject(new Error('Transparent login photo did not load'));
       photo.src = url;
     }), photoUrl);
-    assert.deepEqual(photoSize, [800, 450]);
+    assert.deepEqual(photoSize, [354, 263]);
     const photoFile = fs.readFileSync(path.join(root, 'assets/login/comm-pilot-women-transparent.png'));
     assert.equal(photoFile[25], 6, 'PNG must have an alpha channel');
     const box = await page.locator('form[name="loginForm"]').boundingBox();

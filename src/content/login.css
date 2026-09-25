@@ -143,7 +143,10 @@ body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child
 }
 body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child(3) > td::before {
   content:""; position:absolute; top:calc(-1 * var(--lg-error-space)); right:0; bottom:0; width:44%;
-  background:var(--cp-login-photo,url("/commpilot/Graphics/login.gif")) right -40px top -82px/800px 465px no-repeat;
+  background-image:var(--cp-login-photo);
+  background-position:right top;
+  background-size:auto 100%;
+  background-repeat:no-repeat;
 }
 body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child(3) > td::after {
   content:"Welcome back."; position:absolute; top:155px; left:46px; width:44%;
@@ -185,6 +188,9 @@ body#loginBody form[name="loginForm"] > table[background] > tbody > tr:last-chil
   height:auto !important; padding:17px 28px 20px 8px; border-top:1px solid var(--lg-line);
   background:var(--lg-surface); color:var(--lg-muted);
   font:400 10px/1.35 "Inter","Segoe UI",Arial,sans-serif;
+}
+body#loginBody form[name="loginForm"] > table[background] > tbody > tr:last-child > td:first-child {
+  border-top:1px solid var(--lg-line); background:var(--lg-surface);
 }
 body#loginBody .copyrighttext { color:var(--lg-muted); font:inherit; }
 

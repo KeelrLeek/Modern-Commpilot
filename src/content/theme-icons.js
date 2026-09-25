@@ -19,10 +19,9 @@
     home: '<path d="m3.75 10 8.25-6.5L20.25 10v9.25H3.75V10Z"/><path d="M9.25 19.25v-6.5h5.5v6.5"/>',
     logout: '<path d="M10 4.25H6.25a2 2 0 0 0-2 2v11.5a2 2 0 0 0 2 2H10M14 8l4 4-4 4M8.75 12H18"/>',
   };
-  function icon(name, stroke) {
-    const paths = (shapes[name] || shapes.unknown).replaceAll('var(--icon-bg)', 'none');
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
-    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+  function icon(name, tone = 'light') {
+    const file = `assets/icons/palette${tone === 'dark' ? '-dark' : ''}-${shapes[name] ? name : 'unknown'}.svg`;
+    return `url("${chrome.runtime.getURL(file)}")`;
   }
   function decorate() {
     if (document.body?.id !== 'initBody.menuTemplate') return;
@@ -35,13 +34,13 @@
     }
     if (!active) return;
     for (const link of document.querySelectorAll('a[data-cp-nav-icon]')) {
-      link.style.setProperty('--cp-palette-icon', icon(link.dataset.cpNavIcon, '#e7f1f3'));
+      link.style.setProperty('--cp-palette-icon', icon(link.dataset.cpNavIcon));
     }
     for (const link of document.querySelectorAll('td.headerBar a.headerLink')) {
       const label = (link.dataset.cpOriginalLabel || link.textContent).trim().replaceAll(/[\[\]]/g, '').toLowerCase();
       if (shapes[label]) {
-        link.style.setProperty('--cp-palette-icon-dark', icon(label, '#153448'));
-        link.style.setProperty('--cp-palette-icon-light', icon(label, '#edf6f5'));
+        link.style.setProperty('--cp-palette-icon-dark', icon(label, 'dark'));
+        link.style.setProperty('--cp-palette-icon-light', icon(label));
         if (label === 'logout' && !link.dataset.cpOriginalLabel) {
           link.dataset.cpOriginalLabel = link.textContent;
           link.textContent = 'Sign out';
@@ -49,8 +48,8 @@
       }
     }
     for (const welcome of document.querySelectorAll('.headerBarWelcome')) {
-      welcome.style.setProperty('--cp-palette-user-icon-dark', icon('profile', '#153448'));
-      welcome.style.setProperty('--cp-palette-user-icon-light', icon('profile', '#edf6f5'));
+      welcome.style.setProperty('--cp-palette-user-icon-dark', icon('profile', 'dark'));
+      welcome.style.setProperty('--cp-palette-user-icon-light', icon('profile'));
     }
   }
 
@@ -58,6 +57,7 @@
     document.addEventListener('DOMContentLoaded', decorate, { once: true });
   } else decorate();
   document.addEventListener('cp:theme-change', decorate);
+  document.addEventListener('cp:navigation-decorated', decorate);
   document.addEventListener('cp:morphed', () => requestAnimationFrame(decorate));
   document.addEventListener('cp:reskin', () => requestAnimationFrame(decorate));
 })();
