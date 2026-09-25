@@ -1,0 +1,100 @@
+/* The native header Logout link stays in place; this dialog asks before it runs. */
+.cp-native-logout-overlay {
+  --logout-card:#172b43;
+  --logout-raised:#203952;
+  --logout-text:#edf5ff;
+  --logout-muted:#abc0d2;
+  --logout-line:#38536c;
+  --logout-accent:#69ddd4;
+  --logout-accent-text:#0d2834;
+  position:fixed;
+  inset:0;
+  z-index:2147483500;
+  display:grid;
+  place-items:center;
+  padding:24px;
+  background:#030e1ba8;
+  color:var(--logout-text);
+  font:400 14px/1.5 "Inter","Segoe UI",Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+html[data-cp-direction="atlas"] .cp-native-logout-overlay {
+  --logout-card:#fff; --logout-raised:#f0f5f9; --logout-text:#162b3d;
+  --logout-muted:#536778; --logout-line:#d5e0e9;
+  --logout-accent:#096c77; --logout-accent-text:#fff;
+}
+html[data-cp-direction="graphite"] .cp-native-logout-overlay {
+  --logout-card:#242c31; --logout-raised:#2c373a; --logout-text:#f0f5f2;
+  --logout-muted:#b4c4c1; --logout-line:#3d4b4b;
+  --logout-accent:#a7d65e; --logout-accent-text:#15210e;
+}
+html[data-cp-direction="terra"] .cp-native-logout-overlay {
+  --logout-card:#fffcf7; --logout-raised:#f5ede2; --logout-text:#302d2a;
+  --logout-muted:#6c655e; --logout-line:#ddd1c2;
+  --logout-accent:#a54d37; --logout-accent-text:#fff;
+}
+.cp-native-logout-overlay *, .cp-native-logout-overlay *::before,
+.cp-native-logout-overlay *::after { box-sizing:border-box; }
+.cp-native-logout-dialog {
+  width:min(420px,100%);
+  padding:29px;
+  border:1px solid var(--logout-line);
+  border-radius:22px;
+  background:var(--logout-card);
+  box-shadow:0 26px 80px #0000005c;
+  color:var(--logout-text);
+}
+.cp-native-logout-icon {
+  display:grid;
+  place-items:center;
+  width:46px;
+  height:46px;
+  margin-bottom:20px;
+  border:1px solid var(--logout-line);
+  border-radius:15px;
+  background:var(--logout-raised);
+  color:var(--logout-accent);
+}
+.cp-native-logout-icon svg { width:23px; height:23px; }
+.cp-native-logout-title {
+  margin:0;
+  color:var(--logout-text);
+  font:700 23px/1.2 "Geist","Inter","Segoe UI",Arial,sans-serif;
+  letter-spacing:-.035em;
+}
+.cp-native-logout-copy {
+  margin:10px 0 24px;
+  color:var(--logout-muted);
+  font:400 13px/1.55 "Inter","Segoe UI",Arial,sans-serif;
+}
+.cp-native-logout-actions { display:flex; justify-content:flex-end; gap:10px; }
+.cp-native-logout-actions[hidden] { display:none !important; }
+body[id="initBody.menuTemplate"] .cp-native-logout-overlay .cp-native-logout-dialog .cp-native-logout-actions button {
+  min-height:39px;
+  padding:8px 15px;
+  border:1px solid var(--logout-line) !important;
+  border-radius:11px;
+  background:var(--logout-raised) !important;
+  box-shadow:none;
+  color:var(--logout-text) !important;
+  font:650 13px/1.2 "Inter","Segoe UI",Arial,sans-serif;
+  cursor:pointer;
+  transition:transform .15s ease,filter .15s ease;
+}
+body[id="initBody.menuTemplate"] .cp-native-logout-overlay .cp-native-logout-dialog .cp-native-logout-actions button:hover { transform:translateY(-1px); filter:brightness(1.08); }
+body[id="initBody.menuTemplate"] .cp-native-logout-overlay .cp-native-logout-dialog .cp-native-logout-actions button:focus-visible { outline:3px solid var(--logout-accent); outline-offset:2px; }
+body[id="initBody.menuTemplate"] .cp-native-logout-overlay .cp-native-logout-dialog .cp-native-logout-actions .cp-native-logout-confirm {
+  border-color:var(--logout-accent) !important;
+  background:var(--logout-accent) !important;
+  color:var(--logout-accent-text) !important;
+}
+.cp-native-logout-dialog[aria-busy="true"] .cp-native-logout-icon svg { animation:cp-native-logout-nudge 1.2s ease-in-out infinite; }
+@keyframes cp-native-logout-nudge { 50% { transform:translateX(3px); } }
+@media (max-width:480px) {
+  .cp-native-logout-overlay { padding:16px; }
+  .cp-native-logout-dialog { padding:23px; }
+  .cp-native-logout-title { font-size:21px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-native-logout-overlay * { animation:none !important; transition:none !important; }
+}

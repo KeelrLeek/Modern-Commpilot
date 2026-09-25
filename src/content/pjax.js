@@ -3953,15 +3953,15 @@
     }
     function cpEsc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
-    // Single-page sign-out. The footer Log out (confirmed in skin.js's modal,
-    // which sets the cp-signing-out flag) calls redirectPost(logoutUrl, {}).
+    // Single-page sign-out. The native header Logout link, confirmed in the
+    // extension's modal, sets cp-signing-out before calling redirectPost.
     // Rather than navigate to the raw /Logout/ landing and then bounce to
     // /Login/ (two documents → spinner restart + flash), we run the SAME logout
     // request as a background fetch while the "Signing out…" spinner stays on
     // THIS page, hold it for a minimum beat, then go once to the styled login.
     // Faithful to the real request: same url + params + the live formtokenserial
     // (what redirectPost itself would post). On fetch failure we fall back to the
-    // real navigation logout (correctness over polish) — skin.js's cpLogoutToLogin
+    // real navigation logout (correctness over polish); the logout-page bridge
     // then carries /Logout/ → /Login/.
     function cpSignOutFetch(url, params) {
       var start = Date.now();
@@ -4061,10 +4061,15 @@
           _orig(url, params);
           return;
         }
-        // Sign-out interception (must precede isPjaxUrl): when skin.js's logout
-        // confirmation has armed cp-signing-out, this redirectPost IS the logout.
+        // Sign-out interception (must precede isPjaxUrl): the confirmation
+        // arms cp-signing-out for this one Logout redirectPost only.
         var _so = 0; try { _so = parseInt(sessionStorage.getItem("cp-signing-out") || "0", 10); } catch (e) {}
-        if (_so && (Date.now() - _so < 15000)) { cpSignOutFetch(url, params || {}); return; }
+        if (_so && typeof url === "string" && /\/Logout(?:\/|$)/i.test(url) &&
+            Date.now() - _so < 15000) {
+          try { sessionStorage.removeItem("cp-signing-out"); } catch (e) {}
+          cpSignOutFetch(url, params || {});
+          return;
+        }
         if (isPjaxUrl(url)) {
           // A level's menu prefetch rotates the same single-use token as a
           // clicked page. Stop the remaining prefetches and let its current

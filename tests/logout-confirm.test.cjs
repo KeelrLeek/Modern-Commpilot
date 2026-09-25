@@ -1,0 +1,86 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { chromium } = require('playwright-core');
+
+const root = path.resolve(__dirname, '..');
+const edge = [
+  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+].find(fs.existsSync);
+
+test('native Logout confirms once, posts through PJAX, and opens Login directly', async () => {
+  assert.ok(edge, 'Edge or Chrome is required');
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'bw-logout-test-'));
+  let context;
+  try {
+    context = await chromium.launchPersistentContext(profile, {
+      executablePath: edge,
+      headless: true,
+      args: [`--disable-extensions-except=${root}`, `--load-extension=${root}`]
+    });
+    let logoutPosts = 0;
+    const navigations = [];
+    await context.route('https://apps-sbx.avpaas.io/commpilot/**', route => {
+      const url = new URL(route.request().url());
+      if (url.pathname === '/commpilot/Common/folder_contents.jsp') {
+        return route.fulfill({ status: 200, contentType: 'text/html', body:
+          `<!doctype html><html><title>Profile</title><body id="initBody.menuTemplate">
+            <table><tr><td class="headerBar"><span class="headerBarWelcome">Welcome Test User</span>
+              <a class="headerLink" id="native-logout" onclick="redirectPost('/commpilot/servlet/Logout', {});return false;">[Logout]</a></td></tr></table>
+            <table height="100%"><tr><td class="headandfoot" width="18%">
+              <form name="leftNavForm"><a class="leftnavfolder">Profile</a></form>
+            </td><td width="82%" valign="top"><h1 class="screenName">Profile</h1></td></tr></table>
+            <input name="formtokenserial" value="test-token">
+            <script>function redirectPost(url) {
+              const form = document.createElement('form'); form.method='POST'; form.action=url;
+              document.body.append(form); form.submit();
+            }</script>
+          </body></html>` });
+      }
+      if (url.pathname === '/commpilot/servlet/Logout') {
+        if (route.request().method() === 'POST') logoutPosts++;
+        return route.fulfill({ status: 200, contentType: 'text/html', body:
+          '<!doctype html><title>Logout</title><body>Legacy logout page</body>' });
+      }
+      if (url.pathname === '/commpilot/Login/') {
+        return route.fulfill({ status: 200, contentType: 'text/html', body:
+          '<!doctype html><title>Login</title><body id="loginBody"><form name="loginForm"></form></body>' });
+      }
+      return route.fulfill({ status: 404, body: '' });
+    });
+    const page = await context.newPage();
+    page.on('framenavigated', frame => {
+      if (frame === page.mainFrame()) navigations.push(new URL(frame.url()).pathname);
+    });
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Login/');
+    await page.evaluate(() => {
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/commpilot/Common/folder_contents.jsp';
+      document.body.append(form);
+      form.submit();
+    });
+    await page.waitForFunction(() => document.body.id === 'initBody.menuTemplate');
+    await page.waitForFunction(() => String(window.redirectPost).includes('cpDclSpin'));
+    const trigger = page.locator('#native-logout');
+    await trigger.click();
+    await page.getByRole('dialog', { name: 'Sign out of CommPilot?' }).waitFor();
+    await page.getByRole('button', { name: 'Stay here' }).click();
+    assert.equal(logoutPosts, 0);
+    assert.equal(new URL(page.url()).pathname, '/commpilot/Common/folder_contents.jsp');
+
+    await trigger.click();
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await page.waitForURL('**/commpilot/Login/', { timeout: 15000 });
+    assert.equal(logoutPosts, 1);
+    assert.equal(navigations.includes('/commpilot/servlet/Logout'), false);
+    assert.equal(await page.title(), 'Login');
+    assert.equal(await page.evaluate(() => sessionStorage.getItem('cp-signing-out')), null);
+  } finally {
+    await context?.close();
+    fs.rmSync(profile, { recursive: true, force: true });
+  }
+});
