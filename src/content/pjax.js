@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.28-native";
+  var CP_PJAX_VERSION = "0.3.29-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -482,6 +482,35 @@
           }
           cpDbg("[pjax] response", r.status, r.url, "(hop " + depth + ")");
           return r.text().then(function (html) {
+            // Personal Assistant's Add saves the criterion but answers with a
+            // tiny script calling top.location.replace('../'). It has no
+            // content cell or redirectPost stub. Read the owner list and
+            // confirm the new row instead of replaying the save or opening Login.
+            if ((!html || /top\.location\.replace\(\s*["']\.\.\/["']\s*\)/.test(html)) &&
+                /^\/commpilot\/User\/PersonalAssistant\/Add\/index\.jsp$/.test(new URL(u, location.href).pathname) &&
+                p && p.criteriaName && p.ok != null) {
+              return cpFollow('/commpilot/User/PersonalAssistant/', {}, token, depth + 1).then(function (listResult) {
+                var cell = listResult && listResult.doc &&
+                  listResult.doc.querySelector('td[width="82%"]');
+                if (cell && (cell.textContent || '').indexOf(String(p.criteriaName)) !== -1)
+                  return listResult;
+                return { unverifiedSave: 'CommPilot redirected after saving, but the new Personal Assistant rule could not be verified. Check the list before trying again.' };
+              });
+            }
+            // Delete succeeds, then this controller tries to render the now
+            // missing criterion and paints an "Invalid selective criteria name"
+            // error. Confirm absence on the parent list before swapping it.
+            if (/^\/commpilot\/User\/PersonalAssistant\/Modify\/index\.jsp$/.test(new URL(u, location.href).pathname) &&
+                p && p.delete != null && (p.criteriaName || p.key || p.P_key)) {
+              var deletedCriterion = String(p.criteriaName || p.key || p.P_key);
+              return cpFollow('/commpilot/User/PersonalAssistant/', {}, token, depth + 1).then(function (listResult) {
+                var cell = listResult && listResult.doc &&
+                  listResult.doc.querySelector('td[width="82%"]');
+                if (cell && (cell.textContent || '').indexOf(deletedCriterion) === -1)
+                  return listResult;
+                return { unverifiedSave: 'CommPilot returned an error after Delete, and the Personal Assistant rule could not be verified as removed. Check the list before trying again.' };
+              });
+            }
             if (html.indexOf("Please login again") !== -1 || html.indexOf("not authorized to access the system") !== -1) {
               cpWarnCo("authfail|" + u, "[pjax] AUTH-FAIL response from " + u + " (hop " + depth + ")");
               return { auth: false };
@@ -4110,6 +4139,10 @@
             .then(function (res) {
               if (mySeq !== cpSeq) {
                 cpDbg("[pjax] superseded — dropping stale swap");
+                return;
+              }
+              if (res && res.unverifiedSave) {
+                cpUploadNotice(res.unverifiedSave);
                 return;
               }
               if (res && res.err >= 500) {

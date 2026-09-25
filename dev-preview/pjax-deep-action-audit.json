@@ -1,9 +1,9 @@
 {
   "title": "CommPilot deep PJAX action audit",
-  "updated": "2026-09-25T02:13:27.703Z",
+  "updated": "2026-09-25T02:52:30.794Z",
   "environment": "apps-sbx.avpaas.io · saved test account · headless Edge",
   "scope": "Sandbox route and interaction checks are tracked separately from final writes. A passed list interaction confirms navigation and Back; a write passes only after save and readback.",
-  "current": "Call Centers › Row detail › Assign Xsi Policy Profile",
+  "current": "Two-Stage Dialing - On › Apply current values",
   "checks": [
     {
       "id": "reseller-groups",
@@ -3457,9 +3457,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "User Priority Alert list navigated in PJAX; disposable criterion Add, fresh readback, Modify, and Delete passed.",
+      "checkedAt": "2026-09-25T02:25:09.415Z",
       "navigationCheckedAt": "2026-09-25T01:05:03.302Z",
       "navigationStatus": "pass"
     },
@@ -3473,9 +3473,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "User Selective Acceptance list navigated in PJAX; disposable criterion Add, fresh readback, Modify, and Delete passed.",
+      "checkedAt": "2026-09-25T02:25:10.078Z",
       "navigationCheckedAt": "2026-09-25T01:05:06.207Z",
       "navigationStatus": "pass"
     },
@@ -3489,9 +3489,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "User Selective Rejection list navigated in PJAX; disposable criterion Add, fresh readback, Modify, and Delete passed.",
+      "checkedAt": "2026-09-25T02:25:10.762Z",
       "navigationCheckedAt": "2026-09-25T01:05:09.121Z",
       "navigationStatus": "pass"
     },
@@ -6145,9 +6145,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Hunt Group Priority Alert list navigated in PJAX; disposable criterion Add, fresh readback, Modify, and Delete passed.",
+      "checkedAt": "2026-09-25T02:24:49.559Z",
       "navigationCheckedAt": "2026-09-25T01:10:01.375Z",
       "navigationStatus": "pass"
     },
@@ -6161,9 +6161,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Hunt Group Selective Acceptance list navigated in PJAX; disposable criterion Add, fresh readback, Modify, and Delete passed.",
+      "checkedAt": "2026-09-25T02:24:50.298Z",
       "navigationCheckedAt": "2026-09-25T01:10:03.355Z",
       "navigationStatus": "pass"
     },
@@ -6177,9 +6177,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Hunt Group Selective Rejection list navigated in PJAX; disposable criterion Add, fresh readback, Modify, and Delete passed.",
+      "checkedAt": "2026-09-25T02:24:50.963Z",
       "navigationCheckedAt": "2026-09-25T01:10:05.335Z",
       "navigationStatus": "pass"
     },
@@ -6865,9 +6865,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Call Center Priority Alert list navigated in PJAX; disposable criterion Add, fresh readback, Modify, and Delete passed.",
+      "checkedAt": "2026-09-25T02:24:51.611Z",
       "navigationCheckedAt": "2026-09-25T01:11:30.779Z",
       "navigationStatus": "pass"
     },
@@ -6881,9 +6881,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Call Center Selective Acceptance list navigated in PJAX; disposable criterion Add, fresh readback, Modify, and Delete passed.",
+      "checkedAt": "2026-09-25T02:24:52.264Z",
       "navigationCheckedAt": "2026-09-25T01:11:32.768Z",
       "navigationStatus": "pass"
     },
@@ -6897,9 +6897,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Call Center Selective Rejection list navigated in PJAX; disposable criterion Add, fresh readback, Modify, and Delete passed.",
+      "checkedAt": "2026-09-25T02:24:52.913Z",
       "navigationCheckedAt": "2026-09-25T01:11:34.721Z",
       "navigationStatus": "pass"
     },
@@ -9553,9 +9553,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Call Me Now - Off Add HTTP 200; same document; fresh list readback found the criterion.",
+      "checkedAt": "2026-09-25T02:19:31.554Z",
       "navigationCheckedAt": "2026-09-25T01:04:47.930Z",
       "navigationStatus": "pass"
     },
@@ -9585,9 +9585,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Personal Assistant - Off Add HTTP 200; same document; fresh list readback found the criterion.",
+      "checkedAt": "2026-09-25T02:47:17.139Z",
       "navigationCheckedAt": "2026-09-25T01:04:57.832Z",
       "navigationStatus": "pass"
     },
@@ -9617,9 +9617,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Priority Alert - Off Add HTTP 200; same document; fresh list readback found the criterion.",
+      "checkedAt": "2026-09-25T02:19:54.066Z",
       "navigationCheckedAt": "2026-09-25T01:05:03.820Z",
       "navigationStatus": "pass"
     },
@@ -9633,9 +9633,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Selective Acceptance - Off Add HTTP 200; same document; fresh list readback found the criterion.",
+      "checkedAt": "2026-09-25T02:20:16.355Z",
       "navigationCheckedAt": "2026-09-25T01:05:06.724Z",
       "navigationStatus": "pass"
     },
@@ -9649,9 +9649,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Selective Rejection - Off Add HTTP 200; same document; fresh list readback found the criterion.",
+      "checkedAt": "2026-09-25T02:20:38.833Z",
       "navigationCheckedAt": "2026-09-25T01:05:09.654Z",
       "navigationStatus": "pass"
     },
@@ -9967,9 +9967,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Call Me Now - Off Add HTTP 200; same document; fresh list readback found the criterion.",
+      "checkedAt": "2026-09-25T02:21:35.278Z",
       "navigationCheckedAt": "2026-09-25T01:09:54.457Z",
       "navigationStatus": "pass"
     },
@@ -10015,9 +10015,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Priority Alert - Off Add HTTP 200; same document; fresh list readback found the criterion.",
+      "checkedAt": "2026-09-25T02:21:59.690Z",
       "navigationCheckedAt": "2026-09-25T01:10:01.767Z",
       "navigationStatus": "pass"
     },
@@ -10031,9 +10031,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Selective Acceptance - Off Add HTTP 200; same document; fresh list readback found the criterion.",
+      "checkedAt": "2026-09-25T02:22:25.534Z",
       "navigationCheckedAt": "2026-09-25T01:10:03.742Z",
       "navigationStatus": "pass"
     },
@@ -10047,9 +10047,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Selective Rejection - Off Add HTTP 200; same document; fresh list readback found the criterion.",
+      "checkedAt": "2026-09-25T02:22:46.232Z",
       "navigationCheckedAt": "2026-09-25T01:10:05.708Z",
       "navigationStatus": "pass"
     },
@@ -10111,9 +10111,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Call Me Now - Off Add HTTP 200; same document; fresh list readback found the criterion.",
+      "checkedAt": "2026-09-25T02:23:10.293Z",
       "navigationCheckedAt": "2026-09-25T01:11:23.974Z",
       "navigationStatus": "pass"
     },
@@ -10159,9 +10159,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Priority Alert - Off Add HTTP 200; same document; fresh list readback found the criterion.",
+      "checkedAt": "2026-09-25T02:23:31.290Z",
       "navigationCheckedAt": "2026-09-25T01:11:31.150Z",
       "navigationStatus": "pass"
     },
@@ -10175,9 +10175,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Selective Acceptance - Off Add HTTP 200; same document; fresh list readback found the criterion.",
+      "checkedAt": "2026-09-25T02:23:55.832Z",
       "navigationCheckedAt": "2026-09-25T01:11:33.150Z",
       "navigationStatus": "pass"
     },
@@ -10191,9 +10191,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Selective Rejection - Off Add HTTP 200; same document; fresh list readback found the criterion.",
+      "checkedAt": "2026-09-25T02:24:23.815Z",
       "navigationCheckedAt": "2026-09-25T01:11:35.091Z",
       "navigationStatus": "pass"
     },
@@ -17655,7 +17655,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/AutomaticCallback/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:35:52.643Z"
+      "checkedAt": "2026-09-25T02:52:01.027Z"
     },
     {
       "id": "apply:discovered-225",
@@ -17669,7 +17669,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/Classmark/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:35:54.008Z"
+      "checkedAt": "2026-09-25T02:52:04.001Z"
     },
     {
       "id": "apply:discovered-227",
@@ -17683,7 +17683,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/CPC/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:35:55.694Z"
+      "checkedAt": "2026-09-25T02:52:07.862Z"
     },
     {
       "id": "apply:discovered-228",
@@ -17697,7 +17697,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/LegacyAutomaticCallback/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:35:57.008Z"
+      "checkedAt": "2026-09-25T02:52:10.890Z"
     },
     {
       "id": "apply:discovered-230",
@@ -17711,7 +17711,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/CIDB/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:35:58.643Z"
+      "checkedAt": "2026-09-25T02:52:14.297Z"
     },
     {
       "id": "apply:discovered-231",
@@ -17725,7 +17725,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/ResourcePriority/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:36:00.001Z"
+      "checkedAt": "2026-09-25T02:52:16.697Z"
     },
     {
       "id": "apply:discovered-232",
@@ -17739,7 +17739,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/SC8/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:36:01.354Z"
+      "checkedAt": "2026-09-25T02:52:19.753Z"
     },
     {
       "id": "apply:discovered-234",
@@ -17753,7 +17753,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/NumberPortabilityAnnouncement/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:36:03.073Z"
+      "checkedAt": "2026-09-25T02:52:23.731Z"
     },
     {
       "id": "apply:discovered-236",
@@ -17767,7 +17767,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/PreferredCarrierUser/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:36:04.818Z"
+      "checkedAt": "2026-09-25T02:52:27.711Z"
     },
     {
       "id": "apply:discovered-237",
@@ -17781,7 +17781,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/TSD/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:36:06.232Z"
+      "checkedAt": "2026-09-25T02:52:30.794Z"
     },
     {
       "id": "apply:discovered-238",
@@ -20604,9 +20604,165 @@
       "status": "passed",
       "detail": "Sandbox number +1-2244830030 was moved back from Basement to None; fresh search confirmed its original no-department state.",
       "checkedAt": "2026-09-25T02:09:55.408Z"
+    },
+    {
+      "id": "lifecycle:user-call-me-now-delete",
+      "area": "User / Incoming Calls",
+      "label": "lifecycle user call me now delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable Call Me Now - Off criterion PJAX call- mugc1mey is absent after Delete.",
+      "checkedAt": "2026-09-25T02:19:41.828Z"
+    },
+    {
+      "id": "lifecycle:user-priority-alert-delete",
+      "area": "User / Incoming Calls",
+      "label": "lifecycle user priority alert delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable Priority Alert - Off criterion PJAX prior mugc23ro is absent after Delete.",
+      "checkedAt": "2026-09-25T02:20:04.724Z"
+    },
+    {
+      "id": "lifecycle:user-selective-acceptance-delete",
+      "area": "User / Incoming Calls",
+      "label": "lifecycle user selective acceptance delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable Selective Acceptance - Off criterion PJAX selec mugc2kzq is absent after Delete.",
+      "checkedAt": "2026-09-25T02:20:26.919Z"
+    },
+    {
+      "id": "lifecycle:user-selective-rejection-delete",
+      "area": "User / Incoming Calls",
+      "label": "lifecycle user selective rejection delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable Selective Rejection - Off criterion PJAX selec mugc32cf is absent after Delete.",
+      "checkedAt": "2026-09-25T02:20:49.418Z"
+    },
+    {
+      "id": "lifecycle:hunt-group-call-me-now-delete",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "lifecycle hunt group call me now delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable Call Me Now - Off criterion PJAX call- mugc49ik is absent after Delete.",
+      "checkedAt": "2026-09-25T02:21:45.994Z"
+    },
+    {
+      "id": "lifecycle:hunt-group-priority-alert-delete",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "lifecycle hunt group priority alert delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable Priority Alert - Off criterion PJAX prior mugc4srg is absent after Delete.",
+      "checkedAt": "2026-09-25T02:22:08.884Z"
+    },
+    {
+      "id": "lifecycle:hunt-group-selective-acceptance-delete",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "lifecycle hunt group selective acceptance delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable Selective Acceptance - Off criterion PJAX selec mugc5cql is absent after Delete.",
+      "checkedAt": "2026-09-25T02:22:34.740Z"
+    },
+    {
+      "id": "lifecycle:hunt-group-selective-rejection-delete",
+      "area": "Hunt Group / Incoming Calls",
+      "label": "lifecycle hunt group selective rejection delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable Selective Rejection - Off criterion PJAX selec mugc5soo is absent after Delete.",
+      "checkedAt": "2026-09-25T02:22:55.510Z"
+    },
+    {
+      "id": "lifecycle:call-center-call-me-now-delete",
+      "area": "Call Center / Incoming Calls",
+      "label": "lifecycle call center call me now delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable Call Me Now - Off criterion PJAX call- mugc6bah is absent after Delete.",
+      "checkedAt": "2026-09-25T02:23:19.561Z"
+    },
+    {
+      "id": "lifecycle:call-center-priority-alert-delete",
+      "area": "Call Center / Incoming Calls",
+      "label": "lifecycle call center priority alert delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable Priority Alert - Off criterion PJAX prior mugc6rgh is absent after Delete.",
+      "checkedAt": "2026-09-25T02:23:40.524Z"
+    },
+    {
+      "id": "lifecycle:call-center-selective-acceptance-delete",
+      "area": "Call Center / Incoming Calls",
+      "label": "lifecycle call center selective acceptance delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable Selective Acceptance - Off criterion PJAX selec mugc7a0f is absent after Delete.",
+      "checkedAt": "2026-09-25T02:24:06.564Z"
+    },
+    {
+      "id": "lifecycle:call-center-selective-rejection-delete",
+      "area": "Call Center / Incoming Calls",
+      "label": "lifecycle call center selective rejection delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable Selective Rejection - Off criterion PJAX selec mugc7vkf is absent after Delete.",
+      "checkedAt": "2026-09-25T02:24:34.774Z"
+    },
+    {
+      "id": "lifecycle:user-personal-assistant-delete",
+      "area": "User / Incoming Calls",
+      "label": "lifecycle user personal assistant delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Disposable Personal Assistant - Off criterion PJAX perso mugd1bkr is absent after Delete; same document at /commpilot/User/PersonalAssistant/.",
+      "checkedAt": "2026-09-25T02:47:26.447Z"
     }
   ],
   "incidents": [],
   "notes": [],
-  "currentNote": "Call Center Assign Xsi Policy Profile path and current-values Apply passed at the Call Center entity level."
+  "currentNote": "Apply returned HTTP 200 at /commpilot/User/TSD/; same document; editable values preserved; fresh readback matched."
 }

@@ -1172,6 +1172,112 @@ async function exerciseRoutePoint(page) {
     }
   }
 }
+async function exerciseUserCriterion(page, kind) {
+  const types = {
+    'Call Me Now - Off': { list: 'CallMeNow', checks: ['discovered-599', 'discovered-625', 'discovered-634'], slug: 'call-me-now' },
+    'Priority Alert - Off': { list: 'PRCW', checks: ['discovered-603', 'discovered-628', 'discovered-637'], slug: 'priority-alert' },
+    'Selective Acceptance - Off': { list: 'SCA', checks: ['discovered-604', 'discovered-629', 'discovered-638'], slug: 'selective-acceptance' },
+    'Selective Rejection - Off': { list: 'SCR', checks: ['discovered-605', 'discovered-630', 'discovered-639'], slug: 'selective-rejection' },
+    'Personal Assistant - Off': { list: 'PersonalAssistant', checks: ['discovered-601'],
+      slug: 'personal-assistant', field: 'criteriaName' }
+  };
+  const type = types[kind];
+  if (!type) throw new Error(`Unknown criterion ${kind}`);
+  const levelIndex = ['User', 'Hunt Group', 'Call Center'].indexOf(level);
+  const checkId = type.checks[levelIndex];
+  const levelSlug = level.toLowerCase().replace(/\W+/g, '-');
+  const name = `PJAX ${type.slug.slice(0, 5)} ${Date.now().toString(36)}`;
+  const listPath = `/commpilot/User/${type.list}/`;
+  const addPath = `${listPath}Add/index.jsp`;
+  async function locate() {
+    await page.waitForFunction(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+      .some(row => row.textContent.includes(value)), name, { timeout: 8000 }).catch(() => null);
+    return aaRowId(page, name);
+  }
+  try {
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, addPath);
+    await page.locator(`td[width="82%"] input[name="${type.field || 'description'}"]`).fill(name);
+    const allow = page.locator('td[width="82%"] input[name="blacklistSelection"][value="false"]');
+    if (await allow.count()) await allow.check();
+    await page.evaluate(() => { window.__bwCriterionDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === addPath, { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click({ noWaitAfter: true });
+    const found = await response;
+    await page.waitForTimeout(700);
+    const body = found ? await found.text().catch(() => '') : '';
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwCriterionDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 750) }));
+    console.log(JSON.stringify({ event: 'criterion-submit', kind, name,
+      status: found?.status() || null, responsePath: found ? new URL(found.url()).pathname : '',
+      responseLength: body.length, responseType: found?.headers()['content-type'] || '',
+      responseTitle: /<title[^>]*>([^<]*)<\/title>/i.exec(body)?.[1],
+      responseHasList: /<h1[^>]*>Personal Assistant<\/h1>/i.test(body) ||
+        /Additional Schedule Selective Criteria/.test(body),
+      redirectTargets: [...body.matchAll(/redirectPost\s*\(\s*['"]([^'"]+)/g)]
+        .slice(0, 4).map(match => match[1]),
+      responsePreview: kind === 'Personal Assistant - Off' ? body
+        .replace(/<input\b[^>]*>/gi, '<input>')
+        .replace(/formtokenserial.{0,100}/gi, '[redacted]')
+        .slice(0, 900) : undefined, state }));
+    await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+    const rowId = await locate();
+    writeDeep(checkId, found?.status() === 200 && state.sameDocument && !!rowId ?
+      'passed' : 'failed', `${kind} Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${rowId ? 'fresh list readback found the criterion' :
+        `criterion not found at ${state.path}: ${state.text?.slice(0, 130)}`}.`);
+  } finally {
+    try {
+      await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+      const rowId = await locate();
+      if (rowId) {
+        console.log(JSON.stringify({ event: 'criterion-row', kind, name,
+          html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1100)) }));
+        await page.locator(`#${rowId} a.tableLink`).first().click();
+        await page.waitForFunction(value => location.pathname !== value,
+          listPath, { timeout: 12000 });
+        console.log(JSON.stringify({ event: 'criterion-modify', kind, name,
+          state: await page.evaluate(() => ({ path: location.pathname,
+            buttons: [...document.querySelectorAll('td[width="82%"] input[type="submit"]')]
+              .map(item => item.name) })) }));
+        const button = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+        let deleteState = null;
+        if (await button.count()) {
+          await page.evaluate(() => { window.__bwCriterionDeleteDocument = document; });
+          const deleteResponse = page.waitForResponse(item => item.request().method() === 'POST' &&
+            new URL(item.url()).pathname === `${listPath}Modify/index.jsp`,
+          { timeout: 15000 }).catch(() => null);
+          page.once('dialog', dialog => dialog.accept());
+          await button.click({ noWaitAfter: true });
+          await page.waitForTimeout(600);
+          const foundDelete = await deleteResponse;
+          deleteState = await page.evaluate(() => ({ path: location.pathname,
+            sameDocument: document === window.__bwCriterionDeleteDocument,
+            text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 250) }));
+          console.log(JSON.stringify({ event: 'criterion-delete', kind, name,
+            status: foundDelete?.status() || null, state: deleteState }));
+        }
+        await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+        const absent = !(await locate());
+        const deletePass = absent && (!deleteState ||
+          (deleteState.sameDocument && deleteState.path === listPath));
+        writeDeep(`lifecycle:${levelSlug}-${type.slug}-delete`, deletePass ? 'passed' : 'failed',
+          `Disposable ${kind} criterion ${name} ${absent ? 'is absent' : 'still exists'} after Delete; ` +
+          `${deleteState ? `${deleteState.sameDocument ? 'same document' : 'reload'} at ${deleteState.path}` :
+            'no Delete control'}.`);
+        return;
+      }
+      writeDeep(`lifecycle:${levelSlug}-${type.slug}-delete`, 'failed',
+        `Disposable ${kind} criterion ${name} was not found for Delete.`);
+    } catch (error) {
+      writeDeep(`lifecycle:${levelSlug}-${type.slug}-delete`, 'failed',
+        `${kind} criterion ${name} cleanup needs inspection: ${error.message.slice(0, 160)}`);
+    }
+  }
+}
 async function exerciseAutoAttendant(page) {
   const suffix = Date.now().toString(36);
   const id = `pjaxaa${suffix}`;
@@ -1783,6 +1889,35 @@ async function probe(page, label) {
           text: await page.locator('td[width="82%"]').innerText().then(x => x.slice(-350)) }));
       }
     }
+    return;
+  }
+  if (process.env.BW_PERSONAL_ASSISTANT_CLEAN_NAME && level === 'User' &&
+      folder === 'Incoming Calls' && label.startsWith('Personal Assistant - ')) {
+    const name = process.env.BW_PERSONAL_ASSISTANT_CLEAN_NAME;
+    const rowId = await aaRowId(page, name);
+    console.log(JSON.stringify({ event: 'personal-assistant-clean-find', name, rowId,
+      path: new URL(page.url()).pathname }));
+    if (rowId) {
+      await page.locator(`#${rowId} a.tableLink`).first().click();
+      await waitPath(page, '/commpilot/User/PersonalAssistant/Modify/index.jsp');
+      console.log(JSON.stringify({ event: 'personal-assistant-clean-modify', name,
+        state: await page.evaluate(() => ({ path: location.pathname,
+          buttons: [...document.querySelectorAll('td[width="82%"] input[type="submit"]')]
+            .map(item => item.name) })) }));
+      const button = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+      if (await button.count()) {
+        page.once('dialog', dialog => dialog.accept());
+        await button.click({ noWaitAfter: true });
+        await page.waitForTimeout(600);
+      }
+      await page.goto(new URL('/commpilot/User/PersonalAssistant/', page.url()).href,
+        { waitUntil: 'domcontentloaded' });
+    }
+    console.log(JSON.stringify({ event: 'personal-assistant-clean-result', name,
+      remaining: await aaRowId(page, name),
+      menu: await page.locator('td[width="82%"] a.navMenuItem').evaluateAll(items =>
+        items.map(item => item.textContent.trim()).filter(x => x.startsWith('Personal Assistant'))),
+      text: await page.locator('td[width="82%"]').innerText().then(x => x.slice(-450)) }));
     return;
   }
   if (process.env.BW_DIAL_PLAN_CLEAN_CODE && folder === 'Profile' && label === 'Dial Plan Policy') {
@@ -2596,6 +2731,15 @@ async function probe(page, label) {
     await exerciseRoutePoint(page);
     return;
   }
+  if (process.env.BW_USER_CRITERION_LIFECYCLE === '1' &&
+      ['User', 'Hunt Group', 'Call Center'].includes(level) &&
+      folder === 'Incoming Calls' && ['Call Me Now - Off', 'Priority Alert - Off',
+        'Selective Acceptance - Off', 'Selective Rejection - Off',
+        'Personal Assistant - Off'].includes(label) &&
+      (label !== 'Personal Assistant - Off' || level === 'User')) {
+    await exerciseUserCriterion(page, label);
+    return;
+  }
   if (process.env.BW_INSPECT_ADD === '1' || process.env.BW_INSPECT_ADD_ALL === '1') {
     const add = page.locator('td[width="82%"] input[type="button"][value^="Add"], ' +
       'td[width="82%"] input[type="submit"][value^="Add"], ' +
@@ -2612,8 +2756,10 @@ async function probe(page, label) {
       text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 1400),
       forms: [...document.querySelectorAll('td[width="82%"] form')].map(form => ({
         name: form.name, action: form.getAttribute('action'), enctype: form.enctype,
+        onsubmit: form.getAttribute('onsubmit'),
         fields: [...form.elements].filter(item => item.name && item.type !== 'hidden')
           .map(item => ({ name: item.name, type: item.type, value: item.value?.slice(0, 80),
+            onclick: item.type === 'submit' ? item.getAttribute('onclick') : undefined,
             options: item.tagName === 'SELECT' ? [...item.options].slice(0, 10)
               .map(option => ({ value: option.value, label: option.textContent.trim() })) : undefined }))
       })) })) }));
@@ -2823,7 +2969,9 @@ async function probe(page, label) {
           process.env.BW_EMERGENCY_ZONE_LIFECYCLE === '1' ||
           process.env.BW_MWI_TEMPLATE_LIFECYCLE === '1' ||
           process.env.BW_ROUTE_POINT_LIFECYCLE === '1' ||
+          process.env.BW_USER_CRITERION_LIFECYCLE === '1' ||
           process.env.BW_ROUTE_POINT_CLEAN_ID ||
+          process.env.BW_PERSONAL_ASSISTANT_CLEAN_NAME ||
           process.env.BW_MWI_CLEAN_DEFAULT === '1' ||
           process.env.BW_EMERGENCY_ZONE_CLEAN_ADDRESS ||
           process.env.BW_SAC_CLEAN_NAME ||

@@ -1612,3 +1612,100 @@ test('back from a user page preserves forward history across iframe entry replay
     await browser.close();
   }
 });
+
+test('Personal Assistant script redirect after Add reads back the saved rule without a second POST or Login', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const listPath = '/commpilot/User/PersonalAssistant/';
+    const addPath = `${listPath}Add/index.jsp`;
+    let addPosts = 0;
+    let listReads = 0;
+    let saved = false;
+    const shell = (title, content) => `<!doctype html><html><head><title>${title}</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">Test User</span></td></tr></table>
+      <form name="leftNavForm"></form><input name="formtokenserial" value="token">
+      <table><tr><td width="82%">${content}</td></tr></table>
+      <script>window.redirectPost = function(url, params) { window.nativeNavigation = {url, params}; };</script>
+    </body></html>`;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (pathname === addPath && request.method() === 'POST' &&
+          new URLSearchParams(request.postData() || '').has('ok')) {
+        addPosts++;
+        saved = true;
+        return route.fulfill({ status: 200, contentType: 'text/html',
+          body: '<script>top.location.replace("../");</script>' });
+      }
+      if (pathname === listPath && request.method() === 'POST') listReads++;
+      const content = pathname === addPath ?
+        '<form name="mainForm" method="POST"><input name="criteriaName"><input type="submit" name="ok" value="OK"></form>' :
+        `<h1>Personal Assistant</h1><input type="button" name="add" value="Add">${saved ?
+          '<table><tr id="Row1"><td>PJAX saved criterion</td></tr></table>' : ''}`;
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: shell(pathname === addPath ? 'Personal Assistant Schedule Selective Criteria Add' :
+          'Personal Assistant', content) });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${listPath}`);
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    await page.evaluate(url => window.redirectPost(url, {}), addPath);
+    await page.locator('input[name="criteriaName"]').fill('PJAX saved criterion');
+    await page.locator('input[name="ok"]').click();
+    await page.waitForFunction(path => location.pathname === path &&
+      document.querySelector('#Row1')?.textContent.includes('PJAX saved criterion'), listPath);
+    assert.equal(addPosts, 1);
+    assert.ok(listReads >= 1);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+  } finally { await browser.close(); }
+});
+
+test('Personal Assistant Delete replaces the stale invalid-criterion page with the verified list', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const listPath = '/commpilot/User/PersonalAssistant/';
+    const modifyPath = `${listPath}Modify/index.jsp`;
+    let deleted = false;
+    let deletes = 0;
+    const shell = (title, content) => `<!doctype html><html><head><title>${title}</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">Test User</span></td></tr></table>
+      <form name="leftNavForm"></form><input name="formtokenserial" value="token">
+      <table><tr><td width="82%">${content}</td></tr></table>
+      <script>window.redirectPost = function(url, params) { window.nativeNavigation = {url, params}; };</script>
+    </body></html>`;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      const params = new URLSearchParams(request.postData() || '');
+      if (pathname === modifyPath && params.has('delete')) {
+        deletes++;
+        deleted = true;
+        return route.fulfill({ status: 200, contentType: 'text/html', body: shell(
+          'Personal Assistant Schedule Selective Criteria Modify',
+          '<h1>Personal Assistant Schedule Selective Criteria Modify</h1>' +
+          '<p>Failed to read: [Error 5021] Invalid selective criteria name PJAX delete criterion.</p>') });
+      }
+      const content = pathname === modifyPath ?
+        '<form name="mainForm" method="POST"><input name="criteriaName" value="PJAX delete criterion">' +
+          '<input type="submit" name="delete" value="Delete"></form>' :
+        `<h1>Personal Assistant</h1><input type="button" name="add" value="Add">${deleted ? '' :
+          '<table><tr id="Row1"><td>PJAX delete criterion</td></tr></table>'}`;
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: shell(pathname === modifyPath ? 'Personal Assistant Schedule Selective Criteria Modify' :
+          'Personal Assistant', content) });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${listPath}`);
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    await page.evaluate(url => window.redirectPost(url, { key: 'PJAX delete criterion' }), modifyPath);
+    await page.locator('input[name="delete"]').click();
+    await page.waitForFunction(path => location.pathname === path &&
+      !!document.querySelector('h1') && !document.querySelector('#Row1'), listPath);
+    assert.equal(deletes, 1);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+  } finally { await browser.close(); }
+});
