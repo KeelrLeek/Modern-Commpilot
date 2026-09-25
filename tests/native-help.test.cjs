@@ -17,6 +17,7 @@ test('contextual Help explains native menu items and survives a PJAX sidebar swa
     const page = await browser.newPage();
     const help = fs.readFileSync(path.join(root, 'assets/help/help-content.json'), 'utf8');
     const shell = `<!doctype html><html><body>
+      <table><tr><td class="headerBar"><a class="headerAuthLevelLink">Reseller</a></td></tr></table>
       <div class="sidebar"><form name="leftNavForm">
         <a class="leftnavfolder" href="#">Profile</a>
         <a class="navMenuItem" name="/Reseller/Groups/" href="#">Groups</a>
@@ -29,7 +30,7 @@ test('contextual Help explains native menu items and survives a PJAX sidebar swa
       route.fulfill({ status: 200, contentType: route.request().url().endsWith('help-content.json')
         ? 'application/json' : 'text/html',
       body: route.request().url().endsWith('help-content.json') ? help : shell }));
-    await page.goto('https://apps-sbx.avpaas.io/commpilot/Reseller/Groups/');
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Common/folder_contents.jsp');
     await page.evaluate(() => {
       globalThis.chrome.runtime = { getURL: () =>
         'https://apps-sbx.avpaas.io/help-content.json' };
@@ -62,12 +63,18 @@ test('contextual Help explains native menu items and survives a PJAX sidebar swa
     await page.keyboard.press('Escape');
     assert.equal(await page.locator('#cp-native-help-toggle').getAttribute('aria-pressed'), 'false');
     await page.evaluate(() => {
-      history.replaceState(null, '', '/commpilot/Group/CompanyDir/');
+      history.replaceState(null, '', '/commpilot/Reseller/Groups/Modify/index.jsp');
+      document.querySelector('td.headerBar').innerHTML =
+        '<a class="headerAuthLevelLink">Reseller</a> &gt; ' +
+        '<a class="headerAuthLevelLink">Test_SP</a> &gt; ' +
+        '<a class="headerAuthLevelLink">Test Group</a>';
       document.dispatchEvent(new Event('cp:reskin'));
     });
     await page.waitForFunction(() => !document.getElementById('cp-native-help-toggle'));
     await page.evaluate(() => {
-      history.replaceState(null, '', '/commpilot/Reseller/Groups/');
+      history.replaceState(null, '', '/commpilot/Common/folder_contents.jsp');
+      document.querySelector('td.headerBar').innerHTML =
+        '<a class="headerAuthLevelLink">Reseller</a>';
       document.dispatchEvent(new Event('cp:reskin'));
     });
     await page.locator('#cp-native-help-toggle').waitFor();

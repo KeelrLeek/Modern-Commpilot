@@ -56,7 +56,9 @@
 
   function attachButton() {
     if (!entries || !document.body) return;
-    if (!/^\/commpilot\/Reseller\//.test(location.pathname)) {
+    const levels = [...document.querySelectorAll('td.headerBar a.headerAuthLevelLink')]
+      .map(link => link.textContent.trim());
+    if (levels.length !== 1 || levels[0] !== "Reseller") {
       document.getElementById("cp-native-help-toggle")?.remove();
       setActive(false);
       return;

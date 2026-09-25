@@ -4047,6 +4047,8 @@ async function probe(page, label) {
         toggles: document.querySelectorAll('#cp-native-help-toggle').length,
         pressed: document.querySelector('#cp-native-help-toggle')?.getAttribute('aria-pressed'),
         tip: document.querySelector('#cp-native-help-tip')?.textContent?.slice(0, 180),
+        breadcrumb: [...document.querySelectorAll('td.headerBar a.headerAuthLevelLink, td.headerBar .headerAuthLevel')]
+          .map(item => item.textContent.trim()),
         nativeHelpLinks: [...document.querySelectorAll('a')]
           .filter(item => item.textContent.trim() === 'Help').length
       })) }));
@@ -6512,6 +6514,19 @@ async function probe(page, label) {
           attempt: attempt + 1, message: error.message.slice(0, 150) }));
         await page.waitForTimeout(500);
       }
+    }
+    if (process.env.BW_INSPECT_HELP_LEVEL === '1') {
+      if (level === 'Reseller') {
+        await page.locator('#cp-native-help-toggle').waitFor({ timeout: 10000 }).catch(() => null);
+      } else await page.waitForTimeout(300);
+      console.log(JSON.stringify({ event: 'help-level-entry', level,
+        state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+          toggle: !!document.getElementById('cp-native-help-toggle'),
+          levels: [...document.querySelectorAll('td.headerBar a.headerAuthLevelLink')]
+            .map(item => item.textContent.trim()),
+          hasSidebar: !!document.querySelector('form[name="leftNavForm"]')
+        })) }));
+      return;
     }
     await openFolder(page);
     const labels = await page.locator('td[width="82%"] a.navMenuItem').evaluateAll(links =>
