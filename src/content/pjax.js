@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.25-native";
+  var CP_PJAX_VERSION = "0.3.26-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -4442,8 +4442,9 @@
               try {
                 if (_submitNav && cpFormOrigin && canonical === url &&
                     (/\/(Add|AddModify|Import|Modify)\//.test(url) || /\/Operator\/System\/DeviceType\/Profile\//.test(url)) &&
+                    !/\b(?:Add|Modify|Import)\b/i.test(doc.title || '') &&
                     liveCell && liveCell.querySelector &&
-                    liveCell.querySelector('select[name="findKey0"], select[name="findKey"], #searchTable, input[name="add"][type="button"], input[name="addBasic"][type="button"], button[name="add"]')) {
+                    liveCell.querySelector('select[name="findKey0"], select[name="findKey"], #searchTable, input[name="add"][type="button"], input[name="addBasic"][type="button"], input[name="addByWeightedRouting"], input[name="addByOrderedRouting"], button[name="add"]')) {
                   canonical = cpFormOrigin;
                   document.documentElement.setAttribute("data-cp-path", canonical);
                 }
@@ -4452,6 +4453,12 @@
                 if (_submitNav && /\/Group\/Call_Center\/AddModify\//.test(url) &&
                     liveCell && liveCell.querySelector && liveCell.querySelector('input[name="addBasic"]')) {
                   canonical = '/commpilot/Group/Call_Center/';
+                  document.documentElement.setAttribute('data-cp-path', canonical);
+                }
+                if (_submitNav && /\/Group\/EnterpriseTrunk\/AddUsing(?:Weighted|Ordered)Routing\/AddModify\//.test(url) &&
+                    liveCell && liveCell.querySelector &&
+                    liveCell.querySelector('input[name="addByWeightedRouting"], input[name="addByOrderedRouting"]')) {
+                  canonical = '/commpilot/Group/EnterpriseTrunk/';
                   document.documentElement.setAttribute('data-cp-path', canonical);
                 }
               } catch (e) {}
@@ -4672,6 +4679,19 @@
         // "OK does nothing, breadcrumb just refreshes" symptom). Verified live that posting the same fields to
         // Modify/ saves and returns to the list. Redirect the self-post there (covers OK and Delete).
         if (/\/Reseller\/Admins\/modify\.jsp$/i.test(act)) act = "/commpilot/Reseller/Admins/Modify/";
+        // Enterprise Trunk's generic Modify/index.jsp only selects the trunk
+        // and redirects to the routing controller. A self-POST loses the
+        // clicked save/delete action on that redirect (a native Delete also
+        // re-rendered Modify without removing the disposable sandbox trunk).
+        // Submit final actions to the controller that owns this routing type.
+        if (/^\/commpilot\/Group\/EnterpriseTrunk\/Modify\/index\.jsp$/i.test(act) &&
+            e.submitter && /^(ok|apply|delete)$/i.test(e.submitter.name || '')) {
+          var trunkTypeEl = form.querySelector('[name="enterpriseTrunkType"]');
+          var trunkType = String(trunkTypeEl && trunkTypeEl.value || '').toLowerCase();
+          if (trunkType === 'weighted' || trunkType === 'ordered')
+            act = '/commpilot/Group/EnterpriseTrunk/AddUsing' +
+              (trunkType === 'weighted' ? 'Weighted' : 'Ordered') + 'Routing/AddModify/';
+        }
         if (!isPjaxUrl(act)) return;
         e.preventDefault();
         e.stopImmediatePropagation();

@@ -297,6 +297,50 @@ test('a list value opens its row detail even when its legacy click listener is m
   } finally { await browser.close(); }
 });
 
+test('Enterprise Trunk final actions post to the routing controller', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    for (const type of ['weighted', 'ordered']) {
+      const page = await browser.newPage();
+      const modifyPath = '/commpilot/Group/EnterpriseTrunk/Modify/index.jsp';
+      const controller = `/commpilot/Group/EnterpriseTrunk/AddUsing${type === 'weighted' ?
+        'Weighted' : 'Ordered'}Routing/AddModify/`;
+      const listPath = '/commpilot/Group/EnterpriseTrunk/';
+      const shell = body => `<!doctype html><html><head><title>Enterprise Trunk</title></head><body>
+        <input name="formtokenserial" value="token"><table><tr><td width="82%">${body}</td></tr></table>
+        <script>window.redirectPost=function(){};</script></body></html>`;
+      const modify = shell('<h1>Modify Enterprise Trunk</h1><form name="mainForm" method="post">' +
+        `<input type="hidden" name="enterpriseTrunkType" value="${type}">` +
+        `<input type="hidden" name="enterpriseTrunkType" value="${type}">` +
+        '<input type="hidden" name="buttonClicked" value="delete">' +
+        '<input type="submit" name="delete" value="Delete"></form>');
+      const list = shell('<h1>Enterprise Trunk list</h1>' +
+        '<input type="button" name="addByWeightedRouting" value="Add By Weighted Routing">');
+      const posts = [];
+      await page.route('https://apps-sbx.avpaas.io/**', route => {
+        const request = route.request();
+        const pathname = new URL(request.url()).pathname;
+        if (request.method() === 'POST') posts.push(pathname);
+        const body = pathname === controller ? '<html><body><input name="formtokenserial" value="token2">' +
+          `<script>redirectPost('${listPath}', {});</script></body></html>` :
+          pathname === listPath ? list : modify;
+        return route.fulfill({ status: 200, contentType: 'text/html', body });
+      });
+      await page.goto(`https://apps-sbx.avpaas.io${modifyPath}`, { waitUntil: 'domcontentloaded' });
+      await page.addScriptTag({ path: pjaxPath });
+      await page.evaluate(() => { window.initialDocument = document; });
+      await page.locator('input[name="delete"]').click();
+      await page.getByRole('heading', { name: 'Enterprise Trunk list' }).waitFor();
+      await page.waitForFunction(pathname => location.pathname === pathname, listPath);
+      assert.deepEqual(posts, [controller, listPath]);
+      assert.equal(await page.evaluate(() => location.pathname), listPath);
+      assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+      await page.close();
+    }
+  } finally { await browser.close(); }
+});
+
 test('Answer Confirmation saves a multipart form with no selected file in-shell', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });

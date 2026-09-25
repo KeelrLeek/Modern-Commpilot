@@ -712,6 +712,239 @@ async function probe(page, label) {
   await page.waitForFunction(() => location.pathname !== '/commpilot/Common/folder_contents.jsp' &&
     !!document.querySelector('td[width="82%"]'), null, { timeout: 20000 });
   const entry = await page.evaluate(() => ({ path: location.pathname, title: document.title }));
+  if (process.env.BW_SCA_POLICY_PROBE === '1' && level === 'User' &&
+      folder === 'Call Control' && label === 'Shared Call Appearance') {
+    await page.locator('td[width="82%"] a.headerLink:text-is("Configure device policies")').click();
+    await waitPath(page, '/commpilot/User/DevicePolicies/');
+    console.log(JSON.stringify({ event: 'sca-policy-form',
+      state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+        text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 950),
+        controls: [...document.querySelectorAll('td[width="82%"] form input, td[width="82%"] form select')]
+          .filter(item => item.name && item.type !== 'hidden')
+          .map(item => ({ name: item.name, type: item.type, value: item.value,
+            checked: item.checked, options: item.tagName === 'SELECT' ?
+              [...item.options].map(option => option.value).slice(0, 12) : undefined })) })) }));
+    if (process.env.BW_SCA_POLICY_APPLY === '1') {
+      const values = () => page.evaluate(() => [...document.querySelectorAll(
+        'td[width="82%"] form input[type="radio"], td[width="82%"] form input[type="checkbox"]')]
+        .map(item => [item.name, item.value, item.checked]));
+      const before = await values();
+      await page.evaluate(() => { window.__scaPolicyDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === '/commpilot/User/DevicePolicies/',
+      { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="apply"]:visible').first().click();
+      const found = await response;
+      await page.waitForTimeout(650);
+      const after = await values();
+      const saved = await page.evaluate(() => ({ path: location.pathname,
+        sameDocument: document === window.__scaPolicyDocument,
+        saved: /\bSaved\b/.test(document.querySelector('td[width="82%"]')?.innerText || ''),
+        error: document.querySelector('.cp-alert-error')?.textContent?.trim() || '' }));
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Shared Call Appearance")').click();
+      await waitPath(page, '/commpilot/User/SCAP/');
+      await page.locator('td[width="82%"] a.headerLink:text-is("Configure device policies")').click();
+      await waitPath(page, '/commpilot/User/DevicePolicies/');
+      const readback = await values();
+      const pass = found?.status() === 200 && saved.sameDocument && saved.saved &&
+        !saved.error && JSON.stringify(before) === JSON.stringify(after) &&
+        JSON.stringify(before) === JSON.stringify(readback);
+      const detail = `Device Policies no-change Apply HTTP ${found?.status() || 'none'} at ${saved.path}; ` +
+        `${saved.sameDocument ? 'same document' : 'reloaded'}; ` +
+        `${saved.saved ? 'Saved' : 'no Saved message'}; ` +
+        `${JSON.stringify(before) === JSON.stringify(readback) ? 'fresh readback matched' : 'fresh readback differed'}` +
+        `${saved.error ? `; ${saved.error.slice(0, 120)}` : ''}.`;
+      writeDeep('discovered-616', pass ? 'passed' : 'failed', detail);
+      console.log(JSON.stringify({ event: 'sca-policy-apply', pass, detail }));
+    }
+    return;
+  }
+  if (process.env.BW_TRUNK_GROUP_PROBE === '1' && level === 'Group' &&
+      folder === 'Services' && label === 'Trunk Group') {
+    const name = `PJAX-Audit-TG-${Date.now().toString(36)}`;
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, '/commpilot/Group/TrunkGroup/Add/index.jsp');
+    await page.locator('td[width="82%"] input[name="newName"]').fill(name);
+    await page.locator('td[width="82%"] input[name="maxActiveCalls"]').fill('0');
+    const pilot = page.locator('td[width="82%"] input[name="addPilotUser"]');
+    if (await pilot.isChecked()) await pilot.uncheck();
+    const none = page.locator('td[width="82%"] input[name="deviceCategory"][value="none"]');
+    if (await none.count()) await none.check();
+    const selected = await page.evaluate(() => ({ pilot: document.querySelector('input[name="addPilotUser"]')?.checked,
+      device: document.querySelector('input[name="deviceCategory"]:checked')?.value || '' }));
+    const responses = [];
+    const dialogs = [];
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    await page.evaluate(() => {
+      window.__trunkSubmitEvents = [];
+      document.addEventListener('submit', event => window.__trunkSubmitEvents.push({
+        defaultPrevented: event.defaultPrevented, target: event.target?.getAttribute('action'),
+        submitter: event.submitter?.name
+      }), true);
+    });
+    page.on('dialog', async dialog => { dialogs.push(dialog.message()); await dialog.dismiss(); });
+    page.on('response', item => {
+      if (item.request().method() === 'POST')
+        responses.push({ path: new URL(item.url()).pathname, status: item.status() });
+    });
+    const postPromise = page.waitForResponse(response => response.request().method() === 'POST' &&
+      new URL(response.url()).pathname.includes('/TrunkGroup/'), { timeout: 5000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+    const postResponse = await postPromise;
+    await page.waitForTimeout(950);
+    console.log(JSON.stringify({ event: 'trunk-group-create', name, selected, responses, dialogs, errors,
+      postText: (await postResponse?.text().catch(() => '') || '').match(/.{0,100}(?:error|require|invalid|missing|incorrect).{0,180}/ig)?.slice(0, 12),
+      state: await page.evaluate(value => ({ path: location.pathname, title: document.title,
+        events: window.__trunkSubmitEvents,
+        form: [...document.querySelectorAll('td[width="82%"] form')].map(f => ({ action: f.action,
+          rawAction: f.getAttribute('action'), onsubmit: f.getAttribute('onsubmit'), method: f.method })),
+        button: document.querySelector('td[width="82%"] input[name="ok"]')?.outerHTML,
+        first: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 900),
+        rowId: [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+          .find(row => row.textContent.includes(value))?.id || '',
+        text: document.querySelector('td[width="82%"]')?.innerText?.slice(-1400),
+        invalid: [...document.querySelectorAll('td[width="82%"] :invalid')].map(el => el.name)
+      }), name) }));
+    return;
+  }
+  if (process.env.BW_TRUNK_CLEAN_NAME && level === 'Group' &&
+      folder === 'Services' && label === 'Enterprise Trunk') {
+    const name = process.env.BW_TRUNK_CLEAN_NAME;
+    const rowId = await aaRowId(page, name);
+    console.log(JSON.stringify({ event: 'trunk-clean-row', name, rowId, path: entry.path,
+      html: rowId ? await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 2200)) : '' }));
+    if (!rowId) return;
+    await page.locator(`#${rowId} a.headerLink`).last().click();
+    await page.waitForFunction(() => !!document.querySelector('td[width="82%"] input[name="delete"]'),
+      null, { timeout: 15000 });
+    console.log(JSON.stringify({ event: 'trunk-clean-detail', name,
+      state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+        text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 700),
+        deleteButton: document.querySelector('td[width="82%"] input[name="delete"]')?.outerHTML || '',
+        formOnSubmit: document.querySelector('td[width="82%"] input[name="delete"]')?.form?.getAttribute('onsubmit') || '',
+        deleteWiring: (() => { const id = document.querySelector('td[width="82%"] input[name="delete"]')?.id;
+          return [...document.querySelectorAll('td[width="82%"] script')]
+            .map(item => item.textContent || '').find(item => id && item.includes(id))?.slice(0, 1100) || ''; })(),
+        hidden: [...document.querySelectorAll('td[width="82%"] form input[type="hidden"]')]
+          .map(item => ({ name: item.name, value: item.name === 'formtokenserial' ? '[token]' : item.value })),
+        buttons: [...document.querySelectorAll('td[width="82%"] input[type="submit"], td[width="82%"] input[type="button"]')]
+          .filter(item => item.getClientRects().length)
+          .map(item => ({ name: item.name, value: item.value })) })) }));
+    if (process.env.BW_TRUNK_CLEAN_APPLY === '1') {
+      await page.evaluate(() => { window.__trunkApplyDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname.includes('/EnterpriseTrunk/'),
+      { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="apply"]:visible').first().click();
+      const found = await response;
+      await page.waitForTimeout(800);
+      console.log(JSON.stringify({ event: 'trunk-existing-apply', name,
+        status: found?.status() || null,
+        postedPath: found ? new URL(found.url()).pathname : '',
+        state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+          sameDocument: document === window.__trunkApplyDocument,
+          error: document.querySelector('.cp-alert-error')?.textContent?.trim() || '',
+          text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 550) })) }));
+      return;
+    }
+    if (process.env.BW_TRUNK_EXISTING_TAB) {
+      const tab = process.env.BW_TRUNK_EXISTING_TAB;
+      const posts = [];
+      const listener = item => {
+        if (item.request().method() === 'POST')
+          posts.push({ path: new URL(item.url()).pathname, status: item.status() });
+      };
+      page.on('response', listener);
+      await page.locator(`td[width="82%"] a.tab:text-is("${tab}")`).click();
+      await page.waitForTimeout(950);
+      page.off('response', listener);
+      console.log(JSON.stringify({ event: 'trunk-existing-tab', name, tab, posts,
+        state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+          active: document.querySelector('.tabActive')?.textContent?.trim() || '',
+          text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 500) })) }));
+      return;
+    }
+    if (process.env.BW_TRUNK_CLEAN_DELETE === '1') {
+      const button = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+      if (!await button.count()) throw new Error('Trunk Edit has no Delete button');
+      if (process.env.BW_TRUNK_DIRECT_CONTROLLER === '1')
+        await button.evaluate(item => item.form.setAttribute('action',
+          '/commpilot/Group/EnterpriseTrunk/AddUsingWeightedRouting/AddModify/'));
+      if (process.env.BW_TRUNK_NATIVE_DELETE === '1')
+        await page.evaluate(() => window.addEventListener('submit', event => event.stopPropagation(), true));
+      page.once('dialog', dialog => dialog.accept());
+      const postResponses = [];
+      const postListener = item => {
+        if (item.request().method() === 'POST')
+          postResponses.push({ path: new URL(item.url()).pathname, status: item.status() });
+      };
+      page.on('response', postListener);
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname.includes('/EnterpriseTrunk/'),
+      { timeout: 15000 }).catch(() => null);
+      await button.click();
+      if (process.env.BW_TRUNK_NATIVE_DELETE === '1') {
+        await page.waitForTimeout(2200);
+        console.log(JSON.stringify({ event: 'trunk-native-delete-result', name, postResponses,
+          state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+            text: document.body?.innerText?.slice(0, 850) || '' })).catch(() => ({ path: new URL(page.url()).pathname })) }));
+        page.off('response', postListener);
+        return;
+      }
+      const found = await response;
+      const rawHtml = found ? await found.text() : '';
+      const rawText = rawHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+      const stubIndex = rawHtml.indexOf('/commpilot/Group/EnterpriseTrunk/AddUsingWeightedRouting/AddModify/');
+      await page.waitForTimeout(650);
+      page.off('response', postListener);
+      console.log(JSON.stringify({ event: 'trunk-clean-deleted', name,
+        httpStatus: found?.status() || null,
+        postResponses, rawStart: rawText.slice(0, 350),
+        stubTargets: [...rawHtml.matchAll(/redirectPost\s*\(\s*['"]([^'"]+)['"]\s*,\s*(\{[\s\S]*?\})\s*\)/g)]
+          .map(item => ({ target: item[1], fields: item[2].replace(/formtokenserial[^,}\n]*/g, 'formtokenserial:[token]')
+            .slice(0, 500) })),
+        stub: stubIndex >= 0 ? rawHtml.slice(Math.max(0, stubIndex - 50), stubIndex + 650)
+          .replace(/formtokenserial[^,}\n]*/g, 'formtokenserial:[token]') : '',
+        submitted: found ? [...new URLSearchParams(found.request().postData() || '')]
+          .filter(item => item[0] !== 'formtokenserial') : [],
+        rawMatches: rawText.match(/.{0,100}(?:error|cannot|fail|delete|assign|validation).{0,170}/ig)?.slice(-12) || [],
+        state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+          error: document.querySelector('.cp-alert-error')?.textContent?.trim() || '',
+          text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 700) })) }));
+    }
+    return;
+  }
+  if (process.env.BW_TRUNK_TAB_PROBE === '1' && level === 'Group' &&
+      folder === 'Services' && label === 'Enterprise Trunk') {
+    const ordered = process.env.BW_TRUNK_ROUTING === 'ordered';
+    const target = process.env.BW_TRUNK_TARGET || 'Assign Priorities';
+    const id = `PJAX-Audit-Trunk-${Date.now().toString(36)}`;
+    const addName = ordered ? 'addByOrderedRouting' : 'addByWeightedRouting';
+    await page.locator(`td[width="82%"] input[name="${addName}"]`).first().click();
+    const addPath = new URL(page.url()).pathname;
+    await page.locator('td[width="82%"] input[name="enterpriseTrunkName"]').fill(id);
+    await page.evaluate(() => { window.__bwTrunkDocument = document; });
+    const posts = [];
+    const listener = response => {
+      if (response.request().method() === 'POST')
+        posts.push({ path: new URL(response.url()).pathname, status: response.status() });
+    };
+    page.on('response', listener);
+    if (process.env.BW_TRUNK_SAVE_PROBE === '1')
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+    else await page.locator(`td[width="82%"] a.tab:text-is("${target}")`).click();
+    await page.waitForTimeout(1700);
+    page.off('response', listener);
+    console.log(JSON.stringify({ event: 'trunk-tab-probe', id, ordered, target, addPath, posts,
+      state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+        sameDocument: document === window.__bwTrunkDocument,
+        text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 650),
+        active: document.querySelector('.tabActive')?.textContent?.trim() || '' })) }));
+    return;
+  }
   if (process.env.BW_CC_CODE_CLEAN_ID && level === 'Group' && folder === 'Call Center' &&
       ['Agent Unavailable Codes', 'Call Disposition Codes'].includes(label)) {
     const code = process.env.BW_CC_CODE_CLEAN_ID;
@@ -846,7 +1079,7 @@ async function probe(page, label) {
     return;
   }
   if (process.env.BW_INSPECT_SERVICE_LIST === '1' &&
-      ['Auto Attendant', 'Hunt Group', 'Call Centers'].includes(label)) {
+      ['Auto Attendant', 'Hunt Group', 'Call Centers', 'Enterprise Trunk', 'Trunk Group'].includes(label)) {
     console.log(JSON.stringify({ event: 'service-list-inspect', label,
       ...await page.evaluate(() => ({ path: location.pathname, title: document.title,
         text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 700),
@@ -1158,6 +1391,10 @@ async function probe(page, label) {
           process.env.BW_SIMPLE_CLEAN_NAME ||
           process.env.BW_USER_SERVICE_CLEAN_ID ||
           process.env.BW_CC_CODE_CLEAN_ID ||
+          process.env.BW_TRUNK_TAB_PROBE === '1' ||
+          process.env.BW_TRUNK_CLEAN_NAME ||
+          process.env.BW_TRUNK_GROUP_PROBE === '1' ||
+          process.env.BW_SCA_POLICY_PROBE === '1' ||
           process.env.BW_INSPECT_PROFILE_BUTTONS === '1' ||
           process.env.BW_INSPECT_DEPARTMENT_MODIFY === '1' ||
           process.env.BW_INSPECT_SCHEDULE_MODIFY === '1' ||
