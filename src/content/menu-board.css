@@ -1,0 +1,117 @@
+/* One-page folder board. It uses the native menu markup and current palette. */
+html[data-cp-direction].cp-board-active body[id="initBody.menuTemplate"] > table[height="100%"] > tbody > tr > td[width="82%"][valign="top"] {
+  display:flex !important;
+  flex-direction:column !important;
+  padding:0 !important;
+  overflow:hidden !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console {
+  box-sizing:border-box;
+  display:flex;
+  flex:1 1 auto;
+  flex-direction:column;
+  gap:20px;
+  min-height:0;
+  width:100%;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding:24px 24px 36px;
+  scrollbar-gutter:stable;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-section {
+  flex:0 0 auto;
+  min-width:0;
+  border:1px solid var(--d-line);
+  border-radius:16px;
+  background:var(--d-surface);
+  box-shadow:var(--d-shadow);
+  overflow:clip;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head {
+  position:sticky;
+  top:-24px;
+  z-index:2;
+  display:flex;
+  align-items:center;
+  min-height:52px;
+  box-sizing:border-box;
+  padding:12px 20px;
+  border-bottom:1px solid var(--d-line);
+  background:var(--d-raised);
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head-inner {
+  display:flex;
+  align-items:center;
+  gap:11px;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head-ico {
+  display:inline-block;
+  width:9px;
+  height:9px;
+  flex:0 0 9px;
+  border-radius:50%;
+  background:var(--d-accent);
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head-name {
+  color:var(--d-text);
+  font:690 18px/1.25 "Geist", "Inter", sans-serif;
+  letter-spacing:-.025em;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-count {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:23px;
+  height:23px;
+  box-sizing:border-box;
+  padding:0 6px;
+  border:1px solid var(--d-line);
+  border-radius:8px;
+  background:var(--d-surface);
+  color:var(--d-muted);
+  font:650 11px/1 "Inter", sans-serif;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-count[hidden] { display:none; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body {
+  min-width:0;
+  padding:20px;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body .screenName,
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body > script { display:none !important; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body > table { width:100%; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body td[width="50%"][valign="TOP"] > table:has(> tbody > tr > td.menuCategory) {
+  box-shadow:none;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-loading {
+  color:var(--d-muted);
+  font-size:13px;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-error {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  flex:0 0 auto;
+  padding:12px 16px;
+  border:1px solid var(--d-line);
+  border-radius:12px;
+  background:var(--d-raised);
+  color:var(--d-text);
+  font:500 13px/1.4 "Inter", sans-serif;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-error button {
+  flex:0 0 auto;
+  padding:8px 12px;
+  border:1px solid var(--d-line);
+  border-radius:8px;
+  background:var(--d-surface);
+  color:var(--d-text);
+  font:650 12px/1 "Inter", sans-serif;
+  cursor:pointer;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-tail { flex:0 0 auto; }
+@media(max-width:1100px){
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console { padding:14px 12px 26px; gap:12px; }
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body { padding:12px; }
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head { padding:10px 12px; }
+}

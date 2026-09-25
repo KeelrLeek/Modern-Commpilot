@@ -280,3 +280,56 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .bw-search-summary { co
     width:calc(100% - 264px) !important;
   }
 }
+
+/* Keep CommPilot's header, breadcrumb, and left navigation in place while the
+   right-hand workspace scrolls. The server's table stays the source of the
+   sidebar and page content; only its viewport layout changes. */
+html[data-cp-direction]:has(body[id="initBody.menuTemplate"]),
+html[data-cp-direction] body[id="initBody.menuTemplate"] {
+  height:100dvh !important;
+  overflow:hidden !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] > table[height="100%"] {
+  display:block !important;
+  box-sizing:border-box !important;
+  width:100% !important;
+  height:calc(100dvh - var(--cp-shell-top, 132px)) !important;
+  overflow:hidden !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] > table[height="100%"] > tbody {
+  display:block !important;
+  height:100% !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] > table[height="100%"] > tbody > tr:has(> td[width="82%"]) {
+  display:flex !important;
+  align-items:stretch !important;
+  width:100% !important;
+  height:100% !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] > table[height="100%"] > tbody > tr > td.headandfoot[width="18%"] {
+  display:block !important;
+  box-sizing:border-box !important;
+  flex:0 0 clamp(210px, 18vw, 264px) !important;
+  width:clamp(210px, 18vw, 264px) !important;
+  min-width:0 !important;
+  max-width:none !important;
+  height:100% !important;
+  overflow-y:auto !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] > table[height="100%"] > tbody > tr > td[width="82%"][valign="top"] {
+  display:block !important;
+  box-sizing:border-box !important;
+  flex:1 1 0% !important;
+  width:0 !important;
+  min-width:0 !important;
+  height:100% !important;
+  overflow:auto !important;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+}
+@media(max-width:1100px){
+  html[data-cp-direction] body[id="initBody.menuTemplate"] > table[height="100%"] > tbody > tr > td.headandfoot[width="18%"] {
+    flex-basis:105px !important;
+    width:105px !important;
+  }
+}

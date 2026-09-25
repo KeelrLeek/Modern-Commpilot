@@ -100,6 +100,7 @@
   var cpDclSpin = false;   // true while cpListSearch's harvest re-dispatches DOMContentLoaded (see cpHook guard)
   var cpLastNav = { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
   var cpPopReplaying = false;
+  var cpPopScroll = null;
   var cpReexecutingScripts = false;
   var cpAutoReplaceUrl = null;
   var cpConfigFilesForwarded = false;
@@ -145,8 +146,9 @@
   var cpAggAnchorFolder = null;
   var cpAggCache = null;   // SP pre-fetch cache {folder: menuHtml|null}, filled before the page is wiped
   var cpAggReady = null;   // {folder: {promise, resolve}} — per-folder deferred so the reveal can await each
-                           // folder PROGRESSIVELY as its (sequential) prefetch resolves, instead of waiting
-                           // for the whole prefetch. Removes the upfront dead gap on SP/Group/User entry.
+  var cpAggNavReady = null; // resolves after the entity context is restored, before a board link may navigate
+  var cpAggPrefetchFailed = false;
+  var cpBoardFailed = false;
   // sidebarSig -> { groups:[{label,items:[{name,url,params}]}] } of a level's pages, harvested once its console
   // is built; powers the breadcrumb current-pill MEGA menu. PERSISTED to sessionStorage so it survives a reload
   // — otherwise landing on a sub-page after reload/recovery (no console rebuilt) leaves the menu empty.
@@ -569,7 +571,7 @@
     // page's frame-buster (which otherwise drives top.location back out). Mirrors cpFollow's
     // {doc,html}|{auth:false} contract incl. redirect-stub following (the SP "Modify" entry →
     // folder_contents 2-step), so cpHook's swap logic is identical regardless of transport.
-    function cpFollowFrame(url, params, token, depth) {
+    function cpFollowFrame(url, params, token, depth, timeoutMs) {
       return new Promise(function (resolve) {
         var ifr;
         function newFrame() {
@@ -633,7 +635,7 @@
           f.submit();
         }
         post(url, params || {}, token, depth || 0);
-        setTimeout(function () { done({ auth: false }); }, 8000);
+        setTimeout(function () { done({ auth: false }); }, timeoutMs || 8000);
       });
     }
 
@@ -676,6 +678,9 @@
     function cpAggBegin(anchorFolder, anchorHtml) {
       cpAggEnd();
       cpAggActive = true;
+      cpAggPrefetchFailed = false;
+      cpBoardFailed = false;
+      cpAggNavReady = cpDefer();
       cpAggAnchorFolder = anchorFolder || null;
       cpAggCache = {};
       cpAggReady = {};
@@ -686,15 +691,41 @@
       var t = document.getElementsByName("formtokenserial")[0];
       cpAggToken = t ? t.value : null;
     }
-    function cpAggEnd() {
+    function cpAggEnd(readyForNavigation) {
       cpAggGeneration++;
+      if (cpAggActive && !readyForNavigation && document.querySelector(".cp-console")) {
+        cpBoardFailed = true;
+        cpShowBoardFailure();
+      }
+      if (cpAggNavReady) {
+        try { cpAggNavReady.resolve(!!readyForNavigation); } catch (e) {}
+      }
       if (cpAggReady) {
         for (var pendingFolder in cpAggReady) {
           if (Object.prototype.hasOwnProperty.call(cpAggReady, pendingFolder))
             try { cpAggReady[pendingFolder].resolve(null); } catch (e) {}
         }
       }
-      cpAggActive = false; cpAggToken = null; cpAggAnchorFolder = null; cpAggCache = null; cpAggReady = null;
+      cpAggActive = false; cpAggToken = null; cpAggAnchorFolder = null; cpAggCache = null; cpAggReady = null; cpAggNavReady = null;
+    }
+    function cpShowBoardFailure() {
+      var board = document.querySelector(".cp-console");
+      if (!board || board.querySelector(".cp-console-error")) return;
+      var notice = document.createElement("div");
+      notice.className = "cp-console-error";
+      notice.setAttribute("role", "alert");
+      var message = document.createElement("span");
+      message.textContent = "CommPilot could not finish loading this menu. Retry before opening an option.";
+      var retry = document.createElement("button");
+      retry.type = "button";
+      retry.textContent = "Retry menu";
+      retry.addEventListener("click", function () {
+        if (cpEntityEntry && cpEntityEntry.url) cpHook(cpEntityEntry.url, cpEntityEntry.params || {});
+        else location.reload();
+      });
+      notice.appendChild(message);
+      notice.appendChild(retry);
+      board.insertBefore(notice, board.firstChild);
     }
     function cpAggPrefetch(folders) {
       // Pre-create a deferred per non-anchor folder up front so cpAggNavigate ALWAYS has a promise to
@@ -708,15 +739,16 @@
       });
       var generation = cpAggGeneration;
       var seq = Promise.resolve();
+      var failed = false;
       folders.forEach(function (f) {
         if (f.folder === cpAggAnchorFolder) return;   // anchor reuses its captured menu
         var deferred = cpAggReady[f.folder];           // capture THIS build's deferred (survives a cpAggEnd swap)
         seq = seq.then(function () {
           var settle = function (html) { if (cpAggCache) cpAggCache[f.folder] = html; deferred.resolve(html); };
-          if (cpSectionAborted || generation !== cpAggGeneration || !cpAggActive) { settle(null); return; }
+          if (failed || cpSectionAborted || generation !== cpAggGeneration || !cpAggActive) { settle(null); return; }
           var tokEl = document.getElementsByName("formtokenserial")[0];
           var tok = (tokEl ? tokEl.value : null) || cpAggToken;
-          return cpFollowFrame("/commpilot/Common/folder_contents.jsp", { folder: f.folder, menuId: f.menuId || "2" }, tok, 0)
+          return cpFollowFrame("/commpilot/Common/folder_contents.jsp", { folder: f.folder, menuId: f.menuId || "2" }, tok, 0, 20000)
             .then(function (res) {
               if (res && res.doc) {
                 var nt = res.doc.getElementsByName("formtokenserial")[0];
@@ -727,12 +759,18 @@
                 }
               }
               if (generation !== cpAggGeneration || !cpAggActive) { deferred.resolve(null); return; }
-              if (!res || res.auth === false || !res.doc) { settle(null); return; }
+              if (!res || res.auth === false || !res.doc) {
+                failed = true;
+                cpAggPrefetchFailed = true;
+                settle(null);
+                return;
+              }
               var td = res.doc.querySelector('td[width="82%"]');
               var n = td ? td.querySelectorAll('a.navMenuItem').length : 0;
+              if (!td || n === 0) { failed = true; cpAggPrefetchFailed = true; }
               settle((td && n > 0) ? td.innerHTML : null);
             })
-            .catch(function () { settle(null); });
+            .catch(function () { failed = true; cpAggPrefetchFailed = true; settle(null); });
         });
       });
       return seq;
@@ -4071,10 +4109,34 @@
           return;
         }
         if (isPjaxUrl(url)) {
-          // A level's menu prefetch rotates the same single-use token as a
-          // clicked page. Stop the remaining prefetches and let its current
-          // POST settle before starting this navigation.
+          // Preserve the workspace scroll position on the history entry we
+          // are leaving. The window itself remains fixed in the new shell.
+          if (!cpPopReplaying) {
+            try {
+              var oldScroller = document.querySelector('.cp-console') || document.querySelector('td[width="82%"][valign="top"]');
+              history.replaceState(Object.assign({}, history.state || {}, {
+                cpMainScroll: oldScroller ? oldScroller.scrollTop : 0
+              }), "", location.href);
+            } catch (e) {}
+          }
+          // At SP/Group/User level the board must finish its sequential folder
+          // reads and re-enter the entity context before a linked page opens.
+          // Otherwise the first page can load but its next Search POST fails.
           if (cpAggActive) {
+            var boardReady = cpAggNavReady && cpAggNavReady.promise;
+            var boardNavSeq = ++cpSeq;
+            cpDbg("[pjax] board nav queued", url, boardNavSeq);
+            if (boardReady) boardReady.then(function (ready) {
+              cpDbg("[pjax] board nav ready", url, ready, boardNavSeq, cpSeq);
+              if (cpSeq !== boardNavSeq) return;
+              if (ready) cpHook(url, params, _retry);
+              else cpUploadNotice("CommPilot could not finish loading this menu. Reload this page before opening an option.");
+            });
+            return;
+          }
+          // Reseller folder reads are plain fetches. Cancel any unfinished
+          // read and drain its token-bearing POST before starting navigation.
+          if (document.querySelector(".cp-console") && cpSectionRunning) {
             cpSectionAborted = true;
             cpAggEnd();
             if (cpInflightPosts > 0) {
@@ -4399,6 +4461,7 @@
               // entries alone so Back/Forward can restore their scroll.
               if (cpHistoryMode === "push" && cpHistoryCommitted) {
                 try { window.scrollTo(0, 0); } catch (e) {}
+                try { liveCell.scrollTop = 0; } catch (e) {}
               }
               try { document.documentElement.setAttribute("data-cp-path", url); } catch (e) {}
 
@@ -5055,6 +5118,7 @@
         }
         if (!nav || !nav.url) return;
         cpPopReplaying = true;
+        cpPopScroll = typeof e.state?.cpMainScroll === "number" ? e.state.cpMainScroll : 0;
         cpDbg("[pjax] popstate → replay", nav.url);
         // A child page can switch CommPilot's server-side target (for example,
         // User Addresses → Group device profile). Restore the entry context
@@ -5857,6 +5921,9 @@
       // S=2, G=1, U=0), so the same machinery serves every level. Any other prefix stays native until wired.
       if (!folders.every(function (f) { return /^[RSGU]\d+$/.test(f.folder); })) return;
       var aggLevel = !folders.every(function (f) { return /^R\d+$/.test(f.folder); });
+      // A fresh non-reseller page without its entity-entry POST has no safe
+      // way to restore the server context after the folder reads.
+      if (aggLevel && (!cpEntityEntry || !cpEntityEntry.url)) return;
       // SWITCHER (debug/fallback): at non-reseller levels, localStorage.cpSpAgg === "0" forces the
       // single-folder mode (skip the aggregated build → native menu in the shell, sidebar clicks
       // foreground-navigate). Any other value (incl. unset) = aggregate. Reseller ignores it.
@@ -5872,7 +5939,7 @@
       // the SP console is still building), this reseller console's section loads route through cpAggNavigate,
       // whose cache holds only the PREVIOUS (S) folders → null → "Couldn't load". Profile (fetched first) is
       // the usual casualty; an instant click shells ALL sections. Clearing it here forces the live fetch path.
-      if (!aggLevel) cpAggEnd();
+      if (!aggLevel) { cpAggEnd(); cpBoardFailed = false; }
       // Capture the entry's OPEN folder + its already-fetched menu HTML NOW — before the cell is wiped.
       // The open folder is the one cpHook just navigated to, which is ALSO the console's anchor section,
       // so reusing this avoids re-requesting it. SP seeds it into cpAggCache (cpAggBegin); reseller stores
@@ -5894,33 +5961,14 @@
       // Build console DOM
       var consoleDiv = document.createElement("div");
       consoleDiv.className = "cp-console";
-      // Breadcrumb header — built here, inserted into the content cell ABOVE .cp-console
-      // (below) so it stays pinned while the console scrolls internally.
-      // Breadcrumb — derive the REAL level trail (Reseller; Reseller › <SP>; …) rather than
-      // hardcoding "Reseller". Source the segments from the live auth links if present, else from an
-      // already-built .cp-breadcrumb (skin.js/pjax), else fall back to "Reseller". Captured BEFORE the
-      // content cell is wiped below.
-      var trail = [];
-      var pushSeg = function (t) { if (t && trail[trail.length - 1] !== t) trail.push(t); };   // dedupe consecutive (the auth links can repeat "Reseller")
-      // Prefer the FRESH crumb cpHook (pjax) / cpMoveBreadcrumb (full load) just built from the FETCHED doc.
-      // The live header's a.headerAuthLevelLink are STALE on a pjax swap (the header isn't swapped — the same
-      // reason cpCurEntity exists) and leak the PREVIOUS level's segments — that's what made "Users" randomly
-      // appear at other levels. Read the just-built crumb first; the live links are only the fresh-load fallback.
-      var existingCrumb = document.querySelector(".cp-breadcrumb");
-      if (existingCrumb) existingCrumb.querySelectorAll(".cp-bc-seg, .cp-bc-cur, a").forEach(function (a) { pushSeg((a.textContent || "").trim()); });
-      if (!trail.length) document.querySelectorAll("a.headerAuthLevelLink").forEach(function (a) { pushSeg((a.textContent || "").trim()); });
-      if (!trail.length) trail = ["Reseller"];
-      // Current ENTITY (e.g. a user id) → the breadcrumb's last pill (like the live site's "… Users : id").
-      // The entity lives in span.headerAuthLevel, which is in the HEADER — but the header isn't swapped on a
-      // pjax nav, so it holds the PREVIOUS entity (stale), and the fresh content cell has none. So prefer
-      // cpCurEntity, stashed by the last cpHook swap from the FETCHED doc (fresh per level; "" for reseller/
-      // SP/group). Only on a fresh page load (no swap yet — cpCurEntity null) is the live header reliable.
-      var _tl = trail.length;
-      var _ent = (cpCurEntity !== null)
-        ? cpCurEntity
-        : (function () { var h = document.querySelector("span.headerAuthLevel"); return h ? (h.textContent || "").replace(/^\s*:\s*/, "").trim() : ""; })();
-      if (_ent) pushSeg(_ent);
-      var crumb = cpBuildPillCrumb(trail, trail.length > _tl, false);   // base/home menu → no dropdown (sub-menus only)
+      consoleDiv.addEventListener("click", function (event) {
+        if (!cpBoardFailed || !event.target.closest("a.navMenuItem")) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        cpShowBoardFailure();
+      }, true);
+      // The native breadcrumb remains in the fixed header. This board contains
+      // only the folder options, so the right pane can scroll independently.
       folders.forEach(function (f) {
         var sec = document.createElement("section");
         sec.className = "cp-console-section";
@@ -5959,12 +6007,12 @@
       // (staggerCards), masking the load.
       var mountConsole = function () {
         while (contentCell.firstChild) contentCell.removeChild(contentCell.firstChild);
-        contentCell.appendChild(crumb);
+        // The current native header already has the breadcrumb. Keep it in its
+        // fixed row; the board owns only the scrolling workspace below it.
         contentCell.appendChild(consoleDiv);
         consoleDiv.querySelectorAll(".cp-console-section").forEach(function (s) { s.style.display = "none"; });
-        cpSyncConsoleClass();
+        document.documentElement.classList.add("cp-board-active");
         cpWireConsoleScroll();
-        cpEnsureSubmenuScaffold();
         cpHeadFade();
       };
       // Anchor on the entry's open folder at aggregation levels (its cached content reveals first, then the
@@ -6199,8 +6247,6 @@
           document.dispatchEvent(new Event("cp:reskin"));   // wrapMenuCards etc. → the section's FINAL height
           cpReexecWiringScripts(bodyEl);
           cpSetSectionCount(bodyEl);
-          cpSummarizeLeaves(bodyEl);
-          cpPopulateSubmenu(folder, bodyEl);
           // An above-anchor section was just inserted above the pinned anchor. Re-pin the anchor flush
           // to the console top — an ABSOLUTE, idempotent scroll (sets the exact position, no per-section
           // delta to accumulate so nothing drifts), the same alignment the sidebar click uses. After
@@ -6217,10 +6263,14 @@
           }
           cpFitConsoleTail();
           cpHeadFade();
-          cpHarvestLevelPages();   // harvests once ALL sections are loaded (guarded) — robust vs reveal timing
         } else {
           cpRevealSection(sec, aboveAnchor);
           bodyEl.innerHTML = "";
+          if (cpAggActive) {
+            bodyEl.textContent = "Menu section unavailable.";
+            if (done) done();
+            return;
+          }
           var retryBtn = document.createElement("button");
           retryBtn.textContent = "Couldn’t load — Retry";
           retryBtn.style.cssText = "background:none;border:1px solid var(--cp-border, #3c3a37);border-radius:6px;padding:6px 14px;color:var(--cp-text, #e8e8e8);cursor:pointer;font:inherit;";
@@ -6320,7 +6370,32 @@
     function cpRevealStep(secs, order, i) {
       if (cpSectionAborted || !document.querySelector(".cp-console")) { cpRevealBusy = false; cpAggEnd(); return; }
       if (i >= order.length) {
-        cpAggEnd();   // walk complete — clear the agg cursor/token/flags
+        // Folder prefetches at SP/Group/User level mutate CommPilot's server-side
+        // target context. Re-enter the selected entity once before exposing the
+        // finished board; otherwise a linked list may open but its next Search
+        // POST fails with HTTP 500 despite having the response's fresh token.
+        if (cpAggActive) {
+          var restoreFolder = cpAggAnchorFolder || secs[0].getAttribute("data-cp-folder");
+          var restoreSection = document.querySelector('.cp-console-section[data-cp-folder="' + restoreFolder + '"]');
+          var restoreMenuId = restoreSection && restoreSection.getAttribute("data-cp-menuid") || "2";
+          var restoreToken = (document.getElementsByName("formtokenserial")[0] || {}).value || cpAggToken;
+          var needsEntityEntry = cpEntityEntry && cpEntityEntry.url;
+          var restoreUrl = needsEntityEntry ? cpEntityEntry.url : "/commpilot/Common/folder_contents.jsp";
+          var restoreParams = needsEntityEntry ? cpEntityEntry.params || {} : { folder: restoreFolder, menuId: restoreMenuId };
+          cpFollowFrame(restoreUrl, restoreParams, restoreToken, 0, 20000).then(function (res) {
+            var restored = !!(res && res.doc && res.doc.querySelector('td[width="82%"] a.navMenuItem'));
+            cpDbg("[pjax] board context restore", restored, !!(res && res.doc), !!(res && res.auth === false), res && res.doc && res.doc.title,
+              res && res.doc && res.doc.querySelectorAll('td[width="82%"] a.navMenuItem').length);
+            if (restored) {
+              var nextToken = res.doc.getElementsByName("formtokenserial")[0];
+              if (nextToken && nextToken.value) {
+                var liveTokens = document.getElementsByName("formtokenserial");
+                for (var ti = 0; ti < liveTokens.length; ti++) liveTokens[ti].value = nextToken.value;
+              }
+            }
+            cpAggEnd(restored && !cpAggPrefetchFailed);
+          }).catch(function () { cpAggEnd(false); });
+        } else cpAggEnd(true);
         // Sequence complete — re-enable the scroll handler + restore the proper (tight) tail. Also
         // reveal any above-section still held invisible (one that never got confirmed off-screen, e.g.
         // a residual clamp) so nothing is left hidden.
@@ -6328,7 +6403,11 @@
         var cdone = document.querySelector(".cp-console");
         if (cdone) cdone.querySelectorAll(".cp-console-section").forEach(function (s) { if (s.style.visibility) s.style.visibility = ""; });
         cpFitConsoleTail();
-        cpHarvestLevelPages(true);   // FORCE a complete re-harvest now that every section's wiring has run
+        if (cpPopScroll !== null && cdone) {
+          cdone.scrollTop = cpPopScroll;
+          cpPopScroll = null;
+          cpScrollSpy();
+        }
         return;
       }
       var sec = secs[order[i]];
@@ -6416,10 +6495,30 @@
       search.parentNode.insertBefore(button, search);
     }
 
+    var cpBoardBuildQueued = false;
     function cpAutoConsole() {
-      // Keep the server's menu, list/search table, and page layout intact.
-      // PJAX still handles the same navigation URLs and response transport.
-      // The PJAX reskin event can fire just before history updates the URL.
+      var cell = document.querySelector('td[width="82%"][valign="top"]');
+      var isFolderMenu = !!(cell && cell.querySelector('a.navMenuItem') &&
+        document.querySelector('form[name="leftNavForm"] a.leftnavfolder, form[name="leftNavForm"] a.leftnavfolderopen'));
+      if (!isFolderMenu) {
+        document.documentElement.classList.remove("cp-board-active");
+        if (cpPopScroll !== null && cell) {
+          var restoreTop = cpPopScroll;
+          cpPopScroll = null;
+          requestAnimationFrame(function () { cell.scrollTop = restoreTop; });
+        }
+      } else if (!cell.querySelector(".cp-console")) {
+        // cpHook's fetched page schedules its own DOMContentLoaded wiring in
+        // microtasks. Let those handlers finish against the native menu before
+        // replacing it with the board; its copied links are then wired once.
+        if (!cpBoardBuildQueued) {
+          cpBoardBuildQueued = true;
+          Promise.resolve().then(function () {
+            cpBoardBuildQueued = false;
+            if (cell.isConnected && cell.querySelector('a.navMenuItem') && !cell.querySelector('.cp-console')) cpBuildConsole();
+          });
+        }
+      }
       setTimeout(cpAttachNativeDirectoryExport, 0);
     }
 
