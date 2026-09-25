@@ -259,7 +259,7 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-leaf-actbtn:focus-v
   transform:none !important;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-leaf-actbtn svg { width:15px; height:15px; }
-html[data-cp-direction] body[id="initBody.menuTemplate"] input.cp-leaf-editin {
+html[data-cp-direction] body[id="initBody.menuTemplate"] :is(input, select).cp-leaf-editin {
   box-sizing:border-box;
   width:100%;
   min-width:0;

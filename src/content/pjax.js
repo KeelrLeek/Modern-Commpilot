@@ -5264,15 +5264,30 @@
 
     // Reseller option paths with an inline Peek. Their pages are read through the
     // same token-bearing PJAX transport used for normal navigation.
-    var CP_LEAF_ALLOW = ["/Reseller/Profile/", "/Reseller/DeviceActivationPolicy/", "/Reseller/StirShaken/", "/Reseller/CallRecordingPlatforms/",
-      "/Reseller/CallNotify/", "/Reseller/Collaborate/", "/Reseller/EmergencyZone/", "/Reseller/VM/",
-      "/Reseller/CallCenter/", "/Reseller/MeetMeConferencing/", "/Reseller/EmergencyCallNotification/", "/Reseller/MailParameters/"];
+    var CP_LEAF_ALLOW_BY_LEVEL = {
+      R: ["/Reseller/Profile/", "/Reseller/DeviceActivationPolicy/", "/Reseller/StirShaken/", "/Reseller/CallRecordingPlatforms/",
+        "/Reseller/CallNotify/", "/Reseller/Collaborate/", "/Reseller/EmergencyZone/", "/Reseller/VM/",
+        "/Reseller/CallCenter/", "/Reseller/MeetMeConferencing/", "/Reseller/EmergencyCallNotification/", "/Reseller/MailParameters/"],
+      G: ["/Group/EmergencyCallNotification/", "/Group/ExtensionMgmt/",
+        "/Group/DeviceActivationPolicy/", "/Group/Call_Center/ExternalReporting/"],
+      U: ["/User/ACR/", "/User/DND/", "/User/CW/", "/User/RemoteOffice/",
+        "/User/CF/Always/", "/User/CF/Busy/", "/User/CF/Not_Reachable/", "/User/VoicePortalCalling/"]
+    };
     // The known multi-value pages need matching placeholder rows so a late read
     // does not resize the menu option while someone is scanning the board.
     var CP_LEAF_RESERVED_ROWS = {
       "/Reseller/Profile/": 2,
       "/Reseller/CallRecordingPlatforms/": 2,
-      "/Reseller/VM/": 3
+      "/Reseller/VM/": 3,
+      "/Group/EmergencyCallNotification/": 2,
+      "/Group/ExtensionMgmt/": 3,
+      "/Group/DeviceActivationPolicy/": 3,
+      "/User/DND/": 2,
+      "/User/CW/": 2,
+      "/User/RemoteOffice/": 2,
+      "/User/CF/Always/": 3,
+      "/User/CF/Busy/": 2,
+      "/User/CF/Not_Reachable/": 2
     };
     // Notification-email labels follow each form's input order. Voice Messaging
     // has three fields; the other notification forms have one.
@@ -5301,10 +5316,18 @@
     function cpLeafEdit(pill, acts, r) {
       if (pill.__cpEditing) return;
       pill.__cpEditing = true;
-      var old = r.empty ? "" : pill.textContent;
+      var isChoice = r.edit && (r.edit.type === "radio" || r.edit.type === "checkbox");
+      var old = isChoice ? (r.value === "On" ? "true" : "false") : (r.empty ? "" : pill.textContent);
       var wrap = pill.parentNode;
-      var inp = document.createElement("input");
-      inp.type = "text"; inp.className = "cp-leaf-editin"; inp.value = old;
+      var inp = document.createElement(isChoice ? "select" : "input");
+      inp.className = "cp-leaf-editin";
+      if (isChoice) {
+        [["true", "On"], ["false", "Off"]].forEach(function (pair) {
+          var option = document.createElement("option"); option.value = pair[0]; option.textContent = pair[1]; inp.appendChild(option);
+        });
+        inp.setAttribute("aria-label", "Set " + r.label);
+      } else inp.type = "text";
+      inp.value = old;
       var okB = document.createElement("button");
       okB.type = "button"; okB.className = "cp-leaf-actbtn cp-leaf-act-ok"; okB.title = "Save"; okB.innerHTML = CP_SVG_LEAF_CHECK;
       var noB = document.createElement("button");
@@ -5312,7 +5335,7 @@
       pill.classList.add("cp-leaf-hidden"); acts.classList.add("cp-leaf-hidden");   // class, not inline style — the base rules are !important
       wrap.classList.add("cp-leaf-editing");
       wrap.appendChild(inp); wrap.appendChild(okB); wrap.appendChild(noB);
-      inp.focus(); inp.select();
+      inp.focus(); if (!isChoice) inp.select();
       function done() {
         try { inp.remove(); okB.remove(); noB.remove(); } catch (e) {}
         pill.classList.remove("cp-leaf-hidden"); acts.classList.remove("cp-leaf-hidden");
@@ -5327,10 +5350,11 @@
         cpLeafSave(r.edit, nv).then(function (good) {
           done();
           if (good) {
-            pill.textContent = nv || "None";
-            pill.title = nv || "None";
-            pill.classList.toggle("cp-leaf-defpill-empty", !nv);
-            r.empty = !nv; r.value = nv || "None";
+            var display = isChoice ? (nv === "true" ? "On" : "Off") : (nv || "None");
+            pill.textContent = display;
+            pill.title = display;
+            pill.classList.toggle("cp-leaf-defpill-empty", !isChoice && !nv);
+            r.empty = !isChoice && !nv; r.value = display;
             flash("cp-leaf-savedflash");
           } else {
             flash("cp-leaf-failflash");
@@ -5348,6 +5372,21 @@
       });
     }
 
+    function cpLeafMatches(doc, edit, value) {
+      var form = doc && doc.querySelector('form[name="mainForm"]');
+      if (!form) return false;
+      var type = edit.type || "text";
+      var fields = [].slice.call(form.querySelectorAll("input")).filter(function (el) {
+        return el.name === edit.name && el.type === type;
+      });
+      if (type === "radio") {
+        var selected = fields.find(function (el) { return el.checked || el.hasAttribute("checked"); });
+        return !!selected && selected.value === value;
+      }
+      if (type === "checkbox") return fields.length === 1 && !!(fields[0].checked || fields[0].hasAttribute("checked")) === (value === "true");
+      return fields.length === 1 && (fields[0].value || "").trim() === value;
+    }
+
     // Background save for a glance-pill edit: fetch the page fresh (fresh token + full form), swap in the new
     // value, POST with apply="Apply" (saves WITHOUT the OK page-exit, so the response is the page itself and
     // the new value can be verified). Serialized through the section queue — token-rotating calls never race.
@@ -5361,9 +5400,13 @@
             var nt = res.doc.getElementsByName("formtokenserial")[0];
             if (nt) { var ts = document.getElementsByName("formtokenserial"); for (var i = 0; i < ts.length; i++) ts[i].value = nt.value; }
             var form = res.doc.querySelector('form[name="mainForm"]');
-            if (!form) { resolve(false); return; }
-            var sourceInputs = [].slice.call(form.getElementsByTagName("input")).filter(function (el) { return el.name === edit.name && el.type === "text"; });
-            if (sourceInputs.length !== 1) { resolve(false); return; }
+            if (!form || form.querySelector('input[type="password"], input[type="file"]') || !form.querySelector('[name="apply"]')) {
+              resolve(false); return;
+            }
+            var type = edit.type || "text";
+            var sourceInputs = [].slice.call(form.getElementsByTagName("input")).filter(function (el) { return el.name === edit.name && el.type === type; });
+            if ((type === "radio" && (sourceInputs.length !== 2 || !sourceInputs.some(function (el) { return el.value === newValue; }))) ||
+              (type !== "radio" && sourceInputs.length !== 1)) { resolve(false); return; }
             var params = {};
             [].slice.call(form.querySelectorAll("input, select, textarea")).forEach(function (el) {
               if (!el.name) return;
@@ -5373,22 +5416,23 @@
               params[el.name] = el.value || "";
             });
             delete params.formtokenserial;   // cpFollow threads the (just-refreshed) live token
-            params[edit.name] = newValue;
+            if (type === "checkbox") {
+              if (newValue === "true") params[edit.name] = sourceInputs[0].value || "on";
+              else delete params[edit.name];
+            } else params[edit.name] = newValue;
             params.apply = "Apply";
             var tok2 = document.getElementsByName("formtokenserial")[0];
             return cpFollow(edit.path, params, tok2 ? tok2.value : null, 0).then(function (res2) {
               if (!res2 || res2.auth === false || res2.err || !res2.doc) { resolve(false); return; }
               var nt2 = res2.doc.getElementsByName("formtokenserial")[0];
               if (nt2) { var ts2 = document.getElementsByName("formtokenserial"); for (var j = 0; j < ts2.length; j++) ts2[j].value = nt2.value; }
-              var chk = [].slice.call(res2.doc.getElementsByName(edit.name)).find(function (el) { return el.tagName === "INPUT"; });
-              if (!chk || (chk.value || "").trim() !== newValue) { resolve(false); return; }
+              if (!cpLeafMatches(res2.doc, edit, newValue)) { resolve(false); return; }
               var tok3 = document.getElementsByName("formtokenserial")[0];
               return cpFollow(edit.path, {}, tok3 ? tok3.value : null, 0).then(function (res3) {
                 if (!res3 || res3.auth === false || res3.err || !res3.doc) { resolve(false); return; }
                 var nt3 = res3.doc.getElementsByName("formtokenserial")[0];
                 if (nt3) { var ts3 = document.getElementsByName("formtokenserial"); for (var k = 0; k < ts3.length; k++) ts3[k].value = nt3.value; }
-                var saved = [].slice.call(res3.doc.getElementsByName(edit.name)).find(function (el) { return el.tagName === "INPUT"; });
-                resolve(!!saved && (saved.value || "").trim() === newValue);
+                resolve(cpLeafMatches(res3.doc, edit, newValue));
               });
             });
           }).catch(function () { resolve(false); });
@@ -5412,6 +5456,8 @@
               }
               var cell = res.doc.querySelector('td[width="82%"]');
               if (!cell) { resolve(null); return; }
+              var compact = cpReadCompactLeaf(cell, path);
+              if (compact !== undefined) { resolve(compact); return; }
               // Some LIST pages expose pre-list default settings (Call Recording Platforms' System/Reseller
               // Default) — surface those as the card glance even though the page is a list (so it must run
               // BEFORE the leaf-only list-guard below). Reuse the grid's own defaults harvester; a present
@@ -5490,6 +5536,10 @@
       if (!bodyEl) return;
       var board = bodyEl.closest(".cp-console");
       if (!board) return;
+      var folder = bodyEl.closest(".cp-console-section");
+      var level = (folder && folder.getAttribute("data-cp-folder") || "").charAt(0);
+      var targets = CP_LEAF_ALLOW_BY_LEVEL[level] || [];
+      if (!targets.length) return;
       // Reserve the dock while its menu section is first laid out. Reading leaves
       // must wait until the complete reseller board has finished its folder POSTs.
       if (!reserveOnly && !cpPeekObserver && typeof IntersectionObserver === "function") {
@@ -5508,7 +5558,7 @@
         if (cpPeekObserver) cpPeekObserver.observe(box);
         else box.__cpPeekLoad();
       }
-      CP_LEAF_ALLOW.forEach(function (target) {
+      targets.forEach(function (target) {
         var anchor = bodyEl.querySelector('a[name="' + target + '"]');
         if (!anchor) return;
         // The native menu keeps title and description in consecutive TRs. Put
@@ -5550,7 +5600,7 @@
           rows.forEach(function (r) {
             var row = document.createElement("div"); row.className = "cp-leaf-row";
             var k = document.createElement("span"); k.className = "cp-leaf-key";
-            k.textContent = rows.length === 1 && r.edit ? "Current \u00b7" : r.label + " \u00b7";
+            k.textContent = rows.length === 1 && r.edit && !r.keepLabel ? "Current \u00b7" : r.label + " \u00b7";
             k.title = r.label;
             var v;
             if (r.pill) {
@@ -5572,7 +5622,7 @@
               var acts = document.createElement("span");
               acts.className = "cp-leaf-act";
               (function (pillEl, actsEl, rr) {
-                if (!rr.empty || rr.edit) {
+                if (rr.copy !== false && (!rr.empty || rr.edit)) {
                   var cb = document.createElement("button");
                   cb.type = "button"; cb.className = "cp-leaf-actbtn"; cb.title = "Copy"; cb.setAttribute("aria-label", "Copy value");
                   cb.innerHTML = CP_SVG_LEAF_COPY;
@@ -5639,6 +5689,125 @@
         }).catch(function () { try { box.remove(); } catch (e) {} }); };
         start(box);
       });
+    }
+
+    // Group and User Peeks have explicit small-page recipes. This keeps list,
+    // credential, and dense forms out of the board and fixes each dock's row count.
+    function cpReadCompactLeaf(cell, path) {
+      var route = path.replace(/^\/commpilot/, "");
+      var form = cell.querySelector('form[name="mainForm"]');
+      if (/^\/(?:Group|User)\//.test(route)) {
+        if (!form || form.querySelector('input[type="password"], input[type="file"]')) return null;
+        var settingNames = {};
+        [].slice.call(form.querySelectorAll("input, select, textarea")).forEach(function (el) {
+          var type = (el.type || "").toLowerCase();
+          if (el.name && type !== "hidden" && type !== "button" && type !== "submit" && type !== "image") settingNames[el.name] = true;
+        });
+        if (Object.keys(settingNames).length > 3) return null;
+      }
+      function named(name) {
+        return form ? [].slice.call(form.querySelectorAll("[name]")).filter(function (el) { return el.name === name; }) : [];
+      }
+      function input(name, type) {
+        return named(name).find(function (el) {
+          return el.tagName === "INPUT" && (!type || el.type === type);
+        }) || null;
+      }
+      function checked(name) {
+        var field = input(name, "checkbox");
+        return field ? !!(field.checked || field.hasAttribute("checked")) : null;
+      }
+      function radio(name) {
+        var fields = named(name).filter(function (el) {
+          return el.tagName === "INPUT" && el.type === "radio";
+        });
+        var selected = fields.find(function (el) { return el.checked || el.hasAttribute("checked"); });
+        return selected ? selected.value : null;
+      }
+      function selectValue(name) {
+        var field = named(name).find(function (el) { return el.tagName === "SELECT"; });
+        if (!field) return null;
+        var option = field.options[field.selectedIndex];
+        return (option && option.textContent || field.value || "").trim();
+      }
+      function status(label, value) { return { label:label, value:value ? "On" : "Off" }; }
+      function toggle(label, name, type, value) {
+        return { label:label, value:value ? "On" : "Off", kind:"defpill", empty:false, copy:false, keepLabel:true,
+          edit:{ path:path, name:name, type:type } };
+      }
+      function editableText(label, name) {
+        var field = input(name, "text");
+        if (!field || named(name).length !== 1) return null;
+        var value = (field.value || "").trim();
+        return { label:label, value:value || "None", kind:"defpill", empty:!value,
+          edit:{ path:path, name:name, type:"text" } };
+      }
+      if (route === "/Group/EmergencyCallNotification/") {
+        var on = checked("sendEmergencyCallNotificationEmail");
+        var address = input("emergencyCallNotifyEmailAddress", "text");
+        if (on === null || !address) return null;
+        var email = (address.value || "").trim();
+        return [status("Email alerts", on), {
+          label:"Send to", value:email || "None", kind:"defpill", empty:!email,
+          edit:{ path:path, name:"emergencyCallNotifyEmailAddress" }
+        }];
+      }
+      if (route === "/Group/ExtensionMgmt/") {
+        var min = selectValue("groupExtMinLength");
+        var max = selectValue("groupExtMaxLength");
+        var normal = selectValue("groupExtDefaultLength");
+        if (min === null || max === null || normal === null) return null;
+        return [{ label:"Minimum", value:min }, { label:"Maximum", value:max }, { label:"Default", value:normal }];
+      }
+      if (route === "/Group/DeviceActivationPolicy/") {
+        var source = radio("useServiceProviderSettings");
+        var requests = checked("allowActivationRequestByUser");
+        var emailCode = checked("sendActivationCodeInEmail");
+        if (source === null || requests === null || emailCode === null) return null;
+        return [
+          { label:"Settings source", value:source === "true" ? "Service Provider" : "Group" },
+          status("User requests", requests), status("Email code", emailCode)
+        ];
+      }
+      if (route === "/Group/Call_Center/ExternalReporting/") {
+        var reporting = radio("reportingChoice");
+        if (reporting === null) return null;
+        return [{ label:"External reports", value:/^enhanced$/i.test(reporting) ? "Enhanced" : "Off" }];
+      }
+      if (route === "/User/ACR/" || route === "/User/VoicePortalCalling/") {
+        var single = radio("active");
+        if (single === null) return null;
+        return [toggle("Enabled", "active", "radio", single === "true")];
+      }
+      if (route === "/User/DND/") {
+        var dnd = radio("active"), splash = checked("ringSplash");
+        if (dnd === null || splash === null) return null;
+        return [toggle("Do not disturb", "active", "radio", dnd === "true"),
+          toggle("Ring splash", "ringSplash", "checkbox", splash)];
+      }
+      if (route === "/User/CW/") {
+        var waiting = radio("active"), hideId = checked("disableCLID");
+        if (waiting === null || hideId === null) return null;
+        return [toggle("Call waiting", "active", "radio", waiting === "true"),
+          toggle("Hide caller ID", "disableCLID", "checkbox", hideId)];
+      }
+      if (route === "/User/RemoteOffice/") {
+        var remote = radio("active"), remoteNumber = editableText("Remote number", "remoteOfficeNumber");
+        if (remote === null || !remoteNumber) return null;
+        return [toggle("Remote office", "active", "radio", remote === "true"), remoteNumber];
+      }
+      if (route === "/User/CF/Always/" || route === "/User/CF/Busy/" || route === "/User/CF/Not_Reachable/") {
+        var forwarding = radio("active"), destination = editableText("Forward to", "forwardedToNumber");
+        if (forwarding === null || !destination) return null;
+        var forwardingRows = [toggle("Forwarding", "active", "radio", forwarding === "true"), destination];
+        if (route === "/User/CF/Always/") {
+          var forwardSplash = checked("ringSplash");
+          if (forwardSplash === null) return null;
+          forwardingRows.push(toggle("Ring splash", "ringSplash", "checkbox", forwardSplash));
+        }
+        return forwardingRows;
+      }
+      return undefined;
     }
     // Navigate to a breadcrumb segment's level (ancestor segments are clickable links). The auth-trail
     // source links are consumed before the pills are built, so we resolve targets from the trail itself:
@@ -6363,7 +6532,7 @@
           bodyEl.querySelectorAll(".cp-breadcrumb, a.headerAuthLevelLink").forEach(function (b) { b.remove(); });
           cpRevealSection(sec, aboveAnchor);   // animated cascade for anchor + below; plain show for above
           document.dispatchEvent(new Event("cp:reskin"));   // wrapMenuCards etc. → the section's FINAL height
-          if (/^R\d+$/.test(folder || "")) cpSummarizeLeaves(bodyEl, true);
+          if (/^[RGU]\d+$/.test(folder || "")) cpSummarizeLeaves(bodyEl, true);
           cpReexecWiringScripts(bodyEl);
           cpSetSectionCount(bodyEl);
           // An above-anchor section was just inserted above the pinned anchor. Re-pin the anchor flush
@@ -6489,6 +6658,16 @@
     function cpRevealStep(secs, order, i) {
       if (cpSectionAborted || !document.querySelector(".cp-console")) { cpRevealBusy = false; cpAggEnd(); return; }
       if (i >= order.length) {
+        function settlePeekReads(ready) {
+          var currentBoard = document.querySelector(".cp-console");
+          if (!currentBoard || !secs.length || !document.contains(secs[0])) return;
+          if (!ready || cpBoardFailed) {
+            currentBoard.querySelectorAll(".cp-leaf-summary:not([data-cp-peek-started])").forEach(function (box) { box.remove(); });
+            return;
+          }
+          if (!/^[RGU]\d+$/.test(secs[0].getAttribute("data-cp-folder") || "")) return;
+          secs.forEach(function (s) { cpSummarizeLeaves(s.querySelector(".cp-console-body")); });
+        }
         // Folder prefetches at SP/Group/User level mutate CommPilot's server-side
         // target context. Re-enter the selected entity once before exposing the
         // finished board; otherwise a linked list may open but its next Search
@@ -6512,9 +6691,11 @@
                 for (var ti = 0; ti < liveTokens.length; ti++) liveTokens[ti].value = nextToken.value;
               }
             }
-            cpAggEnd(restored && !cpAggPrefetchFailed);
-          }).catch(function () { cpAggEnd(false); });
-        } else cpAggEnd(true);
+            var ready = restored && !cpAggPrefetchFailed;
+            cpAggEnd(ready);
+            settlePeekReads(ready);
+          }).catch(function () { cpAggEnd(false); settlePeekReads(false); });
+        } else { cpAggEnd(true); settlePeekReads(true); }
         // Sequence complete — re-enable the scroll handler + restore the proper (tight) tail. Also
         // reveal any above-section still held invisible (one that never got confirmed off-screen, e.g.
         // a residual clamp) so nothing is left hidden.
@@ -6528,11 +6709,6 @@
           cpScrollSpy();
         }
         cpHeadFade();
-        if (!cpBoardFailed && secs.length && /^R\d+$/.test(secs[0].getAttribute("data-cp-folder") || "")) {
-          secs.forEach(function (s) { cpSummarizeLeaves(s.querySelector(".cp-console-body")); });
-        } else if (cpBoardFailed && cdone) {
-          cdone.querySelectorAll(".cp-leaf-summary:not([data-cp-peek-started])").forEach(function (box) { box.remove(); });
-        }
         return;
       }
       var sec = secs[order[i]];
