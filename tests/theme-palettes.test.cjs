@@ -98,7 +98,7 @@ test('palette follows stored setting through changes and PJAX shell replacement'
     }));
     assert.equal(nordShell.direction, 'nord');
     assert.equal(nordShell.canvas, '#2e3440');
-    assert.equal(nordShell.sidebarRadius, '12px');
+    assert.equal(nordShell.sidebarRadius, '13px');
     assert.equal(nordShell.mainBackgroundImage, 'none');
     assert.match(nordShell.helpIcon, /assets\/icons\/palette-help\.svg/);
     await page.evaluate(() => window.__choosePalette('midnight'));
@@ -117,6 +117,52 @@ test('palette follows stored setting through changes and PJAX shell replacement'
       actual: document.body.querySelector('table[height="100%"]').getBoundingClientRect().top
     }));
     assert.equal(shellState.measured, `${Math.round(shellState.actual)}px`);
+  } finally { await browser.close(); }
+});
+
+test('native sidebar separates selected and hovered rows in every palette', async () => {
+  assert.ok(edge, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: edge, headless: true });
+  try {
+    const page = await browser.newPage();
+    const folders = ['Profile', 'Calling Plans', 'Messaging', 'Utilities'];
+    const rows = folders.map((label, index) => `<tr><td class="${index ? 'leftnavfolder' : 'leftnavfolderopen'}">
+      <a class="${index ? 'leftnavfolder' : 'leftnavfolderopen'}" data-cp-nav-icon="profile" href="#">${label}</a>
+    </td></tr>`).join('');
+    await page.route('https://apps-sbx.avpaas.io/**', route => route.fulfill({
+      status: 200, contentType: 'text/html',
+      body: `<!doctype html><html data-cp-direction="nord"><body id="initBody.menuTemplate">
+        <table height="100%" width="100%"><tr><td class="headandfoot" width="18%">
+          <form name="leftNavForm"><b><table width="100%">${rows}</table></b></form>
+        </td><td width="82%" valign="top">Profile</td></tr></table>
+      </body></html>`
+    }));
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Common/folder_contents.jsp');
+    await page.addStyleTag({ path: path.join(root, 'src/content/native-theme.css') });
+    await page.addStyleTag({ path: path.join(root, 'src/content/theme-palettes.css') });
+    for (const palette of ['nord', 'atlas', 'graphite', 'terra']) {
+      await page.evaluate(value => { document.documentElement.dataset.cpDirection = value; }, palette);
+      for (const width of [1024, 1280, 1920]) {
+        await page.setViewportSize({ width, height: width === 1024 ? 768 : 800 });
+        await page.locator('a.leftnavfolder').first().hover();
+        const state = await page.evaluate(() => {
+          const links = [...document.querySelectorAll('form[name="leftNavForm"] a')];
+          const active = links[0], hovered = links[1];
+          const gap = hovered.getBoundingClientRect().top - active.getBoundingClientRect().bottom;
+          return {
+            gap, activeBackground: getComputedStyle(active).backgroundColor,
+            hoverBackground: getComputedStyle(hovered).backgroundColor,
+            clipped: links.filter(link => link.scrollWidth > link.clientWidth + 2 || link.scrollHeight > link.clientHeight + 2)
+              .map(link => link.textContent.trim()),
+            overflow: document.documentElement.scrollWidth > innerWidth + 2
+          };
+        });
+        assert.ok(state.gap >= 8, `${palette} ${width}px sidebar gap was ${state.gap}px`);
+        assert.notEqual(state.activeBackground, state.hoverBackground, `${palette} active and hover should be distinct`);
+        assert.deepEqual(state.clipped, [], `${palette} ${width}px clipped sidebar labels`);
+        assert.equal(state.overflow, false, `${palette} ${width}px page overflow`);
+      }
+    }
   } finally { await browser.close(); }
 });
 

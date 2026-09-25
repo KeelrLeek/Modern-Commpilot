@@ -1,4 +1,4 @@
-"""Build the versioned preview and refresh both advertised local install paths."""
+"""Build the versioned preview and refresh the reloadable unpacked install."""
 
 from __future__ import annotations
 
@@ -60,6 +60,7 @@ def main() -> None:
     manifest = json.loads((SOURCE / "manifest.json").read_text(encoding="utf-8"))
     version = manifest["version"]
     versioned = SOURCE_RELEASE / f"BroadWorks-Enhancer-PJAX-Preview-{version}.zip"
+    project_versioned = PROJECT_RELEASE / versioned.name
     current = PROJECT_RELEASE / "BroadWorks-Enhancer-PJAX-Preview.zip"
 
     files = {SOURCE / "manifest.json", SOURCE / "README.md"}
@@ -89,9 +90,11 @@ def main() -> None:
         verify_manifest_files(packed_manifest, names)
     temporary.replace(versioned)
 
-    current_temporary = current.with_suffix(".zip.tmp")
-    shutil.copyfile(versioned, current_temporary)
-    current_temporary.replace(current)
+    project_temporary = project_versioned.with_suffix(".zip.tmp")
+    shutil.copyfile(versioned, project_temporary)
+    project_temporary.replace(project_versioned)
+    if sha256(versioned) != sha256(project_versioned):
+        raise SystemExit("Project release ZIP does not match versioned ZIP.")
 
     unpacked_root = UNPACKED.resolve()
     with ZipFile(versioned) as archive:
@@ -104,8 +107,6 @@ def main() -> None:
             if hashlib.sha256(target.read_bytes()).digest() != hashlib.sha256(archive.read(entry)).digest():
                 raise SystemExit(f"Unpacked file did not match ZIP: {entry.filename}")
 
-    if sha256(versioned) != sha256(current):
-        raise SystemExit("Current release ZIP does not match versioned ZIP.")
     unpacked_manifest = json.loads((UNPACKED / "manifest.json").read_text(encoding="utf-8"))
     if unpacked_manifest["version"] != version:
         raise SystemExit("Unpacked install does not match release version.")
@@ -113,9 +114,21 @@ def main() -> None:
         path.relative_to(UNPACKED).as_posix()
         for path in UNPACKED.rglob("*") if path.is_file()
     })
+    current_temporary = current.with_suffix(".zip.tmp")
+    shutil.copyfile(versioned, current_temporary)
+    try:
+        current_temporary.replace(current)
+    except PermissionError:
+        current_temporary.unlink(missing_ok=True)
+        current_status = "locked by a browser; previous build retained"
+    else:
+        if sha256(versioned) != sha256(current):
+            raise SystemExit("Current release ZIP does not match versioned ZIP.")
+        current_status = str(current)
     print(f"Built preview {version}: {len(files)} files")
     print(f"Versioned: {versioned}")
-    print(f"Current:   {current}")
+    print(f"Project:   {project_versioned}")
+    print(f"Current:   {current_status}")
     print(f"Unpacked:  {UNPACKED}")
     print(f"SHA-256:   {sha256(versioned)}")
 
