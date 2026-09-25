@@ -615,6 +615,52 @@ test('Music on Hold tab submits its multipart servlet in-shell and Back restores
   } finally { await browser.close(); }
 });
 
+test('Group Music on Hold saves a multipart form without a file in-shell', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const add = '/commpilot/Group/MusicOnHold/Add/index.jsp';
+    const list = '/commpilot/Group/MusicOnHold/index.jsp';
+    const servlet = '/commpilot/servlet/MusicOnHoldServlet';
+    const addHtml = `<!doctype html><html><head><title>Music On Hold Add</title></head><body>
+      <form name="leftNavForm"><a class="leftnavfolder">Services</a></form>
+      <input name="formtokenserial" value="token-1"><table><tr><td width="82%">
+      <form name="mainForm" action="${servlet}" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="formtokenserial" value="token-1">
+      <select name="deptEncodedKey"><option value="Basement" selected>Basement</option></select>
+      <input type="radio" name="musicOnHoldSourceRadioBtn" value="System" checked>
+      <input name="ok" type="submit" value="OK"></form></td></tr></table>
+      <script>window.redirectPost=function(){};</script></body></html>`;
+    let servletPosts = 0;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (pathname === servlet && request.method() === 'POST') {
+        servletPosts++;
+        assert.match(request.headers()['content-type'], /^multipart\/form-data; boundary=/);
+        assert.ok(request.postDataBuffer().includes(Buffer.from('name="deptEncodedKey"')));
+        return route.fulfill({ status: 200, contentType: 'text/html',
+          body: `<html><body><input name="formtokenserial" value="token-2"><script>` +
+            `redirectPost('${list}', {});</script></body></html>` });
+      }
+      if (pathname === list) return route.fulfill({ status: 200, contentType: 'text/html',
+        body: '<html><head><title>Music On Hold</title></head><body><table><tr><td width="82%">' +
+          '<div id="department-row">Basement</div></td></tr></table>' +
+          '<input name="formtokenserial" value="token-3"></body></html>' });
+      return route.fulfill({ status: 200, contentType: 'text/html', body: addHtml });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${add}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.originalDocument = document; });
+    await page.locator('input[name="ok"]').click();
+    await page.locator('#department-row:text-is("Basement")').waitFor();
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.equal(await page.evaluate(() => location.pathname), list);
+    assert.equal(servletPosts, 1);
+  } finally { await browser.close(); }
+});
+
 test('Call Center Announcements short tab ID posts its servlet in-shell', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });

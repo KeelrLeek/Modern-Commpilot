@@ -4621,14 +4621,15 @@
         var action = new URL(form.getAttribute('action') || location.pathname, location.href);
         var deviceProfile = action.pathname === '/commpilot/servlet/DeviceInventoryProvisionServlet';
         var mohUser = action.pathname === '/commpilot/servlet/MusicOnHoldUserServlet';
+        var mohGroup = action.pathname === '/commpilot/servlet/MusicOnHoldServlet';
         var callCenterAnnouncements = /^\/commpilot\/servlet\/CallCenterAnnouncements[A-Za-z]*Servlet$/.test(action.pathname);
         var groupAudioSettings = /^\/commpilot\/servlet\/(?:PreAlertingAnnouncement(?:Group|User)|CustomRingback(?:Group|User))Servlet$/.test(action.pathname);
         var vpBranding = action.pathname === '/commpilot/servlet/VPBrandingServlet';
         var autoAttendantMenu = action.pathname === '/commpilot/servlet/AASubscriptionServlet';
         var callCenterRouting = /^\/commpilot\/servlet\/CallCenter(?:Overflow|StrandedCalls(?:Unavailable)?)RoutingPolicyServlet$/.test(action.pathname);
-        if (!form.querySelector('input[type="file"]') && !deviceProfile && !mohUser && !callCenterAnnouncements && !groupAudioSettings && !vpBranding && !autoAttendantMenu && !callCenterRouting) return null;
+        if (!form.querySelector('input[type="file"]') && !deviceProfile && !mohUser && !mohGroup && !callCenterAnnouncements && !groupAudioSettings && !vpBranding && !autoAttendantMenu && !callCenterRouting) return null;
         return action.origin === location.origin &&
-          (/^\/commpilot\/servlet\/(?:DeviceManagementImportServlet|PhoneListImportServlet|AnswerConfirmationServlet|VPBrandingServlet|SysAdminPrefsServlet|CCReportBrandingServlet|InterceptServiceServlet|AnnouncementRepositoryServlet|CallCenterEnhancedReportingReportTemplateServlet|SystemDmsFileProvisionServlet|DeviceInventoryProvisionServlet|MusicOnHoldUserServlet|PreAlertingAnnouncementGroupServlet|PreAlertingAnnouncementUserServlet|CustomRingbackGroupServlet|CustomRingbackUserServlet|AASubscriptionServlet)$/.test(action.pathname) || callCenterAnnouncements || callCenterRouting) ? action : null;
+          (/^\/commpilot\/servlet\/(?:DeviceManagementImportServlet|PhoneListImportServlet|AnswerConfirmationServlet|VPBrandingServlet|SysAdminPrefsServlet|CCReportBrandingServlet|InterceptServiceServlet|AnnouncementRepositoryServlet|CallCenterEnhancedReportingReportTemplateServlet|SystemDmsFileProvisionServlet|DeviceInventoryProvisionServlet|MusicOnHoldUserServlet|MusicOnHoldServlet|PreAlertingAnnouncementGroupServlet|PreAlertingAnnouncementUserServlet|CustomRingbackGroupServlet|CustomRingbackUserServlet|AASubscriptionServlet)$/.test(action.pathname) || callCenterAnnouncements || callCenterRouting) ? action : null;
       } catch (e) { return null; }
     }
     function cpUploadNotice(message) {

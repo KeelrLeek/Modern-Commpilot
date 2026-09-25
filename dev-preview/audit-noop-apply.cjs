@@ -626,6 +626,43 @@ async function exerciseDigitString(page, pinhole = false) {
     const rowId = await locate();
     console.log(JSON.stringify({ event: 'digit-string-row', label, name, rowId,
       html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1600)) }));
+    if (process.env.BW_DIGIT_PLAN_LIFECYCLE === '1') {
+      const planLabel = pinhole ? 'Outgoing Pinhole Digit Plan' : 'Outgoing Digit Plan';
+      const planPath = `/commpilot/Group/Calling_Plan/${pinhole ?
+        'OutgoingPinholeDigitPlan' : 'OutgoingDigitPlan'}/index.jsp`;
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem')
+        .filter({ hasText: new RegExp(`^${planLabel}$`) }).click();
+      await waitPath(page, planPath);
+      console.log(JSON.stringify({ event: 'digit-plan-inspect', planLabel, name, pattern,
+        state: await page.evaluate(() => ({ path: location.pathname,
+          text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 1100),
+          controls: [...document.querySelectorAll('td[width="82%"] input, td[width="82%"] select')]
+            .filter(item => item.getClientRects().length)
+            .map(item => ({ name: item.name, type: item.type, value: item.value }))
+            .slice(0, 65) })) }));
+      const before = await formState(page);
+      await page.evaluate(() => { window.__bwDigitPlanDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === planPath,
+      { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+        .click({ noWaitAfter: true });
+      const found = await response;
+      await page.waitForTimeout(350);
+      const sameDocument = await page.evaluate(() =>
+        document === window.__bwDigitPlanDocument);
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem')
+        .filter({ hasText: new RegExp(`^${planLabel}$`) }).click();
+      await waitPath(page, planPath);
+      const sameValues = JSON.stringify(before) === JSON.stringify(await formState(page));
+      writeDeep(pinhole ? 'discovered-174' : 'discovered-173',
+        found?.status() === 200 && sameDocument && sameValues ? 'passed' : 'failed',
+        `${planLabel} Apply with disposable ${label} returned HTTP ${found?.status() || 'none'}; ` +
+        `${sameDocument ? 'same document' : 'reload'}; ` +
+        `fresh readback ${sameValues ? 'matched' : 'differed'} all department policies.`);
+    }
   } finally {
     try {
       await openFolder(page);
@@ -2370,6 +2407,72 @@ async function exerciseDigitPatternCriteria(page) {
     }
   }
 }
+async function exerciseMohDepartment(page) {
+  const listPath = '/commpilot/Group/MusicOnHold/index.jsp';
+  const addPath = '/commpilot/Group/MusicOnHold/Add/index.jsp';
+  const department = 'Basement';
+  const row = () => page.locator('td[width="82%"] tr[id^="Row"]')
+    .filter({ hasText: department });
+  try {
+    if (await row().count()) throw new Error(`${department} Music on Hold row already exists`);
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, addPath);
+    await page.locator('td[width="82%"] select[name="deptEncodedKey"]')
+      .selectOption({ label: department });
+    await page.locator('td[width="82%"] input[name="musicOnHoldSourceRadioBtn"][value="System"]')
+      .check();
+    await page.locator('td[width="82%"] input[name="deviceChoice"][value="None"]')
+      .check();
+    await page.evaluate(() => { window.__bwMohAddDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === '/commpilot/servlet/MusicOnHoldServlet',
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+      .click({ noWaitAfter: true });
+    const found = await response;
+    await page.waitForTimeout(500);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwMohAddDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 500) }));
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem:text-is("Music/Video on Hold")').click();
+    await waitPath(page, listPath);
+    const created = found?.status() === 200 && state.sameDocument && await row().count() === 1;
+    writeDeep('discovered-528', created ? 'passed' : 'failed',
+      `Department Music/Video on Hold Add multipart POST HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${created ? 'fresh list contains Basement row' :
+        `no Basement row after ${state.path}: ${state.text.slice(0, 150)}`}.`);
+  } finally {
+    try {
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Music/Video on Hold")').click();
+      await waitPath(page, listPath);
+      if (await row().count() === 1) {
+        await row().locator('a.tableLink').first().click();
+        await waitPath(page, '/commpilot/Group/MusicOnHold/Modify/index.jsp');
+        const remove = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+        console.log(JSON.stringify({ event: 'moh-department-delete-controls',
+          controls: await page.locator('td[width="82%"] input[type="submit"]:visible')
+            .evaluateAll(items => items.map(item => ({ name: item.name, value: item.value }))) }));
+        if (await remove.count()) {
+          page.once('dialog', dialog => dialog.accept());
+          await remove.click({ noWaitAfter: true });
+          await page.waitForTimeout(400);
+        }
+      }
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Music/Video on Hold")').click();
+      await waitPath(page, listPath);
+      const absent = await row().count() === 0;
+      writeDeep('lifecycle:music-on-hold-department-delete', absent ? 'passed' : 'failed',
+        `Basement Music/Video on Hold override ${absent ? 'is absent' : 'remains'} on fresh list.`);
+    } catch (error) {
+      writeDeep('lifecycle:music-on-hold-department-delete', 'failed',
+        `Basement Music/Video on Hold cleanup needs inspection: ${error.message.slice(0, 150)}`);
+    }
+  }
+}
 async function exerciseUserService(page, kind) {
   const types = {
     'VoiceXML': { slug: 'voice-xml', list: 'Voice_XML', check: 'discovered-529' },
@@ -2618,6 +2721,334 @@ async function probe(page, label) {
     console.log(JSON.stringify({ event: 'supervisors-agents-inspect', state }));
     return;
   }
+  if ((process.env.BW_MOH_INSPECT_MODIFY === '1' ||
+      process.env.BW_MOH_MODIFY_APPLY === '1') && level === 'Group' &&
+      folder === 'Services' && label === 'Music/Video on Hold') {
+    await page.locator('td[width="82%"] tr[id^="Row"]')
+      .filter({ hasText: 'Group' }).locator('a.tableLink').first().click();
+    await waitPath(page, '/commpilot/Group/MusicOnHold/Modify/index.jsp');
+    console.log(JSON.stringify({ event: 'moh-modify-inspect',
+      state: await page.evaluate(() => ({ path: location.pathname,
+        text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 850),
+        forms: [...document.querySelectorAll('td[width="82%"] form')]
+          .map(form => ({ action: form.action, enctype: form.enctype,
+            fields: [...form.elements].filter(item => item.name && item.type !== 'hidden')
+              .map(item => ({ name: item.name, type: item.type, value: item.value,
+                checked: item.checked })).slice(0, 65) })) })) }));
+    if (process.env.BW_MOH_MODIFY_APPLY === '1') {
+      const before = await formState(page);
+      await page.evaluate(() => { window.__bwMohDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === '/commpilot/servlet/MusicOnHoldServlet',
+      { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+        .click({ noWaitAfter: true });
+      const found = await response;
+      await page.waitForTimeout(450);
+      const state = await page.evaluate(() => ({ path: location.pathname,
+        sameDocument: document === window.__bwMohDocument,
+        text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 550) }));
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Music/Video on Hold")').click();
+      await waitPath(page, '/commpilot/Group/MusicOnHold/index.jsp');
+      await page.locator('td[width="82%"] tr[id^="Row"]')
+        .filter({ hasText: 'Group' }).locator('a.tableLink').first().click();
+      await waitPath(page, '/commpilot/Group/MusicOnHold/Modify/index.jsp');
+      const after = await formState(page);
+      const sameValues = JSON.stringify(before) === JSON.stringify(after);
+      const passed = found?.status() === 200 && state.sameDocument && sameValues;
+      writeDeep('discovered-500', passed ? 'passed' : 'failed',
+        `Group Music/Video on Hold Apply multipart POST HTTP ${found?.status() || 'none'}; ` +
+        `${state.sameDocument ? 'same document' : 'reload'}; ` +
+        `fresh readback ${sameValues ? 'matched' : 'differed'} at ${state.path}.`);
+      if (passed) writeDeep('discovered-129', 'passed',
+        'Group Music/Video on Hold row opened and Apply preserved settings in PJAX; fresh readback matched.');
+    }
+    return;
+  }
+  if (process.env.BW_INTERCEPT_NOOP === '1' &&
+      ((level === 'User' && folder === 'Utilities' && label === 'Intercept User - Off') ||
+        (level === 'Group' && folder === 'Utilities' && label === 'Intercept Group'))) {
+    const before = await formState(page);
+    await page.evaluate(() => { window.__bwInterceptDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === '/commpilot/servlet/InterceptServiceServlet',
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+      .click({ noWaitAfter: true });
+    const found = await response;
+    await page.waitForTimeout(400);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwInterceptDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 350) }));
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem')
+      .filter({ hasText: level === 'User' ? /^Intercept User - Off$/ : /^Intercept Group$/ })
+      .click();
+    await waitPath(page, '/commpilot/Intercept/index.jsp');
+    const sameValues = JSON.stringify(before) === JSON.stringify(await formState(page));
+    const id = level === 'User' ? 'discovered-306' : 'discovered-190';
+    writeDeep(id, found?.status() === 200 && state.sameDocument && sameValues ?
+      'passed' : 'failed',
+      `${label} Apply multipart POST HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `fresh readback ${sameValues ? 'matched' : 'differed'} at ${state.path}.`);
+    return;
+  }
+  if ((process.env.BW_CALL_LOG_INSPECT === '1' ||
+      process.env.BW_CALL_LOG_TABS === '1') &&
+      ['User', 'Hunt Group', 'Call Center'].includes(level) &&
+      folder === 'Utilities' &&
+      (label === 'Enhanced Call Logs' || (level === 'User' && label === 'Basic Call Logs'))) {
+    const logPath = label === 'Basic Call Logs' ? '/commpilot/User/BasicCallLogs/index.jsp' :
+      '/commpilot/User/EnhancedCallLogs/index.jsp';
+    console.log(JSON.stringify({ event: 'call-log-tabs-inspect', level,
+      state: await page.evaluate(() => ({ path: location.pathname,
+        links: [...document.querySelectorAll('td[width="82%"] a')]
+          .filter(item => item.getClientRects().length)
+          .map(item => ({ text: item.textContent.trim(), className: item.className,
+            html: item.parentElement?.outerHTML.slice(0, 420) })).slice(0, 20) })) }));
+    if (process.env.BW_CALL_LOG_TABS === '1') {
+      let passed = true;
+      for (const tabName of ['Received Calls', 'Missed Calls', 'Placed Calls']) {
+        await page.evaluate(() => { window.__bwLogDocument = document; });
+        const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+          new URL(item.url()).pathname === logPath,
+        { timeout: 12000 }).catch(() => null);
+        await page.locator('td[width="82%"] a.tab').filter({ hasText: tabName })
+          .first().click({ noWaitAfter: true });
+        const found = await response;
+        await page.waitForFunction(value =>
+          document.querySelector('td[width="82%"] .tabActive')?.textContent?.trim() === value,
+        tabName, { timeout: 15000 });
+        const state = await page.evaluate(() => ({ path: location.pathname,
+          sameDocument: document === window.__bwLogDocument,
+          rows: document.querySelectorAll('td[width="82%"] tr[id^="Row"]').length }));
+        const okay = found?.status() === 200 && state.sameDocument;
+        passed = passed && okay;
+        console.log(JSON.stringify({ event: 'call-log-tab', level, tabName,
+          status: found?.status() || null, ...state }));
+      }
+      const id = label === 'Basic Call Logs' ? 'discovered-300' :
+        level === 'User' ? 'discovered-302' :
+        level === 'Hunt Group' ? 'discovered-409' : 'discovered-454';
+      writeDeep(id, passed ? 'passed' : 'failed',
+        `${level} ${label} Received, Missed, and Placed tabs each opened by ` +
+          `HTTP 200 in the same document. The sandbox list has no entries to delete.`);
+    }
+    return;
+  }
+  if (process.env.BW_COMM_BARRING_NOOP === '1' &&
+      ['User', 'Hunt Group', 'Call Center'].includes(level) &&
+      folder === 'Call Control' && label === 'Communication Barring User-Control') {
+    const before = await formState(page);
+    if (before.some(item => item.name === 'newPassword' && item.value))
+      throw new Error('Communication Barring PIN field is populated; no-op check would be unsafe');
+    await page.evaluate(() => { window.__bwCommBarringDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === '/commpilot/User/CommunicationBarring/',
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+      .click({ noWaitAfter: true });
+    const found = await response;
+    await page.waitForTimeout(350);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwCommBarringDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 400) }));
+    await openFolder(page);
+    await page.locator('td[width="82%"] a.navMenuItem:text-is("Communication Barring User-Control")').click();
+    await waitPath(page, '/commpilot/User/CommunicationBarring/');
+    const sameValues = JSON.stringify(before) === JSON.stringify(await formState(page));
+    const id = level === 'User' ? 'discovered-252' :
+      level === 'Hunt Group' ? 'discovered-391' : 'discovered-436';
+    writeDeep(id, found?.status() === 200 && state.sameDocument && sameValues ?
+      'passed' : 'failed',
+      `${level} Communication Barring User-Control Apply HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `fresh readback ${sameValues ? 'matched' : 'differed'} at ${state.path}.`);
+    return;
+  }
+  if ((process.env.BW_POLYCOM_INSPECT_MODIFY === '1' ||
+      process.env.BW_POLYCOM_MODIFY_APPLY === '1') && level === 'User' &&
+      folder === 'Client Applications' && label === 'Polycom Phone Services') {
+    await page.locator('td[width="82%"] tr[id^="Row"] a.tableLink').first().click();
+    await waitPath(page, '/commpilot/User/PolycomPhoneServices/Modify/index.jsp');
+    console.log(JSON.stringify({ event: 'polycom-modify-inspect',
+      state: await page.evaluate(() => ({ path: location.pathname,
+        text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 800),
+        forms: [...document.querySelectorAll('td[width="82%"] form')]
+          .map(form => ({ action: form.action, enctype: form.enctype,
+            fields: [...form.elements].filter(item => item.name && item.type !== 'hidden')
+              .map(item => ({ name: item.name, type: item.type, value: item.value,
+                checked: item.checked })).slice(0, 65) })) })) }));
+    if (process.env.BW_POLYCOM_MODIFY_APPLY === '1') {
+      const before = await formState(page);
+      await page.evaluate(() => { window.__bwPolycomDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === '/commpilot/User/PolycomPhoneServices/Modify/index.jsp',
+      { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+        .click({ noWaitAfter: true });
+      const found = await response;
+      await page.waitForTimeout(350);
+      const sameDocument = await page.evaluate(() =>
+        document === window.__bwPolycomDocument);
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Polycom Phone Services")').click();
+      await waitPath(page, '/commpilot/User/PolycomPhoneServices/');
+      await page.locator('td[width="82%"] tr[id^="Row"] a.tableLink').first().click();
+      await waitPath(page, '/commpilot/User/PolycomPhoneServices/Modify/index.jsp');
+      const sameValues = JSON.stringify(before) === JSON.stringify(await formState(page));
+      const passed = found?.status() === 200 && sameDocument && sameValues;
+      writeDeep('discovered-516', passed ? 'passed' : 'failed',
+        `Polycom Phone Services Modify Apply HTTP ${found?.status() || 'none'}; ` +
+        `${sameDocument ? 'same document' : 'reload'}; ` +
+        `fresh readback ${sameValues ? 'matched' : 'differed'}.`);
+      if (passed) writeDeep('discovered-285', 'passed',
+        'User Polycom Phone Services row opened in PJAX and Modify Apply preserved settings on fresh readback.');
+    }
+    return;
+  }
+  if ((process.env.BW_VOICE_PORTAL_INSPECT === '1' ||
+      process.env.BW_VOICE_PORTAL_DEEP === '1' ||
+      process.env.BW_VOICE_PORTAL_APPLY_ONLY === '1' ||
+      process.env.BW_VOICE_PORTAL_READBACK === '1' ||
+      process.env.BW_VOICE_PORTAL_ASSIGN_INSPECT === '1' ||
+      process.env.BW_VOICE_PORTAL_ASSIGN_APPLY_ONLY === '1' ||
+      process.env.BW_VOICE_PORTAL_ASSIGN_READBACK === '1') && level === 'Group' &&
+      folder === 'Services' && label === 'Voice Portal') {
+    await page.evaluate(() => { window.__bwVoicePortalDocument = document; });
+    await page.locator('td[width="82%"] tr[id^="Row"] a.tableLink').first().click();
+    await waitPath(page, '/commpilot/Group/VoicePortal/EditRedirect/index.jsp');
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwVoicePortalDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 800),
+      links: [...document.querySelectorAll('td[width="82%"] a')]
+        .filter(item => item.getClientRects().length)
+        .map(item => ({ text: item.textContent.trim(), className: item.className }))
+        .slice(0, 30) }));
+    writeDeep('discovered-501', state.sameDocument ? 'passed' : 'failed',
+      `Voice Portal row opened EditRedirect ${state.sameDocument ? 'in the same document' : 'with a reload'}.`);
+    console.log(JSON.stringify({ event: 'voice-portal-entry-inspect', state }));
+    if (process.env.BW_VOICE_PORTAL_ASSIGN_INSPECT === '1' ||
+        process.env.BW_VOICE_PORTAL_ASSIGN_APPLY_ONLY === '1' ||
+        process.env.BW_VOICE_PORTAL_ASSIGN_READBACK === '1') {
+      await page.evaluate(() => { window.__bwVoicePortalAssignDocument = document; });
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Assign Services")').click();
+      await waitPath(page, '/commpilot/User/Services/');
+      console.log(JSON.stringify({ event: 'voice-portal-assign-inspect',
+        state: await page.evaluate(() => ({ path: location.pathname,
+          sameDocument: document === window.__bwVoicePortalAssignDocument,
+          text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 750),
+          controls: [...document.querySelectorAll('td[width="82%"] input, td[width="82%"] select')]
+            .filter(item => item.getClientRects().length)
+            .map(item => ({ name: item.name, type: item.type, value: item.value }))
+            .slice(0, 40) })) }));
+      const snapshotPath = path.join(require('node:os').tmpdir(),
+        'bw-voice-portal-assign-snapshot.json');
+      if (process.env.BW_VOICE_PORTAL_ASSIGN_READBACK === '1') {
+        const prior = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
+        const sameValues = JSON.stringify(prior.before) === JSON.stringify(await formState(page));
+        writeDeep('discovered-663', prior.saved && sameValues ? 'passed' : 'failed',
+          `Voice Portal Assign Services Apply returned HTTP 200 in the same document; ` +
+          `fresh browser readback ${sameValues ? 'matched' : 'differed'} from pre-save assignments.`);
+        return;
+      }
+      if (process.env.BW_VOICE_PORTAL_ASSIGN_APPLY_ONLY === '1') {
+        const before = await formState(page);
+        await page.evaluate(() => { window.__bwVoicePortalAssignApplyDocument = document; });
+        const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+          new URL(item.url()).pathname === '/commpilot/User/Services/',
+        { timeout: 15000 }).catch(() => null);
+        await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+          .click({ noWaitAfter: true });
+        const found = await response;
+        await page.waitForTimeout(350);
+        const state = await page.evaluate(() => ({ path: location.pathname,
+          sameDocument: document === window.__bwVoicePortalAssignApplyDocument,
+          text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 400) }));
+        console.log(JSON.stringify({ event: 'voice-portal-assign-apply-state',
+          status: found?.status() || null, state }));
+        fs.writeFileSync(snapshotPath, JSON.stringify({ before,
+          saved: found?.status() === 200 && state.sameDocument &&
+            /Saved/.test(state.text) }) + '\n');
+      }
+      return;
+    }
+    if (process.env.BW_VOICE_PORTAL_DEEP === '1' ||
+        process.env.BW_VOICE_PORTAL_APPLY_ONLY === '1' ||
+        process.env.BW_VOICE_PORTAL_READBACK === '1') {
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Profile")').click();
+      await waitPath(page, '/commpilot/Group/VoicePortal/Modify/index.jsp');
+      console.log(JSON.stringify({ event: 'voice-portal-profile-inspect',
+        state: await page.evaluate(() => ({ path: location.pathname,
+          text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 850),
+          forms: [...document.querySelectorAll('td[width="82%"] form')]
+            .map(form => ({ action: form.action, enctype: form.enctype,
+              fields: [...form.elements].filter(item => item.name && item.type !== 'hidden')
+                .map(item => ({ name: item.name, type: item.type, value: item.value,
+                  checked: item.checked })).slice(0, 70) })) })) }));
+      const snapshotPath = path.join(require('node:os').tmpdir(),
+        'bw-voice-portal-apply-snapshot.json');
+      if (process.env.BW_VOICE_PORTAL_READBACK === '1') {
+        const prior = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
+        const sameValues = JSON.stringify(prior.before) === JSON.stringify(await formState(page));
+        writeDeep('discovered-662', prior.saved && sameValues ? 'passed' : 'failed',
+          `Voice Portal Profile Apply returned Saved in the same document; ` +
+          `fresh browser readback ${sameValues ? 'matched' : 'differed'} from pre-save fields.`);
+        return;
+      }
+      const before = await formState(page);
+      await page.evaluate(() => { window.__bwVoicePortalProfileDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === '/commpilot/Group/VoicePortal/Modify/index.jsp',
+      { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+        .click({ noWaitAfter: true });
+      const found = await response;
+      await page.waitForTimeout(350);
+      const sameDocument = await page.evaluate(() =>
+        document === window.__bwVoicePortalProfileDocument);
+      console.log(JSON.stringify({ event: 'voice-portal-apply-state',
+        status: found?.status() || null,
+        responsePath: found && new URL(found.url()).pathname,
+        state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+          sameDocument: document === window.__bwVoicePortalProfileDocument,
+          text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 650),
+          body: document.body?.innerText.slice(0, 350) })) }));
+      if (process.env.BW_VOICE_PORTAL_APPLY_ONLY === '1') {
+        fs.writeFileSync(snapshotPath, JSON.stringify({ before,
+          saved: found?.status() === 200 && sameDocument &&
+            /Saved/.test(await page.locator('td[width="82%"]')
+              .evaluate(item => item.innerText.slice(0, 250))) }) + '\n');
+        return;
+      }
+      await enterLevel(page);
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Voice Portal")').click();
+      await waitPath(page, '/commpilot/Group/VoicePortal/');
+      await page.locator('td[width="82%"] tr[id^="Row"] a.tableLink').first().click();
+      await waitPath(page, '/commpilot/Group/VoicePortal/EditRedirect/index.jsp');
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Profile")').click();
+      await waitPath(page, '/commpilot/Group/VoicePortal/Modify/index.jsp');
+      const sameValues = JSON.stringify(before) === JSON.stringify(await formState(page));
+      writeDeep('discovered-662', found?.status() === 200 && sameDocument && sameValues ?
+        'passed' : 'failed',
+        `Voice Portal Profile Apply HTTP ${found?.status() || 'none'}; ` +
+        `${sameDocument ? 'same document' : 'reload'}; ` +
+        `fresh readback ${sameValues ? 'matched' : 'differed'}.`);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Assign Services")').click();
+      await waitPath(page, '/commpilot/User/Services/');
+      console.log(JSON.stringify({ event: 'voice-portal-assign-inspect',
+        state: await page.evaluate(() => ({ path: location.pathname,
+          text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 750),
+          controls: [...document.querySelectorAll('td[width="82%"] input, td[width="82%"] select')]
+            .filter(item => item.getClientRects().length)
+            .map(item => ({ name: item.name, type: item.type, value: item.value }))
+            .slice(0, 40) })) }));
+    }
+    return;
+  }
   if (process.env.BW_AGENT_THRESHOLD_LIFECYCLE === '1' && level === 'Group' &&
       folder === 'Call Center' && label === 'Agent Threshold Profiles') {
     await exerciseAgentThresholdProfile(page);
@@ -2655,6 +3086,11 @@ async function probe(page, label) {
     const absent = await row.count() === 0;
     writeDeep('lifecycle:digit-pattern-criteria-delete', absent ? 'passed' : 'failed',
       `Disposable criterion ${name} ${absent ? 'is absent' : 'remains'} on fresh list.`);
+    return;
+  }
+  if (process.env.BW_MOH_DEPARTMENT_LIFECYCLE === '1' && level === 'Group' &&
+      folder === 'Services' && label === 'Music/Video on Hold') {
+    await exerciseMohDepartment(page);
     return;
   }
   if (process.env.BW_READ_ONLY_AUDIT === '1') {
@@ -3962,6 +4398,22 @@ async function probe(page, label) {
       if (process.env.BW_NATIVE_ONLY === '1' || process.env.BW_INSPECT_ADD === '1' ||
           process.env.BW_INSPECT_SERVICE_LIST === '1' ||
           process.env.BW_AGENT_THRESHOLD_LIFECYCLE === '1' ||
+          process.env.BW_MOH_INSPECT_MODIFY === '1' ||
+          process.env.BW_MOH_MODIFY_APPLY === '1' ||
+          process.env.BW_MOH_DEPARTMENT_LIFECYCLE === '1' ||
+          process.env.BW_POLYCOM_INSPECT_MODIFY === '1' ||
+          process.env.BW_COMM_BARRING_NOOP === '1' ||
+          process.env.BW_CALL_LOG_INSPECT === '1' ||
+          process.env.BW_CALL_LOG_TABS === '1' ||
+          process.env.BW_INTERCEPT_NOOP === '1' ||
+          process.env.BW_POLYCOM_MODIFY_APPLY === '1' ||
+          process.env.BW_VOICE_PORTAL_INSPECT === '1' ||
+          process.env.BW_VOICE_PORTAL_DEEP === '1' ||
+          process.env.BW_VOICE_PORTAL_APPLY_ONLY === '1' ||
+          process.env.BW_VOICE_PORTAL_READBACK === '1' ||
+          process.env.BW_VOICE_PORTAL_ASSIGN_INSPECT === '1' ||
+          process.env.BW_VOICE_PORTAL_ASSIGN_APPLY_ONLY === '1' ||
+          process.env.BW_VOICE_PORTAL_ASSIGN_READBACK === '1' ||
           process.env.BW_AA_SUBMENU_LIFECYCLE === '1' ||
           process.env.BW_DIGIT_PATTERN_CRITERIA_LIFECYCLE === '1' ||
           process.env.BW_DIGIT_PATTERN_CLEAN_NAME ||

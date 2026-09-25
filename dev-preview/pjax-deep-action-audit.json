@@ -1,9 +1,9 @@
 {
   "title": "CommPilot deep PJAX action audit",
-  "updated": "2026-09-25T03:52:19.932Z",
+  "updated": "2026-09-25T04:13:34.366Z",
   "environment": "apps-sbx.avpaas.io · saved test account · headless Edge",
   "scope": "Sandbox route and interaction checks are tracked separately from final writes. A passed list interaction confirms navigation and Back; a write passes only after save and readback.",
-  "current": "Digit Pattern Criteria",
+  "current": "lifecycle pinhole digit string delete",
   "checks": [
     {
       "id": "reseller-groups",
@@ -2049,9 +2049,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Group Music/Video on Hold row opened and Apply preserved settings in PJAX; fresh readback matched.",
+      "checkedAt": "2026-09-25T03:59:21.033Z",
       "navigationCheckedAt": "2026-09-25T00:59:20.850Z",
       "navigationStatus": "pass"
     },
@@ -2113,9 +2113,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Voice Portal row drill-in, Profile Apply, and Assign Services Apply stayed in PJAX; fresh browser readbacks matched.",
+      "checkedAt": "2026-09-25T04:06:52.612Z",
       "navigationCheckedAt": "2026-09-25T00:59:37.497Z",
       "navigationStatus": "pass"
     },
@@ -2753,9 +2753,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Outgoing Digit Plan Apply with disposable Digit Strings returned HTTP 200; same document; fresh readback matched all department policies.",
+      "checkedAt": "2026-09-25T04:13:20.478Z",
       "navigationCheckedAt": "2026-09-25T01:01:40.130Z",
       "navigationStatus": "pass"
     },
@@ -2769,9 +2769,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Outgoing Pinhole Digit Plan Apply with disposable Pinhole Digit Strings returned HTTP 200; same document; fresh readback matched all department policies.",
+      "checkedAt": "2026-09-25T04:13:33.589Z",
       "navigationCheckedAt": "2026-09-25T01:01:42.252Z",
       "navigationStatus": "pass"
     },
@@ -3025,9 +3025,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Intercept Group Apply multipart POST HTTP 200; same document; fresh readback matched at /commpilot/Intercept/index.jsp.",
+      "checkedAt": "2026-09-25T04:11:52.231Z",
       "navigationCheckedAt": "2026-09-25T01:02:27.103Z",
       "navigationStatus": "pass"
     },
@@ -4017,9 +4017,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "User Communication Barring User-Control Apply HTTP 200; same document; fresh readback matched at /commpilot/User/CommunicationBarring/.",
+      "checkedAt": "2026-09-25T04:08:11.096Z",
       "navigationCheckedAt": "2026-09-25T01:06:20.812Z",
       "navigationStatus": "pass"
     },
@@ -4545,9 +4545,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "User Polycom Phone Services row opened in PJAX and Modify Apply preserved settings on fresh readback.",
+      "checkedAt": "2026-09-25T04:01:26.364Z",
       "navigationCheckedAt": "2026-09-25T01:07:33.542Z",
       "navigationStatus": "pass"
     },
@@ -4785,9 +4785,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "User Basic Call Logs Received, Missed, and Placed tabs each opened by HTTP 200 in the same document. The sandbox list has no entries to delete.",
+      "checkedAt": "2026-09-25T04:10:49.232Z",
       "navigationCheckedAt": "2026-09-25T01:08:06.184Z",
       "navigationStatus": "pass"
     },
@@ -4817,9 +4817,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "User Enhanced Call Logs Received, Missed, and Placed tabs each opened by HTTP 200 in the same document. The sandbox list has no entries to delete.",
+      "checkedAt": "2026-09-25T04:09:44.640Z",
       "navigationCheckedAt": "2026-09-25T01:08:10.013Z",
       "navigationStatus": "pass"
     },
@@ -4881,9 +4881,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Intercept User - Off Apply multipart POST HTTP 200; same document; fresh readback matched at /commpilot/Intercept/index.jsp.",
+      "checkedAt": "2026-09-25T04:11:32.915Z",
       "navigationCheckedAt": "2026-09-25T01:08:17.738Z",
       "navigationStatus": "pass"
     },
@@ -6241,9 +6241,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Hunt Group Communication Barring User-Control Apply HTTP 200; same document; fresh readback matched at /commpilot/User/CommunicationBarring/.",
+      "checkedAt": "2026-09-25T04:08:20.198Z",
       "navigationCheckedAt": "2026-09-25T01:10:12.463Z",
       "navigationStatus": "pass"
     },
@@ -6529,9 +6529,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Hunt Group Enhanced Call Logs Received, Missed, and Placed tabs each opened by HTTP 200 in the same document. The sandbox list has no entries to delete.",
+      "checkedAt": "2026-09-25T04:09:58.978Z",
       "navigationCheckedAt": "2026-09-25T01:10:37.713Z",
       "navigationStatus": "pass"
     },
@@ -6961,9 +6961,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Call Center Communication Barring User-Control Apply HTTP 200; same document; fresh readback matched at /commpilot/User/CommunicationBarring/.",
+      "checkedAt": "2026-09-25T04:08:29.312Z",
       "navigationCheckedAt": "2026-09-25T01:11:41.156Z",
       "navigationStatus": "pass"
     },
@@ -7249,9 +7249,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Call Center Enhanced Call Logs Received, Missed, and Placed tabs each opened by HTTP 200 in the same document. The sandbox list has no entries to delete.",
+      "checkedAt": "2026-09-25T04:10:13.090Z",
       "navigationCheckedAt": "2026-09-25T01:12:06.205Z",
       "navigationStatus": "pass"
     },
@@ -7985,9 +7985,9 @@
       "family": "Edit / save",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Group Music/Video on Hold Apply multipart POST HTTP 200; same document; fresh readback matched at /commpilot/Group/MusicOnHold/Modify/index.jsp.",
+      "checkedAt": "2026-09-25T03:59:21.024Z",
       "navigationCheckedAt": "2026-09-25T00:59:27.537Z",
       "navigationStatus": "pass"
     },
@@ -8001,9 +8001,9 @@
       "family": "Edit / save",
       "deep": true,
       "submitControls": 0,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Voice Portal row opened EditRedirect in the same document.",
+      "checkedAt": "2026-09-25T04:06:46.220Z",
       "navigationCheckedAt": "2026-09-25T00:59:39.105Z",
       "navigationStatus": "pass"
     },
@@ -8237,9 +8237,9 @@
       "family": "Edit / save",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Polycom Phone Services Modify Apply HTTP 200; same document; fresh readback matched.",
+      "checkedAt": "2026-09-25T04:01:26.355Z",
       "navigationCheckedAt": "2026-09-25T01:07:35.040Z",
       "navigationStatus": "pass"
     },
@@ -8427,9 +8427,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Department Music/Video on Hold Add multipart POST HTTP 200; same document; fresh list contains Basement row.",
+      "checkedAt": "2026-09-25T03:59:58.840Z",
       "navigationCheckedAt": "2026-09-25T00:59:25.056Z",
       "navigationStatus": "pass"
     },
@@ -8857,7 +8857,7 @@
       "submitControls": 4,
       "status": "passed",
       "detail": "Digit Strings Add HTTP 200; same document; saved row found.",
-      "checkedAt": "2026-09-25T01:23:18.235Z",
+      "checkedAt": "2026-09-25T04:13:16.853Z",
       "navigationCheckedAt": "2026-09-25T01:01:28.123Z",
       "navigationStatus": "pass"
     },
@@ -8873,7 +8873,7 @@
       "submitControls": 4,
       "status": "passed",
       "detail": "Pinhole Digit Strings Add HTTP 200; same document; saved row found.",
-      "checkedAt": "2026-09-25T01:23:31.274Z",
+      "checkedAt": "2026-09-25T04:13:32.351Z",
       "navigationCheckedAt": "2026-09-25T01:01:31.368Z",
       "navigationStatus": "pass"
     },
@@ -10519,9 +10519,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Voice Portal Profile Apply returned Saved in the same document; fresh browser readback matched from pre-save fields.",
+      "checkedAt": "2026-09-25T04:05:53.086Z"
     },
     {
       "id": "discovered-663",
@@ -10533,9 +10533,9 @@
       "family": "Assignment / pick-list",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Voice Portal Assign Services Apply returned HTTP 200 in the same document; fresh browser readback matched from pre-save assignments.",
+      "checkedAt": "2026-09-25T04:06:46.368Z"
     },
     {
       "id": "discovered-664",
@@ -20399,7 +20399,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Disposable Digit Strings is absent after Delete.",
-      "checkedAt": "2026-09-25T01:23:19.847Z"
+      "checkedAt": "2026-09-25T04:13:23.016Z"
     },
     {
       "id": "lifecycle:pinhole-digit-string-delete",
@@ -20411,7 +20411,7 @@
       "submitControls": 1,
       "status": "passed",
       "detail": "Disposable Pinhole Digit Strings is absent after Delete.",
-      "checkedAt": "2026-09-25T01:23:32.892Z"
+      "checkedAt": "2026-09-25T04:13:34.366Z"
     },
     {
       "id": "lifecycle:group-dialable-caller-id-modify",
@@ -21122,9 +21122,21 @@
       "status": "passed",
       "detail": "Digit Pattern 987654321 is absent after Delete and fresh readback.",
       "checkedAt": "2026-09-25T03:52:08.049Z"
+    },
+    {
+      "id": "lifecycle:music-on-hold-department-delete",
+      "area": "Group / Services",
+      "label": "lifecycle music on hold department delete",
+      "kind": "action-check",
+      "family": "Action and readback",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Basement Music/Video on Hold override is absent on fresh list.",
+      "checkedAt": "2026-09-25T04:00:01.237Z"
     }
   ],
   "incidents": [],
   "notes": [],
-  "currentNote": "List Find, disposable criterion Add/Modify/Delete, nested Digit Patterns tab, and pattern Add/Delete passed with fresh readback in PJAX."
+  "currentNote": "Disposable Pinhole Digit Strings is absent after Delete."
 }
