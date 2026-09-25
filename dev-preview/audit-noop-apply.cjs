@@ -4080,6 +4080,36 @@ async function probe(page, label) {
     return;
   }
   if (process.env.BW_INSPECT_SIMPLE_LIST === '1') {
+    if (process.env.BW_INSPECT_SCHEDULE_PICKER === '1') {
+      const launch = page.locator('.cp-native-schedule-launch').first();
+      await launch.waitFor({ timeout: 5000 });
+      await launch.click();
+      await page.waitForFunction(() => {
+        const text = document.querySelector('.cp-native-schedule-status')?.textContent || '';
+        return !/Loading events/.test(text);
+      }, null, { timeout: 15000 });
+      console.log(JSON.stringify({ event: 'native-schedule-picker-inspect', level,
+        state: await page.evaluate(() => ({ path: location.pathname,
+          schedule: document.querySelector('.cp-native-schedule-head strong')?.textContent,
+          status: document.querySelector('.cp-native-schedule-status')?.textContent,
+          events: [...document.querySelectorAll('.cp-native-schedule-event span')].map(item => item.textContent),
+          addEnabled: !document.querySelector('.cp-native-schedule-add')?.disabled,
+          token: document.querySelector('[name="formtokenserial"]')?.value ? 'present' : 'missing' })) }));
+      if (process.env.BW_INSPECT_SCHEDULE_SCREENSHOT === '1') {
+        const screenshot = path.join(require('node:os').tmpdir(), 'native-schedule-picker.png');
+        await page.screenshot({ path: screenshot });
+        console.log(JSON.stringify({ event: 'native-schedule-picker-screenshot', path: screenshot }));
+      }
+      if (process.env.BW_INSPECT_SCHEDULE_PICKER_ADD === '1') {
+        await page.locator('.cp-native-schedule-add').click();
+        await page.waitForTimeout(500);
+        console.log(JSON.stringify({ event: 'native-schedule-picker-add-inspect', level,
+          state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+            text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 500),
+            token: document.querySelector('[name="formtokenserial"]')?.value ? 'present' : 'missing' })) }));
+      }
+      return;
+    }
     if (process.env.BW_INSPECT_SCRIPTS === '1') console.log(JSON.stringify({
       event: 'simple-page-scripts', label, scripts: await page.evaluate(() =>
         [...document.querySelectorAll('td[width="82%"] script')]

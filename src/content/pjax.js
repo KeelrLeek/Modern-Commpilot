@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.38-native";
+  var CP_PJAX_VERSION = "0.3.39-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -6404,11 +6404,104 @@
       search.parentNode.insertBefore(button, search);
     }
 
+    var cpNativeSchedulePicker = null;
+    function cpCloseNativeSchedulePicker() {
+      if (!cpNativeSchedulePicker) return;
+      cpNativeSchedulePicker.remove();
+      cpNativeSchedulePicker = null;
+    }
+    function cpNativeScheduleKey(e) {
+      if (e.key === "Escape") cpCloseNativeSchedulePicker();
+    }
+    document.addEventListener("keydown", cpNativeScheduleKey, true);
+    document.addEventListener("cp:reskin", cpCloseNativeSchedulePicker);
+
+    function cpOpenNativeSchedulePicker(row) {
+      if (!row.drill) return;
+      cpCloseNativeSchedulePicker();
+      var listPath = location.pathname;
+      var target = new URL(row.drill.url, location.href).pathname;
+      var params = row.drill.params || {};
+      var back = document.createElement("div");
+      back.className = "cp-native-schedule-back";
+      back.innerHTML = '<div class="cp-native-schedule-dialog" role="dialog" aria-modal="true" aria-label="Schedule events">' +
+        '<div class="cp-native-schedule-head"><strong></strong><button type="button" class="cp-native-schedule-close">Close</button></div>' +
+        '<p class="cp-native-schedule-status" role="status">Loading events…</p>' +
+        '<div class="cp-native-schedule-events"></div>' +
+        '<div class="cp-native-schedule-actions"><button type="button" class="cp-native-schedule-open">Open schedule</button>' +
+        '<button type="button" class="cp-native-schedule-add" disabled>Add event</button></div></div>';
+      back.querySelector("strong").textContent = row.cells[0] || "Schedule";
+      back.querySelector(".cp-native-schedule-close").addEventListener("click", cpCloseNativeSchedulePicker);
+      back.addEventListener("mousedown", function (e) { if (e.target === back) cpCloseNativeSchedulePicker(); });
+      back.querySelector(".cp-native-schedule-open").addEventListener("click", function () {
+        cpCloseNativeSchedulePicker(); cpHook(target, params);
+      });
+      document.body.appendChild(back);
+      cpNativeSchedulePicker = back;
+      var status = back.querySelector(".cp-native-schedule-status");
+      var waited = 0;
+      function load() {
+        if (cpNativeSchedulePicker !== back) return;
+        if (cpInflightPosts > 0) {
+          if (++waited > 250) { status.textContent = "A CommPilot request is still running. Close and try again."; return; }
+          setTimeout(load, 20); return;
+        }
+        var tok = document.getElementsByName("formtokenserial")[0];
+        cpFollow(target, params, tok ? tok.value : null, 0).then(function (res) {
+          if (res && res.doc && location.pathname === listPath) cpModalTokenSync(res.doc);
+          if (cpNativeSchedulePicker !== back) return;
+          if (!res || res.auth === false || res.err || !res.doc) throw new Error("CommPilot did not return the schedule");
+          var events = cpSearchParseRows(res.doc);
+          var host = back.querySelector(".cp-native-schedule-events");
+          host.replaceChildren();
+          events.forEach(function (event) {
+            var line = document.createElement("div"); line.className = "cp-native-schedule-event";
+            var name = document.createElement("span"); name.textContent = event.cells[0] || "Event"; line.appendChild(name);
+            if (event.drill) {
+              var open = document.createElement("button"); open.type = "button"; open.textContent = "Edit";
+              open.addEventListener("click", function () {
+                cpCloseNativeSchedulePicker();
+                cpHook(new URL(event.drill.url, location.origin + target).pathname, event.drill.params || {});
+              });
+              line.appendChild(open);
+            }
+            host.appendChild(line);
+          });
+          status.textContent = events.length ? events.length + " event" + (events.length === 1 ? "" : "s") : "No events yet";
+          var add = back.querySelector(".cp-native-schedule-add"); add.disabled = false;
+          add.addEventListener("click", function () {
+            cpCloseNativeSchedulePicker();
+            cpHook(target.replace(/Modify\/(index\.jsp)?$/, "Events/Add/index.jsp"), params);
+          });
+        }).catch(function (e) {
+          if (cpNativeSchedulePicker === back) status.textContent = "Could not load events: " + (e.message || e);
+        });
+      }
+      load();
+    }
+
+    function cpAttachNativeSchedulePicker() {
+      var path = document.documentElement.getAttribute("data-cp-path") || location.pathname;
+      if (!/\/commpilot\/(ServiceProvider|Group)\/Schedules\/(index\.jsp)?$/.test(path)) return;
+      cpSearchParseRows(document).forEach(function (row, i) {
+        if (!row.drill) return;
+        var tr = document.querySelectorAll('tr[id^="Row"]')[i];
+        if (!tr || tr.querySelector(".cp-native-schedule-launch")) return;
+        var cell = tr.lastElementChild;
+        if (!cell || cell.tagName !== "TD") return;
+        var button = document.createElement("button");
+        button.type = "button"; button.className = "cp-native-schedule-launch";
+        button.textContent = "Events";
+        button.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); cpOpenNativeSchedulePicker(row); });
+        cell.appendChild(button);
+      });
+    }
+
     function cpAutoConsole() {
       // Keep the server's menu, list/search table, and page layout intact.
       // PJAX still handles the same navigation URLs and response transport.
       // The PJAX reskin event can fire just before history updates the URL.
-      setTimeout(cpAttachNativeDirectoryExport, 0);
+      setTimeout(function () { cpAttachNativeDirectoryExport(); cpAttachNativeSchedulePicker(); }, 0);
     }
 
     // Build console on reskin (runs after every pjax swap)

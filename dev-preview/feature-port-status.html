@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Original branch feature port</title>
+<style>
+  :root { color-scheme: dark; font: 15px/1.45 Arial, sans-serif; background: #111b2d; color: #edf2fa; }
+  * { box-sizing: border-box; }
+  body { max-width: 1150px; margin: auto; padding: 28px 20px 60px; }
+  a { color: #a8c9ff; }
+  h1 { margin: 0 0 5px; font-size: clamp(25px, 4vw, 38px); }
+  .sub { color: #b6c4d9; max-width: 840px; margin: 0 0 23px; }
+  .summary { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px; }
+  .summary span { border: 1px solid #52647d; background: #202e45; border-radius: 7px; padding: 9px 12px; }
+  .summary b { font-size: 21px; margin-right: 6px; }
+  h2 { margin: 27px 0 12px; font-size: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; }
+  article { min-height: 125px; border: 1px solid #52647d; border-left: 5px solid #73849c; background: #202e45; border-radius: 7px; padding: 15px; }
+  article.done { border-left-color: #60d9a0; }
+  article.native { border-left-color: #8db9ff; }
+  article.todo { border-left-color: #f3c679; }
+  .badge { font-size: 11px; font-weight: bold; letter-spacing: .07em; text-transform: uppercase; }
+  .done .badge { color: #83e6b4; }
+  .native .badge { color: #afceff; }
+  .todo .badge { color: #f4d397; }
+  h3 { font-size: 17px; margin: 6px 0 6px; }
+  p { margin: 0; color: #c6d2e2; }
+  .foot { margin-top: 27px; color: #aebdd2; font-size: 13px; }
+</style>
+<body>
+  <h1>Original branch feature port</h1>
+  <p class="sub">Tracking features from <code>v0.2.0-alpha</code> in the <code>native-pjax</code> extension. CommPilot’s native search and results remain the search interface.</p>
+  <div class="summary" aria-label="Port tally">
+    <span><b>3</b> ported</span><span><b>2</b> handled by native controls</span><span><b>3</b> still to review or port</span>
+  </div>
+  <h2>Ported</h2>
+  <div class="grid">
+    <article class="done"><div class="badge">Ported · 0.3.36</div><h3>Group Directory export</h3><p>Two workbook modes are available from the native Group Directory page.</p></article>
+    <article class="done"><div class="badge">Ported · 0.3.38</div><h3>Contextual Help</h3><p>Reseller sidebar tips work on the home page and after PJAX navigation.</p></article>
+    <article class="done"><div class="badge">Ported · 0.3.39</div><h3>Schedule event picker</h3><p>View events over the native Schedules list; Add and Edit use native CommPilot forms in PJAX.</p></article>
+  </div>
+  <h2>Native controls retained</h2>
+  <div class="grid">
+    <article class="native"><div class="badge">Native</div><h3>Groups and Users search</h3><p>CommPilot’s search fields, result table, sort, and pagination stay visible. PJAX handles their requests.</p></article>
+    <article class="native"><div class="badge">Native</div><h3>List Add and Delete</h3><p>CommPilot’s Add forms and selection checkboxes remain in place, with PJAX handling their navigation and saves.</p></article>
+  </div>
+  <h2>Remaining from the original interface</h2>
+  <div class="grid">
+    <article class="todo"><div class="badge">To review</div><h3>Breadcrumb page menu</h3><p>The original branch offered shortcuts to other pages at the same level. The native sidebar currently provides navigation.</p></article>
+    <article class="todo"><div class="badge">To review</div><h3>Profile glance and inline edits</h3><p>The original branch surfaced key settings and quick edits on profile pages. These need page by page validation with native forms.</p></article>
+    <article class="todo"><div class="badge">To review</div><h3>Schedule editor and dual lists</h3><p>The original branch restyled event dates, recurrence, and several assignment pickers. Native forms are still in use.</p></article>
+  </div>
+  <p class="foot">Updated 2026-09-25 · <a href="pjax-deep-action-audit.html">Deep PJAX action audit</a></p>
+</body>
+</html>

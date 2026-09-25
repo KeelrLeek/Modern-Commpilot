@@ -74,3 +74,46 @@
 .cp-uxp button.cp-srch-actbtn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border: 1px solid #a7b0c4; border-radius: 4px; background: #192a43; color: #fff; cursor: pointer; font: inherit; }
 .cp-uxp button.cp-srch-actbtn svg { width: 16px; height: 16px; }
 .cp-uxp .cp-uxp-hide { display: none !important; }
+
+.cp-native-schedule-launch {
+  margin-left: 8px;
+  padding: 2px 7px;
+  border: 1px solid #9aa4ba;
+  border-radius: 3px;
+  background: #30394f;
+  color: #fff;
+  cursor: pointer;
+  font: 12px Arial, sans-serif;
+}
+.cp-native-schedule-back {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483640;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(7, 13, 27, .72);
+  color: #f4f5fa;
+  font: 13px Arial, sans-serif;
+}
+.cp-native-schedule-dialog {
+  box-sizing: border-box;
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  border: 1px solid #73809c;
+  border-radius: 8px;
+  background: #30394f;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, .45);
+}
+.cp-native-schedule-head,
+.cp-native-schedule-actions { display: flex; align-items: center; gap: 8px; padding: 12px 16px; }
+.cp-native-schedule-head { border-bottom: 1px solid #64708b; font-size: 16px; }
+.cp-native-schedule-head strong { flex: 1; overflow-wrap: anywhere; }
+.cp-native-schedule-status { margin: 0; padding: 12px 16px; color: #d4dceb; }
+.cp-native-schedule-events { max-height: 45vh; overflow: auto; }
+.cp-native-schedule-event { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-top: 1px solid #64708b; }
+.cp-native-schedule-event span { flex: 1; overflow-wrap: anywhere; }
+.cp-native-schedule-actions { justify-content: flex-end; border-top: 1px solid #64708b; }
+.cp-native-schedule-back button { padding: 5px 10px; border: 1px solid #a7b0c4; border-radius: 4px; background: #192a43; color: #fff; cursor: pointer; font: inherit; }
+.cp-native-schedule-back button:disabled { opacity: .5; cursor: default; }
