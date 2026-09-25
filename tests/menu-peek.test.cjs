@@ -61,8 +61,18 @@ test('Peek edits are verified from a fresh page and a full option row navigates 
     }
     await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
     await page.locator('.cp-leaf-defpill').waitFor({ timeout: 10000 });
+    await page.waitForFunction(() => {
+      const dock = document.querySelector('.cp-leaf-summary');
+      return dock?.querySelector('.cp-leaf-row') && !dock.style.height && !dock.style.overflow;
+    });
+    assert.equal(await page.locator('.cp-leaf-key').innerText(), 'Current ·');
+    assert.equal(await page.locator('.cp-leaf-valwrap').evaluate(wrap =>
+      wrap.lastElementChild?.classList.contains('cp-leaf-act')), true);
     assert.equal(await page.locator('.cp-leaf-defpill').innerText(), current);
     await page.getByRole('button', { name: 'Edit value' }).click();
+    assert.equal(await page.locator('.cp-leaf-valwrap').evaluate(wrap =>
+      wrap.firstElementChild?.classList.contains('cp-leaf-hidden') &&
+      wrap.querySelector('input.cp-leaf-editin')?.nextElementSibling?.title === 'Save'), true);
     await page.locator('input.cp-leaf-editin').fill('updated@example.com');
     await page.getByRole('button', { name: 'Save' }).click();
     await page.waitForFunction(() => document.querySelector('.cp-leaf-defpill')?.textContent === 'updated@example.com');
@@ -103,7 +113,7 @@ test('opening an option while Peek reads it waits for the token-bearing request'
       await page.addStyleTag({ path: path.join(root, 'src/content', file) });
     }
     await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
-    await page.locator('.cp-leaf-loading').waitFor();
+    await page.locator('.cp-leaf-loading').waitFor({ state: 'attached' });
     for (let attempt = 0; attempt < 50 && leafRequests === 0; attempt++) {
       await new Promise(resolve => setTimeout(resolve, 20));
     }

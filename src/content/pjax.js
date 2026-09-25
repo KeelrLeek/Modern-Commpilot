@@ -5305,14 +5305,13 @@
       var noB = document.createElement("button");
       noB.type = "button"; noB.className = "cp-leaf-actbtn cp-leaf-act-no"; noB.title = "Cancel"; noB.innerHTML = CP_SVG_LEAF_XX;
       pill.classList.add("cp-leaf-hidden"); acts.classList.add("cp-leaf-hidden");   // class, not inline style — the base rules are !important
-      // ✓/✕ go LEFT of the input (mirroring the copy/pencil-left-of-pill layout) so the INPUT's right
-      // edge lands exactly on the pill alignment line — input-first left the ✕ on the line and the
-      // input floating loose (user screenshot, 2026-07-04).
-      wrap.appendChild(okB); wrap.appendChild(noB); wrap.appendChild(inp);
+      wrap.classList.add("cp-leaf-editing");
+      wrap.appendChild(inp); wrap.appendChild(okB); wrap.appendChild(noB);
       inp.focus(); inp.select();
       function done() {
         try { inp.remove(); okB.remove(); noB.remove(); } catch (e) {}
-        pill.classList.remove("cp-leaf-hidden"); acts.classList.remove("cp-leaf-hidden"); pill.__cpEditing = false;
+        pill.classList.remove("cp-leaf-hidden"); acts.classList.remove("cp-leaf-hidden");
+        wrap.classList.remove("cp-leaf-editing"); pill.__cpEditing = false;
       }
       function flash(cls) { pill.classList.add(cls); setTimeout(function () { pill.classList.remove(cls); }, 1600); }
       function save(ev) {
@@ -5505,19 +5504,26 @@
         var card = descRow && !descRow.querySelector("a.navMenuItem") && descRow.querySelector("td");
         if (!card || card.querySelector(".cp-leaf-summary")) return;  // already summarized
         var box = document.createElement("div");
-        box.className = "cp-leaf-summary";
+        box.className = "cp-leaf-summary cp-leaf-dock";
         var loading = document.createElement("div");
         loading.className = "cp-leaf-loading";
-        loading.textContent = "\u2026";
+        loading.setAttribute("aria-label", "Loading preview");
+        for (var sk = 0; sk < 2; sk++) {
+          var bar = document.createElement("span");
+          bar.setAttribute("aria-hidden", "true");
+          loading.appendChild(bar);
+        }
         box.appendChild(loading);
         card.appendChild(box);
         box.__cpPeekLoad = function () { cpFetchLeaf("/commpilot" + target).then(function (rows) {
           if (cpSectionAborted || !document.querySelector(".cp-console") || !box.isConnected) { return; }
           if (!rows) { box.remove(); return; }
-          box.innerHTML = "";
+          var oldHeight = box.getBoundingClientRect().height;
+          var contents = document.createDocumentFragment();
           rows.forEach(function (r) {
             var row = document.createElement("div"); row.className = "cp-leaf-row";
-            var k = document.createElement("span"); k.className = "cp-leaf-key"; k.textContent = r.label;
+            var k = document.createElement("span"); k.className = "cp-leaf-key";
+            k.textContent = rows.length === 1 && r.edit ? "Current \u00b7" : r.label + " \u00b7";
             var v;
             if (r.pill) {
               // Source pill: muted = inherited (System), lavender = custom (Reseller).
@@ -5563,15 +5569,29 @@
                   actsEl.appendChild(eb);
                 }
               })(pill, acts, r);
-              // Icons sit LEFT of the pill: opacity-hidden elements still occupy layout, so trailing icons
-              // left a dead gap at the row's right edge (user report) — leading icons fill the natural gap
-              // between label and pill instead, and the pill stays flush right.
-              if (acts.childNodes.length) v.insertBefore(acts, pill);
+              if (acts.childNodes.length) v.appendChild(acts);
             } else {
               v = document.createElement("span"); v.className = "cp-leaf-val"; v.textContent = r.value;
             }
-            row.appendChild(k); row.appendChild(v); box.appendChild(row);
+            row.appendChild(k); row.appendChild(v); contents.appendChild(row);
           });
+          box.replaceChildren(contents);
+          var newHeight = box.scrollHeight;
+          var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          if (!reduceMotion && box.animate) {
+            box.style.height = oldHeight + "px";
+            box.style.overflow = "hidden";
+            var reveal = box.animate([{ height:oldHeight + "px" }, { height:newHeight + "px" }],
+              { duration:360, easing:"cubic-bezier(.22, 1, .36, 1)" });
+            reveal.onfinish = reveal.oncancel = function () {
+              box.style.height = "";
+              box.style.overflow = "";
+            };
+            box.querySelectorAll(".cp-leaf-row").forEach(function (r, index) {
+              r.animate([{ opacity:0, transform:"translateY(7px)" }, { opacity:1, transform:"translateY(0)" }],
+                { duration:330, delay:Math.min(index * 45, 135), easing:"cubic-bezier(.22, 1, .36, 1)" });
+            });
+          }
           // This summary just grew (… → real rows). If it sits in a section ABOVE a jump anchor, that
           // growth shoved the anchor down — re-pin the anchor flush. Gated on "still near the top" so a
           // user who has since scrolled away isn't yanked back.
