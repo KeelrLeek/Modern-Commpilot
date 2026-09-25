@@ -29,6 +29,8 @@ The separate deep action audit is at `http://127.0.0.1:8766/pjax-deep-action-aud
 
 The original-branch feature port tracker is at `http://127.0.0.1:8766/feature-port-status.html`. It separates ported features, native controls kept in place, and interface features still under review.
 
+The Reseller Profile design mockups are at `http://127.0.0.1:8766/reseller-profile-ui-mockups.html`. They use the sandbox page's exact menu names and descriptions while keeping the native navigation structure. They are a design preview and do not change the extension's live CSS.
+
 ## Live local preview
 
 In the source checkout, run `python dev-preview/server.py` and open `http://127.0.0.1:8765/preview`. This is a synthetic navigation test page using a saved CommPilot stylesheet; your actual site's own CSS is used when the extension is installed. The local page sends no requests to BroadWorks and refreshes after source edits. The install ZIP omits this development server.

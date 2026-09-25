@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CommPilot Reseller Profile UI mockups</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root { font-family: Arial, Helvetica, sans-serif; color: #eaf1fb; background: #111827; }
+    body { margin: 0; padding: 20px; }
+    .preview { max-width: 1280px; margin: 0 auto; }
+    .preview-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-bottom: 15px; }
+    .preview-head h1 { font-size: 22px; margin: 0 0 5px; }
+    .preview-head p { color: #bbcadc; margin: 0; font-size: 13px; }
+    .choices { display: flex; gap: 7px; flex-wrap: wrap; }
+    .choices button { border: 1px solid #63758b; border-radius: 5px; background: #26374d; color: #eaf1fb; padding: 8px 12px; cursor: pointer; font: bold 13px Arial, sans-serif; }
+    .choices button[aria-pressed="true"] { border-color: #abd8f3; background: #415b75; box-shadow: inset 0 -3px #abd8f3; }
+    .preview-note { min-height: 20px; margin: 0 0 10px; color: #b6c8dd; font-size: 12px; }
+    .app {
+      --outer: #343f55; --top: #39465f; --sidebar: #10243d; --main: #303f56;
+      --text: #eef3fb; --muted: #d0d9e7; --link: #f0f5fd; --line: #73829b;
+      --section: #172a43; --accent: #8ac7e6; --item-line: transparent;
+      --content-pad: 18px; --item-gap: 12px; --font-size: 13px;
+      width: 100%; min-height: 720px; overflow: hidden; border: 1px solid #556274;
+      border-radius: 7px; background: var(--outer); color: var(--text); font-size: var(--font-size);
+      box-shadow: 0 14px 38px rgba(0,0,0,.26);
+    }
+    .app[data-variant="familiar"] {
+      --outer: #28364d; --top: #394a63; --sidebar: #102640; --main: #2c3c53;
+      --text: #f1f5fb; --muted: #cbd6e5; --link: #f0f5ff; --line: #61748c;
+      --section: #1a2d45; --accent: #85c6e9; --item-line: rgba(187,205,225,.12);
+      --content-pad: 20px; --item-gap: 13px; --font-size: 13.5px;
+    }
+    .app[data-variant="organized"] {
+      --outer: #223247; --top: #34465e; --sidebar: #132a41; --main: #25384e;
+      --text: #f1f5fb; --muted: #c4d1e1; --link: #e8f3ff; --line: #63778e;
+      --section: #1c3047; --accent: #95d2e9; --item-line: rgba(187,205,225,.16);
+      --content-pad: 22px; --item-gap: 0px; --font-size: 13.5px;
+    }
+    .app[data-variant="contrast"] {
+      --outer: #19263a; --top: #30425e; --sidebar: #071e36; --main: #1c3049;
+      --text: #fff; --muted: #e1e9f3; --link: #fff; --line: #8ea6c0;
+      --section: #0c213b; --accent: #8ed8ff; --item-line: rgba(225,235,247,.2);
+      --content-pad: 23px; --item-gap: 16px; --font-size: 14px;
+    }
+    .cp-header { height: 63px; margin: 0 20px 0 28px; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; border-bottom: 4px solid var(--section); background: var(--top); padding: 8px 8px 7px; }
+    .cp-header a, .cp-sidebar a, .cp-item a { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
+    .cp-header .crumb { align-self: flex-end; font-size: 14px; }
+    .cp-account { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; white-space: nowrap; }
+    .cp-account .tiny { font-size: 12px; }
+    .cp-account strong { font-size: 15px; }
+    .cp-account strong a { font-size: 11px; font-weight: normal; margin-left: 5px; }
+    .cp-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); min-height: 655px; margin: 0 20px 0 28px; }
+    .cp-sidebar { background: var(--sidebar); padding: 12px 0 20px; }
+    .cp-options { padding: 0 10px 4px 0; font-size: 12px; font-weight: bold; border-bottom: 1px solid var(--line); }
+    .cp-sidebar nav { display: flex; flex-direction: column; }
+    .cp-sidebar nav a { position: relative; display: block; padding: 3px 10px 4px 20px; border-bottom: 1px solid var(--line); font-size: 12.5px; min-height: 21px; }
+    .cp-sidebar nav a.active { font-weight: bold; background: rgba(255,255,255,.08); }
+    .cp-sidebar nav a.active::before { content: ""; position: absolute; left: 4px; top: 8px; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 7px solid var(--accent); }
+    .help-tips { margin: 12px 12px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 4px; background: #28364e; color: var(--text); font: 12px Arial, sans-serif; cursor: default; }
+    .cp-main { min-width: 0; background: var(--main); padding: 13px var(--content-pad) 38px; }
+    .cp-main h2 { margin: 0 0 9px; font-size: 23px; line-height: 1.2; }
+    .cp-columns { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 20px; }
+    .cp-section { min-width: 0; }
+    .cp-section h3 { margin: 0 0 1px; padding: 2px 6px; background: var(--section); color: var(--text); font-size: 14px; line-height: 1.25; }
+    .cp-item { padding: 7px 2px 0; border-bottom: 1px solid var(--item-line); }
+    .cp-item:last-child { border-bottom: 0; }
+    .cp-item a { display: inline-block; font-weight: bold; font-size: 14px; line-height: 1.2; }
+    .cp-item p { margin: 4px 0 var(--item-gap); color: var(--muted); font-size: 12.5px; line-height: 1.35; }
+    .app[data-variant="familiar"] .cp-main { background: linear-gradient(155deg, #2c3c53 0%, #334158 76%, #344151 100%); }
+    .app[data-variant="familiar"] .cp-section h3 { border-left: 3px solid var(--accent); padding-left: 8px; }
+    .app[data-variant="organized"] .cp-section { border: 1px solid var(--line); border-radius: 5px; overflow: hidden; align-self: start; }
+    .app[data-variant="organized"] .cp-section h3 { padding: 9px 13px; font-size: 15px; }
+    .app[data-variant="organized"] .cp-item { margin: 0 12px; padding: 12px 2px 0; }
+    .app[data-variant="organized"] .cp-item p { margin-bottom: 12px; }
+    .app[data-variant="contrast"] .cp-section h3 { padding: 5px 8px; border-bottom: 2px solid var(--accent); }
+    .app[data-variant="contrast"] .cp-item { padding-top: 10px; }
+    .app[data-variant="contrast"] .cp-item a { font-size: 15px; }
+    .app[data-variant="contrast"] .cp-item p { font-size: 13px; }
+    .app a:hover { color: var(--accent); }
+    .app a:focus-visible, .choices button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    @media (max-width: 760px) {
+      body { padding: 12px; }
+      .cp-header { margin: 0 10px; height: auto; min-height: 64px; }
+      .cp-layout { margin: 0 10px; grid-template-columns: 160px minmax(0,1fr); }
+      .cp-columns { grid-template-columns: 1fr; gap: 18px; }
+    }
+    @media (max-width: 510px) {
+      .cp-header { align-items: flex-start; }
+      .cp-account strong { font-size: 12px; }
+      .cp-account .tiny { font-size: 11px; }
+      .cp-layout { display: block; }
+      .cp-sidebar { padding: 8px 0; }
+      .cp-sidebar nav { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .cp-sidebar nav a { padding-left: 18px; }
+      .cp-main { min-height: 500px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="preview">
+    <div class="preview-head">
+      <div><h1>Reseller Profile: UI directions</h1><p>Exact menu names and descriptions from the sandbox page. All three keep the same sidebar, page title, and Basic / Advanced columns.</p></div>
+      <div class="choices" role="group" aria-label="Choose a design direction">
+        <button type="button" data-choice="familiar" aria-pressed="true">A · Familiar polish</button>
+        <button type="button" data-choice="organized" aria-pressed="false">B · Organized rows</button>
+        <button type="button" data-choice="contrast" aria-pressed="false">C · Higher contrast</button>
+      </div>
+    </div>
+    <p class="preview-note" id="design-note" aria-live="polite">Small spacing and color changes; the original page structure stays recognizable.</p>
+    <div class="app" id="mock-app" data-variant="familiar">
+      <header class="cp-header">
+        <a class="crumb" href="#">Reseller</a>
+        <div class="cp-account"><span class="tiny"><a href="#">Help</a> - <a href="#">Home</a></span><strong>Welcome Kyle Kolozsi <a href="#">[Logout]</a></strong></div>
+      </header>
+      <div class="cp-layout">
+        <aside class="cp-sidebar" aria-label="CommPilot options">
+          <div class="cp-options">Options:</div>
+          <nav aria-label="Reseller folders">
+            <a href="#" class="active" aria-current="page">Profile</a>
+            <a href="#">Resources</a>
+            <a href="#">Services</a>
+            <a href="#">Call Center</a>
+            <a href="#">Meet-Me Conferencing</a>
+            <a href="#">Utilities</a>
+          </nav>
+          <button class="help-tips" type="button">Help tips</button>
+        </aside>
+        <main class="cp-main">
+          <h2>Profile</h2>
+          <div class="cp-columns">
+            <section class="cp-section" aria-labelledby="basic-title">
+              <h3 id="basic-title">Basic</h3>
+              <div class="cp-item"><a href="#">Service Providers</a><p>Add, modify, or remove service providers.</p></div>
+              <div class="cp-item"><a href="#">Enterprises</a><p>Add, modify, or remove enterprises.</p></div>
+              <div class="cp-item"><a href="#">Groups</a><p>Display all groups in the reseller.</p></div>
+              <div class="cp-item"><a href="#">Users</a><p>Display all users in the reseller.</p></div>
+              <div class="cp-item"><a href="#">Service Instances</a><p>Display all service instances in the reseller.</p></div>
+              <div class="cp-item"><a href="#">Profile</a><p>Display or modify reseller profile information.</p></div>
+              <div class="cp-item"><a href="#">Administrators</a><p>Add, modify, or remove reseller administrators.</p></div>
+            </section>
+            <section class="cp-section" aria-labelledby="advanced-title">
+              <h3 id="advanced-title">Advanced</h3>
+              <div class="cp-item"><a href="#">Activation Code Device Onboarding Policies</a><p>Configure reseller level Activation Code Device Onboarding Policies.</p></div>
+              <div class="cp-item"><a href="#">Alternate User IDs</a><p>Display all alternate user IDs in the reseller.</p></div>
+              <div class="cp-item"><a href="#">STIR-SHAKEN</a><p>Configure STIR-SHAKEN signing, tagging, and verification.</p></div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+  <script>
+    const app = document.getElementById('mock-app');
+    const note = document.getElementById('design-note');
+    const notes = {
+      familiar: 'Small spacing and color changes; the original page structure stays recognizable.',
+      organized: 'Clear row separation and section boundaries, with every link in its original column.',
+      contrast: 'Flatter background, larger type, and stronger contrast while keeping the native layout.'
+    };
+    document.querySelectorAll('[data-choice]').forEach(button => button.addEventListener('click', () => {
+      const choice = button.dataset.choice;
+      app.dataset.variant = choice;
+      note.textContent = notes[choice];
+      document.querySelectorAll('[data-choice]').forEach(peer => peer.setAttribute('aria-pressed', String(peer === button)));
+    }));
+    document.querySelectorAll('.app a').forEach(link => link.addEventListener('click', event => event.preventDefault()));
+  </script>
+</body>
+</html>
