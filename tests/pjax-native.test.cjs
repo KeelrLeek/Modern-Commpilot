@@ -213,6 +213,49 @@ test('Shared Call Appearance Add returns to its list URL after a successful save
   } finally { await browser.close(); }
 });
 
+test('Virtual On-Net Add Range reanchors a successful list response but keeps validation errors on the form', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const listPath = '/commpilot/Group/VirtualOnNet/';
+    const addPath = `${listPath}AddRange/index.jsp`;
+    const shell = (title, body) => `<!doctype html><html><head><title>${title}</title></head><body>
+      <input name="formtokenserial" value="token"><table><tr><td width="82%">${body}</td></tr></table>
+      <script>window.redirectPost=function(){};</script></body></html>`;
+    const list = shell('Virtual On-Net Users', '<h1>Virtual On-Net Users</h1>' +
+      '<input type="button" name="add" value="Add"><input type="button" name="addRange" value="Add Range">');
+    const form = error => shell('Virtual On-Net Users Range Add', '<h1>Add Range</h1>' +
+      (error ? '<p id="validation-error">Invalid range</p>' : '') +
+      '<form name="mainForm" method="post"><input name="lastName" value="Audit">' +
+      '<input type="submit" name="ok" value="OK"></form>');
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      const submitted = request.method() === 'POST' &&
+        new URLSearchParams(request.postData() || '').has('ok');
+      const invalid = new URLSearchParams(request.postData() || '').get('lastName') === 'invalid';
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: pathname === addPath ? submitted ? invalid ? form(true) : list : form(false) : list });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${listPath}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    await page.evaluate(pathname => window.redirectPost(pathname, {}), addPath);
+    await page.getByRole('heading', { name: 'Add Range' }).waitFor();
+    await page.locator('input[name="ok"]').click();
+    await page.getByRole('heading', { name: 'Virtual On-Net Users' }).waitFor();
+    assert.equal(await page.evaluate(() => location.pathname), listPath);
+    await page.evaluate(pathname => window.redirectPost(pathname, {}), addPath);
+    await page.getByRole('heading', { name: 'Add Range' }).waitFor();
+    await page.locator('input[name="lastName"]').fill('invalid');
+    await page.locator('input[name="ok"]').click();
+    await page.locator('#validation-error').waitFor();
+    assert.equal(await page.evaluate(() => location.pathname), addPath);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+  } finally { await browser.close(); }
+});
+
 test('service Add and Modify Delete return to their Group list URLs', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });

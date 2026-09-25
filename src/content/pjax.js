@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.26-native";
+  var CP_PJAX_VERSION = "0.3.27-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -4081,12 +4081,13 @@
           // do NOT exclude /Modify/ broadly — SP/Group/User console drill-ins use Modify and ARE valid recover-navs.
           // See [[gotcha-idle-connection-drop-dead-click]].
           var _submitNav = !!(params && (params.ok != null || params.apply != null || params.delete != null || params.cancel != null || params.buttonClicked != null));
-          var _addForm = /\/(Add|AddModify)\//.test(url);
+          var _addForm = /\/(?:Add|AddRange|AddModify)\//.test(url);
           // Remember the list a form is being OPENED from (location is still the list here, pre-swap).
           // Only when the current page is NOT itself a form URL, so form→form chains (Modify → Add Tag)
           // keep the ORIGINAL list as the return anchor. Consumed by the canonical re-anchor below.
           try {
-            if (/\/(Add|AddModify|Import|Modify)\//.test(url) && !/\/(Add|AddModify|Import|Modify)\//.test(location.pathname)) {
+            if (/\/(?:Add|AddRange|AddModify|Import|Modify)\//.test(url) &&
+                !/\/(?:Add|AddRange|AddModify|Import|Modify)\//.test(location.pathname)) {
               cpFormOrigin = location.pathname;
             }
           } catch (e) {}
@@ -4441,7 +4442,7 @@
               // (DeviceType list = /Reseller/DeviceType/ but its Add = /Operator/System/DeviceType/Add/).
               try {
                 if (_submitNav && cpFormOrigin && canonical === url &&
-                    (/\/(Add|AddModify|Import|Modify)\//.test(url) || /\/Operator\/System\/DeviceType\/Profile\//.test(url)) &&
+                    (/\/(?:Add|AddRange|AddModify|Import|Modify)\//.test(url) || /\/Operator\/System\/DeviceType\/Profile\//.test(url)) &&
                     !/\b(?:Add|Modify|Import)\b/i.test(doc.title || '') &&
                     liveCell && liveCell.querySelector &&
                     liveCell.querySelector('select[name="findKey0"], select[name="findKey"], #searchTable, input[name="add"][type="button"], input[name="addBasic"][type="button"], input[name="addByWeightedRouting"], input[name="addByOrderedRouting"], button[name="add"]')) {

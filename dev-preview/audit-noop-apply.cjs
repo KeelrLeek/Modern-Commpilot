@@ -266,6 +266,720 @@ async function aaRowId(page, id) {
   return page.evaluate(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
     .find(row => row.textContent.includes(value))?.id || '', id);
 }
+async function exercisePhoneList(page, personal = false) {
+  const listPath = personal ? '/commpilot/User/Phone_List/Personal/' : '/commpilot/Group/PhoneList/';
+  const addPath = `${listPath}Add/index.jsp`;
+  const modifyPath = `${listPath}Modify/index.jsp`;
+  const label = personal ? 'Personal Phone List' : 'Common Phone List';
+  const addCheck = personal ? 'discovered-610' : 'discovered-558';
+  const modifyCheck = personal ? 'lifecycle:user-phone-list-modify' : 'discovered-504';
+  const deleteCheck = personal ? 'lifecycle:user-phone-list-delete' : 'lifecycle:group-phone-list-delete';
+  const name = `PJAX Audit Contact ${Date.now().toString(36)}`;
+  const number = '+1-2025550101';
+  let created = false, deleted = false;
+  async function locate() {
+    const find = page.locator('td[width="82%"] input[name="findValue0"]');
+    if (await find.count()) {
+      await find.fill(name);
+      await page.locator('td[width="82%"] #search0').click();
+      await page.waitForTimeout(350);
+    }
+    return aaRowId(page, name);
+  }
+  try {
+    await page.locator('td[width="82%"] input[value="Add"]:visible').first().click();
+    await waitPath(page, addPath);
+    await page.locator('td[width="82%"] input[name="newEntryName"]').fill(name);
+    await page.locator('td[width="82%"] input[name="newEntryNumber"]').fill(number);
+    await page.evaluate(() => { window.__phoneListDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === addPath,
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+    const found = await response;
+    await page.waitForTimeout(600);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__phoneListDocument,
+      error: document.querySelector('.cp-alert-error')?.textContent?.trim() || '',
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 450) }));
+    created = found?.status() === 200 && state.sameDocument &&
+      state.path === listPath && !!await locate();
+    writeDeep(addCheck, created ? 'passed' : 'failed',
+      `${label} Add HTTP ${found?.status() || 'none'}; ${state.sameDocument ?
+        'same document' : 'reload'}; ${created ? 'saved row found' :
+        `row missing at ${state.path}: ${state.error || state.text.slice(0, 150)}`}.`);
+    if (!created) return;
+    const rowId = await locate();
+    await page.locator(`#${rowId} a.headerLink`).last().click();
+    await waitPath(page, modifyPath);
+    writeDeep(modifyCheck, 'passed', `Disposable contact ${name} opened its Modify page.`);
+  } finally {
+    try {
+      await openFolder(page);
+      await page.locator(`td[width="82%"] a.navMenuItem:text-is("${label}")`).click();
+      await waitPath(page, listPath);
+      const rowId = await locate();
+      if (rowId) {
+        await page.locator(`#${rowId} a.headerLink`).last().click();
+        await waitPath(page, modifyPath);
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="delete"]:visible').first().click();
+        await waitPath(page, listPath);
+      }
+      deleted = !(await locate());
+      writeDeep(deleteCheck, deleted ? 'passed' : 'failed',
+        `Disposable ${label} contact ${deleted ? 'is absent' : 'still exists'} after Delete.`);
+    } catch (error) {
+      writeDeep(deleteCheck, 'failed',
+        `Disposable ${label} cleanup needs inspection: ${error.message.slice(0, 150)}`);
+    }
+  }
+}
+async function exerciseContactDirectory(page) {
+  const name = `PJAX Audit Directory ${Date.now().toString(36)}`;
+  const listPath = '/commpilot/Group/CustomContactDir/';
+  const modifyPath = '/commpilot/Group/CustomContactDir/Modify/index.jsp';
+  let created = false;
+  async function locate() {
+    const find = page.locator('td[width="82%"] input[name="findValue0"]');
+    if (await find.count()) {
+      await find.fill(name);
+      await page.locator('td[width="82%"] #search0').click();
+      await page.waitForTimeout(350);
+    }
+    return aaRowId(page, name);
+  }
+  try {
+    await page.locator('td[width="82%"] input[value="Add"]:visible').first().click();
+    await waitPath(page, '/commpilot/Group/CustomContactDir/Add/index.jsp');
+    await page.locator('td[width="82%"] input[name="directoryName"]').fill(name);
+    await page.evaluate(() => { window.__contactDirectoryDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === '/commpilot/Group/CustomContactDir/Add/index.jsp',
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+    const found = await response;
+    await page.waitForTimeout(600);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__contactDirectoryDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 500) }));
+    created = found?.status() === 200 && state.sameDocument && state.path === listPath &&
+      !!await locate();
+    writeDeep('discovered-560', created ? 'passed' : 'failed',
+      `Custom Contact Directory Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${created ? 'saved row found' : `not saved at ${state.path}: ${state.text.slice(0, 170)}`}.`);
+    if (!created) return;
+    const rowId = await locate();
+    await page.locator(`#${rowId} a.headerLink`).last().click();
+    await waitPath(page, modifyPath);
+    writeDeep('lifecycle:group-custom-directory-modify', 'passed',
+      `Disposable custom directory ${name} opened its Modify page.`);
+  } finally {
+    try {
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Custom Contact Directories")').click();
+      await waitPath(page, listPath);
+      const rowId = await locate();
+      if (rowId) {
+        await page.locator(`#${rowId} a.headerLink`).last().click();
+        await waitPath(page, modifyPath);
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="delete"]:visible').first().click();
+        await waitPath(page, listPath);
+      }
+      const deleted = !(await locate());
+      writeDeep('lifecycle:group-custom-directory-delete', deleted ? 'passed' : 'failed',
+        `Disposable custom directory ${deleted ? 'is absent' : 'still exists'} after Delete.`);
+    } catch (error) {
+      writeDeep('lifecycle:group-custom-directory-delete', 'failed',
+        `Disposable custom directory cleanup needs inspection: ${error.message.slice(0, 150)}`);
+    }
+  }
+}
+async function exerciseDigitString(page, pinhole = false) {
+  const label = pinhole ? 'Pinhole Digit Strings' : 'Digit Strings';
+  const listPath = `/commpilot/Group/Calling_Plan/${pinhole ? 'PinholeDigitStrings' : 'DigitStrings'}/`;
+  const name = `pjaxds${Date.now().toString(36)}`;
+  const pattern = `99${String(Date.now()).slice(-7)}`;
+  const addCheck = pinhole ? 'discovered-556' : 'discovered-555';
+  let created = false;
+  async function locate() {
+    const find = page.locator('td[width="82%"] input[name="findValue0"]');
+    if (await find.count()) {
+      await find.fill(name);
+      await page.locator('td[width="82%"] #search0').click();
+      await page.waitForTimeout(350);
+    }
+    return aaRowId(page, name);
+  }
+  try {
+    await page.locator('td[width="82%"] input[value="Add"]:visible').first().click();
+    await waitPath(page, `${listPath}Add/index.jsp`);
+    await page.locator('td[width="82%"] input[name="stringName"]').fill(name);
+    await page.locator('td[width="82%"] input[name="pattern"]').fill(pattern);
+    await page.evaluate(() => { window.__digitStringDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === `${listPath}Add/index.jsp`,
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+    const found = await response;
+    await page.waitForTimeout(600);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__digitStringDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 430) }));
+    created = found?.status() === 200 && state.sameDocument && state.path === listPath &&
+      !!await locate();
+    writeDeep(addCheck, created ? 'passed' : 'failed',
+      `${label} Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${created ? 'saved row found' : `not saved at ${state.path}: ${state.text.slice(0, 145)}`}.`);
+    if (!created) return;
+    const rowId = await locate();
+    console.log(JSON.stringify({ event: 'digit-string-row', label, name, rowId,
+      html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1600)) }));
+  } finally {
+    try {
+      await openFolder(page);
+      await page.locator(`td[width="82%"] a.navMenuItem:text-is("${label}")`).click();
+      await waitPath(page, listPath);
+      const rowId = await locate();
+      if (rowId) {
+        const edit = page.locator(`#${rowId} a.headerLink`).last();
+        if (await edit.count()) {
+          await edit.click();
+          await waitPath(page, `${listPath}Modify/index.jsp`);
+          page.once('dialog', dialog => dialog.accept());
+          await page.locator('td[width="82%"] input[name="delete"]:visible').first().click();
+          await waitPath(page, listPath);
+        }
+      }
+      const deleted = !(await locate());
+      writeDeep(`lifecycle:${pinhole ? 'pinhole-' : ''}digit-string-delete`, deleted ? 'passed' : 'failed',
+        `Disposable ${label} ${deleted ? 'is absent' : 'still exists'} after Delete.`);
+    } catch (error) {
+      writeDeep(`lifecycle:${pinhole ? 'pinhole-' : ''}digit-string-delete`, 'failed',
+        `Disposable ${label} cleanup needs inspection: ${error.message.slice(0, 150)}`);
+    }
+  }
+}
+async function exerciseDialableCallerId(page) {
+  const listPath = `/commpilot/${level.replace(' ', '')}/DialableCallerID/`;
+  const name = `pjaxcid${Date.now().toString(36)}`;
+  const addCheck = level === 'Group' ? 'discovered-570' : 'discovered-598';
+  let created = false;
+  async function locate() {
+    const find = page.locator('td[width="82%"] input[name="findValue0"]');
+    if (await find.count()) {
+      await find.fill(name);
+      await page.locator('td[width="82%"] #search0').click();
+      await page.waitForTimeout(350);
+    }
+    return aaRowId(page, name);
+  }
+  try {
+    await page.locator('td[width="82%"] input[value="Add"]:visible').first().click();
+    await waitPath(page, `${listPath}Add/index.jsp`);
+    await page.locator('td[width="82%"] input[name="name"]').fill(name);
+    await page.evaluate(() => { window.__dialableCallerIdDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === `${listPath}Add/index.jsp`,
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+    const found = await response;
+    await page.waitForTimeout(600);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__dialableCallerIdDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 430) }));
+    created = found?.status() === 200 && state.sameDocument && state.path === listPath &&
+      !!await locate();
+    writeDeep(addCheck, created ? 'passed' : 'failed',
+      `${level} Dialable Caller ID Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${created ? 'saved row found' : `not saved at ${state.path}: ${state.text.slice(0, 145)}`}.`);
+    if (!created) return;
+    const rowId = await locate();
+    await page.locator(`#${rowId} a.headerLink`).last().click();
+    await waitPath(page, `${listPath}Modify/index.jsp`);
+    writeDeep(`lifecycle:${level.replace(/\s+/g, '-').toLowerCase()}-dialable-caller-id-modify`,
+      'passed', `Disposable Dialable Caller ID criteria ${name} opened Modify.`);
+  } finally {
+    try {
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Dialable Caller ID")').click();
+      await waitPath(page, listPath);
+      const rowId = await locate();
+      if (rowId) {
+        await page.locator(`#${rowId} a.headerLink`).last().click();
+        await waitPath(page, `${listPath}Modify/index.jsp`);
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="delete"]:visible').first().click();
+        await waitPath(page, listPath);
+      }
+      const deleted = !(await locate());
+      writeDeep(`lifecycle:${level.replace(/\s+/g, '-').toLowerCase()}-dialable-caller-id-delete`,
+        deleted ? 'passed' : 'failed',
+        `Disposable ${level} Dialable Caller ID criteria ${deleted ? 'is absent' : 'still exists'} after Delete.`);
+    } catch (error) {
+      writeDeep(`lifecycle:${level.replace(/\s+/g, '-').toLowerCase()}-dialable-caller-id-delete`,
+        'failed', `Disposable Dialable Caller ID cleanup needs inspection: ${error.message.slice(0, 150)}`);
+    }
+  }
+}
+async function exerciseCommBarringCode(page) {
+  const listPath = '/commpilot/Group/CommBarringAuthCodes/';
+  const code = `98${String(Date.now()).slice(-6)}`;
+  let created = false;
+  async function locate() {
+    const find = page.locator('td[width="82%"] input[name="findValue0"]');
+    if (await find.count()) {
+      await find.fill(code);
+      await page.locator('td[width="82%"] #search0').click();
+      await page.waitForTimeout(350);
+    }
+    return aaRowId(page, code);
+  }
+  try {
+    await page.locator('td[width="82%"] input[value="Add"]:visible').first().click();
+    await waitPath(page, `${listPath}Add/index.jsp`);
+    await page.locator('td[width="82%"] input[name="code"]').fill(code);
+    await page.locator('td[width="82%"] input[name="codeDesc"]').fill('PJAX Audit disposable');
+    await page.evaluate(() => { window.__commBarringDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === `${listPath}Add/index.jsp`,
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+    const found = await response;
+    await page.waitForTimeout(550);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__commBarringDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 430) }));
+    created = found?.status() === 200 && state.sameDocument && state.path === listPath &&
+      !!await locate();
+    writeDeep('discovered-566', created ? 'passed' : 'failed',
+      `Communication Barring Authorization Code Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${created ? 'saved row found' : `not saved at ${state.path}: ${state.text.slice(0, 145)}`}.`);
+    if (created) console.log(JSON.stringify({ event: 'comm-barring-code-row', code,
+      html: await page.locator(`#${await locate()}`).evaluate(item => item.outerHTML.slice(0, 1500)) }));
+  } finally {
+    try {
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Communication Barring Authorization Codes")').click();
+      await waitPath(page, listPath);
+      const rowId = await locate();
+      if (rowId) {
+        const edit = page.locator(`#${rowId} a.headerLink`).last();
+        if (await edit.count()) {
+          await edit.click();
+          await waitPath(page, `${listPath}Modify/index.jsp`);
+          page.once('dialog', dialog => dialog.accept());
+          await page.locator('td[width="82%"] input[name="delete"]:visible').first().click();
+          await waitPath(page, listPath);
+        } else {
+          const checkbox = page.locator(`#${rowId} input[type="checkbox"]`).first();
+          if (await checkbox.count()) await checkbox.check();
+          const remove = page.locator('td[width="82%"] input[name="delete"], td[width="82%"] input[name="remove"]').first();
+          if (await remove.count()) { page.once('dialog', dialog => dialog.accept()); await remove.click(); }
+        }
+      }
+      const deleted = !(await locate());
+      writeDeep('lifecycle:group-comm-barring-code-delete', deleted ? 'passed' : 'failed',
+        `Disposable Communication Barring code ${deleted ? 'is absent' : 'still exists'} after Delete.`);
+    } catch (error) {
+      writeDeep('lifecycle:group-comm-barring-code-delete', 'failed',
+        `Disposable Communication Barring code cleanup needs inspection: ${error.message.slice(0, 150)}`);
+    }
+  }
+}
+async function exerciseDialPlanAccessCode(page) {
+  const listPath = `/commpilot/${level.replace(' ', '')}/DialPlanPolicy/`;
+  const code = `98${String(Date.now()).slice(-3)}`;
+  const check = level === 'Group' ? 'discovered-567' : 'discovered-597';
+  async function locate() { return aaRowId(page, code); }
+  try {
+    await page.locator('td[width="82%"] input[value="Add"]:visible').first().click();
+    await waitPath(page, `${listPath}Add/index.jsp`);
+    await page.locator('td[width="82%"] input[name="accessCode"]').fill(code);
+    await page.locator('td[width="82%"] input[name="description"]').fill('PJAX Audit disposable');
+    await page.evaluate(() => { window.__dialPlanCodeDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === `${listPath}Add/index.jsp`,
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+    const found = await response;
+    await page.waitForTimeout(650);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__dialPlanCodeDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(-1100) }));
+    const rowId = await locate();
+    const created = found?.status() === 200 && state.sameDocument &&
+      state.path === listPath && !!rowId;
+    writeDeep(check, created ? 'passed' : 'failed',
+      `${level} Dial Plan access code Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${created ? `saved row ${rowId} found` : `not found at ${state.path}: ${state.text.slice(-180)}`}.`);
+    if (created) console.log(JSON.stringify({ event: 'dial-plan-code-row', level, code, rowId,
+      html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1500)) }));
+  } finally {
+    try {
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Dial Plan Policy")').click();
+      await waitPath(page, listPath);
+      const rowId = await locate();
+      if (rowId) {
+        const edit = page.locator(`#${rowId} a.headerLink`).last();
+        if (await edit.count()) {
+          await edit.click();
+          await waitPath(page, `${listPath}Modify/index.jsp`);
+          page.once('dialog', dialog => dialog.accept());
+          await page.locator('td[width="82%"] input[name="delete"]:visible').first().click();
+          await waitPath(page, listPath);
+        } else {
+          const checkbox = page.locator(`#${rowId} input[type="checkbox"]`).first();
+          if (await checkbox.count()) await checkbox.check();
+          const remove = page.locator('td[width="82%"] input[name="delete"], td[width="82%"] input[name="remove"]').first();
+          if (await remove.count()) { page.once('dialog', dialog => dialog.accept()); await remove.click(); }
+        }
+      }
+      const deleted = !(await locate());
+      writeDeep(`lifecycle:${level.replace(/\s+/g, '-').toLowerCase()}-dial-plan-code-delete`,
+        deleted ? 'passed' : 'failed',
+        `Disposable ${level} Dial Plan code ${deleted ? 'is absent' : 'still exists'} after Delete.`);
+    } catch (error) {
+      writeDeep(`lifecycle:${level.replace(/\s+/g, '-').toLowerCase()}-dial-plan-code-delete`,
+        'failed', `Disposable Dial Plan code cleanup needs inspection: ${error.message.slice(0, 150)}`);
+    }
+  }
+}
+async function exerciseVirtualOnNet(page) {
+  const listPath = '/commpilot/Group/VirtualOnNet/';
+  const suffix = String(Date.now()).slice(-6);
+  const lastName = `PJAXAudit${suffix}`;
+  const phone = `+1-202555${suffix.slice(-4)}`;
+  const extension = `8${suffix.slice(-3)}`;
+  async function locate() {
+    const find = page.locator('td[width="82%"] input[name="findValue0"]');
+    if (await find.count()) {
+      await find.fill(lastName);
+      await page.locator('td[width="82%"] #search0').click();
+      await page.waitForTimeout(350);
+    }
+    return aaRowId(page, lastName);
+  }
+  try {
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, `${listPath}Add/index.jsp`);
+    for (const [name, value] of Object.entries({ lastName, firstName: 'Test',
+      clidLastName: 'PJAX Audit', clidFirstName: 'Test', phoneNumber: phone, extension }))
+      await page.locator(`td[width="82%"] input[name="${name}"]`).fill(value);
+    await page.locator('td[width="82%"] select[name="virtualOnNetCallTypeName"]').selectOption('Virtual On-Net');
+    await page.evaluate(() => { window.__virtualOnNetDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === `${listPath}Add/index.jsp`,
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+    const found = await response;
+    await page.waitForTimeout(600);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__virtualOnNetDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 500) }));
+    // CommPilot can expose the list URL before its immediate search controls
+    // settle. Read back through a fresh list GET after checking the PJAX swap.
+    if (state.path === listPath) {
+      await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+    }
+    const rowId = state.path === listPath ? await locate() : '';
+    const created = found?.status() === 200 && state.sameDocument && !!rowId;
+    writeDeep('discovered-568', created ? 'passed' : 'failed',
+      `Virtual On-Net Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${created ? 'saved row found' : `not saved at ${state.path}: ${state.text.slice(0, 170)}`}.`);
+    if (created) console.log(JSON.stringify({ event: 'virtual-on-net-row', lastName, phone, extension,
+      html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1600)) }));
+  } finally {
+    try {
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Virtual On-Net Enterprise Extensions")').click();
+      await waitPath(page, listPath);
+      const rowId = await locate();
+      if (rowId) {
+        await page.locator(`#${rowId} a.headerLink`).last().click();
+        await waitPath(page, `${listPath}Modify/index.jsp`);
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="delete"]:visible').first().click();
+        await waitPath(page, listPath);
+      }
+      const deleted = !(await locate());
+      writeDeep('lifecycle:group-virtual-on-net-delete', deleted ? 'passed' : 'failed',
+        `Disposable Virtual On-Net user ${deleted ? 'is absent' : 'still exists'} after Delete.`);
+    } catch (error) {
+      writeDeep('lifecycle:group-virtual-on-net-delete', 'failed',
+        `Disposable Virtual On-Net cleanup needs inspection: ${error.message.slice(0, 150)}`);
+    }
+  }
+}
+async function exerciseVirtualOnNetRange(page) {
+  const listPath = '/commpilot/Group/VirtualOnNet/';
+  const seed = String(Date.now()).slice(-4);
+  const start = Math.min(9998, Math.floor(Number(seed) / 2) * 2);
+  const minPhone = `+1-202555${String(start).padStart(4, '0')}`;
+  const maxPhone = `+1-202555${String(start + 1).padStart(4, '0')}`;
+  const minExtension = String(8000 + start % 1000);
+  const maxExtension = String(8001 + start % 1000);
+  const lastName = `PJAXRange${seed}`;
+  async function findRows() {
+    const find = page.locator('td[width="82%"] input[name="findValue0"]');
+    if (await find.count()) {
+      await find.fill(lastName);
+      await page.locator('td[width="82%"] #search0').click();
+      await page.waitForTimeout(1000);
+    }
+    return [await aaRowId(page, minPhone), await aaRowId(page, maxPhone)];
+  }
+  try {
+    await page.locator('td[width="82%"] input[name="addRange"]:visible').first().click();
+    await waitPath(page, `${listPath}AddRange/index.jsp`);
+    for (const [name, value] of Object.entries({ lastName, firstName: 'Test',
+      clidLastName: 'PJAX Audit', clidFirstName: 'Test', minPhoneNumber: minPhone,
+      maxPhoneNumber: maxPhone, minExtension, maxExtension }))
+      await page.locator(`td[width="82%"] input[name="${name}"]`).fill(value);
+    await page.locator('td[width="82%"] select[name="virtualOnNetCallTypeName"]').selectOption('Virtual On-Net');
+    await page.evaluate(() => { window.__virtualOnNetRangeDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === `${listPath}AddRange/index.jsp`,
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+    const found = await response;
+    await page.waitForTimeout(600);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__virtualOnNetRangeDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 1000),
+      error: document.querySelector('.cp-alert-error')?.textContent?.trim() || '' }));
+    const rows = await page.locator('td[width="82%"] input[name="findValue0"]').count() ?
+      await findRows() : ['', ''];
+    const created = found?.status() === 200 && state.sameDocument && rows.every(Boolean);
+    writeDeep('discovered-569', created ? 'passed' : 'failed',
+      `Virtual On-Net range Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${created ? `both saved numbers found at ${state.path}` :
+        `rows ${rows.join('/') || 'none'} at ${state.path}: ${state.error || state.text.slice(0, 280)}`}.`);
+    console.log(JSON.stringify({ event: 'virtual-on-net-range', lastName,
+      minPhone, maxPhone, minExtension, maxExtension, rows, state,
+      responseText: found ? (await found.text()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
+        .match(/.{0,100}(?:fail|error|invalid|saved|created|added|range).{0,130}/ig)?.slice(-10) : [] }));
+  } finally {
+    try {
+      for (const phone of [minPhone, maxPhone]) {
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Virtual On-Net Enterprise Extensions")').click();
+        await waitPath(page, listPath);
+        const rows = await findRows();
+        const rowId = rows[phone === minPhone ? 0 : 1];
+        if (!rowId) continue;
+        await page.locator(`#${rowId} a.headerLink`).last().click();
+        await waitPath(page, `${listPath}Modify/index.jsp`);
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="delete"]:visible').first().click();
+        await waitPath(page, listPath);
+      }
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Virtual On-Net Enterprise Extensions")').click();
+      await waitPath(page, listPath);
+      const deleted = (await findRows()).every(value => !value);
+      writeDeep('lifecycle:group-virtual-on-net-range-delete', deleted ? 'passed' : 'failed',
+        `Disposable two-number Virtual On-Net range ${deleted ? 'is absent' : 'still has rows'} after Delete.`);
+    } catch (error) {
+      writeDeep('lifecycle:group-virtual-on-net-range-delete', 'failed',
+        `Disposable Virtual On-Net range cleanup needs inspection: ${error.message.slice(0, 150)}`);
+    }
+  }
+}
+async function exerciseSpeedDial100(page) {
+  const listPath = '/commpilot/User/SC100/';
+  const description = `PJAXSD${Date.now().toString(36)}`;
+  const number = '+1-2025550101';
+  let code = '';
+  async function locate() { return aaRowId(page, description); }
+  try {
+    await page.locator('td[width="82%"] input[value="Add"]:visible').first().click();
+    await waitPath(page, `${listPath}Add/index.jsp`);
+    code = await page.locator('td[width="82%"] select[name="avSpeedCodes"]').inputValue();
+    await page.locator('td[width="82%"] input[name="description"]').fill(description);
+    await page.locator('td[width="82%"] input[name="number"]').fill(number);
+    await page.evaluate(() => { window.__speedDialDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === `${listPath}Add/index.jsp`,
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+    const found = await response;
+    await page.waitForTimeout(600);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__speedDialDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 530) }));
+    const rowId = state.path === listPath ? await locate() : '';
+    const created = found?.status() === 200 && state.sameDocument && !!rowId;
+    writeDeep('discovered-609', created ? 'passed' : 'failed',
+      `Speed Dial 100 Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${created ? `saved code ${code} found` : `not saved at ${state.path}: ${state.text.slice(0, 165)}`}.`);
+    if (created) console.log(JSON.stringify({ event: 'speed-dial-row', code, description,
+      html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1300)) }));
+  } finally {
+    try {
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Speed Dial 100")').click();
+      await waitPath(page, listPath);
+      const rowId = await locate();
+      if (rowId) {
+        await page.locator(`#${rowId} a.headerLink`).last().click();
+        await waitPath(page, `${listPath}Modify/index.jsp`);
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="delete"]:visible').first().click();
+        await waitPath(page, listPath);
+      }
+      const deleted = !(await locate());
+      writeDeep('lifecycle:user-speed-dial-100-delete', deleted ? 'passed' : 'failed',
+        `Disposable Speed Dial 100 code ${code} ${deleted ? 'is absent' : 'still exists'} after Delete.`);
+    } catch (error) {
+      writeDeep('lifecycle:user-speed-dial-100-delete', 'failed',
+        `Disposable Speed Dial 100 cleanup needs inspection: ${error.message.slice(0, 150)}`);
+    }
+  }
+}
+async function exerciseDeviceProfile(page) {
+  const listPath = '/commpilot/Group/DeviceInventory/';
+  const name = `PJAX Audit Profile ${Date.now().toString(36)}`;
+  async function locate() {
+    await page.locator('td[width="82%"] select[name="findOp0"]').waitFor({
+      state: 'attached', timeout: 12000 });
+    const key = page.locator('td[width="82%"] select[name="findKey0"]');
+    if (await key.count()) {
+      const option = await key.locator('option').filter({ hasText: /Identity\/Device Profile Name/ }).first().getAttribute('value');
+      if (option) await key.selectOption(option);
+    }
+    const op = page.locator('td[width="82%"] select[name="findOp0"]');
+    if (await op.count()) await op.selectOption('CONTAINS');
+    await page.locator('td[width="82%"] input[name="findValue0"]').fill(name);
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      /\/commpilot\/(?:Common\/find|Group\/DeviceInventory)/.test(new URL(item.url()).pathname),
+    { timeout: 12000 }).catch(() => null);
+    await page.locator('td[width="82%"] #search0').click();
+    await response;
+    await page.waitForTimeout(500);
+    return aaRowId(page, name);
+  }
+  try {
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, `${listPath}Add/index.jsp`);
+    await page.locator('td[width="82%"] input[name="deviceName"]').fill(name);
+    await page.locator('td[width="82%"] select[name="deviceType"]').selectOption('TF_SBX_Polycom_VVX400');
+    await page.evaluate(() => { window.__deviceProfileDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === `${listPath}Add/index.jsp`,
+    { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+    const found = await response;
+    await page.waitForFunction(path => location.pathname === path ||
+      /Failed to add|Error \d+|Invalid/.test(document.querySelector('td[width="82%"]')?.innerText || ''),
+    listPath, { timeout: 12000 }).catch(() => null);
+    await page.waitForTimeout(500);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__deviceProfileDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 1300),
+      tail: document.querySelector('td[width="82%"]')?.innerText?.slice(-1200),
+      messages: document.querySelector('td[width="82%"]')?.innerText
+        ?.match(/.{0,100}(?:fail|error|invalid|required|cannot|already exists).{0,160}/ig)?.slice(-12),
+      alert: document.querySelector('.cp-alert-error')?.textContent?.trim() || '' }));
+    console.log(JSON.stringify({ event: 'device-profile-submit', name,
+      status: found?.status() || null, state,
+      responseMatches: found ? (await found.text()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
+        .match(/.{0,100}(?:fail|error|invalid|require|missing|access device).{0,170}/ig)?.slice(-12) : [] }));
+    const rowId = state.path === listPath ? await locate() : '';
+    const created = found?.status() === 200 && state.sameDocument && !!rowId;
+    writeDeep('discovered-519', created ? 'passed' : 'failed',
+      `Group Device Profile Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${created ? 'saved profile found' : `not saved at ${state.path}: ${state.text.slice(0, 170)}`}.`);
+    if (created) console.log(JSON.stringify({ event: 'device-profile-row', name, rowId,
+      html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1450)) }));
+  } finally {
+    try {
+      await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+      const rowId = await locate();
+      if (rowId) {
+        await page.locator(`#${rowId} a.headerLink`).last().click();
+        await page.waitForFunction(() => location.pathname.includes('/Group/DeviceInventory/Modify/'),
+          null, { timeout: 15000 });
+        const deleteButton = page.locator('td[width="82%"] input[name="delete"]:visible').first();
+        if (!await deleteButton.count()) {
+          const tab = page.locator('td[width="82%"] a.tab:text-is("Profile")');
+          if (await tab.count()) await tab.click();
+        }
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="delete"]:visible').first().click();
+        await waitPath(page, listPath);
+      }
+      const deleted = !(await locate());
+      writeDeep('lifecycle:group-device-profile-delete', deleted ? 'passed' : 'failed',
+        `Disposable Device Profile ${deleted ? 'is absent' : 'still exists'} after Delete.`);
+    } catch (error) {
+      writeDeep('lifecycle:group-device-profile-delete', 'failed',
+        `Disposable Device Profile cleanup needs inspection: ${error.message.slice(0, 150)}`);
+    }
+  }
+}
+async function exerciseSacGroup(page) {
+  const listPath = '/commpilot/Group/SACGroup/';
+  const formPath = `${listPath}Add/index.jsp`;
+  const name = `PJAX Audit SAC ${Date.now().toString(36)}`;
+  try {
+    await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+    await waitPath(page, formPath);
+    await page.locator('td[width="82%"] input[name="sacName"]').fill(name);
+    await page.locator('td[width="82%"] input[name="maxSessions"]').fill('1');
+    await page.evaluate(() => { window.__bwSacDocument = document; });
+    const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+      new URL(item.url()).pathname === formPath, { timeout: 15000 }).catch(() => null);
+    await page.locator('td[width="82%"] input[name="ok"]:visible').first().click();
+    const found = await response;
+    await page.waitForTimeout(700);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwSacDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 800) }));
+    console.log(JSON.stringify({ event: 'sac-submit', name,
+      status: found?.status() || null, state }));
+    await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+      .some(row => row.textContent.includes(value)), name, { timeout: 8000 }).catch(() => null);
+    const rowId = await aaRowId(page, name);
+    const created = found?.status() === 200 && state.sameDocument && !!rowId;
+    writeDeep('discovered-542', created ? 'passed' : 'failed',
+      `Session Admission Control Group Add HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${created ? 'fresh list readback found the saved group' : 'saved group not found'}.`);
+    if (rowId) console.log(JSON.stringify({ event: 'sac-row', name,
+      html: await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1800)) }));
+  } finally {
+    await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(value => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+      .some(row => row.textContent.includes(value)), name, { timeout: 8000 }).catch(() => null);
+    const rowId = await aaRowId(page, name);
+    if (rowId) {
+      const row = page.locator(`#${rowId}`);
+      const checkbox = row.locator('input[type="checkbox"]');
+      if (await checkbox.count()) {
+        await checkbox.check();
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="apply"]:visible').first().click();
+        await page.goto(new URL(listPath, page.url()).href, { waitUntil: 'domcontentloaded' });
+      }
+    }
+    const deleted = !!rowId && !await aaRowId(page, name);
+    writeDeep('lifecycle:group-sac-delete', deleted ? 'passed' : 'failed',
+      `Disposable Session Admission Control Group ${deleted ? 'is absent' : 'still exists'} after cleanup.`);
+  }
+}
 async function exerciseAutoAttendant(page) {
   const suffix = Date.now().toString(36);
   const id = `pjaxaa${suffix}`;
@@ -712,6 +1426,139 @@ async function probe(page, label) {
   await page.waitForFunction(() => location.pathname !== '/commpilot/Common/folder_contents.jsp' &&
     !!document.querySelector('td[width="82%"]'), null, { timeout: 20000 });
   const entry = await page.evaluate(() => ({ path: location.pathname, title: document.title }));
+  if (process.env.BW_VON_FIND_LASTNAME && level === 'Group' &&
+      folder === 'Profile' && label === 'Virtual On-Net Enterprise Extensions') {
+    const value = process.env.BW_VON_FIND_LASTNAME;
+    await page.locator('td[width="82%"] input[name="findValue0"]').fill(value);
+    await page.locator('td[width="82%"] #search0').click();
+    await page.waitForTimeout(500);
+    console.log(JSON.stringify({ event: 'von-find', value,
+      state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+        text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 1200),
+        rows: [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+          .map(item => ({ id: item.id, text: item.textContent.trim().slice(0, 250) })) })) }));
+    return;
+  }
+  if (process.env.BW_VON_CLEAN_LASTNAME && level === 'Group' &&
+      folder === 'Profile' && label === 'Virtual On-Net Enterprise Extensions') {
+    const value = process.env.BW_VON_CLEAN_LASTNAME;
+    const find = async () => {
+      await page.locator('td[width="82%"] input[name="findValue0"]').fill(value);
+      await page.locator('td[width="82%"] #search0').click();
+      await page.waitForTimeout(1000);
+      return page.evaluate(name => [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+        .filter(row => row.textContent.includes(name)).map(row => row.id), value);
+    };
+    const deleted = [];
+    for (let i = 0; i < 6; i++) {
+      const rows = await find();
+      if (!rows.length) break;
+      await page.locator(`#${rows[0]} a.headerLink`).last().click();
+      await waitPath(page, '/commpilot/Group/VirtualOnNet/Modify/index.jsp');
+      page.once('dialog', dialog => dialog.accept());
+      await page.locator('td[width="82%"] input[name="delete"]:visible').first().click();
+      await waitPath(page, '/commpilot/Group/VirtualOnNet/');
+      deleted.push(rows[0]);
+    }
+    console.log(JSON.stringify({ event: 'von-clean', value, deleted, remaining: await find() }));
+    return;
+  }
+  if (process.env.BW_DEVICE_PROFILE_FIND_NAME && level === 'Group' &&
+      folder === 'Resources' && label === 'Identity/Device Profiles') {
+    const name = process.env.BW_DEVICE_PROFILE_FIND_NAME;
+    await page.locator('td[width="82%"] select[name="findOp0"]').selectOption('CONTAINS');
+    await page.locator('td[width="82%"] input[name="findValue0"]').fill(name);
+    await page.locator('td[width="82%"] #search0').click();
+    await page.waitForTimeout(1000);
+    const rowId = await aaRowId(page, name);
+    console.log(JSON.stringify({ event: 'device-profile-find', name, rowId,
+      state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+        text: document.querySelector('td[width="82%"]')?.innerText?.slice(-500) })) }));
+    if (rowId && process.env.BW_DEVICE_PROFILE_CLEAN === '1') {
+      await page.locator(`#${rowId} a.headerLink`).last().click();
+      await page.waitForFunction(() => location.pathname.includes('/Group/DeviceInventory/Modify/'),
+        null, { timeout: 15000 });
+      console.log(JSON.stringify({ event: 'device-profile-clean-modify', name,
+        state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+          text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 600),
+          buttons: [...document.querySelectorAll('td[width="82%"] input[type="submit"]')]
+            .map(item => item.name) })) }));
+      page.once('dialog', dialog => dialog.accept());
+      await page.locator('td[width="82%"] input[name="delete"]:visible').first().click();
+      await waitPath(page, '/commpilot/Group/DeviceInventory/');
+      await page.locator('td[width="82%"] input[name="findValue0"]').fill(name);
+      await page.locator('td[width="82%"] #search0').click();
+      await page.waitForTimeout(1000);
+      console.log(JSON.stringify({ event: 'device-profile-clean-result', name,
+        remaining: await aaRowId(page, name) }));
+    }
+    return;
+  }
+  if (process.env.BW_SAC_CLEAN_NAME && level === 'Group' &&
+      folder === 'Services' && label === 'Session Admission Control Group') {
+    const name = process.env.BW_SAC_CLEAN_NAME;
+    const rowId = await aaRowId(page, name);
+    console.log(JSON.stringify({ event: 'sac-clean-find', name, rowId }));
+    if (rowId) {
+      await page.locator(`#${rowId} input[type="checkbox"]`).check();
+      page.once('dialog', dialog => dialog.accept());
+      await page.locator('td[width="82%"] input[name="apply"]:visible').first().click();
+      await page.waitForTimeout(600);
+      await page.goto(new URL('/commpilot/Group/SACGroup/', page.url()).href,
+        { waitUntil: 'domcontentloaded' });
+      console.log(JSON.stringify({ event: 'sac-clean-result', name,
+        remaining: await aaRowId(page, name),
+        text: await page.locator('td[width="82%"]').innerText().then(x => x.slice(-350)) }));
+    }
+    return;
+  }
+  if (process.env.BW_DIAL_PLAN_CLEAN_CODE && folder === 'Profile' && label === 'Dial Plan Policy') {
+    const code = process.env.BW_DIAL_PLAN_CLEAN_CODE;
+    const rowId = await aaRowId(page, code);
+    console.log(JSON.stringify({ event: 'dial-plan-clean-row', level, code, rowId,
+      html: rowId ? await page.locator(`#${rowId}`).evaluate(item => item.outerHTML.slice(0, 1500)) : '' }));
+    if (rowId) {
+      await page.locator(`#${rowId} a.headerLink`).last().click();
+      await page.waitForTimeout(500);
+      console.log(JSON.stringify({ event: 'dial-plan-clean-modify', level, code,
+        state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+          text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 700),
+          buttons: [...document.querySelectorAll('td[width="82%"] input[type="submit"]')]
+            .map(item => ({ name: item.name, value: item.value })) })) }));
+      page.once('dialog', dialog => dialog.accept());
+      await page.locator('td[width="82%"] input[name="delete"]:visible').first().click();
+      await page.waitForTimeout(500);
+    }
+    console.log(JSON.stringify({ event: 'dial-plan-clean-result', level, code,
+      state: await page.evaluate(() => ({ path: location.pathname,
+        matches: [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+          .filter(row => row.textContent.includes(code)).length })) }));
+    return;
+  }
+  if (process.env.BW_INSPECT_SIMPLE_LIST === '1') {
+    console.log(JSON.stringify({ event: 'simple-list-inspect', level, folder, label,
+      state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+        text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 700),
+        controls: [...document.querySelectorAll('td[width="82%"] input, td[width="82%"] select')]
+          .filter(item => item.getClientRects().length)
+          .map(item => ({ name: item.name, type: item.type, value: item.value })).slice(0, 30),
+        rows: [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+          .slice(0, 2).map(item => item.outerHTML.slice(0, 1200)) })) }));
+    return;
+  }
+  if (process.env.BW_INSPECT_ADD_RANGE === '1' && level === 'Group' &&
+      folder === 'Profile' && label === 'Virtual On-Net Enterprise Extensions') {
+    await page.locator('td[width="82%"] input[name="addRange"]:visible').first().click();
+    await waitPath(page, '/commpilot/Group/VirtualOnNet/AddRange/index.jsp');
+    console.log(JSON.stringify({ event: 'add-range-inspect',
+      state: await page.evaluate(() => ({ path: location.pathname, title: document.title,
+        text: document.querySelector('td[width="82%"]')?.innerText?.slice(0, 1000),
+        fields: [...document.querySelectorAll('td[width="82%"] form input, td[width="82%"] form select')]
+          .filter(item => item.name && item.type !== 'hidden')
+          .map(item => ({ name: item.name, type: item.type, value: item.value,
+            options: item.tagName === 'SELECT' ? [...item.options].map(option => option.value).slice(0, 8) : undefined })) })) }));
+    return;
+  }
   if (process.env.BW_SCA_POLICY_PROBE === '1' && level === 'User' &&
       folder === 'Call Control' && label === 'Shared Call Appearance') {
     await page.locator('td[width="82%"] a.headerLink:text-is("Configure device policies")').click();
@@ -1191,6 +2038,68 @@ async function probe(page, label) {
     await exerciseCallCenterCode(page, label);
     return;
   }
+  if (process.env.BW_PHONE_LIST_LIFECYCLE === '1' && level === 'Group' &&
+      folder === 'Utilities' && label === 'Common Phone List') {
+    await exercisePhoneList(page);
+    return;
+  }
+  if (process.env.BW_PHONE_LIST_LIFECYCLE === '1' && level === 'User' &&
+      folder === 'Outgoing Calls' && label === 'Personal Phone List') {
+    await exercisePhoneList(page, true);
+    return;
+  }
+  if (process.env.BW_CONTACT_DIRECTORY_LIFECYCLE === '1' && level === 'Group' &&
+      folder === 'Utilities' && label === 'Custom Contact Directories') {
+    await exerciseContactDirectory(page);
+    return;
+  }
+  if (process.env.BW_DIGIT_STRING_LIFECYCLE === '1' && level === 'Group' &&
+      folder === 'Calling Plan' && ['Digit Strings', 'Pinhole Digit Strings'].includes(label)) {
+    await exerciseDigitString(page, label === 'Pinhole Digit Strings');
+    return;
+  }
+  if (process.env.BW_DIALABLE_CALLER_ID_LIFECYCLE === '1' &&
+      ['Group', 'Service Provider'].includes(level) && folder === 'Profile' &&
+      label === 'Dialable Caller ID') {
+    await exerciseDialableCallerId(page);
+    return;
+  }
+  if (process.env.BW_COMM_BARRING_CODE_LIFECYCLE === '1' && level === 'Group' &&
+      folder === 'Profile' && label === 'Communication Barring Authorization Codes') {
+    await exerciseCommBarringCode(page);
+    return;
+  }
+  if (process.env.BW_DIAL_PLAN_CODE_LIFECYCLE === '1' &&
+      ['Group', 'Service Provider'].includes(level) && folder === 'Profile' &&
+      label === 'Dial Plan Policy') {
+    await exerciseDialPlanAccessCode(page);
+    return;
+  }
+  if (process.env.BW_VIRTUAL_ONNET_LIFECYCLE === '1' && level === 'Group' &&
+      folder === 'Profile' && label === 'Virtual On-Net Enterprise Extensions') {
+    await exerciseVirtualOnNet(page);
+    return;
+  }
+  if (process.env.BW_VIRTUAL_ONNET_RANGE_LIFECYCLE === '1' && level === 'Group' &&
+      folder === 'Profile' && label === 'Virtual On-Net Enterprise Extensions') {
+    await exerciseVirtualOnNetRange(page);
+    return;
+  }
+  if (process.env.BW_SPEED_DIAL_LIFECYCLE === '1' && level === 'User' &&
+      folder === 'Outgoing Calls' && label === 'Speed Dial 100') {
+    await exerciseSpeedDial100(page);
+    return;
+  }
+  if (process.env.BW_DEVICE_PROFILE_LIFECYCLE === '1' && level === 'Group' &&
+      folder === 'Resources' && label === 'Identity/Device Profiles') {
+    await exerciseDeviceProfile(page);
+    return;
+  }
+  if (process.env.BW_SAC_LIFECYCLE === '1' && level === 'Group' &&
+      folder === 'Services' && label === 'Session Admission Control Group') {
+    await exerciseSacGroup(page);
+    return;
+  }
   if (process.env.BW_INSPECT_ADD === '1' || process.env.BW_INSPECT_ADD_ALL === '1') {
     const add = page.locator('td[width="82%"] input[type="button"][value^="Add"], ' +
       'td[width="82%"] input[type="submit"][value^="Add"], ' +
@@ -1395,6 +2304,24 @@ async function probe(page, label) {
           process.env.BW_TRUNK_CLEAN_NAME ||
           process.env.BW_TRUNK_GROUP_PROBE === '1' ||
           process.env.BW_SCA_POLICY_PROBE === '1' ||
+          process.env.BW_PHONE_LIST_LIFECYCLE === '1' ||
+          process.env.BW_CONTACT_DIRECTORY_LIFECYCLE === '1' ||
+          process.env.BW_DIGIT_STRING_LIFECYCLE === '1' ||
+          process.env.BW_DIALABLE_CALLER_ID_LIFECYCLE === '1' ||
+          process.env.BW_INSPECT_SIMPLE_LIST === '1' ||
+          process.env.BW_INSPECT_ADD_RANGE === '1' ||
+          process.env.BW_COMM_BARRING_CODE_LIFECYCLE === '1' ||
+          process.env.BW_DIAL_PLAN_CODE_LIFECYCLE === '1' ||
+          process.env.BW_DIAL_PLAN_CLEAN_CODE ||
+          process.env.BW_VIRTUAL_ONNET_LIFECYCLE === '1' ||
+          process.env.BW_VIRTUAL_ONNET_RANGE_LIFECYCLE === '1' ||
+          process.env.BW_VON_FIND_LASTNAME ||
+          process.env.BW_VON_CLEAN_LASTNAME ||
+          process.env.BW_SPEED_DIAL_LIFECYCLE === '1' ||
+          process.env.BW_DEVICE_PROFILE_LIFECYCLE === '1' ||
+          process.env.BW_SAC_LIFECYCLE === '1' ||
+          process.env.BW_SAC_CLEAN_NAME ||
+          process.env.BW_DEVICE_PROFILE_FIND_NAME ||
           process.env.BW_INSPECT_PROFILE_BUTTONS === '1' ||
           process.env.BW_INSPECT_DEPARTMENT_MODIFY === '1' ||
           process.env.BW_INSPECT_SCHEDULE_MODIFY === '1' ||
