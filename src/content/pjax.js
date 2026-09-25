@@ -5262,15 +5262,20 @@
       else { chip.hidden = true; }
     }
 
-    // Option `name` paths whose leaf pages get a console glance summary: Profile (read-only label:value
-    // rows) + the two settings-source pages (Activation Code / STIR-SHAKEN — a useSystemSettings radio
-    // surfaced as a System/Reseller source PILL). All fetched the same proven cpFollow way Profile uses.
+    // Reseller option paths with an inline Peek. Their pages are read through the
+    // same token-bearing PJAX transport used for normal navigation.
     var CP_LEAF_ALLOW = ["/Reseller/Profile/", "/Reseller/DeviceActivationPolicy/", "/Reseller/StirShaken/", "/Reseller/CallRecordingPlatforms/",
       "/Reseller/CallNotify/", "/Reseller/Collaborate/", "/Reseller/EmergencyZone/", "/Reseller/VM/",
       "/Reseller/CallCenter/", "/Reseller/MeetMeConferencing/", "/Reseller/EmergencyCallNotification/", "/Reseller/MailParameters/"];
-    // Notification-email family (the 8 "Default From Email Address" pages): per-page glance-row labels, in the
-    // page's input order (VM has 3 fields; everything else 1). Rendered as CRP-style defpills (lavender = a
-    // configured address, dashed "None" = unset) — user-picked "Option A" mockup, 2026-07-02.
+    // The known multi-value pages need matching placeholder rows so a late read
+    // does not resize the menu option while someone is scanning the board.
+    var CP_LEAF_RESERVED_ROWS = {
+      "/Reseller/Profile/": 2,
+      "/Reseller/CallRecordingPlatforms/": 2,
+      "/Reseller/VM/": 3
+    };
+    // Notification-email labels follow each form's input order. Voice Messaging
+    // has three fields; the other notification forms have one.
     var CP_LEAF_NOTIFY = {
       "/Reseller/CallNotify/": ["Default from"],
       "/Reseller/Collaborate/": ["Default from"],
@@ -5323,6 +5328,7 @@
           done();
           if (good) {
             pill.textContent = nv || "None";
+            pill.title = nv || "None";
             pill.classList.toggle("cp-leaf-defpill-empty", !nv);
             r.empty = !nv; r.value = nv || "None";
             flash("cp-leaf-savedflash");
@@ -5515,47 +5521,53 @@
         if (existing) { start(existing); return; }
         var box = document.createElement("div");
         box.className = "cp-leaf-summary cp-leaf-dock";
+        box.setAttribute("aria-busy", "true");
         var loading = document.createElement("div");
         loading.className = "cp-leaf-loading";
         loading.setAttribute("aria-label", "Loading preview");
-        for (var sk = 0; sk < 2; sk++) {
-          var bar = document.createElement("span");
-          bar.setAttribute("aria-hidden", "true");
-          loading.appendChild(bar);
+        loading.setAttribute("role", "status");
+        for (var sk = 0, reserved = CP_LEAF_RESERVED_ROWS[target] || 1; sk < reserved; sk++) {
+          var skeleton = document.createElement("div");
+          skeleton.className = "cp-leaf-skeleton-row";
+          skeleton.setAttribute("aria-hidden", "true");
+          for (var barIndex = 0; barIndex < 2; barIndex++) skeleton.appendChild(document.createElement("span"));
+          loading.appendChild(skeleton);
         }
         box.appendChild(loading);
         card.appendChild(box);
         box.__cpPeekLoad = function () { cpFetchLeaf("/commpilot" + target).then(function (rows) {
           if (cpSectionAborted || !document.querySelector(".cp-console") || !box.isConnected) { return; }
-          if (!rows) {
+          if (!rows || !rows.length) {
             if (box.animate && !(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) {
-              var empty = box.animate([{ height:box.getBoundingClientRect().height + "px", opacity:1 }, { height:"0px", opacity:0 }],
-                { duration:240, easing:"ease-in-out" });
+              var empty = box.animate([{ opacity:1 }, { opacity:0 }],
+                { duration:180, easing:"ease-out" });
               empty.onfinish = empty.oncancel = function () { box.remove(); };
             } else box.remove();
             return;
           }
-          var oldHeight = box.getBoundingClientRect().height;
-          var contents = document.createDocumentFragment();
+          var ready = document.createElement("div");
+          ready.className = "cp-leaf-ready";
           rows.forEach(function (r) {
             var row = document.createElement("div"); row.className = "cp-leaf-row";
             var k = document.createElement("span"); k.className = "cp-leaf-key";
             k.textContent = rows.length === 1 && r.edit ? "Current \u00b7" : r.label + " \u00b7";
+            k.title = r.label;
             var v;
             if (r.pill) {
-              // Source pill: muted = inherited (System), lavender = custom (Reseller).
+              // A source value still carries its own icon inside the shared dock.
               v = document.createElement("span");
               v.className = "cp-leaf-srcpill cp-leaf-src-" + r.pill;
               v.innerHTML = (r.pill === "sys" ? CP_SVG_SRC_SYS : CP_SVG_SRC_RES);
               var vt = document.createElement("span"); vt.textContent = r.value; v.appendChild(vt);
+              v.title = r.value;
             } else if (r.kind === "defpill") {
-              // Default-value pill: lavender = a value, dashed = None — plus hover actions: COPY on every
-              // non-empty pill, PENCIL (inline background edit) where the leaf supplied an edit recipe.
+              // Values can be copied; editable settings also get a pencil action.
               v = document.createElement("span");
               v.className = "cp-leaf-valwrap";
               var pill = document.createElement("span");
               pill.className = "cp-leaf-defpill" + (r.empty ? " cp-leaf-defpill-empty" : "");
               pill.textContent = r.value;
+              pill.title = r.value;
               v.appendChild(pill);
               var acts = document.createElement("span");
               acts.className = "cp-leaf-act";
@@ -5588,36 +5600,35 @@
               })(pill, acts, r);
               if (acts.childNodes.length) v.appendChild(acts);
             } else {
-              v = document.createElement("span"); v.className = "cp-leaf-val"; v.textContent = r.value;
+              v = document.createElement("span"); v.className = "cp-leaf-val"; v.textContent = r.value; v.title = r.value;
             }
-            row.appendChild(k); row.appendChild(v); contents.appendChild(row);
+            row.appendChild(k); row.appendChild(v); ready.appendChild(row);
           });
           var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
           if (!reduceMotion && box.animate) {
-            box.style.height = oldHeight + "px";
-            box.style.overflow = "hidden";
-            loading.style.position = "absolute";
-            loading.style.inset = "0 0 auto";
-            loading.style.pointerEvents = "none";
-            box.appendChild(contents);
-            var newHeight = box.scrollHeight;
-            var reveal = box.animate([{ height:oldHeight + "px" }, { height:newHeight + "px" }],
-              { duration:520, easing:"cubic-bezier(.22, 1, .36, 1)" });
+            ready.style.opacity = "0";
+            ready.inert = true;
+            ready.setAttribute("aria-hidden", "true");
+            box.classList.add("cp-leaf-settling");
+            box.appendChild(ready);
+            var reveal = ready.animate([{ opacity:0 }, { opacity:1 }],
+              { duration:240, easing:"ease-out", fill:"both" });
+            var fade = loading.animate([{ opacity:1 }, { opacity:0 }],
+              { duration:240, easing:"ease-out", fill:"both" });
             reveal.onfinish = reveal.oncancel = function () {
-              box.style.height = "";
-              box.style.overflow = "";
+              reveal.onfinish = reveal.oncancel = null;
               loading.remove();
+              reveal.cancel();
+              fade.cancel();
+              ready.style.opacity = "";
+              ready.inert = false;
+              ready.removeAttribute("aria-hidden");
+              box.classList.remove("cp-leaf-settling");
+              box.setAttribute("aria-busy", "false");
             };
-            loading.animate([{ opacity:1 }, { opacity:0 }],
-              { duration:250, delay:120, easing:"ease-out", fill:"forwards" });
-            box.querySelectorAll(".cp-leaf-row").forEach(function (r, index) {
-              r.animate([{ opacity:0, transform:"translateY(4px)" }, { opacity:1, transform:"translateY(0)" }],
-                { duration:390, delay:100 + Math.min(index * 45, 135), easing:"cubic-bezier(.22, 1, .36, 1)" });
-            });
-          } else box.replaceChildren(contents);
-          // This summary just grew (… → real rows). If it sits in a section ABOVE a jump anchor, that
-          // growth shoved the anchor down — re-pin the anchor flush. Gated on "still near the top" so a
-          // user who has since scrolled away isn't yanked back.
+          } else { box.replaceChildren(ready); box.setAttribute("aria-busy", "false"); }
+          // Keep a nearby section jump aligned if a page supplies more rows than
+          // its reserved placeholder count. Leave later manual scrolling alone.
           if (cpJumpAnchorSec && document.contains(cpJumpAnchorSec)) {
             var lfCons = document.querySelector(".cp-console");
             if (lfCons) {
@@ -6043,6 +6054,13 @@
       // Forward clicks from either row to its real anchor so the complete visible
       // option is selectable while PJAX still sees the native link and its wiring.
       consoleDiv.addEventListener("click", function (event) {
+        // A partially revealed Peek is still inert; a click on its loading
+        // layer must not fall through to the option's navigation row.
+        if (event.target.closest('.cp-leaf-summary[aria-busy="true"]')) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          return;
+        }
         if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
         if (document.body.classList.contains("cp-help-active")) return;
         if (event.target.closest("a, button, input, select, textarea, label, [role='button']")) return;
