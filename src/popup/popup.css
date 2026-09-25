@@ -8,13 +8,13 @@
 
 :root {
   color-scheme: dark;
-  --popup-bg: #0c1928;
-  --popup-surface: #15283a;
-  --popup-line: #2a4055;
-  --popup-text: #eef7fa;
-  --popup-muted: #a5b8c5;
-  --popup-accent: #5bc8c7;
-  --popup-accent-text: #09282f;
+  --popup-bg: #2e3440;
+  --popup-surface: #3b4252;
+  --popup-line: #4c566a;
+  --popup-text: #eceff4;
+  --popup-muted: #d8dee9;
+  --popup-accent: #88c0d0;
+  --popup-accent-text: #2e3440;
 }
 
 :root[data-theme="atlas"] {
@@ -134,11 +134,11 @@ h2 { font-size: 17px; font-weight: 700; }
 .palette-option input:checked + label .option-check { opacity: 1; transform: scale(1); }
 
 .mini-browser {
-  --mini-page: #172b3d;
-  --mini-top: #102235;
-  --mini-side: #0b2032;
-  --mini-accent: #5bc8c7;
-  --mini-line: #314d62;
+  --mini-page: #3b4252;
+  --mini-top: #2e3440;
+  --mini-side: #2e3440;
+  --mini-accent: #88c0d0;
+  --mini-line: #4c566a;
   position: relative;
   display: block;
   height: 68px;
@@ -147,6 +147,7 @@ h2 { font-size: 17px; font-weight: 700; }
   background: var(--mini-page);
   box-shadow: inset 0 0 0 1px #0000001a;
 }
+.nord .mini-browser { --mini-page:#3b4252; --mini-top:#2e3440; --mini-side:#2e3440; --mini-accent:#88c0d0; --mini-line:#4c566a; }
 .atlas .mini-browser { --mini-page:#f5f8fb; --mini-top:#fff; --mini-side:#132d47; --mini-accent:#087f89; --mini-line:#cbd9e4; }
 .graphite .mini-browser { --mini-page:#1c2227; --mini-top:#171b1e; --mini-side:#101619; --mini-accent:#b9e568; --mini-line:#3d4b4b; }
 .terra .mini-browser { --mini-page:#f4f0e8; --mini-top:#fffcf7; --mini-side:#332d2a; --mini-accent:#ad543e; --mini-line:#ddd1c2; }

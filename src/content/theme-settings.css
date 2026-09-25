@@ -19,7 +19,7 @@ body[id="initBody.menuTemplate"] #cp-appearance-toggle::before {
   height: 14px;
   border: 2px solid currentColor;
   border-radius: 50%;
-  background: conic-gradient(#097b8b 0 25%, #b9e568 25% 50%, #ad543e 50% 75%, #273e61 75%);
+  background: conic-gradient(#097b8b 0 25%, #b9e568 25% 50%, #ad543e 50% 75%, #88c0d0 75%);
   box-shadow: inset 0 0 0 2px var(--d-raised, var(--cp-card));
 }
 body[id="initBody.menuTemplate"] #cp-appearance-toggle:hover,
@@ -96,7 +96,7 @@ body[id="initBody.menuTemplate"] .cp-appearance-swatch {
   border: 1px solid #9ca9b4;
   border-radius: 6px;
 }
-body[id="initBody.menuTemplate"] .cp-appearance-swatch-midnight { background: linear-gradient(135deg, #102137 50%, #69ddd4 50%); }
+body[id="initBody.menuTemplate"] .cp-appearance-swatch-nord { background: linear-gradient(135deg, #3b4252 50%, #88c0d0 50%); }
 body[id="initBody.menuTemplate"] .cp-appearance-swatch-atlas { background: linear-gradient(135deg, #f5f8fb 50%, #087f89 50%); }
 body[id="initBody.menuTemplate"] .cp-appearance-swatch-graphite { background: linear-gradient(135deg, #242c31 50%, #b9e568 50%); }
 body[id="initBody.menuTemplate"] .cp-appearance-swatch-terra { background: linear-gradient(135deg, #fffcf7 50%, #ad543e 50%); }

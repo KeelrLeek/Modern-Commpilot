@@ -1,4 +1,4 @@
-/* Rounded navigation and account icons for the optional palettes. */
+/* Rounded navigation and account icons shared by all four palettes. */
 (() => {
   const shapes = {
     profile: '<circle cx="12" cy="8" r="3.25"/><path d="M5.25 20v-1.5A5.25 5.25 0 0 1 10.5 13.25h3A5.25 5.25 0 0 1 18.75 18.5V20"/>',

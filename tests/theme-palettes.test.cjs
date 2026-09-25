@@ -50,7 +50,7 @@ test('palette follows stored setting through changes and PJAX shell replacement'
     await page.addScriptTag({ path: path.join(root, 'src/content/theme-icons.js') });
     await page.addScriptTag({ path: path.join(root, 'src/content/native-theme.js') });
     const snapshot = () => page.evaluate(() => ({
-      palette: document.documentElement.dataset.cpDirection || 'midnight',
+      palette: document.documentElement.dataset.cpDirection || 'unset',
       background: getComputedStyle(document.body).backgroundColor,
       shellTop: document.body.style.getPropertyValue('--cp-shell-top')
     }));
@@ -86,9 +86,23 @@ test('palette follows stored setting through changes and PJAX shell replacement'
     assert.equal((await snapshot()).background, 'rgb(21, 25, 29)');
     await page.evaluate(() => window.__choosePalette('terra'));
     assert.equal((await snapshot()).background, 'rgb(235, 230, 220)');
+    await page.evaluate(() => window.__choosePalette('nord'));
+    assert.deepEqual((await snapshot()).palette, 'nord');
+    assert.equal((await snapshot()).background, 'rgb(46, 52, 64)');
+    const nordShell = await page.evaluate(() => ({
+      direction: document.documentElement.dataset.cpDirection,
+      canvas: getComputedStyle(document.body).getPropertyValue('--d-canvas').trim(),
+      sidebarRadius: getComputedStyle(document.querySelector('a.leftnavfolder')).borderRadius,
+      mainBackgroundImage: getComputedStyle(document.querySelector('td[width="82%"][valign="top"]')).backgroundImage,
+      helpIcon: getComputedStyle(document.querySelector('td.headerBar a.headerLink'), '::before').backgroundImage
+    }));
+    assert.equal(nordShell.direction, 'nord');
+    assert.equal(nordShell.canvas, '#2e3440');
+    assert.equal(nordShell.sidebarRadius, '12px');
+    assert.equal(nordShell.mainBackgroundImage, 'none');
+    assert.match(nordShell.helpIcon, /assets\/icons\/palette-help\.svg/);
     await page.evaluate(() => window.__choosePalette('midnight'));
-    assert.deepEqual((await snapshot()).palette, 'midnight');
-    assert.equal((await snapshot()).background, 'rgb(11, 21, 37)');
+    assert.equal((await snapshot()).palette, 'nord', 'saved Midnight selections migrate to Nord');
 
     await page.evaluate(() => {
       const shell = document.body.querySelector('table[height="100%"]');
@@ -187,6 +201,13 @@ test('extension popup changes the active CommPilot page and keeps the choice in 
     await openApp(second);
     await second.waitForFunction(() => document.documentElement.dataset.cpDirection === 'terra');
     assert.equal(await second.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(235, 230, 220)');
+    await popup.evaluate(() => new Promise(resolve => chrome.storage.local.set({ cpThemePalette: 'midnight' }, resolve)));
+    const legacy = await context.newPage();
+    await openApp(legacy);
+    await legacy.waitForFunction(() => document.documentElement.dataset.cpDirection === 'nord');
+    await popup.waitForFunction(() => new Promise(resolve => chrome.storage.local.get('cpThemePalette', value =>
+      resolve(value.cpThemePalette === 'nord'))));
+    await popup.locator('input[value="nord"]:checked').waitFor();
   } finally {
     await context?.close();
     fs.rmSync(profile, { recursive: true, force: true });

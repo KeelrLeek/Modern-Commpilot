@@ -2,7 +2,7 @@
   "use strict";
 
   const storageKey = "cpThemePalette";
-  const palettes = new Set(["midnight", "atlas", "graphite", "terra"]);
+  const palettes = new Set(["nord", "atlas", "graphite", "terra"]);
   const status = document.getElementById("save-status");
   const footer = status.closest(".settings-footer");
   const options = [...document.querySelectorAll('input[name="palette"]')];
@@ -10,6 +10,7 @@
   let selectionChanged = false;
 
   function normalize(value) {
+    if (value === "midnight") return "nord";
     return palettes.has(value) ? value : "atlas";
   }
 

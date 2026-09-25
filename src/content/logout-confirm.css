@@ -1,19 +1,19 @@
 /* The native header Logout link stays in place; this dialog asks before it runs. */
 .cp-native-logout-overlay {
-  --logout-card:#172b43;
-  --logout-raised:#203952;
-  --logout-text:#edf5ff;
-  --logout-muted:#abc0d2;
-  --logout-line:#38536c;
-  --logout-accent:#69ddd4;
-  --logout-accent-text:#0d2834;
+  --logout-card:#3b4252;
+  --logout-raised:#434c5e;
+  --logout-text:#eceff4;
+  --logout-muted:#d8dee9;
+  --logout-line:#4c566a;
+  --logout-accent:#88c0d0;
+  --logout-accent-text:#2e3440;
   position:fixed;
   inset:0;
   z-index:2147483500;
   display:grid;
   place-items:center;
   padding:24px;
-  background:#030e1ba8;
+  background:#2e3440b8;
   color:var(--logout-text);
   font:400 14px/1.5 "Inter","Segoe UI",Arial,sans-serif;
   -webkit-font-smoothing:antialiased;

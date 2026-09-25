@@ -69,12 +69,12 @@ body#loginBody .bw-saved-remove { margin-left: 10px; padding: 4px; border: 0; ba
 
 /* CommPilot 2.0 login shell. The Cisco form and its handlers remain untouched. */
 body#loginBody {
-  --lg-canvas:#0b1525; --lg-surface:#172b43; --lg-raised:#203952;
-  --lg-visual:#0d3142; --lg-glow:#287e83; --lg-text:#edf5ff;
-  --lg-muted:#abc0d2; --lg-line:#38536c; --lg-action:#69ddd4;
-  --lg-action-text:#0d2834; --lg-focus:#89ede4;
+  --lg-canvas:#2e3440; --lg-surface:#3b4252; --lg-raised:#434c5e;
+  --lg-visual:#3b4252; --lg-glow:#5e81ac; --lg-text:#eceff4;
+  --lg-muted:#d8dee9; --lg-line:#4c566a; --lg-action:#88c0d0;
+  --lg-action-text:#2e3440; --lg-focus:#8fbcbb;
   --lg-error-space:30px;
-  --lg-shadow:0 26px 80px #020a1780;
+  --lg-shadow:0 26px 80px #1d2330a6;
   flex-direction:column; align-items:center !important; justify-content:flex-start !important;
   min-height:100dvh !important; padding:16px !important;
   background:radial-gradient(circle at 50% 0%,var(--lg-raised),transparent 53%),var(--lg-canvas) !important;
@@ -194,7 +194,7 @@ body#loginBody form[name="loginForm"] > table[background] > tbody > tr:last-chil
 }
 body#loginBody .copyrighttext { color:var(--lg-muted); font:inherit; }
 
-/* Rounded, readable saved sign-ins in all three new palettes and Midnight. */
+/* Rounded, readable saved sign-ins in every palette. */
 body#loginBody .bw-saved-login {
   width:100%; margin:16px 0 0; overflow:hidden;
   border:1px solid var(--lg-line); border-radius:16px;

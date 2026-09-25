@@ -1,8 +1,8 @@
 /* Keep the selected CommPilot palette in sync across tabs and PJAX views. */
 (() => {
   const key = "cpThemePalette";
-  const choices = new Set(["midnight", "atlas", "graphite", "terra"]);
-  const paletteNames = { midnight: "Midnight", atlas: "Atlas", graphite: "Graphite", terra: "Terra" };
+  const choices = new Set(["nord", "atlas", "graphite", "terra"]);
+  const paletteNames = { nord: "Nord", atlas: "Atlas", graphite: "Graphite", terra: "Terra" };
   const root = document.documentElement;
   let shellFrame = 0;
   let currentPalette = "atlas";
@@ -18,10 +18,9 @@
   }
 
   function apply(value) {
-    const palette = choices.has(value) ? value : "atlas";
+    const palette = value === "midnight" ? "nord" : choices.has(value) ? value : "atlas";
     currentPalette = palette;
-    if (palette === "midnight") delete root.dataset.cpDirection;
-    else root.dataset.cpDirection = palette;
+    root.dataset.cpDirection = palette;
     syncControls();
     document.dispatchEvent(new CustomEvent("cp:theme-change", { detail: { palette } }));
     scheduleShellMeasure();
@@ -131,7 +130,10 @@
     shellFrame = requestAnimationFrame(measureShell);
   }
 
-  chrome.storage.local.get(key, values => apply(values?.[key]));
+  chrome.storage.local.get(key, values => {
+    apply(values?.[key]);
+    if (values?.[key] === "midnight") chrome.storage.local.set({ [key]: "nord" });
+  });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && Object.hasOwn(changes, key)) apply(changes[key].newValue);
   });
