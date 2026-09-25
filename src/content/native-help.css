@@ -1,0 +1,34 @@
+#cp-native-help-toggle {
+  display: block;
+  margin: 8px 12px;
+  padding: 4px 12px;
+  border: 1px solid #9aa4ba;
+  border-radius: 4px;
+  background: #30394f;
+  color: #fff;
+  cursor: pointer;
+  font: 12px Arial, sans-serif;
+}
+#cp-native-help-toggle[aria-pressed="true"] {
+  border-color: #70d6ab;
+  background: #1e463d;
+}
+#cp-native-help-tip {
+  box-sizing: border-box;
+  position: fixed;
+  z-index: 2147483641;
+  width: min(340px, calc(100vw - 16px));
+  max-height: min(300px, calc(100vh - 16px));
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid #9aa4ba;
+  border-radius: 6px;
+  background: #30394f;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .45);
+  color: #fff;
+  pointer-events: none;
+  font: 12px/1.45 Arial, sans-serif;
+}
+#cp-native-help-tip[hidden] { display: none; }
+#cp-native-help-tip strong { display: block; margin-bottom: 5px; font-size: 13px; }
+#cp-native-help-tip span { display: block; }

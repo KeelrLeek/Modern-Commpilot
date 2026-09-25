@@ -10,6 +10,7 @@ SOURCE = Path(__file__).resolve().parent.parent
 FILES = (
     "manifest.json",
     "README.md",
+    "assets/help/help-content.json",
     "src/bg/credential-bridge.js",
     "src/bg/rules.json",
     "src/content/cloak.js",
@@ -19,6 +20,8 @@ FILES = (
     "src/content/login.css",
     "src/content/login.js",
     "src/content/native-pjax.css",
+    "src/content/native-help.css",
+    "src/content/native-help.js",
     "src/content/number-bulk.css",
     "src/content/number-bulk.js",
     "src/content/number-activation-bulk.js",

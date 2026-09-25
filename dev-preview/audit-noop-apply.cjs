@@ -4034,6 +4034,24 @@ async function probe(page, label) {
           .filter(row => row.textContent.includes(code)).length })) }));
     return;
   }
+  if (process.env.BW_INSPECT_NATIVE_HELP === '1') {
+    const toggle = page.locator('#cp-native-help-toggle');
+    await toggle.waitFor({ timeout: 10000 });
+    await toggle.click();
+    const profileFolder = page.locator('a.leftnavfolder, a.leftnavfolderopen')
+      .filter({ hasText: /^Profile$/ }).first();
+    await profileFolder.hover();
+    await page.locator('#cp-native-help-tip:not([hidden])').waitFor();
+    console.log(JSON.stringify({ event: 'native-help-inspect', level, folder,
+      state: await page.evaluate(() => ({
+        toggles: document.querySelectorAll('#cp-native-help-toggle').length,
+        pressed: document.querySelector('#cp-native-help-toggle')?.getAttribute('aria-pressed'),
+        tip: document.querySelector('#cp-native-help-tip')?.textContent?.slice(0, 180),
+        nativeHelpLinks: [...document.querySelectorAll('a')]
+          .filter(item => item.textContent.trim() === 'Help').length
+      })) }));
+    return;
+  }
   if (process.env.BW_INSPECT_DIRECTORY_EXPORT === '1') {
     const button = page.locator('#cp-native-directory-export');
     await button.waitFor({ timeout: 10000 });
@@ -6548,6 +6566,7 @@ async function probe(page, label) {
           process.env.BW_DIALABLE_CALLER_ID_LIFECYCLE === '1' ||
           process.env.BW_INSPECT_SIMPLE_LIST === '1' ||
           process.env.BW_INSPECT_DIRECTORY_EXPORT === '1' ||
+          process.env.BW_INSPECT_NATIVE_HELP === '1' ||
           process.env.BW_INSPECT_SEARCH_LIST === '1' ||
           process.env.BW_INSPECT_NUMBER_EDIT === '1' ||
           process.env.BW_NUMBER_DEPARTMENT_CYCLE === '1' ||
