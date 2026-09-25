@@ -4501,6 +4501,18 @@
                   document.documentElement.setAttribute('data-cp-path', canonical);
                 }
               } catch (e) {}
+              // Tag Set Add posts to its Add URL but renders the parent tag
+              // grid. Keep the address on that grid so its next Edit/Add and
+              // Back navigation resolve against the correct controller.
+              try {
+                if (_submitNav &&
+                    url === '/commpilot/Operator/System/DeviceTags/Modify/TagSet/Add/index.jsp' &&
+                    liveCell && liveCell.querySelector('input[name="newTagSetName"]') &&
+                    !liveCell.querySelector('input[name="tagName"]')) {
+                  canonical = '/commpilot/Operator/System/DeviceTags/Modify/TagSet/index.jsp';
+                  document.documentElement.setAttribute('data-cp-path', canonical);
+                }
+              } catch (e) {}
               // Service-instance Modify Delete returns the owning list, but
               // cpFormOrigin can be the intermediate EditRedirect page. Anchor
               // the result to the real Group list so the next Add/Edit resolves.
@@ -4716,6 +4728,34 @@
       sendWhenReady();
       return true;
     }
+
+    // Tag Set Add's legacy OK handler calls a native submit before the shared
+    // submit listener can own the request. A filtered Tag Set grid sits at
+    // Common/find.jsp, although its Apply still belongs to TagSet/index.jsp.
+    // Post both actions to their owning controllers through PJAX.
+    document.addEventListener("click", function (e) {
+      try {
+        var tagAdd = location.pathname ===
+          "/commpilot/Operator/System/DeviceTags/Modify/TagSet/Add/index.jsp";
+        var filteredTags = /\/commpilot\/Common\/find(?:All)?\.jsp$/.test(location.pathname) &&
+          !!document.querySelector('td[width="82%"] input[name="newTagSetName"]');
+        if (!tagAdd && !filteredTags) return;
+        var button = e.target && e.target.closest ?
+          e.target.closest(tagAdd ? 'input[type="submit"][name="ok"]' :
+            'input[type="submit"][name="ok"], input[type="submit"][name="apply"]') : null;
+        if (!button || !button.form) return;
+        e.preventDefault(); e.stopImmediatePropagation();
+        var entries = [], params = {};
+        new FormData(button.form, button).forEach(function (value, name) {
+          if (value instanceof File) return;
+          entries.push([name, value]);
+          params[name] = value;
+        });
+        params.__cpFormEntries = entries;
+        cpHook(tagAdd ? location.pathname :
+          '/commpilot/Operator/System/DeviceTags/Modify/TagSet/index.jsp', params);
+      } catch (err) { console.warn("[pjax] Tag Set Add submit", err); }
+    }, true);
 
     document.addEventListener("submit", function (e) {
       try {

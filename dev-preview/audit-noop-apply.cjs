@@ -100,15 +100,25 @@ async function enterLevel(page) {
   await page.locator('td[width="82%"] a.navMenuItem:text-is("Groups")').click();
   await waitPath(page, '/commpilot/ServiceProvider/Members/');
   await page.locator('#search0').click();
+  await page.evaluate(() => { window.__bwGroupEntryDocument = document; });
   await page.locator('a:text-is("Stan Mikita Donuts")').click();
   await waitPath(page, '/commpilot/ServiceProvider/Members/Modify/index.jsp');
+  const groupSameDocument = await page.evaluate(() => document === window.__bwGroupEntryDocument);
+  writeDeep('reseller-group-entry', groupSameDocument ? 'passed' : 'failed',
+    `Stan Mikita Donuts group profile opened from Service Provider Members ` +
+    `${groupSameDocument ? 'in the same document' : 'with a reload'}.`);
   if (level === 'Group') return;
   if (level === 'User') {
     await page.locator('td[width="82%"] a.navMenuItem:text-is("Users")').click();
     await waitPath(page, '/commpilot/Group/Members/');
     await page.locator('#search0').click();
+    await page.evaluate(() => { window.__bwUserEntryDocument = document; });
     await page.locator('a:text-is("SMDonuts21")').click();
     await waitPath(page, '/commpilot/Group/Members/Modify/index.jsp');
+    const userSameDocument = await page.evaluate(() => document === window.__bwUserEntryDocument);
+    writeDeep('group-user-entry', userSameDocument ? 'passed' : 'failed',
+      `SMDonuts21 user profile opened from Group Members ` +
+      `${userSameDocument ? 'in the same document' : 'with a reload'}.`);
     return;
   }
   const groupFolder = level === 'Call Center' ? 'Call Center' : 'Services';
@@ -2690,12 +2700,350 @@ async function exerciseAccountCode(page, user = false) {
 async function probe(page, label) {
   const link = page.locator('td[width="82%"] a.navMenuItem').filter({ hasText: new RegExp(
     `^\\s*${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`) }).first();
-  if (process.env.BW_READ_ONLY_AUDIT === '1')
+  if (process.env.BW_READ_ONLY_AUDIT === '1' ||
+      process.env.BW_LIST_SEARCH_AUDIT === '1')
     await page.evaluate(() => { window.__bwReadOnlyDocument = document; });
   await link.click();
   await page.waitForFunction(() => location.pathname !== '/commpilot/Common/folder_contents.jsp' &&
     !!document.querySelector('td[width="82%"]'), null, { timeout: 20000 });
   const entry = await page.evaluate(() => ({ path: location.pathname, title: document.title }));
+  if (process.env.BW_ROW_DRILL_INSPECT === '1') {
+    const selector = process.env.BW_ROW_DRILL_SELECTOR ||
+      'td[width="82%"] tr[id^="Row"] a.tableLink';
+    await page.evaluate(() => { window.__bwRowDrillDocument = document; });
+    await page.locator(selector).first().click();
+    const expected = process.env.BW_ROW_DRILL_EXPECTED;
+    if (expected) await waitPath(page, expected);
+    const state = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwRowDrillDocument,
+      text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 900),
+      buttons: [...document.querySelectorAll('td[width="82%"] input[type="submit"]')]
+        .filter(item => item.getClientRects().length)
+        .map(item => ({ name: item.name, value: item.value })),
+      fields: [...document.querySelectorAll('td[width="82%"] form input, td[width="82%"] form select')]
+        .filter(item => item.getClientRects().length && item.name &&
+          !['hidden', 'submit', 'button'].includes(item.type))
+        .map(item => ({ name: item.name, type: item.type, value: item.value,
+          checked: item.checked })) }));
+    console.log(JSON.stringify({ event: 'row-drill-inspect', level, folder, label,
+      selector, state }));
+    if (process.env.BW_TAG_FIND_NAME && level === 'Reseller' &&
+        label === 'Device Management Tag Sets') {
+      await page.locator('td[width="82%"] input[name="findValue"]')
+        .fill(process.env.BW_TAG_FIND_NAME);
+      await page.locator('td[width="82%"] select[name="findOp"]')
+        .selectOption({ label: 'Contains' });
+      await page.locator('td[width="82%"] a:text-is("Find")').first().click();
+      await page.waitForTimeout(350);
+      const matchingRows = page.locator('td[width="82%"] tr[id^="Row"]')
+        .filter({ hasText: process.env.BW_TAG_FIND_NAME });
+      console.log(JSON.stringify({ event: 'tag-find', name: process.env.BW_TAG_FIND_NAME,
+        path: new URL(page.url()).pathname,
+        forms: await page.locator('td[width="82%"] form').evaluateAll(items =>
+          items.map(item => ({ action: item.getAttribute('action'), method: item.method,
+            buttons: [...item.querySelectorAll('input[type="submit"]')]
+              .map(button => ({ name: button.name, value: button.value })) }))),
+        rowHtml: await matchingRows.first().evaluate(item => item.outerHTML.slice(0, 900))
+          .catch(() => null),
+        rows: await page.locator('td[width="82%"] tr[id^="Row"]')
+          .evaluateAll(items => items.map(item => item.innerText.trim()).slice(0, 8)) }));
+      if (process.env.BW_TAG_CLEAN_NAME === '1' && await matchingRows.count() === 1) {
+        await matchingRows.locator('input[type="checkbox"]').check();
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+          .click({ noWaitAfter: true });
+        await page.waitForTimeout(300);
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Device Management Tag Sets")').click();
+        await waitPath(page, '/commpilot/Reseller/DeviceTags/');
+        await page.locator('td[width="82%"] tr[id^="Row"]')
+          .filter({ hasText: 'TF_BroadTouch_Tags' })
+          .locator('a.headerLink:text-is("Edit")').first().click();
+        await waitPath(page, '/commpilot/Operator/System/DeviceTags/Modify/TagSet/index.jsp');
+        await page.locator('td[width="82%"] input[name="findValue"]')
+          .fill(process.env.BW_TAG_FIND_NAME);
+        await page.locator('td[width="82%"] select[name="findOp"]')
+          .selectOption({ label: 'Contains' });
+        await page.locator('td[width="82%"] a:text-is("Find")').first().click();
+        await page.waitForTimeout(300);
+        console.log(JSON.stringify({ event: 'tag-clean-result', name: process.env.BW_TAG_FIND_NAME,
+          remaining: await page.locator('td[width="82%"] tr[id^="Row"]')
+            .filter({ hasText: process.env.BW_TAG_FIND_NAME }).count() }));
+      }
+      return;
+    }
+    if (process.env.BW_TAG_SET_APPLY === '1' && level === 'Reseller' &&
+        label === 'Device Management Tag Sets') {
+      const before = await formState(page);
+      const tagSet = await page.locator('td[width="82%"] input[name="newTagSetName"]').inputValue();
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname.startsWith('/commpilot/Operator/System/DeviceTags/'),
+      { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+        .click({ noWaitAfter: true });
+      const found = await response;
+      await page.waitForTimeout(350);
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Device Management Tag Sets")').click();
+      await waitPath(page, '/commpilot/Reseller/DeviceTags/');
+      await page.locator('td[width="82%"] tr[id^="Row"]')
+        .filter({ hasText: tagSet }).locator('a.headerLink:text-is("Edit")').first().click();
+      await waitPath(page, '/commpilot/Operator/System/DeviceTags/Modify/TagSet/index.jsp');
+      const sameValues = JSON.stringify(before) === JSON.stringify(await formState(page));
+      const sameDocument = await page.evaluate(() => document === window.__bwRowDrillDocument);
+      writeDeep('discovered-509', found?.status() === 200 && sameDocument && sameValues ?
+        'passed' : 'failed',
+      `Tag set ${tagSet} current-values Apply HTTP ${found?.status() || 'none'}; ` +
+      `${sameDocument ? 'same document' : 'reload'}; ` +
+      `fresh readback ${sameValues ? 'matched' : 'differed'}.`);
+      return;
+    }
+    if ((process.env.BW_TAG_ROW_INSPECT === '1' ||
+         process.env.BW_TAG_ADD_INSPECT === '1') && level === 'Reseller' &&
+        label === 'Device Management Tag Sets') {
+      const add = process.env.BW_TAG_ADD_INSPECT === '1';
+      const tagSetName = await page.locator('td[width="82%"] input[name="newTagSetName"]').inputValue();
+      await page.locator(add ? 'td[width="82%"] input[name="add"]:visible' :
+        'td[width="82%"] tr[id^="Row"] a.headerLink:text-is("Edit")')
+        .first().click();
+      await waitPath(page, `/commpilot/Operator/System/DeviceTags/Modify/TagSet/` +
+        `${add ? 'Add' : 'Modify'}/index.jsp`);
+      console.log(JSON.stringify({ event: add ? 'tag-add-inspect' : 'tag-row-inspect',
+        state: await page.evaluate(() => ({ path: location.pathname,
+          text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 700),
+          buttons: [...document.querySelectorAll('td[width="82%"] input[type="submit"]')]
+            .filter(item => item.getClientRects().length)
+            .map(item => ({ name: item.name, value: item.value })),
+          forms: [...document.querySelectorAll('td[width="82%"] form')]
+            .map(item => ({ action: item.getAttribute('action'), method: item.method,
+              enctype: item.enctype, onsubmit: item.getAttribute('onsubmit') })),
+          fields: [...document.querySelectorAll('td[width="82%"] form input')]
+            .filter(item => item.getClientRects().length && item.name &&
+              !['hidden', 'submit', 'button'].includes(item.type))
+            .map(item => ({ name: item.name, type: item.type, value: item.value,
+              checked: item.checked })) })) }));
+      if (process.env.BW_TAG_ADD_LIFECYCLE === '1' && add) {
+        const tagName = `PJAX_AUDIT_${Date.now().toString(36).toUpperCase()}`;
+        await page.locator('td[width="82%"] input[name="tagName"]').fill(
+          process.env.BW_TAG_ADD_BLANK_PROBE === '1' ? '' : tagName);
+        await page.locator('td[width="82%"] input[name="tagValue"]').fill('AUDIT_ONLY');
+        await page.evaluate(() => { window.__bwTagAddDocument = document; });
+        const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+          new URL(item.url()).pathname.startsWith(
+            '/commpilot/Operator/System/DeviceTags/Modify/TagSet/'),
+        { timeout: 15000 }).catch(() => null);
+        await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+          .click({ noWaitAfter: true });
+        const found = await response;
+        await page.waitForTimeout(300);
+        const sameDocument = await page.evaluate(() => document === window.__bwTagAddDocument);
+        const afterSave = await page.evaluate(() => ({ path: location.pathname,
+          title: document.title,
+          text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 550),
+          redirectHook: String(window.redirectPost || '').slice(0, 120) }));
+        console.log(JSON.stringify({ event: 'tag-add-post', tagName,
+          status: found?.status() || null, responseUrl: found?.url() || null,
+          navigation: found?.request().isNavigationRequest() || false,
+          sameDocument, afterSave }));
+        if (process.env.BW_TAG_ADD_BLANK_PROBE === '1') return;
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Device Management Tag Sets")').click();
+        await waitPath(page, '/commpilot/Reseller/DeviceTags/');
+        await page.locator('td[width="82%"] tr[id^="Row"]')
+          .filter({ hasText: tagSetName }).locator('a.headerLink:text-is("Edit")').first().click();
+        await waitPath(page, '/commpilot/Operator/System/DeviceTags/Modify/TagSet/index.jsp');
+        const search = async () => {
+          await page.locator('td[width="82%"] input[name="findValue"]').fill(tagName);
+          await page.locator('td[width="82%"] select[name="findOp"]')
+            .selectOption({ label: 'Contains' });
+          await page.locator('td[width="82%"] a:text-is("Find")').first().click();
+          await page.waitForTimeout(350);
+          return page.locator('td[width="82%"] tr[id^="Row"]')
+            .filter({ hasText: tagName });
+        };
+        const row = await search();
+        const created = await row.count() === 1;
+        console.log(JSON.stringify({ event: 'tag-add-save', tagName,
+          status: found?.status() || null, sameDocument, created,
+          path: new URL(page.url()).pathname }));
+        if (created) {
+          await row.locator('input[type="checkbox"]').check();
+          page.once('dialog', dialog => dialog.accept());
+          await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+            .click({ noWaitAfter: true });
+          await page.waitForTimeout(350);
+          await openFolder(page);
+          await page.locator('td[width="82%"] a.navMenuItem:text-is("Device Management Tag Sets")').click();
+          await waitPath(page, '/commpilot/Reseller/DeviceTags/');
+          await page.locator('td[width="82%"] tr[id^="Row"]')
+            .filter({ hasText: tagSetName }).locator('a.headerLink:text-is("Edit")').first().click();
+          await waitPath(page, '/commpilot/Operator/System/DeviceTags/Modify/TagSet/index.jsp');
+          const absent = await (await search()).count() === 0;
+          writeDeep('discovered-681', found?.status() === 200 && sameDocument && absent ?
+            'passed' : 'failed',
+          `Disposable tag ${tagName} ${created ? 'created' : 'not found'}; ` +
+          `${absent ? 'deleted and absent on fresh readback' : 'still present after Delete'}.`);
+        } else writeDeep('discovered-681', 'failed',
+          `Disposable tag ${tagName} not found after Add HTTP ${found?.status() || 'none'}.`);
+        return;
+      }
+      if (process.env.BW_TAG_ROW_APPLY === '1' && !add) {
+        const before = await formState(page);
+        const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+          new URL(item.url()).pathname.startsWith(
+            '/commpilot/Operator/System/DeviceTags/Modify/TagSet/'),
+        { timeout: 15000 }).catch(() => null);
+        await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+          .click({ noWaitAfter: true });
+        const found = await response;
+        await page.waitForTimeout(300);
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Device Management Tag Sets")').click();
+        await waitPath(page, '/commpilot/Reseller/DeviceTags/');
+        await page.locator('td[width="82%"] tr[id^="Row"]')
+          .filter({ hasText: tagSetName }).locator('a.headerLink:text-is("Edit")').first().click();
+        await waitPath(page, '/commpilot/Operator/System/DeviceTags/Modify/TagSet/index.jsp');
+        await page.locator('td[width="82%"] tr[id^="Row"] a.headerLink:text-is("Edit")')
+          .first().click();
+        await waitPath(page, '/commpilot/Operator/System/DeviceTags/Modify/TagSet/Modify/index.jsp');
+        const sameValues = JSON.stringify(before) === JSON.stringify(await formState(page));
+        const sameDocument = await page.evaluate(() => document === window.__bwRowDrillDocument);
+        writeDeep('discovered-680', found?.status() === 200 && sameDocument && sameValues ?
+          'passed' : 'failed',
+        `Existing tag current-values OK HTTP ${found?.status() || 'none'}; ` +
+        `${sameDocument ? 'same document' : 'reload'}; fresh readback ` +
+        `${sameValues ? 'matched' : 'differed'}.`);
+      }
+      return;
+    }
+    if (process.env.BW_ROW_DRILL_SAVE_CURRENT === '1' &&
+        level === 'Service Provider' && label === 'Service Packs') {
+      const before = await formState(page);
+      const originalName = await page.locator('td[width="82%"] input[name="newName"]').inputValue();
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname.startsWith('/commpilot/ServiceProvider/ServicePacks/'),
+      { timeout: 15000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+        .click({ noWaitAfter: true });
+      const found = await response;
+      await page.waitForTimeout(350);
+      await openFolder(page);
+      await page.locator('td[width="82%"] a.navMenuItem:text-is("Service Packs")').click();
+      await waitPath(page, '/commpilot/ServiceProvider/ServicePacks/');
+      await page.locator('td[width="82%"] tr[id^="Row"]')
+        .filter({ hasText: originalName }).locator('a.tableLink').first().click();
+      await waitPath(page, '/commpilot/ServiceProvider/ServicePacks/Modify/index.jsp');
+      const sameValues = JSON.stringify(before) === JSON.stringify(await formState(page));
+      const sameDocument = await page.evaluate(() => document === window.__bwRowDrillDocument);
+      writeDeep('discovered-511', found?.status() === 200 && sameDocument && sameValues ?
+        'passed' : 'failed',
+      `Service Pack ${originalName} current-values OK HTTP ${found?.status() || 'none'}; ` +
+      `${sameDocument ? 'same document' : 'reload'}; ` +
+      `fresh readback ${sameValues ? 'matched' : 'differed'}.`);
+      return;
+    }
+    if (process.env.BW_ROW_DRILL_ID) {
+      let searchResponse = null;
+      if (process.env.BW_ROW_DRILL_SEARCH === '1') {
+        const search = page.locator('td[width="82%"] #search0, ' +
+          'td[width="82%"] input[name="search"]:visible, ' +
+          'td[width="82%"] a:text-is("Find All")').first();
+        const response = page.waitForResponse(item =>
+          new URL(item.url()).pathname.startsWith('/commpilot/') &&
+          item.status() === 200 &&
+          ['fetch', 'xhr', 'document'].includes(item.request().resourceType()),
+        { timeout: 10000 }).catch(() => null);
+        await search.click({ noWaitAfter: true });
+        searchResponse = await response;
+        await page.waitForTimeout(300);
+      }
+      const passed = state.sameDocument &&
+        (process.env.BW_ROW_DRILL_SEARCH !== '1' || !!searchResponse);
+      writeDeep(process.env.BW_ROW_DRILL_ID, passed ? 'passed' : 'failed',
+        `Row detail opened ${state.sameDocument ? 'in PJAX' : 'with a reload'} ` +
+        `at ${state.path}; ${process.env.BW_ROW_DRILL_SEARCH === '1' ?
+          `search HTTP ${searchResponse?.status() || 'none'}` : 'page action opened'}.`);
+    }
+    return;
+  }
+  if (process.env.BW_DEVICE_CONFIG_DEEP === '1' &&
+      (level === 'Group' || level === 'Service Provider') &&
+      folder === 'Utilities' && label === 'Device Configuration') {
+    await page.evaluate(() => { window.__bwDeviceConfigDocument = document; });
+    await page.locator(process.env.BW_DEVICE_CONFIG_FILES === '1' ?
+      'td[width="82%"] tr[id^="Row"] a.headerLink:text-is("Edit")' :
+      'td[width="82%"] tr[id^="Row"] a.tableLink').first().click();
+    const base = `/commpilot/${level.replace(' ', '')}/DefaultConfig/Nested/`;
+    await waitPath(page, process.env.BW_DEVICE_CONFIG_FILES === '1' ?
+      `${base}Files/` : `${base}Configuration/index.jsp`);
+    const sameDocument = await page.evaluate(() => document === window.__bwDeviceConfigDocument);
+    writeDeep(process.env.BW_DEVICE_CONFIG_FILES === '1' ?
+      (level === 'Group' ? 'discovered-506' : 'discovered-514') :
+      (level === 'Group' ? 'discovered-505' : 'discovered-513'),
+      sameDocument ? 'passed' : 'failed',
+      `TF_SBX_Polycom_VVX400 ${process.env.BW_DEVICE_CONFIG_FILES === '1' ? 'Files' : 'Configuration'} ` +
+      `opened ${sameDocument ? 'in PJAX' : 'with a reload'}.`);
+    console.log(JSON.stringify({ event: 'device-config-nested', level,
+      state: await page.evaluate(() => ({ path: location.pathname,
+        text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 600),
+        nav: [...document.querySelectorAll('td[width="82%"] a.navMenuItem')]
+          .map(item => item.textContent.trim()),
+        links: [...document.querySelectorAll('td[width="82%"] a')]
+          .filter(item => item.getClientRects().length)
+          .map(item => ({ text: item.textContent.trim(), className: item.className,
+            html: item.outerHTML.slice(0, 230) })).slice(0, 20),
+        fields: [...document.querySelectorAll('td[width="82%"] form input')]
+          .filter(item => item.name && item.type !== 'hidden')
+          .map(item => ({ name: item.name, type: item.type, value: item.value })),
+        buttons: [...document.querySelectorAll('td[width="82%"] input[type="submit"]')]
+          .map(item => ({ name: item.name, value: item.value })) })) }));
+    if (process.env.BW_DEVICE_CONFIG_FILE_EDIT === '1') {
+      await page.locator('td[width="82%"] tr[id^="Row"] a.headerLink:text-is("Edit")')
+        .first().click();
+      await waitPath(page, `${base}Files/Modify/index.jsp`);
+      const sameEditDocument = await page.evaluate(() => document === window.__bwDeviceConfigDocument);
+      writeDeep(level === 'Group' ? 'discovered-674' : 'discovered-675',
+        sameEditDocument ? 'blocked' : 'failed',
+        `File Edit opened ${sameEditDocument ? 'in PJAX' : 'with a reload'} from Device Configuration Files. ` +
+        'Final upload/save needs a valid configuration fixture.');
+      console.log(JSON.stringify({ event: 'device-config-file-edit', level,
+        state: await page.evaluate(() => ({ path: location.pathname,
+          text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 1050),
+          fields: [...document.querySelectorAll('td[width="82%"] form input')]
+            .filter(item => item.name && item.type !== 'hidden')
+            .map(item => ({ name: item.name, type: item.type, value: item.value })) })) }));
+    }
+    return;
+  }
+  if (process.env.BW_CC_REPORT_LINKS === '1' && level === 'Group' &&
+      folder === 'Call Center' && label === 'Call Centers') {
+    await page.evaluate(() => { window.__bwCcReportDocument = document; });
+    for (const [id, childLabel, expected] of [
+      ['discovered-546', 'Report Templates', '/commpilot/Group/ReportTemplates/index.jsp'],
+      ['discovered-547', 'Report Branding', '/commpilot/Group/ReportBranding/index.jsp']
+    ]) {
+      await page.locator('td[width="82%"] a')
+        .filter({ hasText: new RegExp(`^${childLabel}$`) }).first().click();
+      await waitPath(page, expected);
+      const sameDocument = await page.evaluate(() => document === window.__bwCcReportDocument);
+      writeDeep(id, sameDocument ? 'passed' : 'failed',
+        `${childLabel} opened from Call Centers in ${sameDocument ? 'the same document' : 'a reload'} ` +
+        `at ${expected}; top-level ${childLabel} action is tracked separately.`);
+      console.log(JSON.stringify({ event: 'cc-report-link', id, childLabel, expected,
+        sameDocument }));
+      if (id === 'discovered-546') {
+        await page.locator('td[width="82%"] input[name="add"]:visible').first().click();
+        await waitPath(page, '/commpilot/Group/ReportTemplates/Add/index.jsp');
+        writeDeep('discovered-672', 'blocked',
+          'Call Centers Report Templates Add opened in PJAX; final multipart save needs a valid report style template file.');
+        await page.goBack({ waitUntil: 'commit' });
+        await waitPath(page, expected);
+      }
+      await page.goBack({ waitUntil: 'commit' });
+      await waitPath(page, entry.path);
+    }
+    return;
+  }
   if (process.env.BW_CC_SUPERVISORS_AGENTS === '1' &&
       level === 'Call Center' && folder === 'Profile' && label === 'Supervisors') {
     console.log(JSON.stringify({ event: 'supervisors-list-inspect',
@@ -2763,6 +3111,106 @@ async function probe(page, label) {
         `fresh readback ${sameValues ? 'matched' : 'differed'} at ${state.path}.`);
       if (passed) writeDeep('discovered-129', 'passed',
         'Group Music/Video on Hold row opened and Apply preserved settings in PJAX; fresh readback matched.');
+    }
+    return;
+  }
+  if ((process.env.BW_EXISTING_SERVICES_INSPECT === '1' ||
+      process.env.BW_EXISTING_SERVICES_DEEP === '1' ||
+      process.env.BW_EXISTING_SERVICES_ROW === '1' ||
+      process.env.BW_EXISTING_SERVICES_CHILDREN === '1') && level === 'Group' &&
+      folder === 'Resources' && label === 'Existing User Services') {
+    console.log(JSON.stringify({ event: 'existing-services-inspect',
+      state: await page.evaluate(() => ({ path: location.pathname,
+        links: [...document.querySelectorAll('td[width="82%"] a')]
+          .filter(item => item.getClientRects().length)
+          .map(item => ({ text: item.textContent.trim(), html: item.outerHTML.slice(0, 290),
+            parent: item.parentElement?.outerHTML.slice(0, 550) })).slice(0, 35),
+        buttons: [...document.querySelectorAll('td[width="82%"] input[type="button"]')]
+          .filter(item => item.getClientRects().length)
+          .map(item => ({ name: item.name, value: item.value })) })) }));
+    if (process.env.BW_EXISTING_SERVICES_DEEP === '1' ||
+        process.env.BW_EXISTING_SERVICES_ROW === '1' ||
+        process.env.BW_EXISTING_SERVICES_CHILDREN === '1') {
+      await page.evaluate(() => { window.__bwExistingServicesDocument = document; });
+      await page.locator('td[width="82%"] a.headerLink:text-is("View Users")').first().click();
+      await waitPath(page, '/commpilot/Group/ExistingUserServices/Nested/index.jsp');
+      const state = await page.evaluate(() => ({ path: location.pathname,
+        sameDocument: document === window.__bwExistingServicesDocument,
+        text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 800),
+        rows: [...document.querySelectorAll('td[width="82%"] tr[id^="Row"]')]
+          .slice(0, 8).map(item => ({ text: item.innerText.trim(),
+            html: item.outerHTML.slice(0, 600) })) }));
+      writeDeep('discovered-521', state.sameDocument ? 'passed' : 'failed',
+        `Existing User Services View Users opened Nested/index.jsp ` +
+        `${state.sameDocument ? 'in the same document' : 'with a reload'}.`);
+      console.log(JSON.stringify({ event: 'existing-services-nested-inspect', state }));
+      if (process.env.BW_EXISTING_SERVICES_ROW === '1' ||
+          process.env.BW_EXISTING_SERVICES_CHILDREN === '1') {
+        await page.evaluate(() => { window.__bwExistingUserDocument = document; });
+        await page.locator('td[width="82%"] a.tableLink:text-is("SMDonuts21")').first().click();
+        await waitPath(page, '/commpilot/Group/ExistingUserServices/User/index.jsp');
+        const userState = await page.evaluate(() => ({ path: location.pathname,
+          sameDocument: document === window.__bwExistingUserDocument,
+          text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 850),
+          links: [...document.querySelectorAll('td[width="82%"] a')]
+            .filter(item => item.getClientRects().length)
+            .map(item => ({ text: item.textContent.trim(), className: item.className }))
+            .slice(0, 30) }));
+        writeDeep('discovered-647', userState.sameDocument ? 'passed' : 'failed',
+          `SMDonuts21 opened through Existing User Services in the same document.`);
+        console.log(JSON.stringify({ event: 'existing-services-user-inspect', userState }));
+        if (process.env.BW_EXISTING_SERVICES_CHILDREN === '1') {
+          const children = [
+            ['discovered-648', 'Profile', '/commpilot/User/Profile/'],
+            ['discovered-649', 'Announcement Repository', '/commpilot/User/AnnouncementRepository/Audio/'],
+            ['discovered-650', 'Schedules', '/commpilot/User/Schedules/'],
+            ['discovered-651', 'Assign Services', '/commpilot/User/Services/'],
+            ['discovered-652', 'Assign Call Centers', '/commpilot/User/AssignCallCenters/'],
+            ['discovered-653', 'Assign Route Point Supervisors', '/commpilot/User/AgentSupervisors/'],
+            ['discovered-654', 'Assign Xsi Policy Profile', '/commpilot/User/AssignXsiPolicyProfile/']
+          ];
+          for (const [id, childLabel, expected] of children) {
+            await page.locator('td[width="82%"] a.navMenuItem')
+              .filter({ hasText: new RegExp(`^${childLabel}$`) }).first().click();
+            await waitPath(page, expected);
+            const child = await page.evaluate(() => ({ path: location.pathname,
+              sameDocument: document === window.__bwExistingUserDocument,
+              title: document.querySelector('td[width="82%"] h1')?.innerText,
+              text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 350) }));
+            writeDeep(id, child.sameDocument ? 'passed' : 'failed',
+              `${childLabel} opened from Existing User Services user detail ` +
+              `${child.sameDocument ? 'in the same document' : 'with a reload'} at ${child.path}.`);
+            console.log(JSON.stringify({ event: 'existing-services-child', id, child }));
+            await page.goBack({ waitUntil: 'commit' });
+            await waitPath(page, '/commpilot/Group/ExistingUserServices/User/index.jsp');
+          }
+          for (const [id, childLabel, expected] of [
+            ['discovered-655', 'Announcement Repository',
+              '/commpilot/User/AnnouncementRepository/Add/index.jsp'],
+            ['discovered-656', 'Schedules', '/commpilot/User/Schedules/Add/index.jsp']
+          ]) {
+            await page.locator('td[width="82%"] a.navMenuItem')
+              .filter({ hasText: new RegExp(`^${childLabel}$`) }).first().click();
+            await waitPath(page, childLabel === 'Schedules' ?
+              '/commpilot/User/Schedules/' : '/commpilot/User/AnnouncementRepository/Audio/');
+            const add = page.locator('td[width="82%"] input[value="Add"]:visible').first();
+            await add.click();
+            await waitPath(page, expected);
+            const child = await page.evaluate(() => ({ path: location.pathname,
+              sameDocument: document === window.__bwExistingUserDocument,
+              text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 350) }));
+            if (id === 'discovered-656') writeDeep(id,
+              child.sameDocument ? 'passed' : 'failed',
+              `Schedule Add opened from Existing User Services user detail ` +
+              `${child.sameDocument ? 'in the same document' : 'with a reload'} at ${child.path}; ` +
+              'same User Schedules Add endpoint was separately lifecycle-tested.');
+            console.log(JSON.stringify({ event: 'existing-services-child-add', id, child }));
+            await page.goBack({ waitUntil: 'commit' });
+            await page.goBack({ waitUntil: 'commit' });
+            await waitPath(page, '/commpilot/Group/ExistingUserServices/User/index.jsp');
+          }
+        }
+      }
     }
     return;
   }
@@ -3115,6 +3563,137 @@ async function probe(page, label) {
     else console.log(JSON.stringify({ event: 'read-only-needs-action', label,
       path: entry.path, sameDocument: state.sameDocument,
       actions: state.actions.slice(0, 12) }));
+    return;
+  }
+  if (process.env.BW_LIST_SEARCH_AUDIT === '1') {
+    if (process.env.BW_LOOKUP_NUMBER && label === 'BroadWorks Anywhere Number Lookup')
+      await page.locator('td[width="82%"] input[name="number"]')
+        .fill(process.env.BW_LOOKUP_NUMBER);
+    const before = await page.evaluate(() => ({
+      rowCount: document.querySelectorAll('td[width="82%"] tr[id^="Row"]').length }));
+    const search = page.locator('td[width="82%"] #search0, ' +
+      'td[width="82%"] input[name="search"]:visible, ' +
+      'td[width="82%"] input[name="find"]:visible, ' +
+      'td[width="82%"] a:text-is("Find All")').first();
+    if (!await search.count()) {
+      console.log(JSON.stringify({ event: 'list-search-skip', label, path: entry.path }));
+      return;
+    }
+    const responses = [];
+    const captureResponse = response => {
+      const url = new URL(response.url());
+      if (url.origin === 'https://apps-sbx.avpaas.io' &&
+          url.pathname.startsWith('/commpilot/') &&
+          ['document', 'fetch', 'xhr'].includes(response.request().resourceType()))
+        responses.push({ path: url.pathname, status: response.status(),
+          method: response.request().method() });
+    };
+    page.on('response', captureResponse);
+    await search.click({ noWaitAfter: true });
+    await page.waitForTimeout(650);
+    page.off('response', captureResponse);
+    const after = await page.evaluate(() => ({ path: location.pathname,
+      sameDocument: document === window.__bwReadOnlyDocument,
+      rowCount: document.querySelectorAll('td[width="82%"] tr[id^="Row"]').length,
+      text: document.querySelector('td[width="82%"]')?.innerText.slice(-180) }));
+    const passed = after.sameDocument &&
+      (after.path === entry.path || /^\/commpilot\/Common\/(?:findAll|find|search)\.jsp$/.test(after.path)) &&
+      (before.rowCount === 0 || after.rowCount > 0) &&
+      !/error|exception/i.test(after.text || '') &&
+      responses.some(item => item.status === 200);
+    if (passed) writeReadOnlyPage(label,
+      `List search ran in the same document from ${entry.path} to ${after.path}; ` +
+      `${after.rowCount} result rows remained visible.`);
+    console.log(JSON.stringify({ event: 'list-search-audit', label, passed,
+      before: before.rowCount, after, responses }));
+    return;
+  }
+  if (process.env.BW_ANNOUNCEMENT_LIFECYCLE === '1' &&
+      folder === 'Profile' && label === 'Announcement Repository') {
+    const name = `PJAX-Audit-${Date.now().toString(36)}`;
+    const listPath = '/commpilot/User/AnnouncementRepository/Audio/';
+    const addPath = '/commpilot/User/AnnouncementRepository/Add/index.jsp';
+    const pcm = Buffer.alloc(8000, 0xff);
+    const wav = Buffer.alloc(58 + pcm.length);
+    wav.write('RIFF', 0); wav.writeUInt32LE(wav.length - 8, 4);
+    wav.write('WAVEfmt ', 8); wav.writeUInt32LE(18, 16);
+    wav.writeUInt16LE(7, 20); wav.writeUInt16LE(1, 22);
+    wav.writeUInt32LE(8000, 24); wav.writeUInt32LE(8000, 28);
+    wav.writeUInt16LE(1, 32); wav.writeUInt16LE(8, 34);
+    wav.writeUInt16LE(0, 36);
+    wav.write('fact', 38); wav.writeUInt32LE(4, 42); wav.writeUInt32LE(8000, 46);
+    wav.write('data', 50); wav.writeUInt32LE(pcm.length, 54);
+    pcm.copy(wav, 58);
+    let created = false;
+    try {
+      await page.locator('td[width="82%"] input[value="Add"]:visible').first().click();
+      await waitPath(page, addPath);
+      await page.locator('td[width="82%"] input[name="announcementName"]').fill(name);
+      await page.locator('td[width="82%"] input[name="announcementFile"]')
+        .setInputFiles({ name: `${name}.wav`, mimeType: 'audio/wav', buffer: wav });
+      if (process.env.BW_ANNOUNCEMENT_NATIVE === '1') {
+        const nativeResponse = page.waitForResponse(item => item.request().method() === 'POST' &&
+          new URL(item.url()).pathname === '/commpilot/servlet/AnnouncementRepositoryServlet',
+        { timeout: 20000 }).catch(() => null);
+        await page.evaluate(() => {
+          const form = document.querySelector('td[width="82%"] form[name="mainForm"]');
+          const submitter = document.createElement('input');
+          submitter.type = 'hidden'; submitter.name = 'ok'; submitter.value = 'OK';
+          form.appendChild(submitter);
+          HTMLFormElement.prototype.submit.call(form);
+        });
+        const found = await nativeResponse;
+        await page.waitForTimeout(500);
+        console.log(JSON.stringify({ event: 'announcement-native', name,
+          status: found?.status() || null, path: new URL(page.url()).pathname,
+          text: (await page.locator('td[width="82%"]')
+            .first().innerText().catch(() => '')).slice(0, 550) }));
+        return;
+      }
+      await page.evaluate(() => { window.__bwAnnouncementDocument = document; });
+      const response = page.waitForResponse(item => item.request().method() === 'POST' &&
+        new URL(item.url()).pathname === '/commpilot/servlet/AnnouncementRepositoryServlet',
+      { timeout: 20000 }).catch(() => null);
+      await page.locator('td[width="82%"] input[name="ok"]:visible').first()
+        .click({ noWaitAfter: true });
+      const found = await response;
+      await page.waitForTimeout(500);
+      const state = await page.evaluate(() => ({ path: location.pathname,
+        sameDocument: document === window.__bwAnnouncementDocument,
+        text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 700) }));
+      console.log(JSON.stringify({ event: 'announcement-upload', name,
+        status: found?.status() || null, state }));
+      if (state.path === listPath) {
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Announcement Repository")').click();
+        await waitPath(page, listPath);
+        created = await page.locator('td[width="82%"] tr[id^="Row"]')
+          .filter({ hasText: name }).count() > 0;
+      }
+      writeDeep('discovered-619', found?.status() === 200 && state.sameDocument && created ?
+        'passed' : state.path === addPath && state.sameDocument ? 'blocked' : 'failed',
+      `Disposable WAV upload ${name}: HTTP ${found?.status() || 'none'}; ` +
+      `${state.sameDocument ? 'same document' : 'reload'}; ` +
+      `${created ? 'fresh list readback found file' : 'file absent; native form submit also returned to Add'}; ` +
+      `${state.text.slice(-160)}.`);
+    } finally {
+      if (created) {
+        const row = page.locator('td[width="82%"] tr[id^="Row"]')
+          .filter({ hasText: name });
+        await row.locator('input[type="checkbox"]').check();
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('td[width="82%"] input[name="apply"]:visible').first()
+          .click({ noWaitAfter: true });
+        await page.waitForTimeout(450);
+        await openFolder(page);
+        await page.locator('td[width="82%"] a.navMenuItem:text-is("Announcement Repository")').click();
+        await waitPath(page, listPath);
+        const absent = await page.locator('td[width="82%"] tr[id^="Row"]')
+          .filter({ hasText: name }).count() === 0;
+        writeDeep('lifecycle:user-announcement-delete', absent ? 'passed' : 'failed',
+          `Disposable announcement ${name} ${absent ? 'absent' : 'still present'} on fresh list.`);
+      }
+    }
     return;
   }
   if (process.env.BW_VON_FIND_LASTNAME && level === 'Group' &&
@@ -4208,9 +4787,26 @@ async function probe(page, label) {
       console.log(JSON.stringify({ event: 'add-inspect', label, status: 'no-add', path: entry.path }));
       return;
     }
-    await add.click();
-    await page.waitForFunction(value => location.pathname !== value &&
-      !!document.querySelector('td[width="82%"]'), entry.path, { timeout: 15000 });
+    const addResponses = [];
+    const onAddResponse = response => {
+      const url = new URL(response.url());
+      if (url.origin === 'https://apps-sbx.avpaas.io' && url.pathname.startsWith('/commpilot/') &&
+          ['fetch', 'xhr', 'document'].includes(response.request().resourceType()))
+        addResponses.push({ path: url.pathname, status: response.status(),
+          method: response.request().method() });
+    };
+    page.on('response', onAddResponse);
+    await add.click({ noWaitAfter: true });
+    const moved = await page.waitForFunction(value => location.pathname !== value &&
+      !!document.querySelector('td[width="82%"]'), entry.path, { timeout: 8000 })
+      .then(() => true, () => false);
+    page.off('response', onAddResponse);
+    if (!moved) {
+      console.log(JSON.stringify({ event: 'add-did-not-open', label,
+        path: new URL(page.url()).pathname, addResponses,
+        text: (await page.locator('td[width="82%"]').innerText()).slice(0, 650) }));
+      return;
+    }
     console.log(JSON.stringify({ event: 'add-inspect', label, ...await page.evaluate(() => ({
       path: location.pathname, title: document.title,
       text: document.querySelector('td[width="82%"]')?.innerText.slice(0, 1400),
@@ -4406,6 +5002,14 @@ async function probe(page, label) {
           process.env.BW_CALL_LOG_INSPECT === '1' ||
           process.env.BW_CALL_LOG_TABS === '1' ||
           process.env.BW_INTERCEPT_NOOP === '1' ||
+          process.env.BW_EXISTING_SERVICES_INSPECT === '1' ||
+          process.env.BW_EXISTING_SERVICES_DEEP === '1' ||
+          process.env.BW_EXISTING_SERVICES_ROW === '1' ||
+          process.env.BW_EXISTING_SERVICES_CHILDREN === '1' ||
+          process.env.BW_CC_REPORT_LINKS === '1' ||
+          process.env.BW_DEVICE_CONFIG_DEEP === '1' ||
+          process.env.BW_ROW_DRILL_INSPECT === '1' ||
+          process.env.BW_ANNOUNCEMENT_LIFECYCLE === '1' ||
           process.env.BW_POLYCOM_MODIFY_APPLY === '1' ||
           process.env.BW_VOICE_PORTAL_INSPECT === '1' ||
           process.env.BW_VOICE_PORTAL_DEEP === '1' ||

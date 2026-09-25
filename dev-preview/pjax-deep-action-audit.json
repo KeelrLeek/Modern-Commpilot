@@ -1,9 +1,9 @@
 {
   "title": "CommPilot deep PJAX action audit",
-  "updated": "2026-09-25T04:13:34.366Z",
+  "updated": "2026-09-25T05:00:55.197Z",
   "environment": "apps-sbx.avpaas.io · saved test account · headless Edge",
   "scope": "Sandbox route and interaction checks are tracked separately from final writes. A passed list interaction confirms navigation and Back; a write passes only after save and readback.",
-  "current": "lifecycle pinhole digit string delete",
+  "current": "BroadWorks Anywhere › View Available Portal List",
   "checks": [
     {
       "id": "reseller-groups",
@@ -25,15 +25,15 @@
       "id": "reseller-group-entry",
       "area": "Group drill-in",
       "label": "Group profile menu",
-      "path": "/commpilot/Reseller/Groups/Modify/index.jsp",
+      "path": "/commpilot/ServiceProvider/Members/Modify/index.jsp",
       "sourcePath": "",
       "kind": "menu",
       "family": "Import / file",
       "deep": false,
       "submitControls": 0,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Stan Mikita Donuts group profile opened from Service Provider Members in the same document.",
+      "checkedAt": "2026-09-25T05:00:53.772Z"
     },
     {
       "id": "group-users",
@@ -61,9 +61,9 @@
       "family": "Import / file",
       "deep": false,
       "submitControls": 0,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "SMDonuts21 user profile opened from Group Members in the same document.",
+      "checkedAt": "2026-09-25T05:00:54.627Z"
     },
     {
       "id": "user-addresses",
@@ -135,9 +135,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 0,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "The Codes Management page opened in PJAX; all controls are disabled in this sandbox.",
+      "checkedAt": "2026-09-25T04:37:43.072Z"
     },
     {
       "id": "codes-modify",
@@ -149,9 +149,9 @@
       "family": "Edit / save",
       "deep": false,
       "submitControls": 0,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "blocked",
+      "detail": "Codes Management controls are disabled in this sandbox, so Modify is unreachable here.",
+      "checkedAt": "2026-09-25T04:37:43.072Z"
     },
     {
       "id": "reseller-service-providers",
@@ -172,16 +172,16 @@
     {
       "id": "reseller-enterprises",
       "area": "Reseller / Profile",
-      "label": "Enterprises",
+      "label": "Service Providers",
       "path": "/commpilot/Reseller/ServiceProviders/index.jsp",
       "sourcePath": "",
       "kind": "menu",
       "family": "Other page action",
       "deep": false,
       "submitControls": 7,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Service Providers list search and row drill-in returned HTTP 200 in PJAX; this legacy audit row used the older Enterprises label.",
+      "checkedAt": "2026-09-25T04:37:43.072Z"
     },
     {
       "id": "reseller-users",
@@ -241,9 +241,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Reseller/Admins/ to /commpilot/Common/findAll.jsp; 7 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:36:18.258Z",
       "navigationCheckedAt": "2026-09-25T01:15:56.448Z",
       "navigationStatus": "pass"
     },
@@ -305,9 +305,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Reseller/CallRecordingPlatforms/ to /commpilot/Common/findAll.jsp; 1 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:20:26.351Z",
       "navigationCheckedAt": "2026-09-25T01:15:32.277Z",
       "navigationStatus": "pass"
     },
@@ -337,9 +337,9 @@
       "family": "Import / file",
       "deep": false,
       "submitControls": 7,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Reseller/DeviceType/ to /commpilot/Reseller/DeviceType/; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:20:28.115Z",
       "navigationCheckedAt": "2026-09-25T01:15:33.892Z",
       "navigationStatus": "pass"
     },
@@ -353,9 +353,9 @@
       "family": "Import / file",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Reseller/DeviceInventory/ to /commpilot/Reseller/DeviceInventory/; 15 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:20:29.199Z",
       "navigationCheckedAt": "2026-09-25T01:15:35.916Z",
       "navigationStatus": "pass"
     },
@@ -369,9 +369,9 @@
       "family": "Assignment / pick-list",
       "deep": false,
       "submitControls": 7,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Reseller/Domains/ to /commpilot/Reseller/Domains/; 5 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:20:30.092Z",
       "navigationCheckedAt": "2026-09-25T01:15:36.531Z",
       "navigationStatus": "pass"
     },
@@ -385,9 +385,9 @@
       "family": "Assignment / pick-list",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Reseller/DnManagement/ to /commpilot/Common/findAll.jsp; 20 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:20:31.022Z",
       "navigationCheckedAt": "2026-09-25T01:15:37.580Z",
       "navigationStatus": "pass"
     },
@@ -401,9 +401,9 @@
       "family": "Assignment / pick-list",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Reseller/DnSummary/ to /commpilot/Common/findAll.jsp; 3 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:20:31.967Z",
       "navigationCheckedAt": "2026-09-25T01:15:38.197Z",
       "navigationStatus": "pass"
     },
@@ -417,9 +417,9 @@
       "family": "Assignment / pick-list",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Reseller/NumberRanges/ to /commpilot/Common/findAll.jsp; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:20:32.908Z",
       "navigationCheckedAt": "2026-09-25T01:15:38.813Z",
       "navigationStatus": "pass"
     },
@@ -433,9 +433,9 @@
       "family": "Assignment / pick-list",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Reseller/NumberPrefixes/ to /commpilot/Common/findAll.jsp; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:20:33.850Z",
       "navigationCheckedAt": "2026-09-25T01:15:39.428Z",
       "navigationStatus": "pass"
     },
@@ -497,9 +497,9 @@
       "family": "Assignment / pick-list",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Reseller/MSDNManagement/ to /commpilot/Reseller/MSDNManagement/; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:20:37.555Z",
       "navigationCheckedAt": "2026-09-25T01:15:45.654Z",
       "navigationStatus": "pass"
     },
@@ -641,9 +641,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/ServiceProvider/Carriers/ to /commpilot/ServiceProvider/Carriers/; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:20:49.901Z",
       "navigationCheckedAt": "2026-09-25T01:14:39.686Z",
       "navigationStatus": "pass"
     },
@@ -689,9 +689,9 @@
       "family": "Import / file",
       "deep": false,
       "submitControls": 7,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/ServiceProvider/DeviceInventory/ to /commpilot/ServiceProvider/DeviceInventory/; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:20:54.056Z",
       "navigationCheckedAt": "2026-09-25T01:14:41.862Z",
       "navigationStatus": "pass"
     },
@@ -705,9 +705,9 @@
       "family": "Assignment / pick-list",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/ServiceProvider/Domains/ to /commpilot/ServiceProvider/Domains/; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:20:55.621Z",
       "navigationCheckedAt": "2026-09-25T01:14:42.953Z",
       "navigationStatus": "pass"
     },
@@ -785,9 +785,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/ServiceProvider/OfficeZones/ to /commpilot/ServiceProvider/OfficeZones/; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:21:03.166Z",
       "navigationCheckedAt": "2026-09-25T01:14:47.440Z",
       "navigationStatus": "pass"
     },
@@ -801,9 +801,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/ServiceProvider/RoutePointExternalSystems/ to /commpilot/ServiceProvider/RoutePointExternalSystems/; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:21:04.685Z",
       "navigationCheckedAt": "2026-09-25T01:14:48.329Z",
       "navigationStatus": "pass"
     },
@@ -833,9 +833,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/ServiceProvider/ServicePacks/ to /commpilot/ServiceProvider/ServicePacks/; 13 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:21:07.748Z",
       "navigationCheckedAt": "2026-09-25T01:14:50.332Z",
       "navigationStatus": "pass"
     },
@@ -881,9 +881,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/ServiceProvider/SystemDefinedCriteria/ to /commpilot/ServiceProvider/SystemDefinedCriteria/; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:21:11.326Z",
       "navigationCheckedAt": "2026-09-25T01:14:53.191Z",
       "navigationStatus": "pass"
     },
@@ -897,9 +897,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/ServiceProvider/SystemDefinedIncomingCriteria/ to /commpilot/ServiceProvider/SystemDefinedIncomingCriteria/; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:21:12.894Z",
       "navigationCheckedAt": "2026-09-25T01:14:53.764Z",
       "navigationStatus": "pass"
     },
@@ -1281,9 +1281,9 @@
       "family": "Assignment / pick-list",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/ServiceProvider/BWAnywhereNumberLookup/ to /commpilot/ServiceProvider/BWAnywhereNumberLookup/; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:34:13.069Z",
       "navigationCheckedAt": "2026-09-25T01:15:11.287Z",
       "navigationStatus": "pass"
     },
@@ -1409,9 +1409,9 @@
       "family": "Import / file",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/ServiceProvider/DefaultConfig/ to /commpilot/Common/findAll.jsp; 1 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:41:28.235Z",
       "navigationCheckedAt": "2026-09-25T01:15:15.819Z",
       "navigationStatus": "pass"
     },
@@ -1553,9 +1553,9 @@
       "family": "Assignment / pick-list",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Group/Domains/ to /commpilot/Group/Domains/; 1 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:21:43.010Z",
       "navigationCheckedAt": "2026-09-25T00:57:53.067Z",
       "navigationStatus": "pass"
     },
@@ -1601,9 +1601,9 @@
       "family": "Assignment / pick-list",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Group/NumberRangesUsage/index.jsp to /commpilot/Group/NumberRangesUsage/index.jsp; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:21:48.484Z",
       "navigationCheckedAt": "2026-09-25T00:58:01.560Z",
       "navigationStatus": "pass"
     },
@@ -1617,9 +1617,9 @@
       "family": "Assignment / pick-list",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Group/NumberPrefixesUsage/index.jsp to /commpilot/Group/NumberPrefixesUsage/index.jsp; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:21:50.404Z",
       "navigationCheckedAt": "2026-09-25T00:58:03.521Z",
       "navigationStatus": "pass"
     },
@@ -1633,9 +1633,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Office Zones list navigation and search passed; row editing and save/readback still need a sandbox fixture.",
-      "checkedAt": "2026-09-25T01:52:38.975Z",
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Group/OfficeZones/ to /commpilot/Group/OfficeZones/; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:21:52.252Z",
       "navigationCheckedAt": "2026-09-25T00:58:05.510Z",
       "navigationStatus": "pass"
     },
@@ -1649,9 +1649,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Group/RoutePointExternalSystems/ to /commpilot/Group/RoutePointExternalSystems/; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:21:54.092Z",
       "navigationCheckedAt": "2026-09-25T00:58:07.550Z",
       "navigationStatus": "pass"
     },
@@ -1889,9 +1889,9 @@
       "family": "Add / create",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Page navigation and current-values Apply verified. Apply returned HTTP 200 at /commpilot/Group/UserServices/; same document; editable values preserved; fresh readback matched.",
+      "checkedAt": "2026-09-25T04:35:39.309Z",
       "navigationCheckedAt": "2026-09-25T00:58:45.715Z",
       "navigationStatus": "pass"
     },
@@ -2625,9 +2625,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Group/ReportTemplates/ to /commpilot/Common/findAll.jsp; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:34:52.053Z",
       "navigationCheckedAt": "2026-09-25T01:01:17.989Z",
       "navigationStatus": "pass"
     },
@@ -2833,9 +2833,9 @@
       "family": "Assignment / pick-list",
       "deep": false,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Group/BWAnywhereNumberLookup/ to /commpilot/Group/BWAnywhereNumberLookup/; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:34:26.962Z",
       "navigationCheckedAt": "2026-09-25T01:01:53.448Z",
       "navigationStatus": "pass"
     },
@@ -2977,9 +2977,9 @@
       "family": "Import / file",
       "deep": false,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Group/DefaultConfig/ to /commpilot/Common/findAll.jsp; 1 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:41:18.848Z",
       "navigationCheckedAt": "2026-09-25T01:02:16.625Z",
       "navigationStatus": "pass"
     },
@@ -5041,9 +5041,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/ServiceProvider/Admins/ to /commpilot/Common/findAll.jsp; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:36:28.100Z",
       "navigationCheckedAt": "2026-09-25T01:15:22.762Z",
       "navigationStatus": "pass"
     },
@@ -5201,9 +5201,9 @@
       "family": "Other page action",
       "deep": false,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "List search ran in the same document from /commpilot/Group/Admins/ to /commpilot/Common/findAll.jsp; 0 result rows remained visible.",
+      "checkedAt": "2026-09-25T04:36:39.043Z",
       "navigationCheckedAt": "2026-09-25T01:02:37.293Z",
       "navigationStatus": "pass"
     },
@@ -7921,9 +7921,9 @@
       "family": "Assignment / pick-list",
       "deep": true,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Row detail opened in PJAX at /commpilot/Group/Domains/Nested/index.jsp; search HTTP 200.",
+      "checkedAt": "2026-09-25T04:44:25.567Z",
       "navigationCheckedAt": "2026-09-25T00:57:54.973Z",
       "navigationStatus": "pass"
     },
@@ -7937,9 +7937,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Row detail opened in PJAX at /commpilot/Group/XsiPolicyProfile/Usage/index.jsp; search HTTP 200.",
+      "checkedAt": "2026-09-25T04:44:48.064Z",
       "navigationCheckedAt": "2026-09-25T00:58:18.426Z",
       "navigationStatus": "pass"
     },
@@ -8065,9 +8065,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "TF_SBX_Polycom_VVX400 Configuration opened in PJAX.",
+      "checkedAt": "2026-09-25T04:42:05.204Z",
       "navigationCheckedAt": "2026-09-25T01:02:20.434Z",
       "navigationStatus": "pass"
     },
@@ -8081,9 +8081,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 0,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "TF_SBX_Polycom_VVX400 Files opened in PJAX.",
+      "checkedAt": "2026-09-25T04:43:08.373Z"
     },
     {
       "id": "discovered-507",
@@ -8111,9 +8111,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Row detail opened in PJAX at /commpilot/Reseller/XsiPolicyProfile/Usage/index.jsp; search HTTP 200.",
+      "checkedAt": "2026-09-25T04:45:01.057Z",
       "navigationCheckedAt": "2026-09-25T01:15:40.717Z",
       "navigationStatus": "pass"
     },
@@ -8127,9 +8127,9 @@
       "family": "Edit / save",
       "deep": true,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Tag set TF_BroadTouch_Tags current-values Apply HTTP 200; same document; fresh readback matched.",
+      "checkedAt": "2026-09-25T04:46:26.653Z",
       "navigationCheckedAt": "2026-09-25T01:15:44.827Z",
       "navigationStatus": "pass"
     },
@@ -8143,9 +8143,9 @@
       "family": "Edit / save",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "blocked",
+      "detail": "Testadmin3 Edit opened at /commpilot/Reseller/Admins/modify.jsp in the same document. Final OK requires a password reset, so the existing administrator was not changed.",
+      "checkedAt": "2026-09-25T04:58:21.032Z",
       "navigationCheckedAt": "2026-09-25T01:15:58.028Z",
       "navigationStatus": "pass"
     },
@@ -8159,9 +8159,9 @@
       "family": "Edit / save",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Service Pack 1.0 Basic Business Line (Sandbox) current-values OK HTTP 200; same document; fresh readback matched.",
+      "checkedAt": "2026-09-25T04:45:47.384Z",
       "navigationCheckedAt": "2026-09-25T01:14:51.260Z",
       "navigationStatus": "pass"
     },
@@ -8175,9 +8175,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 3,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Row detail opened in PJAX at /commpilot/ServiceProvider/XsiPolicyProfile/Usage/index.jsp; search HTTP 200.",
+      "checkedAt": "2026-09-25T04:45:12.113Z",
       "navigationCheckedAt": "2026-09-25T01:14:55.445Z",
       "navigationStatus": "pass"
     },
@@ -8191,9 +8191,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "TF_SBX_Polycom_VVX400 Configuration opened in PJAX.",
+      "checkedAt": "2026-09-25T04:43:17.939Z",
       "navigationCheckedAt": "2026-09-25T01:15:16.660Z",
       "navigationStatus": "pass"
     },
@@ -8207,9 +8207,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 0,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "TF_SBX_Polycom_VVX400 Files opened in PJAX.",
+      "checkedAt": "2026-09-25T04:43:25.328Z"
     },
     {
       "id": "discovered-515",
@@ -8315,9 +8315,9 @@
       "family": "Edit / save",
       "deep": true,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Existing User Services View Users opened Nested/index.jsp in the same document.",
+      "checkedAt": "2026-09-25T04:19:15.524Z",
       "navigationCheckedAt": "2026-09-25T00:58:48.619Z",
       "navigationStatus": "pass"
     },
@@ -8715,9 +8715,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Report Templates opened from Call Centers in the same document at /commpilot/Group/ReportTemplates/index.jsp; top-level Report Templates action is tracked separately.",
+      "checkedAt": "2026-09-25T04:39:48.009Z",
       "navigationCheckedAt": "2026-09-25T01:00:50.246Z",
       "navigationStatus": "pass"
     },
@@ -8731,9 +8731,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Report Branding opened from Call Centers in the same document at /commpilot/Group/ReportBranding/index.jsp; top-level Report Branding action is tracked separately.",
+      "checkedAt": "2026-09-25T04:39:48.677Z",
       "navigationCheckedAt": "2026-09-25T01:00:51.592Z",
       "navigationStatus": "pass"
     },
@@ -8795,9 +8795,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "blocked",
+      "detail": "Report Template Add opened in the same document. The final multipart save requires a valid report style template file; no sandbox fixture is available.",
+      "checkedAt": "2026-09-25T04:38:45.911Z",
       "navigationCheckedAt": "2026-09-25T01:01:18.649Z",
       "navigationStatus": "pass"
     },
@@ -8816,20 +8816,6 @@
       "checkedAt": "2026-09-25T02:11:25.038Z"
     },
     {
-      "id": "discovered-553",
-      "area": "Group / Call Center",
-      "label": "Scheduled Reports › Add",
-      "path": "/commpilot/Group/Add/index.jsp",
-      "sourcePath": "/commpilot/Group/CCScheduledReports/",
-      "kind": "duplicate",
-      "family": "Add / create",
-      "deep": false,
-      "submitControls": 0,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
-    },
-    {
       "id": "discovered-554",
       "area": "Group / Call Center",
       "label": "Scheduled Reports › Add",
@@ -8839,9 +8825,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 5,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "blocked",
+      "detail": "Scheduled Report Add opened in PJAX. A completed save would schedule report email delivery; a sandbox recipient and non-delivery test fixture are needed before creating one.",
+      "checkedAt": "2026-09-25T04:40:13.518Z",
       "navigationCheckedAt": "2026-09-25T01:01:22.220Z",
       "navigationStatus": "pass"
     },
@@ -9777,9 +9763,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 2,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "passed",
+      "detail": "Row detail opened in PJAX at /commpilot/User/BroadWorksAnywhere/PortalList/; page action opened.",
+      "checkedAt": "2026-09-25T05:00:55.197Z",
       "navigationCheckedAt": "2026-09-25T01:06:26.107Z",
       "navigationStatus": "pass"
     },
@@ -9873,9 +9859,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null,
+      "status": "blocked",
+      "detail": "Disposable 8 kHz PCM and G.711 u-law WAV uploads both returned to Add without saving. A native form submission with PJAX bypassed returned the same server response. A known-good CommPilot announcement file is needed to verify successful upload and deletion.",
+      "checkedAt": "2026-09-25T04:32:22.265Z",
       "navigationCheckedAt": "2026-09-25T01:08:39.151Z",
       "navigationStatus": "pass"
     },
@@ -10309,9 +10295,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 0,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "SMDonuts21 opened through Existing User Services in the same document.",
+      "checkedAt": "2026-09-25T04:19:15.863Z"
     },
     {
       "id": "discovered-648",
@@ -10323,9 +10309,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Profile opened from Existing User Services user detail in the same document at /commpilot/User/Profile/.",
+      "checkedAt": "2026-09-25T04:19:16.243Z"
     },
     {
       "id": "discovered-649",
@@ -10337,9 +10323,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 9,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Announcement Repository opened from Existing User Services user detail in the same document at /commpilot/User/AnnouncementRepository/Audio/.",
+      "checkedAt": "2026-09-25T04:19:16.758Z"
     },
     {
       "id": "discovered-650",
@@ -10351,9 +10337,9 @@
       "family": "Other page action",
       "deep": true,
       "submitControls": 8,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Schedules opened from Existing User Services user detail in the same document at /commpilot/User/Schedules/.",
+      "checkedAt": "2026-09-25T04:19:17.276Z"
     },
     {
       "id": "discovered-651",
@@ -10365,9 +10351,9 @@
       "family": "Assignment / pick-list",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Assign Services opened from Existing User Services user detail in the same document at /commpilot/User/Services/.",
+      "checkedAt": "2026-09-25T04:19:17.831Z"
     },
     {
       "id": "discovered-652",
@@ -10379,9 +10365,9 @@
       "family": "Assignment / pick-list",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Assign Call Centers opened from Existing User Services user detail in the same document at /commpilot/User/AssignCallCenters/.",
+      "checkedAt": "2026-09-25T04:19:18.390Z"
     },
     {
       "id": "discovered-653",
@@ -10393,9 +10379,9 @@
       "family": "Assignment / pick-list",
       "deep": true,
       "submitControls": 7,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Assign Route Point Supervisors opened from Existing User Services user detail in the same document at /commpilot/User/AgentSupervisors/.",
+      "checkedAt": "2026-09-25T04:19:18.923Z"
     },
     {
       "id": "discovered-654",
@@ -10407,9 +10393,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Assign Xsi Policy Profile opened from Existing User Services user detail in the same document at /commpilot/User/AssignXsiPolicyProfile/.",
+      "checkedAt": "2026-09-25T04:19:19.453Z"
     },
     {
       "id": "discovered-655",
@@ -10435,9 +10421,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Schedule Add opened from Existing User Services user detail in the same document at /commpilot/User/Schedules/Add/index.jsp; same User Schedules Add endpoint was separately lifecycle-tested.",
+      "checkedAt": "2026-09-25T04:19:21.409Z"
     },
     {
       "id": "discovered-657",
@@ -10659,9 +10645,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "blocked",
+      "detail": "Call Centers Report Templates Add opened in PJAX; final multipart save needs a valid report style template file.",
+      "checkedAt": "2026-09-25T04:39:48.198Z"
     },
     {
       "id": "discovered-673",
@@ -10687,9 +10673,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "blocked",
+      "detail": "File Edit opened in PJAX from Device Configuration Files. Final upload/save needs a valid configuration fixture.",
+      "checkedAt": "2026-09-25T04:43:09.065Z"
     },
     {
       "id": "discovered-675",
@@ -10701,9 +10687,9 @@
       "family": "Import / file",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "blocked",
+      "detail": "File Edit opened in PJAX from Device Configuration Files. Final upload/save needs a valid configuration fixture.",
+      "checkedAt": "2026-09-25T04:43:25.513Z"
     },
     {
       "id": "discovered-676",
@@ -10771,9 +10757,9 @@
       "family": "Edit / save",
       "deep": true,
       "submitControls": 6,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Existing tag current-values OK HTTP 200; same document; fresh readback matched.",
+      "checkedAt": "2026-09-25T04:47:13.026Z"
     },
     {
       "id": "discovered-681",
@@ -10785,9 +10771,9 @@
       "family": "Add / create",
       "deep": true,
       "submitControls": 4,
-      "status": "pending",
-      "detail": "Deep action check not started.",
-      "checkedAt": null
+      "status": "passed",
+      "detail": "Disposable tag PJAX_AUDIT_MUGHLOP3 created; deleted and absent on fresh readback.",
+      "checkedAt": "2026-09-25T04:55:06.641Z"
     },
     {
       "id": "discovered-682",
@@ -16916,20 +16902,6 @@
       "checkedAt": "2026-09-24T23:30:04.170Z"
     },
     {
-      "id": "apply:discovered-31",
-      "area": "Reseller / Resources",
-      "label": "Device Management Tag Sets › Apply current values",
-      "path": "/commpilot/Reseller/DeviceTags/",
-      "sourcePath": "/commpilot/Reseller/DeviceTags/",
-      "kind": "interaction",
-      "family": "Edit / save",
-      "deep": true,
-      "submitControls": 1,
-      "status": "passed",
-      "detail": "Apply returned HTTP 200 at /commpilot/Reseller/DeviceTags/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:30:04.656Z"
-    },
-    {
       "id": "apply:discovered-33",
       "area": "Reseller / Services",
       "label": "Call Notify › Apply current values",
@@ -17054,20 +17026,6 @@
       "status": "passed",
       "detail": "Apply returned HTTP 200 at /commpilot/User/Addresses/; same document; editable values preserved; fresh readback matched.",
       "checkedAt": "2026-09-24T23:30:59.429Z"
-    },
-    {
-      "id": "apply:discovered-340",
-      "area": "User / Profile",
-      "label": "Announcement Repository › Apply current values",
-      "path": "/commpilot/User/AnnouncementRepository/Audio/",
-      "sourcePath": "/commpilot/User/AnnouncementRepository/Audio/",
-      "kind": "interaction",
-      "family": "Edit / save",
-      "deep": true,
-      "submitControls": 1,
-      "status": "passed",
-      "detail": "Apply returned HTTP 200 at /commpilot/User/AnnouncementRepository/Audio/; same document; editable values preserved; fresh readback matched.",
-      "checkedAt": "2026-09-24T23:31:02.452Z"
     },
     {
       "id": "apply:discovered-342",
@@ -21134,9 +21092,23 @@
       "status": "passed",
       "detail": "Basement Music/Video on Hold override is absent on fresh list.",
       "checkedAt": "2026-09-25T04:00:01.237Z"
+    },
+    {
+      "id": "apply:discovered-119",
+      "area": "Group / Resources",
+      "label": "New User Services Template › Apply current values",
+      "path": "/commpilot/Group/UserServices/",
+      "sourcePath": "/commpilot/Group/UserServices/",
+      "kind": "interaction",
+      "family": "Edit / save",
+      "deep": true,
+      "submitControls": 1,
+      "status": "passed",
+      "detail": "Apply returned HTTP 200 at /commpilot/Group/UserServices/; same document; editable values preserved; fresh readback matched.",
+      "checkedAt": "2026-09-25T04:35:39.309Z"
     }
   ],
   "incidents": [],
   "notes": [],
-  "currentNote": "Disposable Pinhole Digit Strings is absent after Delete."
+  "currentNote": "Row detail opened in PJAX at /commpilot/User/BroadWorksAnywhere/PortalList/; page action opened."
 }

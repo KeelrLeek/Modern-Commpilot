@@ -1577,6 +1577,64 @@ test('activation Modify OK returns to the list URL after the server renders sear
   } finally { await browser.close(); }
 });
 
+test('Tag Set Add and filtered Apply keep their owning controller in PJAX', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const parent = '/commpilot/Operator/System/DeviceTags/Modify/TagSet/index.jsp';
+    const add = '/commpilot/Operator/System/DeviceTags/Modify/TagSet/Add/index.jsp';
+    const find = '/commpilot/Common/find.jsp';
+    const posts = [];
+    const shell = (title, body) => `<!doctype html><html><head><title>${title}</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">Reseller</span></td></tr></table>
+      <form name="leftNavForm"></form><input name="formtokenserial" value="token">
+      <table><tr><td width="82%">${body}</td></tr></table>
+      <script>window.redirectPost=function(){};</script></body></html>`;
+    const parentBody = shell('Device Management Tag Sets Modify',
+      '<h1>Device Management Tag Sets Modify</h1>' +
+      '<form name="mainForm" method="post"><input name="newTagSetName" value="Audit Set">' +
+      '<input name="checkbox_%PJAX_AUDIT%" type="checkbox">' +
+      '<input name="findValue"><input name="apply" type="submit" value="Apply"></form>');
+    const addBody = shell('Device Management Tag Sets Add Tag',
+      '<h1>Device Management Tag Sets Add Tag</h1><form name="mainForm" method="post">' +
+      '<input name="tagName"><input name="tagValue">' +
+      '<input name="ok" type="submit" value="OK"></form>');
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (request.method() === 'POST') posts.push({ pathname, body: request.postData() || '' });
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: pathname === add && !(request.postData() || '').includes('ok=OK') ?
+          addBody : parentBody });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + parent, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    await page.evaluate(pathname => window.redirectPost(pathname, {}), add);
+    await page.getByRole('heading', { name: 'Device Management Tag Sets Add Tag' }).waitFor();
+    await page.locator('input[name="tagName"]').fill('PJAX_AUDIT');
+    await page.locator('input[name="tagValue"]').fill('AUDIT_ONLY');
+    await page.locator('input[name="ok"]').click();
+    await page.getByRole('heading', { name: 'Device Management Tag Sets Modify' }).waitFor();
+    assert.equal(await page.evaluate(() => location.pathname), parent);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+    assert.ok(posts.some(post => post.pathname === add &&
+      post.body.includes('tagName=PJAX_AUDIT') && post.body.includes('ok=OK')));
+
+    await page.evaluate(pathname => window.redirectPost(pathname, {}), find);
+    await page.waitForFunction(pathname => location.pathname === pathname, find);
+    await page.locator('input[name="checkbox_%PJAX_AUDIT%"]').check();
+    await page.locator('input[name="apply"]').click();
+    await page.waitForFunction(pathname => location.pathname === pathname, parent);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+    assert.ok(posts.some(post => post.pathname === parent &&
+      post.body.includes('checkbox_%25PJAX_AUDIT%25=on') && post.body.includes('apply=Apply')));
+  } finally {
+    await browser.close();
+  }
+});
+
 test('Back from a Group child restores User context before replaying Addresses', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });
