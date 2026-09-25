@@ -10,39 +10,58 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console {
   display:flex;
   flex:1 1 auto;
   flex-direction:column;
-  gap:20px;
+  gap:28px;
   min-height:0;
   width:100%;
   overflow-y:auto;
   overscroll-behavior:contain;
-  padding:24px 24px 36px;
+  padding:20px 24px 36px;
   scrollbar-gutter:stable;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-section {
   flex:0 0 auto;
   min-width:0;
-  border:1px solid var(--d-line);
-  border-radius:16px;
-  background:var(--d-surface);
-  box-shadow:var(--d-shadow);
-  overflow:clip;
+  border:0;
+  border-bottom:1px solid var(--d-line);
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  overflow:visible;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head {
   position:sticky;
-  top:-24px;
+  top:-20px;
   z-index:2;
   display:flex;
   align-items:center;
-  min-height:52px;
+  min-height:54px;
   box-sizing:border-box;
-  padding:12px 20px;
+  padding:11px 2px 12px;
   border-bottom:1px solid var(--d-line);
-  background:var(--d-raised);
+  background:var(--d-main);
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head::after {
+  content:"";
+  position:absolute;
+  left:0;
+  bottom:-1px;
+  width:40px;
+  height:2px;
+  border-radius:2px;
+  background:var(--d-accent);
+  transition:width .35s ease;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-section.cp-line-active .cp-console-head::after {
+  width:124px;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-section.cp-line-past .cp-console-head::after {
+  width:24px;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head-inner {
   display:flex;
   align-items:center;
   gap:11px;
+  width:100%;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head-ico {
   display:inline-block;
@@ -54,8 +73,8 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head-ico {
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head-name {
   color:var(--d-text);
-  font:690 18px/1.25 "Geist", "Inter", sans-serif;
-  letter-spacing:-.025em;
+  font:690 19px/1.25 "Geist", "Inter", sans-serif;
+  letter-spacing:-.03em;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-count {
   display:inline-flex;
@@ -70,11 +89,15 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-count {
   background:var(--d-surface);
   color:var(--d-muted);
   font:650 11px/1 "Inter", sans-serif;
+  margin-left:1px;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-count[hidden] { display:none; }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body {
   min-width:0;
-  padding:20px;
+  padding:18px 0 12px;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-section:last-child .cp-console-body {
+  padding-bottom:26px;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body .screenName,
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body > script { display:none !important; }
@@ -116,7 +139,9 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-error butto
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-tail { flex:0 0 auto; }
 @media(max-width:1100px){
-  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console { padding:14px 12px 26px; gap:12px; }
-  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body { padding:12px; }
-  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head { padding:10px 12px; }
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console { padding:14px 12px 26px; gap:18px; }
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head { top:-14px; padding:10px 2px 11px; }
+}
+@media(prefers-reduced-motion:reduce){
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head::after { transition:none; }
 }

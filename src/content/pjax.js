@@ -6198,6 +6198,18 @@
       var cons = document.querySelector(".cp-console");
       if (!cons) return;
       var consTop = cons.getBoundingClientRect().top;
+      // The selected Line header follows the same content scroll as the sidebar.
+      // Keep this independent of cpScrollSpy's temporary click suppression so its
+      // accent can finish moving while a smooth folder jump is in flight.
+      var sections = cons.querySelectorAll(".cp-console-section");
+      var lineActive = 0;
+      for (var si = 0; si < sections.length; si++) {
+        if (sections[si].getBoundingClientRect().top - consTop < 130) lineActive = si;
+      }
+      sections.forEach(function (sec, si) {
+        sec.classList.toggle("cp-line-active", si === lineActive);
+        sec.classList.toggle("cp-line-past", si < lineActive);
+      });
       cons.querySelectorAll(".cp-console-head").forEach(function (head) {
         var inner = head.querySelector(".cp-console-head-inner");
         if (!inner) return;
@@ -6408,6 +6420,7 @@
           cpPopScroll = null;
           cpScrollSpy();
         }
+        cpHeadFade();
         return;
       }
       var sec = secs[order[i]];
