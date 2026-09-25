@@ -213,6 +213,90 @@ test('Shared Call Appearance Add returns to its list URL after a successful save
   } finally { await browser.close(); }
 });
 
+test('service Add and Modify Delete return to their Group list URLs', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    for (const service of ['Auto_Attendant', 'Hunt_Group', 'Call_Center', 'Voice_XML']) {
+      const page = await browser.newPage();
+      const basePath = `/commpilot/Group/${service}/`;
+      const listPath = service === 'Voice_XML' ? `${basePath}index.jsp` : basePath;
+      const formPath = service === 'Call_Center' ? `${basePath}AddModify/index.jsp` :
+        `${basePath}Add/index.jsp`;
+      const modifyPath = service === 'Call_Center' ? formPath : `${basePath}Modify/index.jsp`;
+      const addName = ['Hunt_Group', 'Voice_XML'].includes(service) ? 'add' : 'addBasic';
+      const shell = content => `<!doctype html><html><head><title>${service}</title></head><body>
+        <form name="leftNavForm"></form><input name="formtokenserial" value="token">
+        <table><tr><td width="82%">${content}</td></tr></table>
+        <script>window.redirectPost=function(){};</script></body></html>`;
+      const list = shell(`<h1>Service list</h1><input type="button" name="${addName}" value="Add">`);
+      const form = shell('<h1>Service form</h1><form name="mainForm" method="post">' +
+        '<input name="unicodeLastName" value="Audit"><input type="submit" name="ok" value="OK">' +
+        '<input type="submit" name="delete" value="Delete"></form>');
+      await page.route('https://apps-sbx.avpaas.io/**', route => {
+        const request = route.request();
+        const pathname = new URL(request.url()).pathname;
+        const submitted = request.method() === 'POST' &&
+          /(?:^|&)(?:ok|delete)=/.test(request.postData() || '');
+        return route.fulfill({ status: 200, contentType: 'text/html',
+          body: pathname === listPath || submitted ? list : form });
+      });
+      await page.goto(`https://apps-sbx.avpaas.io${listPath}`, { waitUntil: 'domcontentloaded' });
+      await page.addScriptTag({ path: pjaxPath });
+      await page.evaluate(() => { window.initialDocument = document; });
+      await page.evaluate(pathname => window.redirectPost(pathname, {}), formPath);
+      await page.getByRole('heading', { name: 'Service form' }).waitFor();
+      await page.locator('input[name="ok"]').click();
+      await page.getByRole('heading', { name: 'Service list' }).waitFor();
+      assert.equal(await page.evaluate(() => location.pathname), listPath, `${service} Add`);
+      await page.evaluate(pathname => window.redirectPost(pathname, {}), modifyPath);
+      await page.getByRole('heading', { name: 'Service form' }).waitFor();
+      await page.locator('input[name="delete"]').click();
+      await page.getByRole('heading', { name: 'Service list' }).waitFor();
+      assert.equal(await page.evaluate(() => location.pathname), listPath, `${service} Delete`);
+      assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+      await page.close();
+    }
+  } finally { await browser.close(); }
+});
+
+test('a list value opens its row detail even when its legacy click listener is missing', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const listPath = '/commpilot/Group/CPU/';
+    const modifyPath = '/commpilot/Group/CPU/Modify/index.jsp';
+    const shell = body => `<!doctype html><html><head><title>Call Pickup</title></head><body>
+      <input name="formtokenserial" value="token"><table><tr><td width="82%">${body}</td></tr></table>
+      <script>window.redirectPost=function(){};</script></body></html>`;
+    const list = shell('<h1>Call Pickup</h1><table><tr id="Row1"><td>' +
+      '<a id="Row1Col0" class="tableLink">Audit group</a>' +
+      '<script>document.addEventListener("DOMContentLoaded", function () {' +
+      'document.getElementById("Row1Col0").addEventListener("click", function () {' +
+      `redirectPost('${modifyPath}', { key: 'Audit group', P_key: 'Audit group' });` +
+      '});});</script></td></tr></table>');
+    const seen = [];
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (request.method() === 'POST') seen.push({ pathname,
+        params: new URLSearchParams(request.postData() || '') });
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: pathname === modifyPath ? shell('<h1>Call Pickup Modify</h1>') : list });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${listPath}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    await page.locator('#Row1Col0').click();
+    await page.getByRole('heading', { name: 'Call Pickup Modify' }).waitFor();
+    assert.equal(await page.evaluate(() => location.pathname), modifyPath);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0].params.get('key'), 'Audit group');
+  } finally { await browser.close(); }
+});
+
 test('Answer Confirmation saves a multipart form with no selected file in-shell', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });
@@ -254,6 +338,340 @@ test('Answer Confirmation saves a multipart form with no selected file in-shell'
     assert.equal(await page.evaluate(() => location.pathname), pathname);
     assert.equal(await page.evaluate(() => document === window.originalDocument), true);
     assert.equal(servletPosts, 1);
+  } finally { await browser.close(); }
+});
+
+test('Audio, Auto Attendant, and Call Center multipart Apply stays in-shell', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    for (const scenario of [
+      { path: '/commpilot/Group/PreAlertingAnnouncement/', servlet: 'PreAlertingAnnouncementGroupServlet' },
+      { path: '/commpilot/User/PreAlertingAnnouncement/', servlet: 'PreAlertingAnnouncementUserServlet' },
+      { path: '/commpilot/Group/CustomRingback/', servlet: 'CustomRingbackGroupServlet' },
+      { path: '/commpilot/Group/VPBranding/', servlet: 'VPBrandingServlet' },
+      { path: '/commpilot/Group/Auto_Attendant/MenuBusinessHours/index.jsp', servlet: 'AASubscriptionServlet' },
+      { path: '/commpilot/Group/Call_Center/RoutingPolicies/Overflow/', servlet: 'CallCenterOverflowRoutingPolicyServlet' },
+      { path: '/commpilot/Group/Call_Center/RoutingPolicies/Stranded/', servlet: 'CallCenterStrandedCallsRoutingPolicyServlet' },
+      { path: '/commpilot/Group/Call_Center/RoutingPolicies/StrandedUnavailable/', servlet: 'CallCenterStrandedCallsUnavailableRoutingPolicyServlet' }
+    ]) {
+      const page = await browser.newPage();
+      const servlet = `/commpilot/servlet/${scenario.servlet}`;
+      const shell = token => `<!doctype html><html><head><title>Group audio settings</title></head><body>
+        <form name="leftNavForm"><a class="leftnavfolder">Services</a></form>
+        <input name="formtokenserial" value="${token}"><table><tr><td width="82%">
+        <form name="mainForm" action="${servlet}" method="post" enctype="multipart/form-data">
+        <input type="hidden" name="formtokenserial" value="${token}">
+        <input type="radio" name="audioSelection" value="system" checked>
+        <input type="submit" name="apply" value="Apply"></form>
+        <div id="saved">${token === 'token-3' ? 'Saved' : ''}</div></td></tr></table>
+        <script>window.redirectPost=function(){};</script></body></html>`;
+      let servletPosts = 0;
+      await page.route('https://apps-sbx.avpaas.io/**', route => {
+        const request = route.request();
+        const pathname = new URL(request.url()).pathname;
+        if (pathname === servlet && request.method() === 'POST') {
+          servletPosts++;
+          assert.match(request.headers()['content-type'], /^multipart\/form-data; boundary=/);
+          assert.ok(request.postDataBuffer().includes(Buffer.from('name="apply"')));
+          return route.fulfill({ status: 200, contentType: 'text/html',
+            body: `<html><body><input name="formtokenserial" value="token-2"><script>` +
+              `redirectPost('${scenario.path}', {});</script></body></html>` });
+        }
+        return route.fulfill({ status: 200, contentType: 'text/html',
+          body: shell(request.method() === 'POST' ? 'token-3' : 'token-1') });
+      });
+      await page.goto(`https://apps-sbx.avpaas.io${scenario.path}`, { waitUntil: 'domcontentloaded' });
+      await page.addScriptTag({ path: pjaxPath });
+      await page.evaluate(() => { window.originalDocument = document; });
+      await page.locator('input[name="apply"]').click();
+      await page.locator('#saved:text-is("Saved")').waitFor();
+      assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+      assert.equal(servletPosts, 1);
+      await page.close();
+    }
+  } finally { await browser.close(); }
+});
+
+test('ordinary form Apply preserves repeated hidden fields and token order', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const pathname = '/commpilot/Group/Call_Center/RoutingPriority/';
+    const shell = token => `<!doctype html><html><head><title>Routing Priority</title></head><body>
+      <form name="leftNavForm"><a class="leftnavfolder">Call Center</a></form>
+      <input name="formtokenserial" value="${token}"><table><tr><td width="82%">
+      <form name="mainForm" method="post">
+      <input type="hidden" name="formtokenserial" value="${token}">
+      <input type="hidden" name="buttonClicked" value="">
+      <input type="submit" name="apply" value="Apply">
+      <input type="hidden" name="numRows" value="1">
+      <input type="hidden" name="priorityValues" value="">
+      <input type="radio" name="policy" value="priority" checked>
+      <input type="text" name="ccPriority0" value="1">
+      <input type="hidden" name="buttonClicked" value="">
+      </form><div id="saved">${token === 'token-2' ? 'Saved' : ''}</div>
+      </td></tr></table><script>window.redirectPost=function(){};</script></body></html>`;
+    let postCount = 0;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      if (request.method() === 'POST') {
+        postCount++;
+        const fields = new URLSearchParams(request.postData() || '');
+        assert.deepEqual([...fields.keys()], ['formtokenserial', 'buttonClicked', 'apply',
+          'numRows', 'priorityValues', 'policy', 'ccPriority0', 'buttonClicked']);
+        assert.deepEqual(fields.getAll('buttonClicked'), ['', '']);
+        return route.fulfill({ status: 200, contentType: 'text/html', body: shell('token-2') });
+      }
+      return route.fulfill({ status: 200, contentType: 'text/html', body: shell('token-1') });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${pathname}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.originalDocument = document; });
+    await page.locator('input[name="apply"]').click();
+    await page.locator('#saved:text-is("Saved")').waitFor();
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.equal(postCount, 1);
+  } finally { await browser.close(); }
+});
+
+test('Music on Hold tab submits its multipart servlet in-shell and Back restores General', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const general = '/commpilot/User/MOHUser/';
+    const internal = '/commpilot/User/MOHUser/Internal/index.jsp';
+    const servlet = '/commpilot/servlet/MusicOnHoldUserServlet';
+    const shell = (active, token) => `<!doctype html><html><head><title>Music/Video On Hold</title></head><body>
+      <form name="leftNavForm"><a class="leftnavfolder">Call Control</a></form>
+      <input name="formtokenserial" value="${token}"><table><tr><td width="82%">
+      <div id="view">${active === 'internal' ? 'Internal Calls Settings' : 'General Settings'}</div>
+      <form name="mainForm" action="${servlet}" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="formtokenserial" value="${token}">
+      <input type="hidden" name="tabPage" value="${active}">
+      <a class="tab${active === 'internal' ? 'Active' : ''}" id="internal-tab" href="#">Internal Calls Settings</a>
+      </form></td></tr></table><script>window.redirectPost=function(){};</script></body></html>`;
+    let servletPosts = 0;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (path === servlet && request.method() === 'POST') {
+        servletPosts++;
+        assert.match(request.headers()['content-type'], /^multipart\/form-data; boundary=/);
+        assert.ok(request.postDataBuffer().includes(Buffer.from('name="tabPage"')));
+        return route.fulfill({ status: 200, contentType: 'text/html',
+          body: `<html><body><input name="formtokenserial" value="token-2"><script>` +
+            `redirectPost('${internal}', {});</script></body></html>` });
+      }
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: shell(path === internal ? 'internal' : 'general', request.method() === 'POST' ? 'token-3' : 'token-1') });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${general}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.originalDocument = document;
+      document.querySelector('form[name="mainForm"] [name="tabPage"]').value = 'internal';
+      document.querySelector('form[name="mainForm"]').submit(); });
+    await page.locator('#view:text-is("Internal Calls Settings")').waitFor();
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.equal(await page.evaluate(() => location.pathname), internal);
+    assert.equal(servletPosts, 1);
+    await page.goBack({ waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(path => location.pathname === path &&
+      document.querySelector('#view')?.textContent === 'General Settings', general);
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.equal(servletPosts, 1);
+  } finally { await browser.close(); }
+});
+
+test('Call Center Announcements short tab ID posts its servlet in-shell', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const entrance = '/commpilot/User/Announcements/Entrance/';
+    const estimated = '/commpilot/User/Announcements/EstimatedWait/index.jsp';
+    const servlet = '/commpilot/servlet/CallCenterAnnouncementsEntranceServlet';
+    const shell = (isEstimated, token) => `<!doctype html><html><head><title>Announcements</title></head><body>
+      <form name="leftNavForm"><a class="leftnavfolder">Profile</a></form>
+      <input name="formtokenserial" value="${token}"><table><tr><td width="82%">
+      <div class="tabActive">${isEstimated ? 'Estimated Wait Message' : 'Entrance Message'}</div>
+      <form name="mainForm" action="${servlet}" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="formtokenserial" value="${token}">
+      <input type="hidden" name="tabPage" value="">
+      ${isEstimated ? '' : '<a class="tab" id="estimated-tab">Estimated Wait Message</a>'}
+      </form></td></tr></table>
+      <script>document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('estimated-tab')?.addEventListener('click', function () { TabSubmit('estimatedwait'); });
+      }); window.redirectPost=function(){};</script></body></html>`;
+    let servletPosts = 0;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (path === servlet && request.method() === 'POST') {
+        servletPosts++;
+        assert.match(request.headers()['content-type'], /^multipart\/form-data; boundary=/);
+        assert.ok(request.postDataBuffer().includes(Buffer.from('name="tabPage"')));
+        assert.ok(request.postDataBuffer().includes(Buffer.from('estimatedwait')));
+        return route.fulfill({ status: 200, contentType: 'text/html',
+          body: `<html><body><input name="formtokenserial" value="token-2"><script>` +
+            `redirectPost('${estimated}', {});</script></body></html>` });
+      }
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: shell(path === estimated, request.method() === 'POST' ? 'token-3' : 'token-1') });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${entrance}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.originalDocument = document; });
+    await page.locator('#estimated-tab').click();
+    await page.locator('.tabActive:text-is("Estimated Wait Message")').waitFor();
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.equal(await page.evaluate(() => location.pathname), estimated);
+    assert.equal(servletPosts, 1);
+    await page.goBack({ waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(path => location.pathname === path &&
+      document.querySelector('.tabActive')?.textContent === 'Entrance Message', entrance);
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.equal(servletPosts, 1);
+  } finally { await browser.close(); }
+});
+
+test('Executive Alerting tab uses its controller and keeps the tab URL and Back', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const root = '/commpilot/User/Executive/';
+    const alerting = `${root}Alerting/`;
+    const shell = (active, token) => `<!doctype html><html><head><title>Executive</title></head><body>
+      <form name="leftNavForm"><a class="leftnavfolder">Call Control</a></form>
+      <input name="formtokenserial" value="${token}"><table><tr><td width="82%">
+      <div class="tabActive">${active}</div><form name="mainForm" method="post">
+      <input type="hidden" name="formtokenserial" value="${token}">
+      <input type="hidden" name="tabPage" value="">
+      ${active === 'Assistants' ? '<a class="tab" id="alerting-tab">Alerting</a>' : ''}
+      </form></td></tr></table><script>
+      document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('alerting-tab')?.addEventListener('click', function () {
+          TabSubmit('/commpilot/User/Executive/Alerting/'); }); });
+      window.redirectPost=function(){};</script></body></html>`;
+    const posts = [];
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (request.method() === 'POST') posts.push({ pathname, body: request.postData() || '' });
+      if (pathname === root && request.method() === 'POST' &&
+          new URLSearchParams(request.postData() || '').get('tabPage') === alerting)
+        return route.fulfill({ status: 200, contentType: 'text/html',
+          body: `<html><body><input name="formtokenserial" value="token-2"><script>` +
+            `redirectPost('${alerting}', {});</script></body></html>` });
+      if (pathname === alerting && new URLSearchParams(request.postData() || '').has('tabPage'))
+        return route.fulfill({ status: 500, contentType: 'text/html', body: 'Direct tab POST rejected' });
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: shell(pathname === alerting ? 'Alerting' : 'Assistants',
+          request.method() === 'POST' ? 'token-3' : 'token-1') });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${root}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.originalDocument = document; });
+    await page.locator('#alerting-tab').click();
+    await page.locator('.tabActive:text-is("Alerting")').waitFor();
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.equal(await page.evaluate(() => location.pathname), alerting);
+    assert.equal(posts[0].pathname, root);
+    assert.equal(new URLSearchParams(posts[0].body).get('tabPage'), alerting);
+    await page.goBack({ waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(path => location.pathname === path &&
+      document.querySelector('.tabActive')?.textContent === 'Assistants', root);
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+  } finally { await browser.close(); }
+});
+
+test('Call Park Add short tab ID posts the Add controller in-shell', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const add = '/commpilot/Group/CallPark/Add/index.jsp';
+    const shell = (active, token) => `<!doctype html><html><head><title>Call Park Add</title></head><body>
+      <form name="leftNavForm"><a class="leftnavfolder">Services</a></form>
+      <input name="formtokenserial" value="${token}"><table><tr><td width="82%">
+      <div class="tabActive">${active}</div><form name="mainForm" method="post">
+      <input type="hidden" name="formtokenserial" value="${token}">
+      <input type="hidden" name="tabPage" value="">
+      <input name="callParkGroupName" value="PJAX Audit Draft">
+      ${active === 'Profile' ? '<a class="tab" id="alternate-tab">Alternate Recall User</a>' : ''}
+      </form></td></tr></table><script>
+      window.validate=function(){ throw new ReferenceError('trim is not defined'); };
+      document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('alternate-tab')?.addEventListener('click', function () {
+          TabSubmit('altRecallUser'); }); });
+      window.redirectPost=function(){};</script></body></html>`;
+    const posts = [];
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (request.method() === 'POST') posts.push({ pathname, body: request.postData() || '' });
+      return route.fulfill({ status: 200, contentType: 'text/html', body: shell(
+        request.method() === 'POST' ? 'Alternate Recall User' : 'Profile',
+        request.method() === 'POST' ? 'token-2' : 'token-1') });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${add}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.originalDocument = document; });
+    await page.locator('#alternate-tab').click();
+    await page.locator('.tabActive:text-is("Alternate Recall User")').waitFor();
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.equal(posts.length, 1);
+    assert.equal(posts[0].pathname, add);
+    assert.equal(new URLSearchParams(posts[0].body).get('tabPage'), 'altRecallUser');
+  } finally { await browser.close(); }
+});
+
+test('navigation waits for an already sent search POST to rotate the token', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const list = '/commpilot/Group/Members/';
+    const next = '/commpilot/User/Addresses/';
+    const shell = (token, content) => `<!doctype html><html><head><title>Users</title></head><body>
+      <form name="leftNavForm"><a class="leftnavfolder">Profile</a></form>
+      <input name="formtokenserial" value="${token}"><table><tr><td width="82%">
+      <form name="mainForm" method="post"><input name="formtokenserial" value="${token}">
+      <input name="findKey0" value="UserID"><input name="findOp0" value="STARTS_WITH">
+      <input name="findValue0" value=""></form><div id="view">${content}</div></td></tr></table>
+      <script>window.redirectPost=function(){};</script></body></html>`;
+    const posts = [];
+    await page.route('https://apps-sbx.avpaas.io/**', async route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (request.method() === 'POST') {
+        const form = new URLSearchParams(request.postData() || '');
+        posts.push({ pathname, token: form.get('formtokenserial') });
+        if (pathname === list) {
+          await new Promise(resolve => setTimeout(resolve, 350));
+          return route.fulfill({ status: 200, contentType: 'text/html', body: shell('token-2', 'Search result') });
+        }
+        if (pathname === next) return route.fulfill({ status: 200, contentType: 'text/html',
+          body: shell('token-3', 'Addresses') });
+      }
+      return route.fulfill({ status: 200, contentType: 'text/html', body: shell('token-1', 'Users') });
+    });
+    await page.goto(`https://apps-sbx.avpaas.io${list}`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(target => {
+      window.originalDocument = document;
+      window.cpListSearch([], {}).catch(() => {});
+      window.redirectPost(target, {});
+    }, next);
+    await page.locator('#view:text-is("Addresses")').waitFor();
+    assert.equal(await page.evaluate(() => document === window.originalDocument), true);
+    assert.deepEqual(posts, [
+      { pathname: list, token: 'token-1' },
+      { pathname: next, token: 'token-2' }
+    ]);
   } finally { await browser.close(); }
 });
 
@@ -516,6 +934,85 @@ test('Scheduled Reports Add resolves its legacy relative target to the real form
   }
 });
 
+test('Scheduled Reports Completed tab stays inside its folder and Back restores Active', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const list = '/commpilot/Group/CCScheduledReports/';
+    const completed = '/commpilot/Group/CCScheduledReports/Completed/';
+    const shell = active => `<!doctype html><html><head><title>Scheduled Reports</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">Group</span></td></tr></table>
+      <form name="leftNavForm"><a class="leftnavfolder">Call Center</a></form>
+      <input name="formtokenserial" value="token"><table><tr><td width="82%">
+      <form name="mainForm"><span class="tabActive">${active}</span>
+      <a id="report-tab" class="tab">${active === 'Active' ? 'Completed' : 'Active'}</a></form>
+      <script>document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('report-tab').addEventListener('click', function () {
+          TabSubmit('../${active === 'Active' ? 'Completed' : 'Active'}/');
+        });
+      });</script></td></tr></table>
+      <script>window.redirectPost = function() {};</script></body></html>`;
+    const posts = [];
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (route.request().method() === 'POST') posts.push(pathname);
+      return route.fulfill({status:200,contentType:'text/html',
+        body:shell(pathname === completed ? 'Completed' : 'Active')});
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + list, {waitUntil:'domcontentloaded'});
+    await page.addScriptTag({path:pjaxPath});
+    await page.evaluate(() => {window.initialDocument=document;});
+    await page.locator('#report-tab').click();
+    await page.waitForFunction(pathname => location.pathname === pathname, completed);
+    assert.equal(posts[0],completed);
+    assert.equal(await page.evaluate(() => document === window.initialDocument),true);
+    await page.goBack();
+    await page.waitForFunction(pathname => location.pathname === pathname &&
+      !!document.querySelector('.tabActive')?.textContent.includes('Active'),list);
+    assert.equal(await page.evaluate(() => document === window.initialDocument),true);
+  } finally { await browser.close(); }
+});
+
+test('Calling Plan query-string tab stays in PJAX and Back restores Originating', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({executablePath:chromePath,headless:true});
+  try {
+    const page = await browser.newPage();
+    const pathname = '/commpilot/Group/Calling_Plan/Outgoing/index.jsp';
+    const target = pathname + '?TransferForward=1&isEnh=true';
+    const shell = forwarded => `<!doctype html><html><head><title>Outgoing Calling Plan</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">Group</span></td></tr></table>
+      <form name="leftNavForm"><a class="leftnavfolder">Calling Plan</a></form>
+      <input name="formtokenserial" value="token"><table><tr><td width="82%">
+      <form name="mainForm"><span class="tabActive">${forwarded ? 'Initiating Call Forwards/Transfers' : 'Originating'}</span>
+      <a id="calling-tab" class="tab">${forwarded ? 'Originating' : 'Initiating Call Forwards/Transfers'}</a></form>
+      <script>document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('calling-tab').addEventListener('click', function () {
+          TabSubmit('${forwarded ? pathname : target}');
+        });
+      });</script></td></tr></table>
+      <script>window.redirectPost = function() {};</script></body></html>`;
+    const posts = [];
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      if (route.request().method() === 'POST') posts.push(route.request().url());
+      return route.fulfill({status:200,contentType:'text/html',
+        body:shell(new URL(route.request().url()).searchParams.has('TransferForward'))});
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + pathname,{waitUntil:'domcontentloaded'});
+    await page.addScriptTag({path:pjaxPath});
+    await page.evaluate(() => {window.initialDocument=document;});
+    await page.locator('#calling-tab').click();
+    await page.waitForFunction(() => location.search.includes('TransferForward=1'));
+    assert.equal(new URL(posts[0]).pathname + new URL(posts[0]).search,target);
+    assert.equal(await page.evaluate(() => document === window.initialDocument),true);
+    await page.goBack();
+    await page.waitForFunction(() => !location.search &&
+      document.querySelector('.tabActive')?.textContent === 'Originating');
+    assert.equal(await page.evaluate(() => document === window.initialDocument),true);
+  } finally {await browser.close();}
+});
+
 test('Scheduled Reports Search follows its malformed root stub within the folder', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });
@@ -637,6 +1134,50 @@ for (const scenario of [
     }
   });
 }
+
+test('Xsi Policy Profile tab after Find resolves from the list landing', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({executablePath:chromePath,headless:true});
+  try {
+    const page = await browser.newPage();
+    const group = '/commpilot/ServiceProvider/XsiPolicyProfile/Group/';
+    const user = '/commpilot/ServiceProvider/XsiPolicyProfile/User/';
+    const find = '/commpilot/Common/find.jsp';
+    const shell = active => `<!doctype html><html><head><title>Xsi Policy Profile</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">Service Provider</span></td></tr></table>
+      <form name="leftNavForm"><a class="leftnavfolder">Resources</a></form>
+      <input name="formtokenserial" value="token"><table><tr><td width="82%">
+      <form name="mainForm"><span class="tabActive">${active} Xsi Policy Profile</span>
+      <a id="xsi-tab" class="tab">${active === 'Group' ? 'User' : 'Group'} Xsi Policy Profile</a></form>
+      <script>document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('xsi-tab').addEventListener('click', function () {
+          tabSubmit('../${active === 'Group' ? 'User' : 'Group'}/');
+        });
+      });</script></td></tr></table>
+      <script>window.redirectPost=function(){};</script></body></html>`;
+    const posts = [];
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (route.request().method() === 'POST') posts.push(pathname);
+      const body = pathname === find ? '<!doctype html><input name="formtokenserial" value="token">' +
+        '<script>redirectPost("/commpilot/ServiceProvider/XsiPolicyProfile/Group/",{});</script>' :
+        shell(pathname === user ? 'User' : 'Group');
+      return route.fulfill({status:200,contentType:'text/html',body});
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + group,{waitUntil:'domcontentloaded'});
+    await page.addScriptTag({path:pjaxPath});
+    await page.evaluate(() => {window.initialDocument=document;window.redirectPost('/commpilot/Common/find.jsp',{});});
+    await page.waitForFunction(pathname => location.pathname === pathname,find);
+    await page.locator('#xsi-tab').click();
+    await page.waitForFunction(pathname => location.pathname === pathname,user);
+    assert.deepEqual(posts.slice(0,3),[find,group,user]);
+    assert.equal(await page.evaluate(() => document === window.initialDocument),true);
+    await page.goBack();
+    await page.waitForFunction(pathname => location.pathname === pathname &&
+      document.querySelector('.tabActive')?.textContent.includes('Group'),find);
+    assert.equal(await page.evaluate(() => document === window.initialDocument),true);
+  } finally {await browser.close();}
+});
 
 test('Group Members search keeps its form POST in shell and uses the rotated token', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
@@ -764,6 +1305,95 @@ test('direct relative POST auto-forward stays in shell and Back skips its interm
   } finally {
     await browser.close();
   }
+});
+
+test('activation Modify OK returns to the list URL after the server renders search controls', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const list = '/commpilot/Group/DnActivation/';
+    const modify = '/commpilot/Group/DnActivation/Modify/index.jsp';
+    const shell = (title, content) => `<!doctype html><html><head><title>${title}</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">Group</span></td></tr></table>
+      <form name="leftNavForm"></form><input name="formtokenserial" value="token">
+      <table><tr><td width="82%">${content}</td></tr></table>
+      <script>window.redirectPost = function() {};</script>
+    </body></html>`;
+    const listBody = shell('Activate Numbers', '<h1>Activate Numbers</h1><form name="mainForm">' +
+      '<select name="findKey"><option>Phone Numbers</option></select>' +
+      '<a id="edit">Edit</a></form>');
+    const modifyBody = shell('Activate Numbers Modify', '<h1>Activate Numbers Modify</h1>' +
+      '<form name="mainForm" method="post"><input type="hidden" name="buttonClicked" value="">' +
+      '<input type="submit" name="ok" value="OK"></form>');
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      const submitted = pathname === modify && (request.postData() || '').includes('ok=OK');
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: pathname === list || submitted ? listBody : modifyBody });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + list, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.evaluate(() => { window.initialDocument = document; });
+    await page.evaluate(pathname => window.redirectPost(pathname, { key: '+1-2244830998' }), modify);
+    await page.getByRole('heading', { name: 'Activate Numbers Modify' }).waitFor();
+    await page.locator('input[name="ok"]').click();
+    await page.getByRole('heading', { name: 'Activate Numbers', exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => location.pathname), list);
+    assert.equal(await page.evaluate(() => document === window.initialDocument), true);
+  } finally { await browser.close(); }
+});
+
+test('Back from a Group child restores User context before replaying Addresses', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const startPath = '/commpilot/Group/Members/';
+    const entryPath = '/commpilot/Group/Members/Modify/index.jsp';
+    const addressesPath = '/commpilot/User/Addresses/';
+    const childPath = '/commpilot/Group/DeviceInventory/Modify/Profile/index.jsp';
+    const posts = [];
+    let context = 'group';
+    const shell = (title, folder, body, script = '') => `<!doctype html><html><head><title>${title}</title></head><body>
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">${title}</span></td></tr></table>
+      <form name="leftNavForm"><a class="leftnavfolder">${folder}</a></form>
+      <input name="formtokenserial" value="token"><table><tr><td width="82%"><h1>${body}</h1>${script}</td></tr></table>
+      <script>window.redirectPost = function() {};</script></body></html>`;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (route.request().method() === 'POST') posts.push(pathname);
+      let body;
+      if (pathname === entryPath) {
+        context = 'user';
+        body = shell('User menu', 'User Profile', 'User menu');
+      } else if (pathname === childPath) {
+        context = 'device';
+        body = shell('Device profile', 'Device Resources', 'Device profile');
+      } else if (pathname === addressesPath) {
+        body = context === 'user' ? shell('Addresses', 'User Profile', 'Addresses') :
+          shell('Addresses', 'User Profile', 'Addresses',
+            '<script>window.redirectPost("/commpilot/Login/", {});</script>');
+      } else body = shell('Group members', 'Group Profile', 'Group members');
+      return route.fulfill({status:200,contentType:'text/html',body});
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + startPath, {waitUntil:'domcontentloaded'});
+    await page.addScriptTag({path:pjaxPath});
+    await page.evaluate(() => {window.initialDocument=document;});
+    await page.evaluate(pathname => window.redirectPost(pathname,{key:'test-user'}),entryPath);
+    await page.getByRole('heading',{name:'User menu'}).waitFor();
+    await page.evaluate(pathname => window.redirectPost(pathname,{}),addressesPath);
+    await page.getByRole('heading',{name:'Addresses'}).waitFor();
+    await page.evaluate(pathname => window.redirectPost(pathname,{name:'test-device'}),childPath);
+    await page.getByRole('heading',{name:'Device profile'}).waitFor();
+    const beforeBack = posts.length;
+    await page.goBack();
+    await page.getByRole('heading',{name:'Addresses'}).waitFor();
+    assert.deepEqual(posts.slice(beforeBack),[entryPath,addressesPath]);
+    assert.equal(await page.evaluate(() => location.pathname),addressesPath);
+    assert.equal(await page.evaluate(() => document === window.initialDocument),true);
+  } finally { await browser.close(); }
 });
 
 test('Back to the initial reseller Profile replays its folder parameters', async () => {

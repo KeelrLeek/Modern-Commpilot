@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CommPilot deep PJAX action audit</title>
+  <style>
+    :root { color-scheme: dark; font: 15px/1.4 system-ui,Segoe UI,sans-serif;
+      --bg:#0c1422; --panel:#172438; --panel2:#1e3048; --line:#344863;
+      --text:#edf4ff; --muted:#a7b9d0; --green:#64ddb0; --amber:#ffd17a;
+      --red:#ff8d95; --blue:#8ab9ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:linear-gradient(150deg,#101f35,var(--bg) 42%); color:var(--text); }
+    main { max-width:1370px; margin:auto; padding:28px 22px 60px; }
+    header { display:flex; flex-wrap:wrap; align-items:end; justify-content:space-between; gap:20px; }
+    h1 { margin:0; font-size:clamp(25px,3vw,38px); letter-spacing:-.025em; }
+    h2 { margin:0 0 13px; font-size:18px; }
+    p { color:var(--muted); margin:7px 0; }
+    a { color:var(--blue); }
+    .toplink { font-size:13px; }
+    .eyebrow { color:var(--blue); text-transform:uppercase; letter-spacing:.12em; font-size:11px; font-weight:750; }
+    .notice { margin:24px 0 15px; padding:17px 19px; background:var(--panel); border:1px solid var(--line); border-radius:15px; }
+    .notice strong { display:block; font-size:17px; }
+    .notice small { color:var(--muted); }
+    .metrics { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:11px; margin:18px 0; }
+    .metric { padding:17px; background:var(--panel); border:1px solid var(--line); border-radius:14px; }
+    .metric strong { display:block; font-size:30px; font-variant-numeric:tabular-nums; line-height:1.1; }
+    .metric span { display:block; margin-top:6px; font-size:12px; color:var(--muted); }
+    .metric.passed strong { color:var(--green); }.metric.failed strong { color:var(--red); }
+    .metric.pending strong { color:var(--amber); }
+    .bar { display:flex; width:100%; height:13px; background:#304057; border-radius:999px; overflow:hidden; }
+    .bar span { height:100%; }
+    .bar .passed { background:var(--green); }.bar .failed { background:var(--red); }
+    .bar .blocked { background:var(--amber); }
+    .hint { color:var(--muted); font-size:12px; margin-top:7px; }
+    .split { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:28px; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:15px; padding:18px; }
+    .current { padding:16px; background:var(--panel2); border-radius:10px; min-height:80px; }
+    .current b { display:block; margin-bottom:5px; }
+    .area-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    .area { background:var(--panel2); border-radius:9px; padding:9px 11px; }
+    .area b { display:block; font-size:13px; }
+    .area small { color:var(--muted); }
+    .tinybar { height:5px; background:#40516a; border-radius:9px; margin-top:7px; overflow:hidden; }
+    .tinybar span { display:block; height:100%; background:var(--green); }
+    .findings { display:grid; gap:8px; }
+    .finding { padding:10px 12px; background:var(--panel2); border-radius:9px; border-left:4px solid var(--line); }
+    .finding.failed { border-color:var(--red); }.finding.passed { border-color:var(--green); }
+    .finding strong { display:block; font-size:13px; }.finding small { color:var(--muted); }
+    .filters { display:flex; flex-wrap:wrap; gap:8px; margin:25px 0 12px; }
+    input,select,button { font:inherit; background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:9px; padding:9px 11px; }
+    input[type=search] { min-width:min(360px,100%); flex:1; }
+    button { cursor:pointer; }
+    button:disabled { opacity:.45; cursor:default; }
+    button:focus-visible,input:focus-visible,select:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+    .list { display:grid; gap:7px; }
+    .row { display:grid; grid-template-columns:12px minmax(0,1fr) auto; align-items:start; gap:12px;
+      padding:12px 14px; background:var(--panel); border:1px solid var(--line); border-radius:11px; }
+    .dot { width:10px; height:10px; margin-top:5px; border-radius:50%; background:var(--amber); }
+    .row[data-status=passed] .dot { background:var(--green); }
+    .row[data-status=failed] .dot { background:var(--red); }
+    .row[data-status=blocked] .dot { background:var(--amber); }
+    .row b { display:block; font-size:13px; }
+    .row small { color:var(--muted); display:block; margin-top:3px; overflow-wrap:anywhere; }
+    .row .detail { color:#d6e1f1; }
+    .tag { font-size:11px; font-weight:750; text-transform:uppercase; letter-spacing:.05em; color:var(--amber); }
+    .row[data-status=passed] .tag { color:var(--green); }
+    .row[data-status=failed] .tag { color:var(--red); }
+    .pager { display:flex; gap:12px; align-items:center; justify-content:center; margin:20px 0; }
+    .pager span { color:var(--muted); font-size:13px; }
+    @media(max-width:900px){ .metrics{grid-template-columns:repeat(2,minmax(0,1fr));}.split{grid-template-columns:1fr;} }
+    @media(max-width:600px){ main{padding:19px 13px 40px;}.area-grid{grid-template-columns:1fr;}.row{grid-template-columns:10px minmax(0,1fr);}.tag{grid-column:2;} }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div><div class="eyebrow">Live sandbox audit</div><h1>CommPilot deep PJAX actions</h1>
+      <p>Deep routes, list interactions, and final controls across the discovered site.</p></div>
+    <div class="toplink"><a href="pjax-route-audit.html">Route inventory ↗</a><br><span id="updated">Loading…</span></div>
+  </header>
+  <div class="notice"><strong id="scope">Loading action inventory…</strong><small id="environment"></small></div>
+  <section class="metrics" aria-label="Audit totals">
+    <div class="metric"><strong id="total">—</strong><span>Discovered page/action checks</span></div>
+    <div class="metric"><strong id="reopened">—</strong><span>Route pages reopened in this pass</span></div>
+    <div class="metric passed"><strong id="passed">—</strong><span>Checks passed, including navigation</span></div>
+    <div class="metric failed"><strong id="failed">—</strong><span>Failures to fix</span></div>
+    <div class="metric pending"><strong id="blocked">—</strong><span>Fixture or external blocker</span></div>
+    <div class="metric pending"><strong id="pending">—</strong><span>Awaiting a deeper check</span></div>
+  </section>
+  <div class="bar" id="progress" aria-label="Deep action audit progress"></div><p class="hint" id="progress-label"></p>
+  <div class="split">
+    <section class="card"><h2>Working on</h2><div class="current"><b id="current">—</b><small id="current-note"></small></div>
+      <h2 style="margin-top:19px">Recent checks and fixes</h2><div class="findings" id="recent"></div></section>
+    <section class="card"><h2>Coverage by account level</h2><div class="area-grid" id="areas"></div></section>
+  </div>
+  <section style="margin-top:30px"><h2>Every discovered route</h2>
+    <p>Passed list interactions confirm navigation and Back. A write passes only after a sandbox save and readback. Other final controls remain pending until exercised.</p>
+    <div class="filters">
+      <input type="search" id="search" placeholder="Search page, route, or finding" aria-label="Search checks">
+      <select id="level" aria-label="Account level"><option value="">All account levels</option></select>
+      <select id="family" aria-label="Action family"><option value="">All action families</option></select>
+      <select id="status" aria-label="Audit status"><option value="">All statuses</option>
+        <option value="pending">Pending</option><option value="passed">Passed</option>
+        <option value="failed">Failed</option><option value="blocked">Fixture needed</option></select>
+      <select id="depth" aria-label="Route depth"><option value="">All depths</option>
+        <option value="deep">Deep routes</option><option value="submit">Submit controls</option></select>
+    </div>
+    <p class="hint" id="filter-count"></p><div class="list" id="list"></div>
+    <div class="pager"><button id="previous" type="button">Previous</button><span id="page-label"></span>
+      <button id="next" type="button">Next</button></div>
+  </section>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  let data = null, page = 0, lastSignature = '';
+  const size = 60;
+  const sets = (items, fn) => [...new Set(items.map(fn).filter(Boolean))].sort();
+  function node(tag, cls, value) {
+    const element = document.createElement(tag);
+    if (cls) element.className = cls;
+    if (value != null) element.textContent = value;
+    return element;
+  }
+  function count(status) { return data.checks.filter(check => check.status === status).length; }
+  function options(id, values) {
+    const element = $(id), selected = element.value;
+    element.replaceChildren(element.options[0]);
+    for (const value of values) { const option = node('option', '', value); option.value = value; element.append(option); }
+    element.value = selected;
+  }
+  function render() {
+    if (!data) return;
+    const total = data.checks.length, passed = count('passed'), failed = count('failed');
+    const blocked = count('blocked'), pending = total - passed - failed - blocked;
+    const reopened = data.checks.filter(check => check.navigationCheckedAt &&
+      !['interaction','action-check'].includes(check.kind)).length;
+    $('updated').textContent = 'Updated ' + new Date(data.updated).toLocaleString();
+    $('scope').textContent = data.scope;
+    $('environment').textContent = data.environment;
+    for (const [id, value] of Object.entries({total,reopened,passed,failed,blocked,pending})) $(id).textContent = value.toLocaleString();
+    const bar = $('progress'); bar.replaceChildren();
+    for (const [name, value] of [['passed',passed],['failed',failed],['blocked',blocked]]) {
+      const span = node('span',name); span.style.width = `${100*value/Math.max(total,1)}%`; bar.append(span);
+    }
+    $('progress-label').textContent = `${passed + failed + blocked} of ${total} deep checks resolved · ` +
+      `${data.checks.filter(x => x.deep).length} deepest routes · ` +
+      `${data.checks.filter(x => x.submitControls > 0).length} screens with submit controls`;
+    $('current').textContent = data.current || 'Selecting next route';
+    $('current-note').textContent = data.currentNote || 'Results update here while the audit runs.';
+    const recent = [...data.checks].filter(x => x.checkedAt).sort((a,b) =>
+      String(b.checkedAt).localeCompare(String(a.checkedAt))).slice(0,6);
+    $('recent').replaceChildren(...recent.map(item => {
+      const box = node('div','finding ' + item.status);
+      box.append(node('strong','',item.area + ' → ' + item.label), node('small','',item.detail || item.status));
+      return box;
+    }));
+    if (!recent.length) $('recent').append(node('p','', 'The first action check is being prepared.'));
+    const levels = sets(data.checks, x => x.area?.split(' / ')[0]);
+    options('level', levels);
+    options('family', sets(data.checks,x => x.family));
+    $('areas').replaceChildren(...levels.map(level => {
+      const checks = data.checks.filter(x => x.area?.split(' / ')[0] === level);
+      const good = checks.filter(x => x.status === 'passed').length;
+      const box = node('div','area');
+      box.append(node('b','',level),node('small','',`${good} passed · ${checks.length-good} remaining`));
+      const track = node('div','tinybar'), fill = node('span');
+      fill.style.width = `${100*good/Math.max(checks.length,1)}%`; track.append(fill); box.append(track);
+      return box;
+    }));
+    const query = $('search').value.trim().toLowerCase();
+    const level = $('level').value, family = $('family').value;
+    const status = $('status').value, depth = $('depth').value;
+    const rows = data.checks.filter(item =>
+      (!query || [item.area,item.label,item.path,item.detail].some(v => String(v||'').toLowerCase().includes(query))) &&
+      (!level || item.area?.split(' / ')[0] === level) &&
+      (!family || item.family === family) && (!status || item.status === status) &&
+      (!depth || (depth === 'deep' ? item.deep : item.submitControls > 0)));
+    rows.sort((a,b) => {
+      const rank = { failed:0, blocked:1, pending:2, passed:3 };
+      return (rank[a.status] ?? 4) - (rank[b.status] ?? 4) ||
+        Number(b.deep) - Number(a.deep) || a.area.localeCompare(b.area) || a.label.localeCompare(b.label);
+    });
+    page = Math.min(page,Math.max(0,Math.ceil(rows.length/size)-1));
+    $('filter-count').textContent = `${rows.length.toLocaleString()} matching routes`;
+    $('list').replaceChildren(...rows.slice(page*size,(page+1)*size).map(item => {
+      const row = node('article','row'); row.dataset.status = item.status;
+      const body = node('div'); body.append(node('b','',item.area + ' → ' + item.label),
+        node('small','',item.path + (item.deep ? ' · deepest route' : '') +
+          (item.submitControls ? ` · ${item.submitControls} submit controls` : '')),
+        node('small','detail',item.detail || ''));
+      if (item.navigationCheckedAt) body.append(node('small','',
+        `Reopened ${new Date(item.navigationCheckedAt).toLocaleString()} · ${item.navigationStatus || 'checked'}`));
+      row.append(node('span','dot'),body,node('span','tag',item.status));
+      return row;
+    }));
+    $('previous').disabled = page === 0; $('next').disabled = (page+1)*size >= rows.length;
+    $('page-label').textContent = rows.length ? `Page ${page+1} of ${Math.ceil(rows.length/size)}` : 'No matches';
+  }
+  async function refresh() {
+    try {
+      const response = await fetch('pjax-deep-action-audit.json?at=' + Date.now(), {cache:'no-store'});
+      if (!response.ok) throw Error('HTTP ' + response.status);
+      const next = await response.json();
+      const signature = next.updated + ':' + next.checks.length;
+      if (signature !== lastSignature) { data = next; lastSignature = signature; render(); }
+    } catch (error) { $('updated').textContent = 'Could not load live audit: ' + error.message; }
+  }
+  for (const id of ['search','level','family','status','depth']) $(id).addEventListener('input',() => { page=0; render(); });
+  $('previous').addEventListener('click',() => { page--; render(); });
+  $('next').addEventListener('click',() => { page++; render(); });
+  refresh(); setInterval(refresh,5000);
+</script>
+</body>
+</html>

@@ -12,6 +12,8 @@ const profile = process.env.BW_LIVE_PROFILE ||
 const level = process.argv[2] || 'Call Center';
 const onlyFolder = process.argv[3] || '';
 const onlyLabel = process.argv[4] || '';
+const selectedLabels = onlyLabel ? onlyLabel.split('||') : [];
+const startLabel = process.env.BW_START_LABEL || '';
 const force = process.env.BW_AUDIT_FORCE === '1';
 const maxReconnects = Math.max(1, Number(process.env.BW_MAX_RECONNECTS || 10));
 const levels = new Set(['Reseller', 'Service Provider', 'Group', 'User',
@@ -21,7 +23,14 @@ if (!levels.has(level)) throw new Error(`Unknown level: ${level}`);
 const loadAudit = () => JSON.parse(fs.readFileSync(auditPath, 'utf8'));
 function saveAudit(audit) {
   audit.updated = new Date().toISOString().slice(0, 16).replace('T', ' ');
-  fs.writeFileSync(auditPath, JSON.stringify(audit, null, 2) + '\n');
+  const body = JSON.stringify(audit, null, 2) + '\n';
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try { fs.writeFileSync(auditPath, body); return; }
+    catch (error) {
+      if (!['UNKNOWN','EBUSY','EPERM','EACCES'].includes(error.code) || attempt === 5) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50 * (attempt + 1));
+    }
+  }
 }
 const routePath = (url, base) => new URL(url, base).pathname;
 const sameViewPath = (left, right) =>
@@ -437,7 +446,8 @@ async function verifySortControl(page, audit, record, area, wanted) {
     return 'continue';
   }
   const trigger = (await sort.innerText()).trim();
-  const before = await page.evaluate(() => ({ count: window.__bwReskinCount || 0,
+  const before = await page.evaluate(() => ({ path: location.pathname,
+    count: window.__bwReskinCount || 0,
     historyLength: history.length, nav: history.state?.cpNav?.url || null }));
   const sortResponse = page.waitForResponse(item => item.request().method() === 'POST' &&
     /\/commpilot\/Common\/sort\.jsp$/.test(routePath(item.url(), page.url())),
@@ -462,7 +472,7 @@ async function verifySortControl(page, audit, record, area, wanted) {
         location.pathname.replace(/\/index\.jsp$/, '/') === path.replace(/\/index\.jsp$/, '/') &&
           (window.__bwReskinCount || 0) > count &&
           !!document.querySelector('td[width="82%"]'),
-      { path: wanted, count: after.count }, { timeout: 15000 }).then(() => true).catch(() => false);
+      { path: before.path, count: after.count }, { timeout: 15000 }).then(() => true).catch(() => false);
       backStatus = restored ? 'pass' : 'needs';
     } catch { backStatus = 'needs'; }
   }
@@ -501,7 +511,8 @@ async function verifyPagingControl(page, audit, record, area, wanted) {
   }
   const trigger = await paging.evaluate(element =>
     (element.innerText || element.value || element.title || '').trim());
-  const before = await page.evaluate(() => ({ count: window.__bwReskinCount || 0,
+  const before = await page.evaluate(() => ({ path: location.pathname,
+    count: window.__bwReskinCount || 0,
     historyLength: history.length, nav: history.state?.cpNav?.url || null }));
   const pageResponse = page.waitForResponse(item => item.request().method() === 'POST' &&
     /\/commpilot\/Common\/page\.jsp$/.test(routePath(item.url(), page.url())),
@@ -526,7 +537,7 @@ async function verifyPagingControl(page, audit, record, area, wanted) {
         location.pathname.replace(/\/index\.jsp$/, '/') === path.replace(/\/index\.jsp$/, '/') &&
           (window.__bwReskinCount || 0) > count &&
           !!document.querySelector('td[width="82%"]'),
-      { path: wanted, count: after.count }, { timeout: 15000 }).then(() => true).catch(() => false);
+      { path: before.path, count: after.count }, { timeout: 15000 }).then(() => true).catch(() => false);
       backStatus = restored ? 'pass' : 'needs';
     } catch { backStatus = 'needs'; }
   }
@@ -542,20 +553,31 @@ async function verifyPagingControl(page, audit, record, area, wanted) {
     record.interactionChecks.paging.status === 'pending' ? 'session' : 'gap';
 }
 
-async function verifyTabControl(page, audit, record, area, wanted) {
-  let tab = null;
-  for (const candidate of await page.locator('td[width="82%"] a.tab').all()) {
-    if (await candidate.isVisible()) { tab = candidate; break; }
-  }
+async function verifyTabControl(page, audit, record, area, wanted, tabIndex = 0) {
+  const visibleTabs = [];
+  for (const candidate of await page.locator('td[width="82%"] a.tab').all())
+    if (await candidate.isVisible()) visibleTabs.push(candidate);
+  const tab = visibleTabs[tabIndex] || null;
   record.interactionChecks ||= {};
   if (!tab) {
     record.interactionChecks.tabs = { status: 'no-trigger' };
     saveAudit(audit);
     console.log(JSON.stringify({ event: 'tab-probe', area, label: record.label,
-      status: 'no-trigger' }));
+      tabIndex, status: 'no-trigger' }));
     return 'continue';
   }
   const trigger = (await tab.innerText()).replace(/\s+/g, ' ').trim();
+  // CommPilot persists the Call Park group when this tab is opened. Keep this
+  // probe opt-in; the disposable group must be deleted after the run.
+  if (/^\/commpilot\/Group\/CallPark\/Add\/index\.jsp$/.test(new URL(page.url()).pathname) &&
+      trigger === 'Alternate Recall User' && process.env.BW_ALLOW_CALLPARK_TAB_WRITE !== '1') {
+    console.log(JSON.stringify({ event: 'tab-probe', area, label: record.label,
+      tabIndex, status: 'write-probe-skipped', trigger }));
+    return 'continue';
+  }
+  if (/^\/commpilot\/Group\/CallPark\/Add\/index\.jsp$/.test(new URL(page.url()).pathname) &&
+      trigger === 'Alternate Recall User')
+    await page.locator('td[width="82%"] input[name="callParkGroupName"]').fill('PJAX Audit Unsaved');
   const before = await page.evaluate(() => ({ path: location.pathname,
     count: window.__bwReskinCount || 0,
     active: (document.querySelector('td[width="82%"] .tabActive')?.textContent || '')
@@ -582,6 +604,7 @@ async function verifyTabControl(page, audit, record, area, wanted) {
   const switched = found?.status() === 200 && after?.active === trigger &&
     after.sameDocument && after.count > before.count && after.hasContent && !after.alert;
   let backStatus = 'pending';
+  let backState = null;
   if (switched) {
     try {
       await page.goBack();
@@ -594,6 +617,11 @@ async function verifyTabControl(page, audit, record, area, wanted) {
       { timeout: 15000 }).then(() => true).catch(() => false);
       backStatus = restored ? 'pass' : 'needs';
     } catch { backStatus = 'needs'; }
+    if (backStatus !== 'pass') backState = await page.evaluate(() => ({
+      path: location.pathname, active: (document.querySelector('td[width="82%"] .tabActive')?.textContent || '').trim(),
+      count: window.__bwReskinCount || 0, historyLength: history.length,
+      nav: history.state?.cpNav?.url || null, alert: document.querySelector('.cp-alert-error')?.textContent || ''
+    })).catch(() => null);
   }
   record.interactionChecks.tabs = { status: switched && backStatus === 'pass' ? 'pass' :
     after?.path === '/commpilot/Login/' ? 'pending' : 'needs',
@@ -603,9 +631,19 @@ async function verifyTabControl(page, audit, record, area, wanted) {
   reskinned: !!after && after.count > before.count, backStatus };
   saveAudit(audit);
   console.log(JSON.stringify({ event: 'tab-probe', area, label: record.label,
-    before, after, ...record.interactionChecks.tabs }));
+    tabIndex, before, after, backState, ...record.interactionChecks.tabs }));
   return record.interactionChecks.tabs.status === 'pass' ? 'continue' :
     record.interactionChecks.tabs.status === 'pending' ? 'session' : 'gap';
+}
+
+async function verifyTabControls(page, audit, record, area, wanted) {
+  const count = process.env.BW_FORCE_ALL_TABS === '1' ?
+    await page.locator('td[width="82%"] a.tab:visible').count() : 1;
+  for (let index = 0; index < count; index++) {
+    const outcome = await verifyTabControl(page, audit, record, area, wanted, index);
+    if (outcome !== 'continue') return outcome;
+  }
+  return 'continue';
 }
 
 function descendantDepthLimit() {
@@ -622,12 +660,12 @@ function needsSubpageWork(audit, area, item, depth = 0, seen = new Set()) {
   if (item.backPending) return true;
   if (process.env.BW_DISCOVER_DYNAMIC === '1' && !item.dynamicScanned) return true;
   if (process.env.BW_SEARCH_SUBPAGES === '1' && (item.dynamicControls?.search || 0) > 0 &&
-      !(item.searchCheck?.status === 'pass' && item.searchCheck.reskinned === true &&
-        item.searchCheck.backStatus === 'pass')) return true;
+      (process.env.BW_FORCE_SUBPAGE_SEARCH === '1' || !(item.searchCheck?.status === 'pass' && item.searchCheck.reskinned === true &&
+        item.searchCheck.backStatus === 'pass'))) return true;
   if (process.env.BW_VERIFY_SORT === '1' && (item.dynamicControls?.sort || 0) > 0 &&
-      item.interactionChecks?.sort?.status !== 'pass') return true;
+      (item.interactionChecks?.sort?.status !== 'pass' || process.env.BW_FORCE_SORT === '1')) return true;
   if (process.env.BW_VERIFY_PAGING === '1' && (item.dynamicControls?.paging || 0) > 0 &&
-      item.interactionChecks?.paging?.status !== 'pass') return true;
+      (item.interactionChecks?.paging?.status !== 'pass' || process.env.BW_FORCE_PAGING === '1')) return true;
   if (process.env.BW_VERIFY_TABS === '1' && (item.dynamicControls?.tabs || 0) > 0 &&
       (item.interactionChecks?.tabs?.status !== 'pass' || process.env.BW_FORCE_TABS === '1')) return true;
   if (process.env.BW_VERIFY_DOWNLOAD === '1' && (item.dynamicControls?.transfer || 0) > 0 &&
@@ -647,6 +685,14 @@ function needsSubpageWork(audit, area, item, depth = 0, seen = new Set()) {
 
 async function verifyInnerTarget(page, audit, area, sourcePath, parentLabel, inner, depth = 0) {
   const wanted = routePath(inner.url, page.url());
+  if (process.env.BW_SKIP_UNFILLED_TRUNK_PRIORITY === '1' &&
+      (/\/EnterpriseTrunk\/AddUsingWeightedRouting\/AssignPriorities\/?$/.test(wanted) ||
+        (/\/EnterpriseTrunk\/AddUsers\/?$/.test(wanted) &&
+          /\/EnterpriseTrunk\/AddUsing(?:Weighted|Ordered)Routing\/AddModify\//.test(sourcePath)))) {
+    console.log(JSON.stringify({event:'fixture-blocked',area,parent:parentLabel,
+      label:inner.label,path:wanted,reason:'Unfilled Enterprise Trunk Add form returns HTTP 500'}));
+    return 'continue';
+  }
   const record = audit.routes.find(item => ['nested', 'action', 'descendant'].includes(item.kind) && item.sourcePath === sourcePath &&
     item.path === wanted && item.area === area);
   const scanUploads = process.env.BW_DISCOVER_UPLOADS === '1' && record && !record.uploadScanned;
@@ -759,6 +805,16 @@ async function verifyInnerTarget(page, audit, area, sourcePath, parentLabel, inn
   }
   if (process.env.BW_INSPECT_TABS === '1') console.log(JSON.stringify({ event: 'tab-controls',
     area, label: record.label, path: wanted, controls: await captureTabControls(page) }));
+  if (process.env.BW_INSPECT_TAB_FUNCTION === '1') console.log(JSON.stringify({ event: 'tab-function',
+    area, label: record.label, path: wanted, handlers: await page.evaluate(() => ({
+      TabSubmit: String(window.TabSubmit || '').slice(0, 2500),
+      TabWithSubmit: String(window.TabWithSubmit || '').slice(0, 2500),
+      validate: String(window.validate || '').slice(0, 3500),
+      forms: [...document.querySelectorAll('td[width="82%"] form')].map(form => ({
+        name: form.name, action: form.getAttribute('action'), method: form.method,
+        fields: [...form.elements].filter(item => item.name && item.type !== 'hidden' && item.type !== 'password')
+          .map(item => ({ name: item.name, type: item.type, value: /^(?:text|number)$/.test(item.type) ? item.value : undefined,
+            options: item.tagName === 'SELECT' ? item.options.length : undefined })) })) })) }));
   if (process.env.BW_INSPECT_TRANSFER_CONTROLS === '1' && (record.dynamicControls?.transfer || 0) > 0)
     console.log(JSON.stringify({ event: 'transfer-controls', area, label: record.label,
       path: wanted, controls: await captureTransferControls(page) }));
@@ -821,8 +877,8 @@ async function verifyInnerTarget(page, audit, area, sourcePath, parentLabel, inn
     }
   }
   if (process.env.BW_SEARCH_SUBPAGES === '1' && (record.dynamicControls?.search || 0) > 0 &&
-      !(record.searchCheck?.status === 'pass' && record.searchCheck.reskinned === true &&
-        record.searchCheck.backStatus === 'pass')) {
+      (process.env.BW_FORCE_SUBPAGE_SEARCH === '1' || !(record.searchCheck?.status === 'pass' && record.searchCheck.reskinned === true &&
+        record.searchCheck.backStatus === 'pass'))) {
     const searchCandidates = page.locator('td[width="82%"] #search0, td[width="82%"] #findButton, ' +
       'td[width="82%"] input[type="submit"][id^="search" i], ' +
       'td[width="82%"] input[type="submit"][value="Find" i], ' +
@@ -955,6 +1011,8 @@ async function verifyInnerTarget(page, audit, area, sourcePath, parentLabel, inn
           `${area} ${parentLabel} nested Back replay`);
         if (nestedFlow) nestedFlow.status = 'pass';
         saveAudit(audit);
+        console.log(JSON.stringify({ event: 'subpage-search-complete', area,
+          label: record.label, path: wanted, ...record.searchCheck }));
         return 'continue';
       }
       record.searchCheck.backStatus = 'needs';
@@ -980,18 +1038,18 @@ async function verifyInnerTarget(page, audit, area, sourcePath, parentLabel, inn
     }
   }
   if (process.env.BW_VERIFY_SORT === '1' && (record.dynamicControls?.sort || 0) > 0 &&
-      record.interactionChecks?.sort?.status !== 'pass') {
+      (record.interactionChecks?.sort?.status !== 'pass' || process.env.BW_FORCE_SORT === '1')) {
     const sortOutcome = await verifySortControl(page, audit, record, area, wanted);
     if (sortOutcome !== 'continue') return sortOutcome;
   }
   if (process.env.BW_VERIFY_PAGING === '1' && (record.dynamicControls?.paging || 0) > 0 &&
-      record.interactionChecks?.paging?.status !== 'pass') {
+      (record.interactionChecks?.paging?.status !== 'pass' || process.env.BW_FORCE_PAGING === '1')) {
     const pagingOutcome = await verifyPagingControl(page, audit, record, area, wanted);
     if (pagingOutcome !== 'continue') return pagingOutcome;
   }
   if (process.env.BW_VERIFY_TABS === '1' && (record.dynamicControls?.tabs || 0) > 0 &&
       (record.interactionChecks?.tabs?.status !== 'pass' || process.env.BW_FORCE_TABS === '1')) {
-    const tabOutcome = await verifyTabControl(page, audit, record, area, wanted);
+    const tabOutcome = await verifyTabControls(page, audit, record, area, wanted);
     if (tabOutcome !== 'continue') return tabOutcome;
   }
   if (process.env.BW_VERIFY_DOWNLOAD === '1' && (record.dynamicControls?.transfer || 0) > 0 &&
@@ -1093,8 +1151,18 @@ async function testTarget(page, target, folder) {
       locationAssign: /(?:top|window|self)?\.?location\s*(?:=|\.assign|\.replace)/.test(html),
       title: /<title[^>]*>([^<]*)<\/title>/i.exec(html)?.[1] || '' };
   }
-  if (process.env.BW_INSPECT_TABS === '1' && status === 'pass')
+  if (process.env.BW_INSPECT_TABS === '1' && status === 'pass') {
     result.tabs = await captureTabControls(page);
+    result.tabHandler = await page.evaluate(() => ({
+      tabWithSubmit: String(window.TabWithSubmit || '').slice(0, 1800),
+      tabSubmit: String(window.TabSubmit || '').slice(0, 1800),
+      forms: [...document.querySelectorAll('td[width="82%"] form')].map(form => ({
+        name:form.name,action:form.getAttribute('action'),method:form.method,
+        enctype:form.getAttribute('enctype'),fileInputs:form.querySelectorAll('input[type="file"]').length,
+        fields:[...form.elements].filter(field => field.name).map(field =>
+          ({name:field.name,type:field.type,value:String(field.value || '').slice(0,80)})).slice(0,30)}))
+    }));
+  }
   let searchedRows = false;
   let searchCheck = null;
   if (process.env.BW_DISCOVER_DEEP === '1' && status === 'pass') {
@@ -1329,20 +1397,20 @@ async function testTarget(page, target, folder) {
   }
   if (process.env.BW_VERIFY_SORT === '1' && status === 'pass' &&
       (record.dynamicControls?.sort || 0) > 0 &&
-      record.interactionChecks?.sort?.status !== 'pass') {
+      (record.interactionChecks?.sort?.status !== 'pass' || process.env.BW_FORCE_SORT === '1')) {
     const sortOutcome = await verifySortControl(page, audit, record, area, wanted);
     if (sortOutcome !== 'continue') return sortOutcome;
   }
   if (process.env.BW_VERIFY_PAGING === '1' && status === 'pass' &&
       (record.dynamicControls?.paging || 0) > 0 &&
-      record.interactionChecks?.paging?.status !== 'pass') {
+      (record.interactionChecks?.paging?.status !== 'pass' || process.env.BW_FORCE_PAGING === '1')) {
     const pagingOutcome = await verifyPagingControl(page, audit, record, area, wanted);
     if (pagingOutcome !== 'continue') return pagingOutcome;
   }
   if (process.env.BW_VERIFY_TABS === '1' && status === 'pass' &&
       (record.dynamicControls?.tabs || 0) > 0 &&
       (record.interactionChecks?.tabs?.status !== 'pass' || process.env.BW_FORCE_TABS === '1')) {
-    const tabOutcome = await verifyTabControl(page, audit, record, area, wanted);
+    const tabOutcome = await verifyTabControls(page, audit, record, area, wanted);
     if (tabOutcome !== 'continue') return tabOutcome;
   }
   if (process.env.BW_VERIFY_DOWNLOAD === '1' && status === 'pass' &&
@@ -1456,6 +1524,14 @@ async function testTarget(page, target, folder) {
   });
   if (process.env.BW_TRACE_REQUESTS === '1') page.on('response', response => {
     const request = response.request();
+    if (process.env.BW_TRACE_MOH_SERVLET === '1' &&
+        new URL(response.url()).pathname === '/commpilot/servlet/MusicOnHoldUserServlet') {
+      response.text().then(html => console.log(JSON.stringify({event:'moh-servlet-response',
+        status:response.status(),length:html.length,
+        redirectPosts:[...html.matchAll(/redirectPost\s*\(\s*['"]([^'"]+)/g)].map(match => match[1]).slice(0,4),
+        location:response.headers().location || null,
+        title:/<title[^>]*>([^<]*)<\/title>/i.exec(html)?.[1] || ''}))).catch(() => {});
+    }
     if (request.method() !== 'POST') return;
     const sent = new URLSearchParams(request.postData() || '');
     console.log(JSON.stringify({ event: 'post', path: routePath(response.url(), page.url()),
@@ -1480,6 +1556,7 @@ async function testTarget(page, target, folder) {
       const folders = audit.inventory.folders.filter(item => item.level === level &&
         (!onlyFolder || item.name === onlyFolder)).map(item => item.name);
       let restart = false;
+      let reachedStart = !startLabel;
       for (const folder of folders) {
         await clickFolder(page, folder);
         if (process.env.BW_INSPECT_LINK) {
@@ -1494,7 +1571,11 @@ async function testTarget(page, target, folder) {
         }
         const targets = await captureTargets(page);
         for (const target of targets) {
-          if (onlyLabel && target.label !== onlyLabel) continue;
+          if (!reachedStart) {
+            if (target.label !== startLabel) continue;
+            reachedStart = true;
+          }
+          if (selectedLabels.length && !selectedLabels.includes(target.label)) continue;
           const wanted = routePath(target.url, page.url());
           const known = loadAudit().routes.find(item => item.area === `${level} / ${folder}` &&
             item.kind !== 'nested' && item.label === target.label && item.path === wanted);
@@ -1520,10 +1601,10 @@ async function testTarget(page, target, folder) {
               (known?.searchCheck?.status === 'pass' && known.searchCheck.reskinned !== true));
           const needsSort = process.env.BW_VERIFY_SORT === '1' &&
             (known?.dynamicControls?.sort || 0) > 0 &&
-            known?.interactionChecks?.sort?.status !== 'pass';
+            (known?.interactionChecks?.sort?.status !== 'pass' || process.env.BW_FORCE_SORT === '1');
           const needsPaging = process.env.BW_VERIFY_PAGING === '1' &&
             (known?.dynamicControls?.paging || 0) > 0 &&
-            known?.interactionChecks?.paging?.status !== 'pass';
+            (known?.interactionChecks?.paging?.status !== 'pass' || process.env.BW_FORCE_PAGING === '1');
           const needsTabs = process.env.BW_VERIFY_TABS === '1' &&
             (known?.dynamicControls?.tabs || 0) > 0 &&
             (known?.interactionChecks?.tabs?.status !== 'pass' || process.env.BW_FORCE_TABS === '1');
@@ -1537,7 +1618,12 @@ async function testTarget(page, target, folder) {
               (process.env.BW_DISCOVER_DEEP !== '1' || (known.deepScanned && !pendingInner))) continue;
           const outcome = await testTarget(page, target, folder);
           if (outcome === 'gap') { console.log(JSON.stringify({ event: 'needs-fix', level, folder, label: target.label })); return; }
-          if (outcome === 'session') { restart = true; break; }
+          if (outcome === 'session') {
+            console.log(JSON.stringify({ event: 'session-target', level, folder,
+              label: target.label, path: wanted,
+              currentPath: new URL(page.url()).pathname }));
+            restart = true; break;
+          }
           await delay(100);
         }
         if (restart) break;

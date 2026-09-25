@@ -6,7 +6,7 @@
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.24-native";
+  var CP_PJAX_VERSION = "0.3.25-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -175,6 +175,7 @@
   // aborted-but-still-resolving prior search (abort stops the LOOP, not the in-flight fetch), which the old
   // single-_searchPromise wait missed.
   var cpInflightPosts = 0;
+  var cpTokenDrainSeq = 0;
   // RESELLER anchor reuse: the open folder cpHook just fetched to land here IS the console's anchor
   // section, so re-fetching it (the old behaviour) fired a SECOND back-to-back folder_contents on the
   // rotating single-use token → the anchor (Profile) intermittently shelled = "Couldn't load — Retry".
@@ -329,6 +330,9 @@
     _orig = window.redirectPost;
 
     function isPjaxUrl(u) {
+      // CommPilot tabs can target a supported page with query flags. Match the
+      // route itself while leaving the original URL intact for the POST.
+      if (typeof u === "string") u = u.replace(/[?#].*$/, "");
       return (
         typeof u === "string" &&
         (u.indexOf("folder_contents.jsp") !== -1 ||
@@ -433,8 +437,17 @@
 
     function cpFollow(u, p, token, depth) {
       var body = new URLSearchParams();
-      for (var k in p) if (Object.prototype.hasOwnProperty.call(p, k)) body.append(k, p[k]);
-      if (token) body.append("formtokenserial", token);
+      if (p && Array.isArray(p.__cpFormEntries)) {
+        var tokenPlaced = false;
+        p.__cpFormEntries.forEach(function (entry) {
+          if (entry[0] === 'formtokenserial') { body.append(entry[0], token || entry[1]); tokenPlaced = true; }
+          else body.append(entry[0], entry[1]);
+        });
+        if (token && !tokenPlaced) body.append('formtokenserial', token);
+      } else {
+        for (var k in p) if (Object.prototype.hasOwnProperty.call(p, k)) body.append(k, p[k]);
+        if (token) body.append('formtokenserial', token);
+      }
       cpInflightPosts++;   // mark a token-bearing POST in flight (drained by the reload handler)
       var _settled = false, _done = function () { if (_settled) return; _settled = true; cpInflightPosts = Math.max(0, cpInflightPosts - 1); };
       // redirect:"manual" — a server 3xx is this app's LOGIN/SESSION BOUNCE (the server hard-codes an
@@ -551,8 +564,17 @@
           var f = document.createElement("form");
           f.method = "POST"; f.action = u; f.target = ifr.name;
           function add(n, v) { var inp = document.createElement("input"); inp.type = "hidden"; inp.name = n; inp.value = v; f.appendChild(inp); }
-          for (var k in p) if (Object.prototype.hasOwnProperty.call(p, k)) add(k, p[k]);
-          if (tok) add("formtokenserial", tok);
+          if (p && Array.isArray(p.__cpFormEntries)) {
+            var tokenPlaced = false;
+            p.__cpFormEntries.forEach(function (entry) {
+              if (entry[0] === 'formtokenserial') { add(entry[0], tok || entry[1]); tokenPlaced = true; }
+              else add(entry[0], entry[1]);
+            });
+            if (tok && !tokenPlaced) add('formtokenserial', tok);
+          } else {
+            for (var k in p) if (Object.prototype.hasOwnProperty.call(p, k)) add(k, p[k]);
+            if (tok) add('formtokenserial', tok);
+          }
           document.body.appendChild(f);
           ifr.onload = function () {
             var html = "";
@@ -1298,6 +1320,20 @@
       while ((mm = re.exec(m[2]))) params[mm[1]] = mm[2].replace(/\\u003E/g, ">").replace(/\\u0025/g, "%").replace(/\\u002F/g, "/");
       return { url: url, params: params };
     }
+    // BroadWorks table cells often rely on a DOMContentLoaded listener bound
+    // to RowNColN. On some list responses that listener is absent after a
+    // PJAX swap even though the adjacent Edit link works. Use the row's own
+    // redirectPost wiring for a clicked value, so its drill-in is reliable.
+    document.addEventListener("click", function (ev) {
+      var link = ev.target && ev.target.closest ?
+        ev.target.closest('td[width="82%"] tr[id^="Row"] a.tableLink[id]') : null;
+      if (!link) return;
+      var target = cpGridActionTarget(link);
+      if (!target || !isPjaxUrl(target.url)) return;
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      window.redirectPost(target.url, target.params);
+    }, true);
     // Export action wiring. The legacy Export button calls `exportComponent(component, contextPath, pagePath,
     // tokenName)` (defined in Scripts/deviceManagementExport.js) — a script the FULL Modify page loads but that pjax
     // does NOT carry over on an in-shell swap, so exportComponent is UNDEFINED and forwarding the click no-ops. We
@@ -2509,6 +2545,16 @@
           if (idx >= 0) { var m = scripts.slice(idx, idx + 400).match(/([Tt])abSubmit\s*\(\s*['"]([^'"]+)['"]/); if (m) { dialectLower = m[1] === "t"; tabUrl = m[2]; } }
         }
         if (!tabUrl) return false;
+        // Call Center Announcements uses short tab IDs, not relative URLs.
+        // Its native TabSubmit posts the multipart form to a servlet, which
+        // returns a redirect stub for the chosen announcement page.
+        var tabAction = new URL(form.getAttribute('action') || location.pathname, location.href);
+        if (/^\/commpilot\/servlet\/CallCenterAnnouncements[A-Za-z]*Servlet$/.test(tabAction.pathname) &&
+            /^[a-z]+$/.test(tabUrl) && form.elements.namedItem('tabPage')) {
+          form.elements.namedItem('tabPage').value = tabUrl;
+          form.submit();
+          return true;
+        }
         if (/^\/(?:Group|ServiceProvider)\/DeviceInventory\/Modify\//.test(tabUrl)) {
           // The full Profile form POST to a sibling tab is interpreted as a
           // profile action and returns the list. Enter the tab with only the
@@ -2531,7 +2577,10 @@
           // per-page entry has no such ambiguity. If the wiring extraction failed, do NOTHING (a dead tab click
           // beats an accidental write).
           var resolved = "";
-          try { resolved = new URL(tabUrl, location.origin + location.pathname).pathname; } catch (e) {}
+          var tabBase = location.pathname;
+          if (cpSearchLanding && /\/commpilot\/Common\/(?:find|findAll|page|sort)\.jsp$/.test(tabBase))
+            tabBase = cpSearchLanding;
+          try { resolved = new URL(tabUrl, location.origin + tabBase).pathname; } catch (e) {}
           if (!resolved) return false;
           window.redirectPost(resolved, {});
           return true;
@@ -2544,6 +2593,23 @@
         // directory ("/Group/..."). The browser treats it as an origin-root
         // path, so resolve that legacy spelling under /commpilot for transport.
         var target = tabUrl;
+        // Call Park Add uses a short tab ID. Its native form posts the Add
+        // controller with tabPage=altRecallUser; the ID is not a URL.
+        if (/^\/commpilot\/Group\/CallPark\/Add\/index\.jsp$/.test(location.pathname) &&
+            target === 'altRecallUser') {
+          target = location.pathname;
+        }
+        // Executive's Alerting endpoint rejects a direct form POST. Its native
+        // TabSubmit posts the current Assistants form with tabPage set instead.
+        if (/^\/commpilot\/User\/Executive\/?$/.test(location.pathname) &&
+            /^\/commpilot\/User\/Executive\/Alerting\/?$/.test(target))
+          target = location.pathname;
+        // Scheduled Reports paints the Active subpage at the parent list URL.
+        // Its legacy sibling target is relative to Active/, so ../Completed/
+        // would otherwise escape CCScheduledReports/ after the PJAX swap.
+        var scheduledTab = /^\.\.\/(Active|Completed)\/?$/.exec(target);
+        if (/^\/commpilot\/Group\/CCScheduledReports\/?$/.test(location.pathname) && scheduledTab)
+          target = "/commpilot/Group/CCScheduledReports/" + scheduledTab[1] + "/";
         if (/^\/(?:Reseller|ServiceProvider|Group|User|Operator|System|Common)\//.test(target))
           target = "/commpilot" + target;
         window.redirectPost(target || (location.origin + location.pathname), params);
@@ -3991,18 +4057,36 @@
           // with THIS POST.
           try { if (cpGridState && cpGridState._searchAbort) cpGridState._searchAbort.abort(); } catch (e) {}
           try { if (cpGridState && cpGridState._sweepAbort) cpGridState._sweepAbort.abort(); } catch (e) {}
+          var drainSeq = ++cpTokenDrainSeq;
+          // Aborting a grid sweep stops its NEXT page request, but a POST that
+          // already reached CommPilot can still consume the single-use token.
+          // Let that response refresh the live token before sending this nav.
+          if (cpInflightPosts > 0) {
+            var drainTicks = 0;
+            (function drainBeforeNav() {
+              if (drainSeq !== cpTokenDrainSeq) return; // a newer click wins
+              if (cpInflightPosts === 0) { cpHook(url, params, _retry); return; }
+              if (++drainTicks > 250) {
+                console.warn('[pjax] prior CommPilot request did not finish; navigation was not sent with a stale token');
+                cpUploadNotice('A previous CommPilot request is still running. Please try again.');
+                return;
+              }
+              setTimeout(drainBeforeNav, 20);
+            })();
+            return;
+          }
           // Classify the nav so reload-recovery never remembers a FORM submit or an Add-form open: cold-replaying
           // those bounces to /Login/ on a still-alive session (the idle-reload-logout). A SUBMIT carries an action
           // button param (ok/apply/delete/cancel/buttonClicked); an Add form is a deep create page. NB we deliberately
           // do NOT exclude /Modify/ broadly — SP/Group/User console drill-ins use Modify and ARE valid recover-navs.
           // See [[gotcha-idle-connection-drop-dead-click]].
           var _submitNav = !!(params && (params.ok != null || params.apply != null || params.delete != null || params.cancel != null || params.buttonClicked != null));
-          var _addForm = /\/Add\//.test(url);
+          var _addForm = /\/(Add|AddModify)\//.test(url);
           // Remember the list a form is being OPENED from (location is still the list here, pre-swap).
           // Only when the current page is NOT itself a form URL, so form→form chains (Modify → Add Tag)
           // keep the ORIGINAL list as the return anchor. Consumed by the canonical re-anchor below.
           try {
-            if (/\/(Add|Import|Modify)\//.test(url) && !/\/(Add|Import|Modify)\//.test(location.pathname)) {
+            if (/\/(Add|AddModify|Import|Modify)\//.test(url) && !/\/(Add|AddModify|Import|Modify)\//.test(location.pathname)) {
               cpFormOrigin = location.pathname;
             }
           } catch (e) {}
@@ -4239,7 +4323,9 @@
               // when re-executed. Make the fetched page's URL current first, so
               // those actions resolve as they would after a native navigation.
               cpConfigFilesForwarded = false;
-              var cpState = { cpNav: { url: url, params: params || {} } };
+              var cpState = { cpNav: { url: url, params: params || {},
+                entry: (cpEntityEntry && cpEntityEntry.url !== url) ?
+                  { url: cpEntityEntry.url, params: cpEntityEntry.params || {} } : null } };
               var cpHistoryMode = cpPopReplaying || cpAutoReplaceUrl === url ||
                 (cpLoader === cpFollowFrame && history.length > cpHistoryBeforeLoad) ? "replace" : "push";
               if (cpAutoReplaceUrl === url) cpAutoReplaceUrl = null;
@@ -4355,11 +4441,33 @@
               // (DeviceType list = /Reseller/DeviceType/ but its Add = /Operator/System/DeviceType/Add/).
               try {
                 if (_submitNav && cpFormOrigin && canonical === url &&
-                    (/\/(Add|Import|Modify)\//.test(url) || /\/Operator\/System\/DeviceType\/Profile\//.test(url)) &&
+                    (/\/(Add|AddModify|Import|Modify)\//.test(url) || /\/Operator\/System\/DeviceType\/Profile\//.test(url)) &&
                     liveCell && liveCell.querySelector &&
-                    liveCell.querySelector('select[name="findKey0"], #searchTable, input[name="add"][type="button"], button[name="add"]')) {
+                    liveCell.querySelector('select[name="findKey0"], select[name="findKey"], #searchTable, input[name="add"][type="button"], input[name="addBasic"][type="button"], button[name="add"]')) {
                   canonical = cpFormOrigin;
                   document.documentElement.setAttribute("data-cp-path", canonical);
+                }
+              } catch (e) {}
+              try {
+                if (_submitNav && /\/Group\/Call_Center\/AddModify\//.test(url) &&
+                    liveCell && liveCell.querySelector && liveCell.querySelector('input[name="addBasic"]')) {
+                  canonical = '/commpilot/Group/Call_Center/';
+                  document.documentElement.setAttribute('data-cp-path', canonical);
+                }
+              } catch (e) {}
+              // Service-instance Modify Delete returns the owning list, but
+              // cpFormOrigin can be the intermediate EditRedirect page. Anchor
+              // the result to the real Group list so the next Add/Edit resolves.
+              try {
+                if (_submitNav && params && params.delete != null && liveCell && liveCell.querySelector) {
+                  var serviceList = /\/Group\/([^/]+)\/Modify\//.exec(url);
+                  if (serviceList && liveCell.querySelector('input[name="addBasic"], input[name="add"]'))
+                    canonical = '/commpilot/Group/' + serviceList[1] + '/' +
+                      (/^(Voice_XML|InstantGroupCall)$/.test(serviceList[1]) ? 'index.jsp' : '');
+                  else if (/\/Group\/Call_Center\/AddModify\//.test(url) &&
+                      liveCell.querySelector('input[name="addBasic"]'))
+                    canonical = '/commpilot/Group/Call_Center/';
+                  if (canonical !== url) document.documentElement.setAttribute('data-cp-path', canonical);
                 }
               } catch (e) {}
               // Tabbed assign pages (lowercase tabSubmit dialect): a tab switch POSTs to the CURRENT
@@ -4376,6 +4484,17 @@
                   }
                 }
               } catch (e) {}
+              // Alerting must be entered through the Executive controller, but
+              // the painted tab belongs at its own path for later relative
+              // actions and Back/Forward replay.
+              try {
+                if (/^\/commpilot\/User\/Executive\/?$/.test(url) &&
+                    params && params.tabPage === '/commpilot/User/Executive/Alerting/' &&
+                    liveCell && /Alerting/.test(liveCell.querySelector('.tabActive')?.textContent || '')) {
+                  canonical = params.tabPage;
+                  document.documentElement.setAttribute('data-cp-path', canonical);
+                }
+              } catch (e) {}
               try {
                 // The entry was created before script replay. A list/form/tab
                 // response may have a different canonical URL; update that
@@ -4388,7 +4507,9 @@
               // Chained follow-up (entity re-entry → target page): fire the pending nav now that this swap
               // (the entry) has committed. See cpPendingNav/cpEntityEntry.
               try {
-                if (cpPendingNav) { var _pn = cpPendingNav; cpPendingNav = null; setTimeout(function () { cpHook(_pn.url, _pn.params || {}); }, 0); }
+                if (cpPendingNav) { var _pn = cpPendingNav; cpPendingNav = null;
+                  if (_pn.replace) cpAutoReplaceUrl = _pn.url;
+                  setTimeout(function () { cpHook(_pn.url, _pn.params || {}); }, 0); }
               } catch (e) {}
             })
             .catch(function (e) {
@@ -4434,9 +4555,15 @@
       try {
         var action = new URL(form.getAttribute('action') || location.pathname, location.href);
         var deviceProfile = action.pathname === '/commpilot/servlet/DeviceInventoryProvisionServlet';
-        if (!form.querySelector('input[type="file"]') && !deviceProfile) return null;
+        var mohUser = action.pathname === '/commpilot/servlet/MusicOnHoldUserServlet';
+        var callCenterAnnouncements = /^\/commpilot\/servlet\/CallCenterAnnouncements[A-Za-z]*Servlet$/.test(action.pathname);
+        var groupAudioSettings = /^\/commpilot\/servlet\/(?:PreAlertingAnnouncement(?:Group|User)|CustomRingbackGroup)Servlet$/.test(action.pathname);
+        var vpBranding = action.pathname === '/commpilot/servlet/VPBrandingServlet';
+        var autoAttendantMenu = action.pathname === '/commpilot/servlet/AASubscriptionServlet';
+        var callCenterRouting = /^\/commpilot\/servlet\/CallCenter(?:Overflow|StrandedCalls(?:Unavailable)?)RoutingPolicyServlet$/.test(action.pathname);
+        if (!form.querySelector('input[type="file"]') && !deviceProfile && !mohUser && !callCenterAnnouncements && !groupAudioSettings && !vpBranding && !autoAttendantMenu && !callCenterRouting) return null;
         return action.origin === location.origin &&
-          /^\/commpilot\/servlet\/(?:DeviceManagementImportServlet|PhoneListImportServlet|AnswerConfirmationServlet|VPBrandingServlet|SysAdminPrefsServlet|CCReportBrandingServlet|InterceptServiceServlet|AnnouncementRepositoryServlet|CallCenterEnhancedReportingReportTemplateServlet|SystemDmsFileProvisionServlet|DeviceInventoryProvisionServlet)$/.test(action.pathname) ? action : null;
+          (/^\/commpilot\/servlet\/(?:DeviceManagementImportServlet|PhoneListImportServlet|AnswerConfirmationServlet|VPBrandingServlet|SysAdminPrefsServlet|CCReportBrandingServlet|InterceptServiceServlet|AnnouncementRepositoryServlet|CallCenterEnhancedReportingReportTemplateServlet|SystemDmsFileProvisionServlet|DeviceInventoryProvisionServlet|MusicOnHoldUserServlet|PreAlertingAnnouncementGroupServlet|PreAlertingAnnouncementUserServlet|CustomRingbackGroupServlet|AASubscriptionServlet)$/.test(action.pathname) || callCenterAnnouncements || callCenterRouting) ? action : null;
       } catch (e) { return null; }
     }
     function cpUploadNotice(message) {
@@ -4548,15 +4675,18 @@
         if (!isPjaxUrl(act)) return;
         e.preventDefault();
         e.stopImmediatePropagation();
-        var params = {}, els = form.elements;
-        for (var i = 0; i < els.length; i++) {
-          var el = els[i];
-          if (!el.name || el.name === "formtokenserial") continue;
-          if (el.type === "submit" || el.type === "button") continue;
-          if ((el.type === "checkbox" || el.type === "radio") && !el.checked) continue;
-          params[el.name] = el.value;
-        }
-        if (e.submitter && e.submitter.name) params[e.submitter.name] = e.submitter.value;
+        var params = {}, entries = [];
+        var fields = e.submitter ? new FormData(form, e.submitter) : new FormData(form);
+        fields.forEach(function (value, name) {
+          if (name === 'formtokenserial') { entries.push([name, value]); return; }
+          if (value instanceof File) return;
+          entries.push([name, value]);
+          params[name] = value;
+        });
+        // A map collapses duplicate hidden controls (for example, Routing
+        // Priority's two buttonClicked fields). CommPilot validates the native
+        // browser form shape, so keep every successful control in DOM order.
+        params.__cpFormEntries = entries;
         cpHook(act, params);
       } catch (err) { console.warn("[pjax] submit intercept", err); }
     }, true);
@@ -4738,7 +4868,16 @@
         if (!nav || !nav.url) return;
         cpPopReplaying = true;
         cpDbg("[pjax] popstate → replay", nav.url);
-        window.redirectPost(nav.url, nav.params || {});
+        // A child page can switch CommPilot's server-side target (for example,
+        // User Addresses → Group device profile). Restore the entry context
+        // before replaying the previous page, keeping the Back entry in place.
+        var painted = document.documentElement.getAttribute("data-cp-path") || "";
+        var scope = function (path) { return /^\/commpilot\/([^/]+)/.exec(path || "")?.[1] || ""; };
+        if (nav.entry && nav.entry.url && nav.entry.url !== nav.url &&
+            scope(painted) && scope(nav.url) && scope(painted) !== scope(nav.url)) {
+          cpPendingNav = { url: nav.url, params: nav.params || {}, replace: true };
+          window.redirectPost(nav.entry.url, nav.entry.params || {});
+        } else window.redirectPost(nav.url, nav.params || {});
       } catch (err) { cpPopReplaying = false; console.warn("[pjax] popstate replay failed", err); }
     }, false);
 
