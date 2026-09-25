@@ -125,3 +125,40 @@ test('opening an option while Peek reads it waits for the token-bearing request'
     assert.equal(leafRequests, 2);
   } finally { await browser.close(); }
 });
+
+test('Peek reserves its space during section reveal but waits to read until the board is ready', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    const twoFolderMenu = menu.replace('Profile</a></form>',
+      `Profile</a><a class="leftnavfolder"
+        onclick="redirectPost('${folderPath}', {folder:'R1', menuId:'8'})">Resources</a></form>`);
+    let finishSecond;
+    const secondFolder = new Promise(resolve => { finishSecond = resolve; });
+    let leafReads = 0;
+    await page.route('https://apps-sbx.avpaas.io/**', async route => {
+      const pathname = new URL(route.request().url()).pathname;
+      const params = new URLSearchParams(route.request().postData() || '');
+      if (pathname === leafPath) {
+        leafReads++;
+        return route.fulfill({ status: 200, contentType: 'text/html', body: shell(
+          '<form name="mainForm"><input type="text" name="defaultFromEmailAddress" value="ready@example.com"></form>',
+          'Call Notify') });
+      }
+      if (params.get('folder') === 'R1') await secondFolder;
+      return route.fulfill({ status: 200, contentType: 'text/html', body: twoFolderMenu });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + folderPath, { waitUntil: 'domcontentloaded' });
+    for (const file of ['native-theme.css', 'theme-palettes.css', 'menu-board.css']) {
+      await page.addStyleTag({ path: path.join(root, 'src/content', file) });
+    }
+    await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
+    await page.locator('.cp-console-section[data-cp-folder="R0"] .cp-leaf-loading').waitFor({ state: 'attached' });
+    assert.equal(leafReads, 0);
+    assert.equal(await page.locator('.cp-console-section[data-cp-folder="R0"] .cp-leaf-summary').count(), 1);
+    finishSecond();
+    await page.locator('.cp-console-section[data-cp-folder="R0"] .cp-leaf-defpill').waitFor();
+    assert.ok(leafReads >= 1);
+  } finally { await browser.close(); }
+});

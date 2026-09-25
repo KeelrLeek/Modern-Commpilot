@@ -5480,11 +5480,13 @@
       });
     }
 
-    function cpSummarizeLeaves(bodyEl) {
+    function cpSummarizeLeaves(bodyEl, reserveOnly) {
       if (!bodyEl) return;
       var board = bodyEl.closest(".cp-console");
       if (!board) return;
-      if (!cpPeekObserver && typeof IntersectionObserver === "function") {
+      // Reserve the dock while its menu section is first laid out. Reading leaves
+      // must wait until the complete reseller board has finished its folder POSTs.
+      if (!reserveOnly && !cpPeekObserver && typeof IntersectionObserver === "function") {
         var observer = new IntersectionObserver(function (entries) {
           entries.forEach(function (entry) {
             if (!entry.isIntersecting) return;
@@ -5494,6 +5496,12 @@
         }, { root:board, rootMargin:"160px" });
         cpPeekObserver = observer;
       }
+      function start(box) {
+        if (reserveOnly || box.dataset.cpPeekStarted === "1") return;
+        box.dataset.cpPeekStarted = "1";
+        if (cpPeekObserver) cpPeekObserver.observe(box);
+        else box.__cpPeekLoad();
+      }
       CP_LEAF_ALLOW.forEach(function (target) {
         var anchor = bodyEl.querySelector('a[name="' + target + '"]');
         if (!anchor) return;
@@ -5502,7 +5510,9 @@
         var titleRow = anchor.closest("tr");
         var descRow = titleRow && titleRow.nextElementSibling;
         var card = descRow && !descRow.querySelector("a.navMenuItem") && descRow.querySelector("td");
-        if (!card || card.querySelector(".cp-leaf-summary")) return;  // already summarized
+        if (!card) return;
+        var existing = card.querySelector(".cp-leaf-summary");
+        if (existing) { start(existing); return; }
         var box = document.createElement("div");
         box.className = "cp-leaf-summary cp-leaf-dock";
         var loading = document.createElement("div");
@@ -5517,7 +5527,14 @@
         card.appendChild(box);
         box.__cpPeekLoad = function () { cpFetchLeaf("/commpilot" + target).then(function (rows) {
           if (cpSectionAborted || !document.querySelector(".cp-console") || !box.isConnected) { return; }
-          if (!rows) { box.remove(); return; }
+          if (!rows) {
+            if (box.animate && !(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) {
+              var empty = box.animate([{ height:box.getBoundingClientRect().height + "px", opacity:1 }, { height:"0px", opacity:0 }],
+                { duration:240, easing:"ease-in-out" });
+              empty.onfinish = empty.oncancel = function () { box.remove(); };
+            } else box.remove();
+            return;
+          }
           var oldHeight = box.getBoundingClientRect().height;
           var contents = document.createDocumentFragment();
           rows.forEach(function (r) {
@@ -5575,23 +5592,29 @@
             }
             row.appendChild(k); row.appendChild(v); contents.appendChild(row);
           });
-          box.replaceChildren(contents);
-          var newHeight = box.scrollHeight;
           var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
           if (!reduceMotion && box.animate) {
             box.style.height = oldHeight + "px";
             box.style.overflow = "hidden";
+            loading.style.position = "absolute";
+            loading.style.inset = "0 0 auto";
+            loading.style.pointerEvents = "none";
+            box.appendChild(contents);
+            var newHeight = box.scrollHeight;
             var reveal = box.animate([{ height:oldHeight + "px" }, { height:newHeight + "px" }],
-              { duration:360, easing:"cubic-bezier(.22, 1, .36, 1)" });
+              { duration:520, easing:"cubic-bezier(.22, 1, .36, 1)" });
             reveal.onfinish = reveal.oncancel = function () {
               box.style.height = "";
               box.style.overflow = "";
+              loading.remove();
             };
+            loading.animate([{ opacity:1 }, { opacity:0 }],
+              { duration:250, delay:120, easing:"ease-out", fill:"forwards" });
             box.querySelectorAll(".cp-leaf-row").forEach(function (r, index) {
-              r.animate([{ opacity:0, transform:"translateY(7px)" }, { opacity:1, transform:"translateY(0)" }],
-                { duration:330, delay:Math.min(index * 45, 135), easing:"cubic-bezier(.22, 1, .36, 1)" });
+              r.animate([{ opacity:0, transform:"translateY(4px)" }, { opacity:1, transform:"translateY(0)" }],
+                { duration:390, delay:100 + Math.min(index * 45, 135), easing:"cubic-bezier(.22, 1, .36, 1)" });
             });
-          }
+          } else box.replaceChildren(contents);
           // This summary just grew (… → real rows). If it sits in a section ABOVE a jump anchor, that
           // growth shoved the anchor down — re-pin the anchor flush. Gated on "still near the top" so a
           // user who has since scrolled away isn't yanked back.
@@ -5603,8 +5626,7 @@
             }
           }
         }).catch(function () { try { box.remove(); } catch (e) {} }); };
-        if (cpPeekObserver) cpPeekObserver.observe(box);
-        else box.__cpPeekLoad();
+        start(box);
       });
     }
     // Navigate to a breadcrumb segment's level (ancestor segments are clickable links). The auth-trail
@@ -6323,6 +6345,7 @@
           bodyEl.querySelectorAll(".cp-breadcrumb, a.headerAuthLevelLink").forEach(function (b) { b.remove(); });
           cpRevealSection(sec, aboveAnchor);   // animated cascade for anchor + below; plain show for above
           document.dispatchEvent(new Event("cp:reskin"));   // wrapMenuCards etc. → the section's FINAL height
+          if (/^R\d+$/.test(folder || "")) cpSummarizeLeaves(bodyEl, true);
           cpReexecWiringScripts(bodyEl);
           cpSetSectionCount(bodyEl);
           // An above-anchor section was just inserted above the pinned anchor. Re-pin the anchor flush
@@ -6489,6 +6512,8 @@
         cpHeadFade();
         if (!cpBoardFailed && secs.length && /^R\d+$/.test(secs[0].getAttribute("data-cp-folder") || "")) {
           secs.forEach(function (s) { cpSummarizeLeaves(s.querySelector(".cp-console-body")); });
+        } else if (cpBoardFailed && cdone) {
+          cdone.querySelectorAll(".cp-leaf-summary:not([data-cp-peek-started])").forEach(function (box) { box.remove(); });
         }
         return;
       }

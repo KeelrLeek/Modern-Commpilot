@@ -101,6 +101,7 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-section:las
 }
 /* Peek: a compact detail dock inside each native option. */
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-leaf-summary {
+  position:relative;
   display:grid;
   gap:5px;
   margin-top:9px;
