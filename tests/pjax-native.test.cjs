@@ -286,7 +286,7 @@ test('Group Numbers Edit reanchors a saved list response while keeping validatio
     await page.evaluate(pathname => window.redirectPost(pathname, { key: '+1-2244830030' }), editPath);
     await page.getByRole('heading', { name: 'Assign Numbers Modify' }).waitFor();
     await page.locator('input[name="ok"]').click();
-    await page.getByRole('heading', { name: 'Numbers' }).waitFor();
+    await page.getByRole('heading', { name: 'Numbers', exact: true }).waitFor();
     assert.equal(await page.evaluate(() => location.pathname), listPath);
     await page.evaluate(pathname => window.redirectPost(pathname, { key: '+1-2244830030' }), editPath);
     await page.getByRole('heading', { name: 'Assign Numbers Modify' }).waitFor();

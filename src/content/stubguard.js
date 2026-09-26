@@ -149,6 +149,12 @@
     function commit(tok, why) {
       if (committed) return; committed = true;
       var entry = nav && nav.entry;
+      // One-shot hand-off to pjax.js on the landing page (cpReloadEntry): which entity entry this replay
+      // re-established, so an SP/Group/User folder board can restore the context after its folder reads.
+      try {
+        sessionStorage.setItem("cp-reload-nav", JSON.stringify({ url: nav.url, params: nav.params || {},
+          entry: entry && entry.url ? { url: entry.url, params: entry.params || {} } : null, at: Date.now() }));
+      } catch (e) {}
       if (entry && entry.url && entry.url !== nav.url && !/^https?:\/\//i.test(entry.url)) {
         cpDbg("[stubguard] recovery replay — " + why + " + entity re-entry first: " + entry.url);
         cpEnterEntity(entry, tok).then(function (etok) { cpNativePost(nav, etok || tok); });

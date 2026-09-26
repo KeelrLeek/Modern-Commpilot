@@ -59,11 +59,31 @@
   // intentional moment instead of a flicker. See cpSignOutFetch / cpHook.
   var CP_LOGOUT_MIN_MS = 1400;
 
+  // One-shot marker from stubguard.js: the nav a browser-button reload just replayed natively (see cpReloadEntry).
+  var cpReloadNav = null;
+  try {
+    cpReloadNav = JSON.parse(sessionStorage.getItem("cp-reload-nav") || "null");
+    sessionStorage.removeItem("cp-reload-nav");
+    if (!cpReloadNav || !cpReloadNav.url || /^https?:\/\//i.test(cpReloadNav.url) ||
+        !(Date.now() - (cpReloadNav.at || 0) < 60000)) cpReloadNav = null;
+  } catch (e) { cpReloadNav = null; }
+
   try {
     var cpInitialPath = location.pathname;
     // A fresh reseller login lands on folder_contents.jsp by POST. Replaying
-    // that URL without its folder selection bounces to Login on Back.
-    var cpInitialNav = cpInitialPath === "/commpilot/Common/folder_contents.jsp" ?
+    // that URL without its folder selection bounces to Login on Back. A reload
+    // replay records the nav it replayed, so Back returns to the same entity.
+    // Like an in-session level change, a replayed entry that landed on a folder menu (a Modify entry or a
+    // breadcrumb up-nav) is its own Back target; only an ordinary page keeps the entry it was opened under.
+    var cpReloadOwnEntry = !!cpReloadNav &&
+      !!document.querySelector('td[width="82%"] a.navMenuItem') &&
+      !!document.querySelector('form[name="leftNavForm"] a.leftnavfolder, form[name="leftNavForm"] a.leftnavfolderopen') &&
+      (cpReloadNav.url.indexOf("/Common/folder_contents.jsp") === -1 ||
+        (!!cpReloadNav.params && !cpReloadNav.params.folder && !!(cpReloadNav.params.menuId || cpReloadNav.params.P_menuId)));
+    var cpInitialNav = cpReloadNav && cpInitialPath.indexOf("/Login/") === -1 ?
+      { url: cpReloadNav.url, params: cpReloadNav.params || {},
+        entry: !cpReloadOwnEntry && cpReloadNav.entry && cpReloadNav.entry.url ? cpReloadNav.entry : null } :
+      cpInitialPath === "/commpilot/Common/folder_contents.jsp" ?
       { url: cpInitialPath, params: { folder: "R0", menuId: "8" } } :
       cpInitialPath.indexOf("/commpilot/") === 0 && cpInitialPath.indexOf("/Login/") === -1 ?
       { url: cpInitialPath, params: {} } :
@@ -133,6 +153,35 @@
   // a context-reset session → "There is no target object to get viewable features" → 500s/logout (live
   // repro: F5 on an SP Schedules grid, 2026-07-04).
   var cpEntityEntry = null;
+  // The last level change made by a real entity entry (a Modify-style POST, not folder_contents). CommPilot's
+  // native breadcrumb goes UP a level with a bare folder_contents {menuId} POST that only works from inside a
+  // descendant's context; recovery re-enters this entry first, then replays that up-nav.
+  var cpDeepEntry = null;
+  function cpIsLevelUpNav(url, params) {
+    return String(url || "").indexOf("/Common/folder_contents.jsp") !== -1 && !!params && !params.folder &&
+      !!(params.menuId || params.P_menuId);
+  }
+  // A browser-button reload is replayed natively by stubguard.js, so this page load starts without the
+  // entity entry that set the server context. stubguard leaves the replayed nav as a one-shot marker: a
+  // Modify-style nav that landed on a folder menu IS the entry; a folder_contents nav carries its entry.
+  // cpBuildConsole may use it only for this load's first board (cpAutoConsole clears it otherwise).
+  var cpReloadEntry = null;
+  try {
+    // A replay that fell back to Login proves nothing about the next session's context (its login morphs in place).
+    if (cpReloadNav && !onLogin) {
+      // A bare breadcrumb up-nav is the level's own entry once the replay re-established the descendant it
+      // climbs from (the board restores with it in-session too); a folder read restores with its recorded entry.
+      var cpReloadSource = cpIsLevelUpNav(cpReloadNav.url, cpReloadNav.params) ? cpReloadNav :
+        cpReloadNav.url.indexOf("/Common/folder_contents.jsp") !== -1 ? cpReloadNav.entry : cpReloadNav;
+      if (cpReloadSource && cpReloadSource.url && !/^https?:\/\//i.test(cpReloadSource.url) &&
+          (cpReloadSource.url.indexOf("folder_contents.jsp") === -1 || cpIsLevelUpNav(cpReloadSource.url, cpReloadSource.params)))
+        cpReloadEntry = { url: cpReloadSource.url, params: cpReloadSource.params || {} };
+      // The replay re-entered this descendant, so a later breadcrumb up-nav can climb from it again.
+      if (cpReloadNav.entry && cpReloadNav.entry.url && cpReloadNav.entry.url.indexOf("folder_contents.jsp") === -1 &&
+          !/^https?:\/\//i.test(cpReloadNav.entry.url))
+        cpDeepEntry = { url: cpReloadNav.entry.url, params: cpReloadNav.entry.params || {} };
+    }
+  } catch (e) {}
   // One-shot follow-up nav consumed after the NEXT successful swap — lets a caller chain "enter the entity,
   // THEN open the page" through pjax (auto-return after login uses it; see cpEntityEntry).
   var cpPendingNav = null;
@@ -4214,7 +4263,7 @@
           try { if (/\/ServiceProviders\/Modify\//.test(url)) cpSpEntry = { url: url, params: params || {} }; } catch (e) {}
           // Persisted browser-reload recover-nav (stubguard cold-POST-replays this). Exclude form submits + Add opens
           // (and page.jsp/sort.jsp) so recovery falls back to the last LIST/console nav, which replays cleanly.
-          try { if (url.indexOf("/Common/page.jsp") === -1 && url.indexOf("/Common/sort.jsp") === -1 && !_submitNav && !_addForm) { var _nav = { url: url, params: params || {}, entry: (cpEntityEntry && cpEntityEntry.url !== url) ? cpEntityEntry : null }; sessionStorage.setItem("cp-last-nav", JSON.stringify(_nav)); window.postMessage({ __cpRecoverNav: _nav }, location.origin); } } catch (e) {}
+          try { if (url.indexOf("/Common/page.jsp") === -1 && url.indexOf("/Common/sort.jsp") === -1 && !_submitNav && !_addForm) { var _nav = { url: url, params: params || {}, entry: (cpEntityEntry && cpEntityEntry.url !== url) ? cpEntityEntry : (cpIsLevelUpNav(url, params) && cpDeepEntry) || null }; sessionStorage.setItem("cp-last-nav", JSON.stringify(_nav)); window.postMessage({ __cpRecoverNav: _nav }, location.origin); } } catch (e) {}
           var liveTokEl = document.getElementsByName("formtokenserial")[0];
           var firstTok = liveTokEl ? liveTokEl.value : null;
           var cpLoader = cpNeedsFrame(url, params) ? cpFollowFrame : cpFollow;
@@ -4388,6 +4437,7 @@
                   liveNav.innerHTML = fNav.innerHTML;
                   cpLiveNav = liveNav;
                   cpEntityEntry = { url: url, params: params || {} };   // this nav set the server's target context
+                  if (url.indexOf("/Common/folder_contents.jsp") === -1) cpDeepEntry = cpEntityEntry;
                 }
               } catch (e) { console.warn("[pjax] sidebar swap", e); cpLiveNav = null; }
 
@@ -6174,7 +6224,13 @@
       if (!folders.every(function (f) { return /^[RSGU]\d+$/.test(f.folder); })) return;
       var aggLevel = !folders.every(function (f) { return /^R\d+$/.test(f.folder); });
       // A fresh non-reseller page without its entity-entry POST has no safe
-      // way to restore the server context after the folder reads.
+      // way to restore the server context after the folder reads, unless it
+      // is the landing page of a reload replay (see cpReloadEntry).
+      if (aggLevel && (!cpEntityEntry || !cpEntityEntry.url) && cpReloadEntry) {
+        cpEntityEntry = cpReloadEntry;
+        if (cpEntityEntry.url.indexOf("/Common/folder_contents.jsp") === -1) cpDeepEntry = cpEntityEntry;
+      }
+      cpReloadEntry = null;
       if (aggLevel && (!cpEntityEntry || !cpEntityEntry.url)) return;
       // SWITCHER (debug/fallback): at non-reseller levels, localStorage.cpSpAgg === "0" forces the
       // single-folder mode (skip the aggregated build → native menu in the shell, sidebar clicks
@@ -6802,6 +6858,7 @@
       var isFolderMenu = !!(cell && cell.querySelector('a.navMenuItem') &&
         document.querySelector('form[name="leftNavForm"] a.leftnavfolder, form[name="leftNavForm"] a.leftnavfolderopen'));
       if (!isFolderMenu) {
+        cpReloadEntry = null;   // the reload did not land on a folder menu; later boards need a real entry
         if (cpPeekObserver) { cpPeekObserver.disconnect(); cpPeekObserver = null; }
         document.documentElement.classList.remove("cp-board-active");
         if (cpPopScroll !== null && cell) {
