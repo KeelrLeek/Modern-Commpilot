@@ -1,11 +1,12 @@
 {
   "name": "broadworks-enhancer-pjax-preview",
-  "version": "0.3.56",
+  "version": "0.3.57",
   "description": "Native CommPilot improvements with PJAX navigation",
   "private": true,
   "scripts": {
     "test": "node --test --test-concurrency=1 tests/*.test.cjs",
-    "build:release": "python scripts/build_release.py"
+    "build:release": "python scripts/build_release.py",
+    "test:live": "node scripts/live-smoke.cjs"
   },
   "type": "commonjs",
   "devDependencies": {

@@ -126,6 +126,115 @@ test('opening an option while Peek reads it waits for the token-bearing request'
   } finally { await browser.close(); }
 });
 
+test('a Peek dock revealed while an option is opening does not reuse the navigation token', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    const domainsPath = '/commpilot/Reseller/Domains/';
+    const board = shell(`<table><tbody><tr><td width="100%" valign="TOP"><table><tbody>
+      <tr><td class="menuCategory">Basic</td></tr>
+      <tr><td><a class="navMenuItem" name="/Reseller/Domains/" onclick="redirectPost('${domainsPath}',{})">Domains</a></td></tr>
+      <tr><td>Display all domains.</td></tr>
+      <tr><td><a class="navMenuItem" name="/Reseller/CallNotify/" onclick="redirectPost('${leafPath}',{})">Call Notify</a></td></tr>
+      <tr><td>Configure call notification settings.</td></tr>
+      </tbody></table></td></tr></tbody></table>`);
+    const events = [];
+    await page.route('https://apps-sbx.avpaas.io/**', async route => {
+      const pathname = new URL(route.request().url()).pathname;
+      events.push('request ' + pathname);
+      if (pathname === domainsPath) {
+        await new Promise(resolve => setTimeout(resolve, 400));
+        events.push('response ' + pathname);
+        return route.fulfill({ status: 200, contentType: 'text/html', body: shell('<h1>Domains</h1>', 'Domains') });
+      }
+      if (pathname === leafPath) return route.fulfill({ status: 200, contentType: 'text/html', body: shell(
+        '<form name="mainForm"><input type="text" name="defaultFromEmailAddress" value="a@example.com"></form>', 'Call Notify') });
+      return route.fulfill({ status: 200, contentType: 'text/html', body: board });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + folderPath, { waitUntil: 'domcontentloaded' });
+    // Docks load when they scroll into view; hold that back so the test decides the moment.
+    await page.evaluate(() => {
+      window.__observers = [];
+      window.IntersectionObserver = class {
+        constructor(callback) { this.callback = callback; this.targets = new Set(); window.__observers.push(this); }
+        observe(target) { this.targets.add(target); }
+        unobserve(target) { this.targets.delete(target); }
+        disconnect() { this.targets.clear(); }
+      };
+      window.__revealDocks = () => window.__observers.forEach(observer =>
+        observer.callback([...observer.targets].map(target => ({ target, isIntersecting: true }))));
+    });
+    await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
+    await page.waitForFunction(() => document.querySelector('.cp-leaf-summary[data-cp-peek-started="1"]'), null, { timeout: 10000 });
+    await page.waitForTimeout(300);
+    assert.equal(events.filter(e => e === 'request ' + leafPath).length, 0, 'the dock waits until it is revealed');
+    // Open Domains, and reveal the dock while that navigation is still waiting for its response.
+    await page.evaluate(url => { window.redirectPost(url, {}); window.__revealDocks(); }, domainsPath);
+    await page.waitForFunction(pathname => location.pathname === pathname, domainsPath, { timeout: 10000 });
+    await page.waitForTimeout(400);
+    const response = events.indexOf('response ' + domainsPath);
+    assert.ok(response > 0, 'Domains opened');
+    assert.equal(events.slice(0, response).filter(e => e === 'request ' + leafPath).length, 0,
+      'no Peek read may be sent while the navigation holds the token');
+    assert.equal(events.filter(e => e === 'request ' + leafPath).length, 0,
+      'the board is gone once Domains opens, so the read is dropped');
+  } finally { await browser.close(); }
+});
+
+test('Peek reads queued on a board are dropped once an option opens', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    const peeks = ['/Reseller/CallNotify/', '/Reseller/StirShaken/', '/Reseller/DeviceActivationPolicy/'];
+    const listPath = '/commpilot/Reseller/ServiceProviders/index.jsp';
+    const board = shell(`<table><tbody><tr><td width="100%" valign="TOP"><table><tbody>
+      <tr><td class="menuCategory">Basic</td></tr>
+      <tr><td><a class="navMenuItem" name="/Reseller/ServiceProviders/" onclick="redirectPost('${listPath}',{})">Service Providers</a></td></tr>
+      <tr><td>Add, modify, or remove service providers.</td></tr>
+      ${peeks.map(p => `<tr><td><a class="navMenuItem" name="${p}" onclick="redirectPost('/commpilot${p}',{})">${p}</a></td></tr>
+      <tr><td>Configure.</td></tr>`).join('')}
+      </tbody></table></td></tr></tbody></table>`);
+    const events = [];
+    await page.route('https://apps-sbx.avpaas.io/**', async route => {
+      const pathname = new URL(route.request().url()).pathname;
+      events.push(pathname);
+      if (peeks.some(p => '/commpilot' + p === pathname)) return route.fulfill({ status: 200, contentType: 'text/html',
+        body: shell('<form name="mainForm"><input type="text" name="defaultFromEmailAddress" value="a@example.com"></form>', 'Leaf') });
+      if (pathname === listPath) {
+        await new Promise(resolve => setTimeout(resolve, 400));
+        return route.fulfill({ status: 200, contentType: 'text/html', body: shell('<h1>Service Providers</h1>', 'Service Providers') });
+      }
+      return route.fulfill({ status: 200, contentType: 'text/html', body: board });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + folderPath, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => {
+      window.__observers = [];
+      window.IntersectionObserver = class {
+        constructor(callback) { this.callback = callback; this.targets = new Set(); window.__observers.push(this); }
+        observe(target) { this.targets.add(target); }
+        unobserve(target) { this.targets.delete(target); }
+        disconnect() { this.targets.clear(); }
+      };
+      window.__revealDocks = () => window.__observers.forEach(observer =>
+        observer.callback([...observer.targets].map(target => ({ target, isIntersecting: true }))));
+    });
+    await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
+    await page.waitForFunction(() => document.querySelectorAll('.cp-leaf-summary[data-cp-peek-started="1"]').length >= 2,
+      null, { timeout: 10000 });
+    await page.waitForTimeout(200);
+    // The option opens while the queue is idle; the page shift then reveals every dock at once, so one read
+    // waits for the navigation and the rest queue behind it.
+    await page.evaluate(url => { window.redirectPost(url, {}); window.__revealDocks(); }, listPath);
+    await page.waitForFunction(pathname => location.pathname === pathname, listPath, { timeout: 10000 });
+    await page.waitForTimeout(1500);
+    assert.ok(events.includes(listPath), 'Service Providers opened');
+    assert.deepEqual(events.filter(p => peeks.some(peek => '/commpilot' + peek === p)), [],
+      'no read from the old board may run once the option has opened');
+  } finally { await browser.close(); }
+});
+
 test('Peek reserves its space during section reveal but waits to read until the board is ready', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });

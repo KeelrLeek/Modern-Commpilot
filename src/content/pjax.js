@@ -228,6 +228,10 @@
   // single-_searchPromise wait missed.
   var cpInflightPosts = 0;
   var cpTokenDrainSeq = 0;
+  // The in-shell navigation currently in progress (its whole fetch → swap chain), or null. A lazy Peek read
+  // must not start while it runs: the navigation already sent the live single-use token, so a second POST
+  // with it leaves the page holding a consumed token and the next request (e.g. Back) signs the user out.
+  var cpNavPending = null;
   // RESELLER anchor reuse: the open folder cpHook just fetched to land here IS the console's anchor
   // section, so re-fetching it (the old behaviour) fired a SECOND back-to-back folder_contents on the
   // rotating single-use token → the anchor (Profile) intermittently shelled = "Couldn't load — Retry".
@@ -4269,7 +4273,7 @@
           var cpLoader = cpNeedsFrame(url, params) ? cpFollowFrame : cpFollow;
           var cpHistoryBeforeLoad = history.length;
           cpDbg("[pjax]", cpLoader === cpFollowFrame ? "iframe-loading" : "fetching", url);
-          cpLoader(url, params, firstTok, 0)
+          var cpThisNav = cpNavPending = cpLoader(url, params, firstTok, 0)
             .then(function (res) {
               if (mySeq !== cpSeq) {
                 cpDbg("[pjax] superseded — dropping stale swap");
@@ -4769,6 +4773,7 @@
               }
               cpWarnCo("failed|" + url + "|" + _msg, "[pjax] fetch FAILED " + _msg + " (" + url + ")");
             });
+          cpThisNav.then(function () { if (cpNavPending === cpThisNav) cpNavPending = null; });
 
           return; // do NOT call _orig — no navigation for menu navs
         }
@@ -5491,9 +5496,16 @@
     }
 
     function cpFetchLeaf(path) {
+      // A read belongs to the board that asked for it. Once that board is gone (the user opened an option),
+      // a queued read must never run: it would spend the next page's single-use token — or, at another
+      // level, move CommPilot's server-side context — behind the user's back.
+      var ownerBoard = document.querySelector(".cp-console");
       return new Promise(function (resolve) {
         cpEnqueueSection(function () {
-          if (cpSectionAborted) { resolve(null); return; }
+          if (cpSectionAborted || !ownerBoard || !ownerBoard.isConnected) { resolve(null); return; }
+          // Scrolling to an option can reveal a dock just as that option's navigation starts. The navigation
+          // owns the token now; let it finish (it replaces the board) instead of racing it.
+          if (cpNavPending) return cpNavPending.then(function () { resolve(null); });
           var liveTokEl = document.getElementsByName("formtokenserial")[0];
           var token = liveTokEl ? liveTokEl.value : null;
           return cpFollow(path, {}, token, 0)
