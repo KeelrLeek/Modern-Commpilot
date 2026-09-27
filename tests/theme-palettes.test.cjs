@@ -259,3 +259,62 @@ test('extension popup changes the active CommPilot page and keeps the choice in 
     fs.rmSync(profile, { recursive: true, force: true });
   }
 });
+
+test('2.0 theme restyles sort arrows, On/Off labels, and the copy buttons in every palette', async () => {
+  assert.ok(edge, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: edge, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await page.addInitScript(() => {
+      let listener;
+      window.chrome.storage = { local: { get: (_, done) => done({}), set: (_, done) => done() },
+        onChanged: { addListener: fn => { listener = fn; } } };
+      window.chrome.runtime = { getURL: path => `chrome-extension://test/${path}` };
+      window.__choosePalette = value => listener({ cpThemePalette: { newValue: value } }, 'local');
+    });
+    await page.route('https://apps-sbx.avpaas.io/**', route => route.fulfill({
+      status: 200, contentType: 'text/html', body: `<!doctype html><html><body id="initBody.menuTemplate">
+        <table><tr><td class="headerBar"><span class="headerAuthLevel">TriSandbox1002</span>
+          <span class="bw-copy-controls" data-bw-owned="1"><button type="button">Copy User ID</button></span></td></tr></table>
+        <table height="100%"><tbody><tr><td class="headandfoot" width="18%"><form name="leftNavForm">
+          <a class="leftnavfolder" href="#">Profile</a></form></td>
+        <td width="82%" valign="top"><table><tr>
+          <td><a class="listSortHeader" href="#">Group ID<img src="/commpilot/images/uparrow.gif"></a></td>
+          <td><a class="listSortHeader" href="#">Group Name</a></td></tr></table>
+          <a class="navMenuItem">Do Not Disturb <span class="bw-on-off-status" data-bw-state="on">On</span></a>
+          <a class="navMenuItem">Call Waiting <span class="bw-on-off-status" data-bw-state="off">Off</span></a>
+        </td></tr></tbody></table></body></html>`
+    }));
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Group/Groups/');
+    for (const file of ['enhancer.css', 'native-theme.css', 'theme-palettes.css', 'theme-settings.css'])
+      await page.addStyleTag({ path: path.join(root, 'src/content', file) });
+    await page.addScriptTag({ path: path.join(root, 'src/content/theme-settings.js') });
+    await page.addScriptTag({ path: path.join(root, 'src/content/theme-icons.js') });
+    await page.waitForFunction(() => document.querySelector('.cp-sort-ico'));
+    const look = () => page.evaluate(() => {
+      const gif = document.querySelector('img[src*="uparrow.gif"]');
+      const mark = document.querySelector('.cp-sort-ico');
+      return { gifShown: getComputedStyle(gif).display !== 'none', gifSrc: gif.getAttribute('src'),
+        icon: mark.style.getPropertyValue('--cp-sort-icon'), marks: document.querySelectorAll('.cp-sort-ico').length,
+        on: getComputedStyle(document.querySelector('[data-bw-state="on"]')).color,
+        off: getComputedStyle(document.querySelector('[data-bw-state="off"]')).color,
+        copyFont: getComputedStyle(document.querySelector('.bw-copy-controls button')).fontFamily };
+    });
+    const atlas = await look();
+    assert.equal(atlas.gifShown, false, 'the legacy GIF arrow is hidden');
+    assert.equal(atlas.gifSrc, '/commpilot/images/uparrow.gif', 'the GIF stays for the bulk tools that read it');
+    assert.match(atlas.icon, /assets\/icons\/sort-asc\.svg/);
+    assert.equal(atlas.marks, 1, 'only the sorted column gets a chevron');
+    assert.equal(atlas.on, 'rgb(17, 112, 58)');
+    assert.equal(atlas.off, 'rgb(192, 40, 26)');
+    assert.match(atlas.copyFont, /Inter/);
+    await page.evaluate(() => window.__choosePalette('graphite'));
+    await page.waitForFunction(() => document.documentElement.dataset.cpDirection === 'graphite');
+    const graphite = await look();
+    assert.equal(graphite.on, 'rgb(139, 224, 164)');
+    assert.equal(graphite.off, 'rgb(255, 157, 143)');
+    await page.evaluate(() => document.dispatchEvent(new Event('cp:reskin')));
+    await page.waitForTimeout(100);
+    assert.equal((await look()).marks, 1, 'decorating again does not add a second chevron');
+  } finally { await browser.close(); }
+});

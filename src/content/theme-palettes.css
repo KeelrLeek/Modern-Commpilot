@@ -333,3 +333,22 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] > table[height="100%"] 
     width:105px !important;
   }
 }
+
+/* On/Off service labels (enhancer.js). Each pair keeps at least 4.5:1 contrast on every surface of its palette;
+   the original Material green/red measured 2.8:1 and 3.7:1 on white. */
+html[data-cp-direction="atlas"] body[id="initBody.menuTemplate"] { --d-on:#11703a; --d-off:#c0281a; }
+html[data-cp-direction="nord"] body[id="initBody.menuTemplate"] { --d-on:#a3e0a9; --d-off:#ffc0b6; }
+html[data-cp-direction="graphite"] body[id="initBody.menuTemplate"] { --d-on:#8be0a4; --d-off:#ff9d8f; }
+html[data-cp-direction="terra"] body[id="initBody.menuTemplate"] { --d-on:#186a35; --d-off:#b3261e; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .bw-on-off-status[data-bw-state="on"] { color:var(--d-on) !important; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .bw-on-off-status[data-bw-state="off"] { color:var(--d-off) !important; }
+/* Copy User ID / Copy Extension sit beside the breadcrumb pills; use the same type instead of Arial. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] .bw-copy-controls[data-bw-owned="1"] { font:500 12px/1.2 "Inter", sans-serif !important; }
+/* Sorted list columns: the legacy GIF arrow stays in the DOM (bulk tools read it) but a chevron in the header's
+   own color replaces it on screen (theme-icons.js adds .cp-sort-ico). */
+html[data-cp-direction] body[id="initBody.menuTemplate"] a.listSortHeader img[src*="uparrow.gif"],
+html[data-cp-direction] body[id="initBody.menuTemplate"] a.listSortHeader img[src*="downarrow.gif"] { display:none !important; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] a.listSortHeader .cp-sort-ico {
+  display:inline-block; width:12px; height:12px; margin-left:5px; vertical-align:-1px; background:currentColor;
+  -webkit-mask:var(--cp-sort-icon) center / contain no-repeat; mask:var(--cp-sort-icon) center / contain no-repeat;
+}

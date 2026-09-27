@@ -51,6 +51,18 @@
       welcome.style.setProperty('--cp-palette-user-icon-dark', icon('profile', 'dark'));
       welcome.style.setProperty('--cp-palette-user-icon-light', icon('profile'));
     }
+    // Sorted list columns carry CommPilot's black-boxed GIF arrow. Keep the GIF (the bulk tools read its src to
+    // learn the sort direction) but hide it in CSS, and draw a chevron in the header's own color beside it.
+    for (const arrow of document.querySelectorAll('a.listSortHeader img[src*="uparrow.gif"], a.listSortHeader img[src*="downarrow.gif"]')) {
+      const link = arrow.closest('a.listSortHeader');
+      if (link.querySelector('.cp-sort-ico')) continue;
+      const mark = document.createElement('span');
+      mark.className = 'cp-sort-ico';
+      mark.setAttribute('aria-hidden', 'true');
+      const direction = /uparrow\.gif/i.test(arrow.getAttribute('src') || '') ? 'asc' : 'desc';
+      mark.style.setProperty('--cp-sort-icon', `url("${chrome.runtime.getURL(`assets/icons/sort-${direction}.svg`)}")`);
+      link.appendChild(mark);
+    }
   }
 
   if (document.readyState === 'loading') {
