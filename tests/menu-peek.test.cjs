@@ -182,6 +182,44 @@ test('a Peek dock revealed while an option is opening does not reuse the navigat
   } finally { await browser.close(); }
 });
 
+test('a Peek save interrupted by opening an option never sends its Apply', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    const domainsPath = '/commpilot/Reseller/Domains/';
+    const events = [];
+    let holdLeaf = false;
+    await page.route('https://apps-sbx.avpaas.io/**', async route => {
+      const req = route.request();
+      const pathname = new URL(req.url()).pathname;
+      const params = new URLSearchParams(req.postData() || '');
+      events.push(pathname + (params.has('apply') ? ' apply' : ''));
+      if (pathname === leafPath) {
+        if (holdLeaf) await new Promise(resolve => setTimeout(resolve, 400));
+        return route.fulfill({ status: 200, contentType: 'text/html', body: shell(
+          '<form name="mainForm" method="post"><input type="text" name="defaultFromEmailAddress" value="original@example.com">' +
+          '<input type="submit" name="apply" value="Apply"></form>', 'Call Notify') });
+      }
+      if (pathname === domainsPath) return route.fulfill({ status: 200, contentType: 'text/html', body: shell('<h1>Domains</h1>', 'Domains') });
+      return route.fulfill({ status: 200, contentType: 'text/html', body: menu });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + folderPath, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
+    await page.locator('.cp-leaf-defpill').waitFor({ timeout: 10000 });
+    await page.getByRole('button', { name: 'Edit value' }).click();
+    await page.locator('input.cp-leaf-editin').fill('changed@example.com');
+    holdLeaf = true;   // the save's fresh form read is still in flight when the option opens
+    await page.getByRole('button', { name: 'Save' }).click();
+    await page.evaluate(url => window.redirectPost(url, {}), domainsPath);
+    await page.waitForFunction(pathname => location.pathname === pathname, domainsPath, { timeout: 10000 });
+    await page.waitForTimeout(1000);
+    const opened = events.indexOf(domainsPath);
+    assert.ok(opened > 0, 'Domains opened');
+    assert.equal(events.filter(e => e === leafPath + ' apply').length, 0, 'the interrupted save must not Apply');
+  } finally { await browser.close(); }
+});
+
 test('Peek reads queued on a board are dropped once an option opens', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });

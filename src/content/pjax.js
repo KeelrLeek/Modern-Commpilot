@@ -5446,8 +5446,13 @@
     // value, POST with apply="Apply" (saves WITHOUT the OK page-exit, so the response is the page itself and
     // the new value can be verified). Serialized through the section queue — token-rotating calls never race.
     function cpLeafSave(edit, newValue) {
+      // Same ownership rule as cpFetchLeaf: once an option opens (or the board is gone), stop before the next
+      // POST instead of sending it with the token the navigation now owns. A skipped step reports "not saved".
+      var ownerBoard = document.querySelector(".cp-console");
+      function owned() { return !cpSectionAborted && !cpNavPending && !!ownerBoard && ownerBoard.isConnected; }
       return new Promise(function (resolve) {
         cpEnqueueSection(function () {
+          if (!owned()) { resolve(false); return; }
           var tokEl = document.getElementsByName("formtokenserial")[0];
           var token = tokEl ? tokEl.value : null;
           return cpFollow(edit.path, {}, token, 0).then(function (res) {
@@ -5476,12 +5481,14 @@
               else delete params[edit.name];
             } else params[edit.name] = newValue;
             params.apply = "Apply";
+            if (!owned()) { resolve(false); return; }
             var tok2 = document.getElementsByName("formtokenserial")[0];
             return cpFollow(edit.path, params, tok2 ? tok2.value : null, 0).then(function (res2) {
               if (!res2 || res2.auth === false || res2.err || !res2.doc) { resolve(false); return; }
               var nt2 = res2.doc.getElementsByName("formtokenserial")[0];
               if (nt2) { var ts2 = document.getElementsByName("formtokenserial"); for (var j = 0; j < ts2.length; j++) ts2[j].value = nt2.value; }
               if (!cpLeafMatches(res2.doc, edit, newValue)) { resolve(false); return; }
+              if (!owned()) { resolve(false); return; }
               var tok3 = document.getElementsByName("formtokenserial")[0];
               return cpFollow(edit.path, {}, tok3 ? tok3.value : null, 0).then(function (res3) {
                 if (!res3 || res3.auth === false || res3.err || !res3.doc) { resolve(false); return; }
