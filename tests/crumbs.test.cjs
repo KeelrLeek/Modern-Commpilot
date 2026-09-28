@@ -14,7 +14,7 @@ const browserPath = [
 const trail = (group = 'Trifecta_Sandbox_Group') => `<img src="/commpilot/Graphics/onepx.gif" width="2" height="1">
   <a class="headerAuthLevelLink" id="lvl-reseller">Reseller</a> &gt;&nbsp;<a class="headerAuthLevelLink">Trifecta_Sandbox_SP</a> &gt;&nbsp;<a class="headerAuthLevelLink" id="lvl-group">${group}</a> &gt;&nbsp;<a class="headerAuthLevelLink">Users</a> :<span dir="ltr" class="headerAuthLevel"> TriSandbox1002</span>`;
 const shell = `<!doctype html><html data-cp-direction="graphite"><head><title>Profile</title></head><body id="initBody.menuTemplate">
-  <table><tr><td class="headerBar" id="crumbs">${trail()}</td><td class="headerBar"><span class="headerBarWelcome">Welcome</span></td></tr></table>
+  <table><tr><td class="headerBar" id="crumbs">${trail()}</td><td class="headerBar"><span class="headerBarWelcome">Welcome</span> <a class="headerLink" id="signout">Sign out</a></td></tr></table>
   <table height="100%"><tr><td width="82%" valign="top"><table><tr><td class="screenName">Profile</td></tr></table></td></tr></table>
   <script>window.clicked = []; document.getElementById('lvl-group').addEventListener('click', () => window.clicked.push('group'));</script>
 </body></html>`;
@@ -121,6 +121,22 @@ test('the user-id pill copies the id, and the extension chip joined to it copies
     assert.deepEqual(first.borders, ['1px', '1px', '1px', '1px'], 'every pill has the header buttons’ border');
     assert.equal(first.chipBorder, '1px');
     assert.equal(first.leadBorder, '1px');
+    // The border has to show: pills and chip are drawn like the header's Sign out button in every palette.
+    await page.addStyleTag({ content: '* { transition: none !important; }' });   // read each palette, not the crossfade
+    for (const palette of ['graphite', 'atlas', 'nord', 'terra']) {
+      const looks = await page.evaluate(palette => {
+        document.documentElement.dataset.cpDirection = palette;
+        const look = el => { const cs = getComputedStyle(el); return cs.borderTopColor + ' on ' + cs.backgroundColor; };
+        return {
+          button: look(document.getElementById('signout')),
+          pills: [...document.querySelectorAll('#crumbs .cp-bc :is(a.headerAuthLevelLink, span.headerAuthLevel, .cp-ext-chip):not(.cp-bc-cur)')]
+            .filter(el => getComputedStyle(el).display !== 'none').map(look),
+        };
+      }, palette);
+      assert.equal(looks.pills.length, 4, palette);
+      for (const pill of looks.pills) assert.equal(pill, looks.button, palette);
+    }
+    await page.evaluate(() => { document.documentElement.dataset.cpDirection = 'graphite'; });
 
     // pjax.js reads the extension from Addresses and marks the id element.
     const mark = (state, ext) => page.evaluate(([state, ext]) => {

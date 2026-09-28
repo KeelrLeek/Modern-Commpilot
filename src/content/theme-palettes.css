@@ -354,8 +354,8 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] a.listSortHeader .cp-so
 }
 
 /* Breadcrumb: the v0.2 alpha's pill trail (crumbs.js). A tinted route glyph leads; levels are uppercase pills
-   with arrows between; the current place is the accent pill; an entity id keeps its own case. Colors come
-   from the palette. td.headerBar is repeated in each selector to outrank the plain header link styles above. */
+   with arrows between, drawn like the header's buttons (surface fill, line border); the current place is the
+   accent pill; an entity id keeps its own case. Colors come from the palette. td.headerBar is repeated in each selector to outrank the plain header link styles above. */
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar:has(> .cp-bc):has(a.headerAuthLevelLink) { font-size: 0; }   /* CommPilot's ">" and ":" text */
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc {
   display: inline-flex; align-items: center; gap: 7px; max-width: 100%; vertical-align: middle;
@@ -379,7 +379,7 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is
   white-space: nowrap; vertical-align: middle;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc a.headerAuthLevelLink.cp-bc-seg {
-  background: color-mix(in srgb, var(--d-text) 7%, transparent); color: var(--d-muted); cursor: pointer;
+  background: var(--d-surface); color: var(--d-muted); cursor: pointer;
   transition: background-color .12s ease, border-color .12s ease, color .12s ease;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc a.headerAuthLevelLink.cp-bc-seg:hover {
@@ -387,7 +387,7 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc a.h
   background: color-mix(in srgb, var(--d-accent) 20%, transparent); color: color-mix(in srgb, var(--d-accent) 82%, var(--d-text));
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc span.headerAuthLevel.cp-bc-static {
-  background: color-mix(in srgb, var(--d-text) 7%, transparent); color: var(--d-text);
+  background: var(--d-surface); color: var(--d-text);
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc .cp-bc-cur {
   border-color: color-mix(in srgb, var(--d-accent) 45%, transparent) !important;
@@ -421,7 +421,7 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc but
   display: inline-flex; align-items: center; gap: 5px; flex: none; box-sizing: border-box; min-height: 0 !important;
   margin: 0 0 0 -8px !important; padding: 3px 8px 3px 9px !important;
   border: 1px solid var(--d-line) !important; border-radius: 0 7px 7px 0 !important; box-shadow: none !important;
-  background: color-mix(in srgb, var(--d-text) 7%, transparent) !important; color: var(--d-muted) !important; opacity: 1 !important;
+  background: var(--d-surface) !important; color: var(--d-muted) !important; opacity: 1 !important;
   font: 700 11.5px/1.5 "Inter", sans-serif !important; letter-spacing: .07em; white-space: nowrap; vertical-align: middle; cursor: pointer;
   transition: background-color .12s ease, border-color .12s ease, color .12s ease;
 }
