@@ -95,6 +95,7 @@
     el.setAttribute('role', 'navigation');
     el.setAttribute('aria-label', 'Result pages');
     el.innerHTML = '<span class="cp-pager-count" aria-live="polite"></span><span class="cp-pager-nav">' +
+      '<span class="cp-pager-spinner" aria-hidden="true"></span>' +
       '<button type="button" class="cp-pager-btn" data-go="-1" aria-label="Previous page">‹</button>' +
       '<span class="cp-pager-page"></span>' +
       '<button type="button" class="cp-pager-btn" data-go="1" aria-label="Next page">›</button></span>';
@@ -174,17 +175,33 @@
     }
     state.perPage = perPage;
     state.start = current * perPage;
+    freezeColumns(table, state);
+    // While pjax.js fetches the rest, the pager says so and nothing else changes; the totals appear once.
     const loading = table.dataset.cpFill === 'loading';
+    state.el.classList.toggle('cp-pager-loading', loading);
     const last = Math.min(rows.length, state.start + perPage);
     const count = state.el.querySelector('.cp-pager-count');
-    count.textContent = rows.length === 1 ? '1 result' : pages === 1 && !loading ? `${rows.length} results` :
-      `${state.start + 1}–${last} of ${rows.length}${loading ? '+' : ''}`;
-    if (loading) count.textContent += ' · loading the rest…';
+    count.textContent = loading ? 'Loading more results' : rows.length === 1 ? '1 result' :
+      pages === 1 ? `${rows.length} results` : `${state.start + 1}–${last} of ${rows.length}`;
     const nav = state.el.querySelector('.cp-pager-nav');
-    nav.hidden = pages === 1;
-    nav.querySelector('.cp-pager-page').textContent = `Page ${current + 1} of ${pages}${loading ? '+' : ''}`;
+    nav.hidden = pages === 1 && !loading;
+    nav.querySelector('.cp-pager-page').textContent = loading ? `Page ${current + 1}` : `Page ${current + 1} of ${pages}`;
     nav.querySelector('[data-go="-1"]').disabled = current === 0;
     nav.querySelector('[data-go="1"]').disabled = current >= pages - 1;
+  }
+
+  // Column widths come from the first page shown and stay put (as shares of the table, so they still follow
+  // the window): rows arriving from CommPilot's other pages, and paging through them, never move a column.
+  function freezeColumns(table, state) {
+    if (state.frozen) return;
+    const head = table.querySelector(':scope > tbody > tr:has(> td.listHeader)');
+    const total = table.getBoundingClientRect().width;
+    if (!head || !total) return;
+    const cells = [...head.children].filter(td => getComputedStyle(td).display !== 'none');
+    const widths = cells.map(td => td.getBoundingClientRect().width / total * 100);
+    cells.forEach((td, i) => { td.style.width = `${widths[i].toFixed(3)}%`; });
+    table.classList.add('cp-cols-frozen');
+    state.frozen = true;
   }
 
   let observed = null;
@@ -212,7 +229,8 @@
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply, { once: true });
   else apply();
-  document.addEventListener('cp:reskin', () => requestAnimationFrame(() => requestAnimationFrame(apply)));
+  // Same frame as forms.js (registered first), so a new page paints once, already in its final form.
+  document.addEventListener('cp:reskin', () => requestAnimationFrame(apply));
   document.addEventListener('cp:list-fill', () => requestAnimationFrame(apply));
   document.addEventListener('cp:theme-change', () => requestAnimationFrame(apply));
   document.fonts?.ready.then(() => requestAnimationFrame(refit));

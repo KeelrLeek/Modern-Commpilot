@@ -1115,6 +1115,7 @@
       cpListFill = state;
       table.setAttribute("data-cp-fill", "loading");
       table.setAttribute("data-cp-pages", String(total));
+      document.dispatchEvent(new CustomEvent("cp:list-fill"));
       var count = table.querySelectorAll(':scope > tbody > tr[id^="Row"]').length;
       var announce = function (status) {
         if (cpListFill === state) cpListFill = null;
@@ -1152,6 +1153,7 @@
             if (el.id.indexOf(oldId + "Col") === 0) el.id = tr.id + el.id.slice(oldId.length);
           });
           tr.setAttribute("data-cp-page", String(pageNo));
+          tr.classList.add("cp-row-off");   // arrives off the page lists.js shows: nothing moves while loading
           if (drill) {
             tr.setAttribute("data-cp-drill", "1");
             tr.querySelectorAll("a").forEach(function (a) {
@@ -1172,7 +1174,7 @@
           if (Date.now() - start > 3000) { reject(new Error("busy")); return; }
           setTimeout(idle, 50);
         })();
-      });
+      }).then(function () { return new Promise(function (resolve) { setTimeout(resolve, 200); }); });
       for (var p = 1; p < total; p++) (function (p) {
         seq = seq.then(function () { return hop(p); }).then(function (doc) { append(doc, p + 1); });
       })(p);
@@ -1182,10 +1184,9 @@
     }
     window.cpListFillStart = cpListFillStart;
     if (window === window.top) {
-      var cpListFillSoon = function () { setTimeout(cpListFillStart, 200); };
-      document.addEventListener("cp:reskin", cpListFillSoon);
-      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", cpListFillSoon, { once: true });
-      else cpListFillSoon();
+      document.addEventListener("cp:reskin", cpListFillStart);
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", cpListFillStart, { once: true });
+      else cpListFillStart();
     }
 
     // Redesigned search grid is now the DEFAULT on every host (0.2.193). localStorage is per-origin, so an
@@ -4412,6 +4413,12 @@
           var cpLoader = cpNeedsFrame(url, params) ? cpFollowFrame : cpFollow;
           var cpHistoryBeforeLoad = history.length;
           cpDbg("[pjax]", cpLoader === cpFollowFrame ? "iframe-loading" : "fetching", url);
+          // The page shows it is waiting for CommPilot (page-baseline.css) until this fetch settles, unless a
+          // newer navigation has taken over.
+          try { document.documentElement.setAttribute("data-cp-nav", "busy"); } catch (e) {}
+          var cpNavIdle = function () {
+            if (mySeq === cpSeq) try { document.documentElement.removeAttribute("data-cp-nav"); } catch (e) {}
+          };
           var cpThisNav = cpNavPending = cpLoader(url, params, firstTok, 0)
             .then(function (res) {
               if (mySeq !== cpSeq) {
@@ -4915,6 +4922,7 @@
               cpWarnCo("failed|" + url + "|" + _msg, "[pjax] fetch FAILED " + _msg + " (" + url + ")");
             });
           cpThisNav.then(function () { if (cpNavPending === cpThisNav) cpNavPending = null; });
+          cpThisNav.then(cpNavIdle, cpNavIdle);
 
           return; // do NOT call _orig — no navigation for menu navs
         }
