@@ -89,17 +89,101 @@
       !el.querySelector('table') && /Page\s+\d+\s+of\s+\d+/i.test(el.textContent));
   }
 
+  const ICONS = {
+    first: '<path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/>',
+    prev: '<path d="m15 18-6-6 6-6"/>',
+    next: '<path d="m9 18 6-6-6-6"/>',
+    last: '<path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/>',
+  };
+  const LABELS = { first: 'First page', prev: 'Previous page', next: 'Next page', last: 'Last page' };
+  const pagerButton = go => `<button type="button" class="cp-pager-btn" data-go="${go}" aria-label="${LABELS[go]}" title="${LABELS[go]}">` +
+    `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[go]}</svg></button>`;
+
+  // Count on the left, the page selector centered, an empty right column to keep it centered.
   function makePager() {
     const el = document.createElement('div');
     el.className = 'cp-pager';
     el.setAttribute('role', 'navigation');
     el.setAttribute('aria-label', 'Result pages');
-    el.innerHTML = '<span class="cp-pager-count" aria-live="polite"></span><span class="cp-pager-nav">' +
-      '<span class="cp-pager-spinner" aria-hidden="true"></span>' +
-      '<button type="button" class="cp-pager-btn" data-go="-1" aria-label="Previous page">‹</button>' +
-      '<span class="cp-pager-page"></span>' +
-      '<button type="button" class="cp-pager-btn" data-go="1" aria-label="Next page">›</button></span>';
+    el.innerHTML = '<span class="cp-pager-count" aria-live="polite"><span class="cp-pager-spinner" aria-hidden="true"></span>' +
+      '<span class="cp-pager-text"></span></span><span class="cp-pager-nav">' + pagerButton('first') + pagerButton('prev') +
+      '<span class="cp-pager-page"></span>' + pagerButton('next') + pagerButton('last') + '</span><span class="cp-pager-end"></span>';
     return el;
+  }
+
+  // Sorting. With the whole list here, a click on a column header sorts it in place: no second search.
+  // CommPilot's own header arrow (hidden, read by the bulk tools) keeps describing CommPilot's sort; the
+  // header shows its own chevron for the order on screen.
+  const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+  function nativeSort(table) {
+    const arrow = table.querySelector('a.listSortHeader img[src*="uparrow.gif"], a.listSortHeader img[src*="downarrow.gif"]');
+    const cell = arrow?.closest('td');
+    if (!cell) return null;
+    return { index: [...cell.parentElement.children].indexOf(cell), dir: /uparrow/.test(arrow.getAttribute('src')) ? 1 : -1 };
+  }
+  function sortRows(table, sort) {
+    const rows = [...table.querySelectorAll(ROWS)];
+    if (!rows.length) return;
+    const after = rows[rows.length - 1].nextSibling;
+    const key = tr => {
+      const td = tr.children[sort.index];
+      return td ? textOf(td) || (td.querySelector('img') ? '✓' : '') : '';
+    };
+    rows.map((tr, i) => ({ tr, i, k: key(tr) }))
+      .sort((a, b) => (a.k === '') - (b.k === '') || sort.dir * collator.compare(a.k, b.k) || a.i - b.i)
+      .forEach(({ tr }) => tr.parentNode.insertBefore(tr, after));
+  }
+  function showSort(table, sort) {
+    const head = table.querySelector(':scope > tbody > tr:has(> td.listHeader)');
+    table.classList.add('cp-client-sorted');
+    table.querySelectorAll('.cp-sort-client').forEach(mark => mark.remove());
+    head?.querySelectorAll('td[aria-sort]').forEach(td => td.removeAttribute('aria-sort'));
+    const cell = head?.children[sort.index];
+    const link = cell?.querySelector('a.listSortHeader');
+    if (!link) return;
+    cell.setAttribute('aria-sort', sort.dir > 0 ? 'ascending' : 'descending');
+    const mark = document.createElement('span');
+    mark.className = 'cp-sort-ico cp-sort-client';
+    mark.setAttribute('aria-hidden', 'true');
+    const url = globalThis.chrome?.runtime?.getURL?.(`assets/icons/sort-${sort.dir > 0 ? 'asc' : 'desc'}.svg`);
+    if (url) mark.style.setProperty('--cp-sort-icon', `url("${url}")`);
+    link.appendChild(mark);
+  }
+  // The sort chosen for a list is kept for this tab's session, so Back from a row finds the list in the same
+  // order. It is matched by page and column name.
+  const SORT_KEY = 'cp-list-sort';
+  const listPath = () => document.documentElement.getAttribute('data-cp-path') || location.pathname;
+  const columnName = (table, index) =>
+    textOf(table.querySelector(':scope > tbody > tr:has(> td.listHeader)')?.children[index] || document.createElement('td'));
+  function rememberSort(table, sort) {
+    try { sessionStorage.setItem(SORT_KEY, JSON.stringify({ path: listPath(), column: columnName(table, sort.index), dir: sort.dir })); } catch (e) {}
+  }
+  function rememberedSort(table) {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(SORT_KEY) || 'null');
+      if (!saved || saved.path !== listPath() || !saved.column) return null;
+      const cells = [...(table.querySelector(':scope > tbody > tr:has(> td.listHeader)')?.children || [])];
+      const index = cells.findIndex(td => textOf(td) === saved.column && td.querySelector('a.listSortHeader'));
+      return index < 0 ? null : { index, dir: saved.dir === -1 ? -1 : 1, client: true };
+    } catch (e) { return null; }
+  }
+
+  function sortClick(event) {
+    const link = event.target.closest?.('a.listSortHeader');
+    const table = link?.closest('table');
+    const state = table && pagers.get(table);
+    if (!state) return;                       // CommPilot's own paging: CommPilot sorts
+    event.preventDefault();
+    event.stopImmediatePropagation();         // before CommPilot's doSort() on the link itself
+    const cell = link.closest('td');
+    const index = [...cell.parentElement.children].indexOf(cell);
+    const current = state.sort || nativeSort(table);
+    state.sort = { index, dir: current && current.index === index ? -current.dir : 1, client: true };
+    sortRows(table, state.sort);
+    showSort(table, state.sort);
+    rememberSort(table, state.sort);
+    state.start = 0;
+    render(content(), table);
   }
 
   // Rows that fit between the first row's top and the window's bottom, leaving room for everything that follows
@@ -138,12 +222,20 @@
       state = { el: makePager(), start: 0, perPage: 0 };
       pagers.set(table, state);
       state.el.addEventListener('click', event => {
-        const go = Number(event.target.closest('[data-go]')?.dataset.go || 0);
-        if (!go) return;
-        state.start = Math.max(0, state.start + go * state.perPage);
+        const go = event.target.closest('[data-go]')?.dataset.go;
+        if (!go || !state.perPage) return;
+        const total = table.querySelectorAll(ROWS).length;
+        const lastStart = Math.max(0, Math.floor((total - 1) / state.perPage) * state.perPage);
+        state.start = go === 'first' ? 0 : go === 'last' ? lastStart :
+          Math.min(lastStart, Math.max(0, state.start + (go === 'next' ? 1 : -1) * state.perPage));
         render(cell, table);
       });
+      table.addEventListener('click', sortClick, true);
+      state.sort = rememberedSort(table);
+      if (state.sort) showSort(table, state.sort);
     }
+    // Rows that arrived after a sort on screen take their place in it.
+    if (state.sort?.client) sortRows(table, state.sort);
     if (!state.el.isConnected) (native || table).after(state.el);
     native?.classList.add('cp-pager-native');
     render(cell, table);
@@ -180,14 +272,14 @@
     const loading = table.dataset.cpFill === 'loading';
     state.el.classList.toggle('cp-pager-loading', loading);
     const last = Math.min(rows.length, state.start + perPage);
-    const count = state.el.querySelector('.cp-pager-count');
-    count.textContent = loading ? 'Loading more results' : rows.length === 1 ? '1 result' :
-      pages === 1 ? `${rows.length} results` : `${state.start + 1}–${last} of ${rows.length}`;
+    state.el.querySelector('.cp-pager-text').textContent = loading ? 'Loading more results' :
+      rows.length === 1 ? '1 result' : pages === 1 ? `${rows.length} results` : `${state.start + 1}–${last} of ${rows.length}`;
     const nav = state.el.querySelector('.cp-pager-nav');
     nav.hidden = pages === 1 && !loading;
     nav.querySelector('.cp-pager-page').textContent = loading ? `Page ${current + 1}` : `Page ${current + 1} of ${pages}`;
-    nav.querySelector('[data-go="-1"]').disabled = current === 0;
-    nav.querySelector('[data-go="1"]').disabled = current >= pages - 1;
+    for (const go of ['first', 'prev']) nav.querySelector(`[data-go="${go}"]`).disabled = current === 0;
+    nav.querySelector('[data-go="next"]').disabled = current >= pages - 1;
+    nav.querySelector('[data-go="last"]').disabled = current >= pages - 1 || loading;   // the end is not known yet
   }
 
   // Column widths come from the first page shown and stay put (as shares of the table, so they still follow
