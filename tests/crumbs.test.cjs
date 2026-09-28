@@ -75,3 +75,85 @@ test('the breadcrumb is the alpha pill trail, built from CommPilot’s own links
     assert.deepEqual((await read()).pills, ['Reseller', 'Trifecta_Sandbox_SP', 'Other_Group']);
   } finally { await browser.close(); }
 });
+
+test('the user-id pill copies the id, and the extension chip joined to it copies the extension', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const context = await browser.newContext({ viewport: { width: 1400, height: 600 } });
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'https://apps-sbx.avpaas.io' });
+    const page = await context.newPage();
+    await page.route('https://apps-sbx.avpaas.io/**', route => route.fulfill({ status: 200, contentType: 'text/html', body: shell }));
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/User/Profile/', { waitUntil: 'domcontentloaded' });
+    for (const file of ['native-theme.css', 'theme-palettes.css', 'menu-board.css', 'page-baseline.css'])
+      await page.addStyleTag({ path: path.join(root, 'src/content', file) });
+    for (const file of ['enhancer.js', 'crumbs.js']) await page.addScriptTag({ path: path.join(root, 'src/content', file) });
+    const chip = page.locator('#crumbs .cp-bc button.cp-ext-chip');
+    await chip.waitFor();
+    const read = () => page.evaluate(() => {
+      const id = document.querySelector('#crumbs span.headerAuthLevel');
+      const chip = document.querySelector('#crumbs button.cp-ext-chip');
+      return {
+        idText: id.textContent.trim(),
+        idButton: !!id.querySelector(':scope > button.cp-copy-id svg'),
+        joined: id.nextElementSibling === chip && id.parentElement.matches('.cp-bc'),
+        chip: chip.textContent.replace(/\s+/g, ' ').trim(),
+        disabled: chip.getAttribute('aria-disabled') === 'true',
+        tip: chip.dataset.cpTip,
+        spinner: !!chip.querySelector('.cp-ext-spin'),
+        oldToolbar: !!document.querySelector('.bw-copy-controls'),
+        borders: [...document.querySelectorAll('#crumbs .cp-bc :is(a.headerAuthLevelLink, span.headerAuthLevel)')]
+          .filter(el => getComputedStyle(el).display !== 'none').map(el => getComputedStyle(el).borderTopWidth),
+        chipBorder: getComputedStyle(chip).borderTopWidth,
+        leadBorder: getComputedStyle(document.querySelector('#crumbs .cp-bc-lead')).borderTopWidth,
+      };
+    });
+    const first = await read();
+    assert.equal(first.idText, 'TriSandbox1002', 'the icon adds no text to the id the tools read');
+    assert.ok(first.idButton && first.joined && !first.oldToolbar);
+    assert.equal(first.chip, 'EXT –');
+    assert.equal(first.disabled, true, 'no extension read yet');
+    await chip.hover();
+    await page.waitForFunction(() => document.querySelector('.cp-tip:not([hidden])')?.textContent === 'Open Profile > Addresses to load the extension');
+    await chip.dispatchEvent('click');   // Playwright will not click an aria-disabled button
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText().catch(() => '')), '', 'nothing to copy yet');
+    await page.mouse.move(0, 400);
+    assert.deepEqual(first.borders, ['1px', '1px', '1px', '1px'], 'every pill has the header buttons’ border');
+    assert.equal(first.chipBorder, '1px');
+    assert.equal(first.leadBorder, '1px');
+
+    // pjax.js reads the extension from Addresses and marks the id element.
+    const mark = (state, ext) => page.evaluate(([state, ext]) => {
+      const id = document.querySelector('#crumbs span.headerAuthLevel');
+      id.setAttribute('data-cp-extension-state', state);
+      if (ext !== undefined) id.setAttribute('data-cp-extension', ext);
+      document.dispatchEvent(new Event('cp:user-extension'));
+    }, [state, ext]);
+    await mark('loading');
+    await page.waitForFunction(() => document.querySelector('#crumbs .cp-ext-chip .cp-ext-spin'));
+    assert.equal((await read()).chip, 'EXT …');
+    await mark('done', '1002');
+    await page.waitForFunction(() => document.querySelector('#crumbs .cp-ext-chip')?.textContent.includes('1002'));
+    const loaded = await read();
+    assert.equal(loaded.chip, 'EXT 1002');
+    assert.equal(loaded.disabled, false);
+
+    await chip.click();
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), '1002');
+    await page.waitForFunction(() => document.querySelector('.cp-tip:not([hidden])')?.textContent === 'Copied 1002');
+    await page.locator('#crumbs button.cp-copy-id').click();
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), 'TriSandbox1002');
+
+    // pjax.js rewrites the header on the user's next page: the extension comes from the session's memory.
+    await page.evaluate(html => { document.getElementById('crumbs').innerHTML = html; }, trail());
+    await page.waitForFunction(() => document.querySelector('#crumbs .cp-bc .cp-ext-chip')?.textContent.includes('1002'));
+    assert.equal(await page.evaluate(() => document.querySelector('#crumbs span.headerAuthLevel')
+      .getAttribute('data-cp-extension-state')), 'done', 'a remembered extension is not read again');
+    assert.ok((await read()).joined);
+
+    // Another user never shows this user's extension.
+    await page.evaluate(html => { document.getElementById('crumbs').innerHTML = html; }, trail().replace('TriSandbox1002', 'TriSandbox1003'));
+    await page.waitForFunction(() => document.querySelector('#crumbs .cp-bc span.headerAuthLevel')?.textContent.trim() === 'TriSandbox1003' &&
+      document.querySelector('#crumbs .cp-ext-chip')?.textContent.replace(/\s+/g, ' ').trim() === 'EXT –');
+  } finally { await browser.close(); }
+});

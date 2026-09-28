@@ -234,3 +234,77 @@ test('User Peek keeps only compact settings and verifies radio, checkbox, and te
       'normal option navigation should still use PJAX');
   } finally { await browser.close(); }
 });
+
+test('a user board reads the user’s extension from Addresses first, in the user’s context', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    const userMenus = {
+      U0: menu([['Profile', routes.dense]]),
+      U1: menu([['Do Not Disturb', routes.dnd]]),
+      U2: menu([['Call Waiting', routes.cw]]),
+      U3: menu([['Voice Portal Calling', routes.portal]])
+    };
+    let context = 'reseller', serial = 1;
+    const requests = [];
+    await page.route(origin + '/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      const params = new URLSearchParams(request.postData() || '');
+      requests.push({ pathname, context, token: params.get('formtokenserial') });
+      const respond = (body, title, user = true) => route.fulfill({
+        status: 200, contentType: 'text/html',
+        body: shell(body, { title, user }).replace('value="token-1"', `value="token-${++serial}"`)
+      });
+      if (pathname === userEntry) { context = 'user'; return respond(userMenus.U0, 'User Profile'); }
+      if (pathname === folderPath && /^U\d+$/.test(params.get('folder') || '')) {
+        context = 'folder:' + params.get('folder');
+        return respond(userMenus[params.get('folder')], 'User ' + params.get('folder'));
+      }
+      if (pathname === folderPath) return respond(menu([['Users', '/Reseller/Users/']]), 'Profile', false);
+      if (context !== 'user') return respond('<h1>Wrong user context</h1>', 'Unavailable');
+      if (pathname === '/commpilot/User/Addresses/') {
+        return respond('<form name="mainForm"><input type="text" name="extension" id="extension" value="1002" size="4"></form>', 'Addresses');
+      }
+      const routeName = pathname.replace(/^\/commpilot/, '');
+      if (routeName === routes.dnd || routeName === routes.cw || routeName === routes.portal) {
+        return respond(`<form name="mainForm">${radio('active', false)}</form>`, 'Settings');
+      }
+      return respond('<h1>Unknown route</h1>', 'Unknown');
+    });
+
+    await page.goto(origin + folderPath, { waitUntil: 'domcontentloaded' });
+    for (const file of ['native-theme.css', 'theme-palettes.css', 'menu-board.css']) {
+      await page.addStyleTag({ path: path.join(root, 'src/content', file) });
+    }
+    await page.evaluate(() => {
+      document.documentElement.dataset.cpDirection = 'nord';
+      window.extensionEvents = 0;
+      document.addEventListener('cp:user-extension', () => { window.extensionEvents++; });
+    });
+    await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
+    await page.waitForFunction(() => document.querySelector('.cp-console-section[data-cp-folder="R0"] .cp-console-body')
+      ?.dataset.cpLoaded === '1');
+    const readsBefore = requests.filter(r => r.pathname === '/commpilot/User/Addresses/').length;
+    assert.equal(readsBefore, 0, 'a reseller board does not read an extension');
+    await page.waitForTimeout(400);
+    await page.evaluate(url => window.redirectPost(url, { key: 'Trifecta_Sandbox_SP>%Trifecta_Sandbox_Group>%TriSandbox1002' }), userEntry);
+    await page.waitForFunction(() => document.querySelector('td.headerBar span.headerAuthLevel')
+      ?.getAttribute('data-cp-extension-state') === 'done', null, { timeout: 20000 });
+    const id = await page.evaluate(() => {
+      const el = document.querySelector('td.headerBar span.headerAuthLevel');
+      return { ext: el.getAttribute('data-cp-extension'), events: window.extensionEvents, token: document.getElementsByName('formtokenserial')[0].value };
+    });
+    assert.equal(id.ext, '1002');
+    assert.equal(id.events, 2, 'loading, then done');
+    const reads = requests.filter(r => r.pathname === '/commpilot/User/Addresses/');
+    assert.equal(reads.length, 1);
+    assert.equal(reads[0].context, 'user', 'the read waits until the user context is restored');
+    const peek = requests.findIndex(r => r.pathname === '/commpilot' + routes.dnd);
+    assert.ok(peek === -1 || requests.indexOf(reads[0]) < peek, 'the extension is read before Peek');
+    const next = requests.find((r, i) => i > requests.indexOf(reads[0]) && r.token);
+    if (next) assert.notEqual(next.token, reads[0].token, 'the Addresses response’s token is threaded on');
+    assert.equal(await page.evaluate(() => location.pathname), userEntry, 'the board stays in place');
+  } finally { await browser.close(); }
+});

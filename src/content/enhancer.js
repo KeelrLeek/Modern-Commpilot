@@ -122,6 +122,121 @@
     }, 2500);
   }
 
+  function writeClipboard(value, done) {
+    const tryFallback = () => {
+      try { done(fallbackCopy(value)); } catch (_) { done(false); }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(value).then(() => done(true), tryFallback);
+    } else {
+      tryFallback();
+    }
+  }
+
+  // CommPilot 2.0 (a palette is active): Copy User ID is an icon on the breadcrumb's user-id pill, and the
+  // extension shows in a chip joined to it (crumbs.js keeps the chip beside the pill). pjax.js reads the
+  // extension from the user's Addresses page when the user's board opens and marks the id element
+  // (data-cp-extension-state / data-cp-extension); a value already cached for this user is used as is.
+  // CommPilot without the theme keeps the toolbar below.
+  const themed = () => Boolean(document.documentElement.dataset.cpDirection) &&
+    document.body?.id === "initBody.menuTemplate";
+  const svgIcon = body => `<svg viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`;
+  const COPY_ICON = svgIcon('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>');
+  const CHECK_ICON = svgIcon('<path d="M20 6 9 17l-5-5"/>');
+  let tip = null, tipFor = null, tipTimer = 0;
+
+  function showTip(target, text, sticky) {
+    if (!tip) {
+      tip = document.createElement("div");
+      tip.className = "cp-tip";
+      tip.setAttribute("role", "status");
+      tip.setAttribute("aria-live", "polite");
+      document.body.append(tip);
+    }
+    clearTimeout(tipTimer);
+    tipFor = target;
+    tip.textContent = text;
+    tip.hidden = false;
+    const box = target.getBoundingClientRect(), own = tip.getBoundingClientRect();
+    tip.style.top = `${Math.round(box.bottom + 9)}px`;
+    tip.style.left = `${Math.round(Math.max(8, Math.min(innerWidth - own.width - 8, box.left + box.width / 2 - own.width / 2)))}px`;
+    if (sticky) tipTimer = setTimeout(hideTip, 1600);
+  }
+  function hideTip() { if (tip) tip.hidden = true; }
+  function tipOn(el) {
+    el.addEventListener("mouseenter", () => showTip(el, el.dataset.cpTip));
+    el.addEventListener("focus", () => showTip(el, el.dataset.cpTip));
+    el.addEventListener("mouseleave", hideTip);
+    el.addEventListener("blur", hideTip);
+  }
+
+  function copyFromPill(kind, button) {
+    const context = userBreadcrumb();
+    if (!context) return;
+    const value = kind === "user-id" ? context.userId.split("@", 1)[0].trim() : extensionFor(context);
+    if (!value) return;
+    writeClipboard(value, ok => {
+      showTip(button, ok ? `Copied ${value}` : "Could not copy", true);
+      if (!ok) return;
+      button.classList.add("cp-copied");
+      const icon = button.querySelector("svg");
+      if (icon) icon.outerHTML = CHECK_ICON;
+      setTimeout(() => {
+        button.classList.remove("cp-copied");
+        const done = button.querySelector("svg");
+        if (done) done.outerHTML = COPY_ICON;
+      }, 1600);
+    });
+  }
+
+  function syncPillControls(context) {
+    const span = context.header.querySelector("span.headerAuthLevel");
+    if (!span) return;
+    context.header.querySelector(".bw-copy-controls[data-bw-owned='1']")?.remove();
+    if (tipFor && !tipFor.isConnected) hideTip();   // pjax rewrote the header under the pointer
+    const read = span.getAttribute("data-cp-extension-state");
+    const cached = cachedExtension(context);
+    if (read === "done" && span.hasAttribute("data-cp-extension")) {
+      rememberExtension(context, span.getAttribute("data-cp-extension"));
+    } else if (!read && cached) {   // already known for this user: nothing for pjax.js to read
+      span.setAttribute("data-cp-extension", cached);
+      span.setAttribute("data-cp-extension-state", "done");
+    }
+    let idButton = span.querySelector("button.cp-copy-id");
+    if (!idButton) {
+      idButton = document.createElement("button");
+      idButton.type = "button";
+      idButton.className = "cp-copy-id";
+      idButton.setAttribute("aria-label", "Copy user ID");
+      idButton.dataset.cpTip = "Copy user ID";
+      idButton.innerHTML = COPY_ICON;
+      idButton.addEventListener("click", event => { event.stopPropagation(); copyFromPill("user-id", idButton); });
+      tipOn(idButton);
+      span.append(idButton);   // an icon only: the id's text (read by the tools and pjax.js) is unchanged
+    }
+    let chip = context.header.querySelector("button.cp-ext-chip");
+    if (!chip) {
+      chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "cp-ext-chip cp-bc-attach";
+      chip.addEventListener("click", () => copyFromPill("extension", chip));
+      tipOn(chip);
+      span.after(chip);
+    }
+    const ext = extensionFor(context);
+    const state = ext ? "value" : span.getAttribute("data-cp-extension-state") || "unknown";
+    if (chip.dataset.state === state + ext) return;
+    chip.dataset.state = state + ext;
+    const value = document.createElement("b");
+    value.textContent = ext || (state === "loading" ? "…" : "–");
+    chip.replaceChildren("EXT ", value);
+    chip.insertAdjacentHTML("beforeend", state === "loading" ? '<span class="cp-ext-spin" aria-hidden="true"></span>' : ext ? COPY_ICON : "");
+    chip.setAttribute("aria-disabled", String(!ext));   // not disabled: its tooltip still explains why
+    chip.dataset.cpTip = ext ? `Copy extension ${ext}` : state === "loading" ? "Loading extension…" :
+      state === "done" ? "This user has no extension" : "Open Profile > Addresses to load the extension";
+    chip.setAttribute("aria-label", chip.dataset.cpTip);
+  }
+
   function copyBreadcrumbValue(header, kind) {
     const context = userBreadcrumb();
     if (!context || context.header !== header) return;
@@ -149,6 +264,12 @@
   function syncCopyControls() {
     const context = userBreadcrumb();
     if (!context) return;
+    if (themed()) {
+      watchExtensionField(context);
+      syncPillControls(context);
+      return;
+    }
+    context.header.querySelectorAll(".cp-copy-id, .cp-ext-chip").forEach(el => el.remove());
     let toolbar = context.header.querySelector(".bw-copy-controls[data-bw-owned='1']");
     if (!toolbar) {
       toolbar = document.createElement("span");
@@ -170,6 +291,15 @@
       context.header.append(toolbar);
     }
     toolbar.dataset.bwTheme = isDarkBackground(context.header) ? "dark" : "light";
+    watchExtensionField(context);
+    const button = toolbar.querySelector('[data-bw-copy="extension"]');
+    const available = !!extensionFor(context);
+    button.disabled = !available;
+    button.title = available ? "Copy this user's extension" :
+      "Open Profile > Addresses to load this user's extension";
+  }
+
+  function watchExtensionField(context) {
     const field = document.querySelector('input#extension[name="extension"]');
     if (field && field.dataset.bwCopyWatched !== "1") {
       field.dataset.bwCopyWatched = "1";
@@ -185,11 +315,6 @@
       field.addEventListener("input", refresh);
       field.addEventListener("change", refresh);
     }
-    const button = toolbar.querySelector('[data-bw-copy="extension"]');
-    const available = !!extensionFor(context);
-    button.disabled = !available;
-    button.title = available ? "Copy this user's extension" :
-      "Open Profile > Addresses to load this user's extension";
   }
 
   function colorize(anchor) {
@@ -781,7 +906,7 @@
       const anchor = target.closest("a.navMenuitem, a.navMenuItem");
       if (anchor) pendingRoots.add(anchor);
       const header = target.closest("td.headerBar");
-      if (header && !target.closest(".bw-copy-controls")) pendingRoots.add(header);
+      if (header && !target.closest(".bw-copy-controls, .cp-copy-id, .cp-ext-chip")) pendingRoots.add(header);
       if (record.type === "childList") {
         for (const removed of record.removedNodes) {
           if (removed.nodeType === Node.ELEMENT_NODE &&
@@ -809,6 +934,10 @@
       subtree: true
     });
     scanRoot(document.documentElement);
+    // pjax.js marks the user's extension read on the id element; the palette can be switched on or off.
+    for (const name of ["cp:user-extension", "cp:theme-change"]) {
+      document.addEventListener(name, () => requestAnimationFrame(syncCopyControls));
+    }
     document.addEventListener("pointerdown", event => {
       if (!openSelect || popover.contains(event.target)) return;
       const info = selectInfo.get(openSelect);

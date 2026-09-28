@@ -5652,10 +5652,11 @@
       });
     }
 
-    function cpFetchLeaf(path) {
-      // A read belongs to the board that asked for it. Once that board is gone (the user opened an option),
-      // a queued read must never run: it would spend the next page's single-use token — or, at another
-      // level, move CommPilot's server-side context — behind the user's back.
+    // One background read of a page for the board on screen, in the board's read queue. A read belongs to
+    // the board that asked for it. Once that board is gone (the user opened an option), a queued read must
+    // never run: it would spend the next page's single-use token — or, at another level, move CommPilot's
+    // server-side context — behind the user's back. Resolves the parsed page, or null.
+    function cpReadBoardPage(path) {
       var ownerBoard = document.querySelector(".cp-console");
       return new Promise(function (resolve) {
         cpEnqueueSection(function () {
@@ -5673,82 +5674,123 @@
                 var tokens = document.getElementsByName("formtokenserial");
                 for (var i = 0; i < tokens.length; i++) tokens[i].value = newTok.value;
               }
-              var cell = res.doc.querySelector('td[width="82%"]');
-              if (!cell) { resolve(null); return; }
-              var compact = cpReadCompactLeaf(cell, path);
-              if (compact !== undefined) { resolve(compact); return; }
-              // Some LIST pages expose pre-list default settings (Call Recording Platforms' System/Reseller
-              // Default) — surface those as the card glance even though the page is a list (so it must run
-              // BEFORE the leaf-only list-guard below). Reuse the grid's own defaults harvester; a present
-              // value → lavender pill, an empty default → a dashed "None" pill (mirrors the list strip).
-              if (/\/CallRecordingPlatforms\//.test(path)) {
-                var crpDefs = cpGridHarvestSettings(cell);
-                if (!crpDefs || !crpDefs.length) { resolve(null); return; }
-                resolve(crpDefs.map(function (s) {
-                  var has = !!(s.value && s.value.trim());
-                  return {
-                    label: s.label.replace(/\s*Call Recording Platform\s*$/i, "").trim(),
-                    value: has ? s.value.trim() : "None",
-                    kind: "defpill",
-                    empty: !has
-                  };
-                }));
-                return;
-              }
-              // Notification-email family: harvest the text inputs in DOM order and label them per the page's
-              // CP_LEAF_NOTIFY spec — the legacy rows all share the SAME label ("Default From Email Address:"),
-              // so the generic label:value parser below can't produce useful per-row labels for VM's 3 fields.
-              var nfLabels = null;
-              for (var nfk in CP_LEAF_NOTIFY) { if (path.indexOf(nfk) !== -1) { nfLabels = CP_LEAF_NOTIFY[nfk]; break; } }
-              if (nfLabels) {
-                var nfIns = cell.querySelectorAll('input[type="text"]');
-                if (!nfIns.length) { resolve(null); return; }
-                // Inline edit rides the input NAME — only offered when the name is unique in the form (params
-                // are name-keyed; a duplicate name would clobber a sibling field on save).
-                var nfNames = {};
-                for (var nn = 0; nn < nfIns.length; nn++) { var nm = nfIns[nn].name || ""; if (nm) nfNames[nm] = (nfNames[nm] || 0) + 1; }
-                var nfRows = [];
-                for (var ni = 0; ni < nfIns.length && ni < 4; ni++) {
-                  var nfv = (nfIns[ni].value || "").trim();
-                  var nfnm = nfIns[ni].name || "";
-                  nfRows.push({
-                    label: nfLabels[ni] || "Default from", value: nfv || "None", kind: "defpill", empty: !nfv,
-                    edit: (nfnm && nfNames[nfnm] === 1) ? { path: path, name: nfnm } : null
-                  });
-                }
-                resolve(nfRows); return;
-              }
-              // Verify leaf-like: not a list (no search/results table)
-              if (cell.querySelector('#searchTable, #resultsTable, input[name="searchString"]')) { resolve(null); return; }
-              // Settings-source pages (Activation Code / STIR-SHAKEN) express the loaded policy as a
-              // useSystemSettings radio, not label:value rows — surface it as ONE glance row with a pill.
-              var srcSysR = cell.querySelector('input[name="useSystemSettings"][value="true"]');
-              var srcResR = cell.querySelector('input[name="useSystemSettings"][value="false"]');
-              if (srcSysR || srcResR) {
-                var useSys = !!(srcSysR && (srcSysR.checked || srcSysR.hasAttribute("checked")));
-                resolve([{ label: "Settings source", value: useSys ? "System" : "Reseller", pill: useSys ? "sys" : "res" }]);
-                return;
-              }
-              var out = [];
-              var trs = cell.querySelectorAll("tr");
-              for (var j = 0; j < trs.length && out.length < 6; j++) {
-                var tds = [];
-                for (var k = 0; k < trs[j].children.length; k++) { if (trs[j].children[k].tagName === "TD") tds.push(trs[j].children[k]); }
-                if (tds.length < 2) continue;
-                var label = (tds[0].textContent || "").trim();
-                if (!label || label.length > 40 || !/:\s*$/.test(label)) continue;  // label cells end with ":"
-                var inp = tds[1].querySelector("input, select, textarea");
-                var val = inp ? (inp.value || "") : (tds[1].textContent || "").trim();
-                if (!val) continue;
-                // defpill (lavender value pill) — the console-wide glance style (user: make Profile match the
-                // CRP/email cards; the old plain-text .cp-leaf-val rendering predated the pill standard).
-                out.push({ label: label.replace(/:\s*$/, ""), value: val.slice(0, 80), kind: "defpill", empty: false });
-              }
-              resolve(out.length ? out : null);
+              resolve(res.doc);
             })
             .catch(function () { resolve(null); });
         });
       });
+    }
+
+    // The breadcrumb's extension chip (enhancer.js): when a user's board opens, read the user's extension
+    // from their Addresses page, first in the board's read queue. The result is marked on the id element
+    // (data-cp-extension-state loading|done|failed, data-cp-extension) and announced with cp:user-extension;
+    // enhancer.js keeps it for the user, so each user is read once a session.
+    function cpUserIdElement() {
+      var cells = document.querySelectorAll("td.headerBar");
+      for (var i = 0; i < cells.length; i++) {
+        var id = cells[i].querySelector("span.headerAuthLevel");
+        if (id) return id;
+      }
+      return null;
+    }
+    function cpIdText(el) { return String(el && el.textContent || "").replace(/^\s*:\s*/, "").replace(/\s+/g, " ").trim(); }
+    function cpReadUserExtension() {
+      var id = cpUserIdElement(), user = cpIdText(id);
+      if (!user || id.hasAttribute("data-cp-extension-state")) return;
+      var mark = function (state, ext) {
+        var live = cpUserIdElement();   // pjax may have rewritten the header since the read started
+        if (!live || cpIdText(live) !== user) return;
+        live.setAttribute("data-cp-extension-state", state);
+        if (state === "done") live.setAttribute("data-cp-extension", ext);
+        document.dispatchEvent(new Event("cp:user-extension"));
+      };
+      mark("loading");
+      cpReadBoardPage("/commpilot/User/Addresses/").then(function (doc) {
+        var field = doc && doc.querySelector('input#extension[name="extension"]');
+        // The Addresses page must be this user's: CommPilot answers for its current target, not for a URL.
+        if (!field || cpIdText(doc.querySelector("td.headerBar span.headerAuthLevel")) !== user) { mark("failed"); return; }
+        mark("done", String(field.getAttribute("value") || "").trim());
+      });
+    }
+
+    function cpFetchLeaf(path) {
+      return cpReadBoardPage(path).then(function (doc) {
+        return new Promise(function (resolve) {
+          if (!doc) { resolve(null); return; }
+          var cell = doc.querySelector('td[width="82%"]');
+          if (!cell) { resolve(null); return; }
+          var compact = cpReadCompactLeaf(cell, path);
+          if (compact !== undefined) { resolve(compact); return; }
+          // Some LIST pages expose pre-list default settings (Call Recording Platforms' System/Reseller
+          // Default) — surface those as the card glance even though the page is a list (so it must run
+          // BEFORE the leaf-only list-guard below). Reuse the grid's own defaults harvester; a present
+          // value → lavender pill, an empty default → a dashed "None" pill (mirrors the list strip).
+          if (/\/CallRecordingPlatforms\//.test(path)) {
+            var crpDefs = cpGridHarvestSettings(cell);
+            if (!crpDefs || !crpDefs.length) { resolve(null); return; }
+            resolve(crpDefs.map(function (s) {
+              var has = !!(s.value && s.value.trim());
+              return {
+                label: s.label.replace(/\s*Call Recording Platform\s*$/i, "").trim(),
+                value: has ? s.value.trim() : "None",
+                kind: "defpill",
+                empty: !has
+              };
+            }));
+            return;
+          }
+          // Notification-email family: harvest the text inputs in DOM order and label them per the page's
+          // CP_LEAF_NOTIFY spec — the legacy rows all share the SAME label ("Default From Email Address:"),
+          // so the generic label:value parser below can't produce useful per-row labels for VM's 3 fields.
+          var nfLabels = null;
+          for (var nfk in CP_LEAF_NOTIFY) { if (path.indexOf(nfk) !== -1) { nfLabels = CP_LEAF_NOTIFY[nfk]; break; } }
+          if (nfLabels) {
+            var nfIns = cell.querySelectorAll('input[type="text"]');
+            if (!nfIns.length) { resolve(null); return; }
+            // Inline edit rides the input NAME — only offered when the name is unique in the form (params
+            // are name-keyed; a duplicate name would clobber a sibling field on save).
+            var nfNames = {};
+            for (var nn = 0; nn < nfIns.length; nn++) { var nm = nfIns[nn].name || ""; if (nm) nfNames[nm] = (nfNames[nm] || 0) + 1; }
+            var nfRows = [];
+            for (var ni = 0; ni < nfIns.length && ni < 4; ni++) {
+              var nfv = (nfIns[ni].value || "").trim();
+              var nfnm = nfIns[ni].name || "";
+              nfRows.push({
+                label: nfLabels[ni] || "Default from", value: nfv || "None", kind: "defpill", empty: !nfv,
+                edit: (nfnm && nfNames[nfnm] === 1) ? { path: path, name: nfnm } : null
+              });
+            }
+            resolve(nfRows); return;
+          }
+          // Verify leaf-like: not a list (no search/results table)
+          if (cell.querySelector('#searchTable, #resultsTable, input[name="searchString"]')) { resolve(null); return; }
+          // Settings-source pages (Activation Code / STIR-SHAKEN) express the loaded policy as a
+          // useSystemSettings radio, not label:value rows — surface it as ONE glance row with a pill.
+          var srcSysR = cell.querySelector('input[name="useSystemSettings"][value="true"]');
+          var srcResR = cell.querySelector('input[name="useSystemSettings"][value="false"]');
+          if (srcSysR || srcResR) {
+            var useSys = !!(srcSysR && (srcSysR.checked || srcSysR.hasAttribute("checked")));
+            resolve([{ label: "Settings source", value: useSys ? "System" : "Reseller", pill: useSys ? "sys" : "res" }]);
+            return;
+          }
+          var out = [];
+          var trs = cell.querySelectorAll("tr");
+          for (var j = 0; j < trs.length && out.length < 6; j++) {
+            var tds = [];
+            for (var k = 0; k < trs[j].children.length; k++) { if (trs[j].children[k].tagName === "TD") tds.push(trs[j].children[k]); }
+            if (tds.length < 2) continue;
+            var label = (tds[0].textContent || "").trim();
+            if (!label || label.length > 40 || !/:\s*$/.test(label)) continue;  // label cells end with ":"
+            var inp = tds[1].querySelector("input, select, textarea");
+            var val = inp ? (inp.value || "") : (tds[1].textContent || "").trim();
+            if (!val) continue;
+            // defpill (lavender value pill) — the console-wide glance style (user: make Profile match the
+            // CRP/email cards; the old plain-text .cp-leaf-val rendering predated the pill standard).
+            out.push({ label: label.replace(/:\s*$/, ""), value: val.slice(0, 80), kind: "defpill", empty: false });
+          }
+          resolve(out.length ? out : null);
+        });
+      }).catch(function () { return null; });
     }
 
     function cpSummarizeLeaves(bodyEl, reserveOnly) {
@@ -6892,6 +6934,7 @@
           }
           try { cpHarvestPageMenu(currentBoard); } catch (e) { console.warn("[pjax] page menu harvest", e); }
           if (!/^[RGU]\d+$/.test(secs[0].getAttribute("data-cp-folder") || "")) return;
+          if (/^U/.test(secs[0].getAttribute("data-cp-folder"))) cpReadUserExtension();
           secs.forEach(function (s) { cpSummarizeLeaves(s.querySelector(".cp-console-body")); });
         }
         // Folder prefetches at SP/Group/User level mutate CommPilot's server-side

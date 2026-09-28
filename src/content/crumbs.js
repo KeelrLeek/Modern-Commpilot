@@ -2,7 +2,8 @@
    a pill with an arrow between; the current place (the page pill pjax.js adds, else the entity, else the last
    level) is the accent pill and pops in when it changes. CommPilot's own links are MOVED into the trail, so they
    keep their native clicks, and everything stays in the same header cell and document order that pjax.js and
-   enhancer.js read. The header is rebuilt by pjax.js on every page; the trail follows it. */
+   enhancer.js read. The header is rebuilt by pjax.js on every page; the trail follows it. An element marked
+   .cp-bc-attach (enhancer.js's extension chip) rides on the entity pill, right after it with no arrow. */
 (() => {
   if (window !== window.top) return;
 
@@ -24,9 +25,14 @@
     if (!cell) return;
     const items = [...cell.querySelectorAll(ITEMS)];
     if (!items.length) return;
+    const attached = [...cell.querySelectorAll('.cp-bc-attach')];
     let bar = cell.querySelector(':scope > .cp-bc');
     const built = bar && [...bar.children].filter(el => el.matches(ITEMS));
-    if (built && built.length === items.length && built.every((el, i) => el === items[i])) { mark(bar, items); return; }
+    if (built && built.length === items.length && built.every((el, i) => el === items[i])) {
+      attach(items, attached);
+      mark(bar, items);
+      return;
+    }
     building = true;
     try {
       if (!bar) {
@@ -51,8 +57,18 @@
         parts.push(item);   // moves CommPilot's own element, with its handlers
       });
       bar.replaceChildren(...parts);
+      attach(items, attached);
       mark(bar, items);
     } finally { building = false; }
+  }
+
+  function attach(items, attached) {
+    let at = items.find(el => el.matches('span.headerAuthLevel'));
+    for (const el of attached) {
+      if (!at) return;
+      if (at.nextElementSibling !== el) at.after(el);
+      at = el;
+    }
   }
 
   // Roles in the trail. At user level the "Users" list link sits right before the user's id and only repeats
