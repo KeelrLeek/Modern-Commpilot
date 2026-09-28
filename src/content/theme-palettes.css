@@ -352,3 +352,49 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] a.listSortHeader .cp-so
   display:inline-block; width:12px; height:12px; margin-left:5px; vertical-align:-1px; background:currentColor;
   -webkit-mask:var(--cp-sort-icon) center / contain no-repeat; mask:var(--cp-sort-icon) center / contain no-repeat;
 }
+
+/* Breadcrumb: the v0.2 alpha's pill trail (crumbs.js). A tinted route glyph leads; levels are uppercase pills
+   with arrows between; the current place is the accent pill; an entity id keeps its own case. Colors come
+   from the palette. td.headerBar is repeated in each selector to outrank the plain header link styles above. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar:has(> .cp-bc):has(a.headerAuthLevelLink) { font-size: 0; }   /* CommPilot's ">" and ":" text */
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc {
+  display: inline-flex; align-items: center; gap: 7px; max-width: 100%; vertical-align: middle;
+  font: 700 11.5px/1.5 "Inter", sans-serif;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc-lead {
+  display: inline-grid; place-items: center; flex: none; width: 24px; height: 24px; margin-right: 3px; border-radius: 7px;
+  background: color-mix(in srgb, var(--d-accent) 18%, transparent); color: var(--d-accent);
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(.cp-bc-lead, .cp-bc-sep) svg {
+  fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc-lead svg { width: 14px; height: 14px; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc-sep { display: inline-flex; flex: none; color: var(--d-muted); opacity: .75; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc-sep svg { width: 13px; height: 13px; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(a.headerAuthLevelLink, span.headerAuthLevel, button.cp-page-pill) {
+  display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box; min-height: 0 !important; margin: 0 !important;
+  padding: 4px 11px !important; border: 0 !important; border-radius: 7px !important; box-shadow: none !important;
+  font: 700 11.5px/1.5 "Inter", sans-serif !important; letter-spacing: .07em; text-transform: uppercase; text-decoration: none;
+  white-space: nowrap; vertical-align: middle;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc a.headerAuthLevelLink.cp-bc-seg {
+  background: color-mix(in srgb, var(--d-text) 7%, transparent); color: var(--d-muted); cursor: pointer;
+  transition: background-color .12s ease, color .12s ease;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc a.headerAuthLevelLink.cp-bc-seg:hover {
+  background: color-mix(in srgb, var(--d-accent) 20%, transparent); color: color-mix(in srgb, var(--d-accent) 82%, var(--d-text));
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc span.headerAuthLevel.cp-bc-static {
+  background: color-mix(in srgb, var(--d-text) 7%, transparent); color: var(--d-text);
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc .cp-bc-cur {
+  background: color-mix(in srgb, var(--d-accent) 20%, transparent) !important;
+  color: color-mix(in srgb, var(--d-accent) 82%, var(--d-text)) !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc span.headerAuthLevel.cp-bc-id { text-transform: none; letter-spacing: .01em; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc .cp-bc-hidden { display: none !important; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-page-pill svg { width: 13px; height: 13px; color: currentColor; opacity: .85; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-page-pill[aria-expanded="true"] {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--d-accent) 22%, transparent) !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(a, button):focus-visible { outline: 2px solid var(--d-ring); outline-offset: 2px; }
