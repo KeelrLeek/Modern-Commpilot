@@ -625,6 +625,7 @@
     // page's frame-buster (which otherwise drives top.location back out). Mirrors cpFollow's
     // {doc,html}|{auth:false} contract incl. redirect-stub following (the SP "Modify" entry →
     // folder_contents 2-step), so cpHook's swap logic is identical regardless of transport.
+    var CP_FRAME_WAIT_MS = 90000;
     function cpFollowFrame(url, params, token, depth, timeoutMs) {
       return new Promise(function (resolve) {
         var ifr;
@@ -689,7 +690,11 @@
           f.submit();
         }
         post(url, params || {}, token, depth || 0);
-        setTimeout(function () { done({ auth: false }); }, timeoutMs || 8000);
+        // Wait as long as the browser would for the page. Giving up early (this was 8 s) left CommPilot still
+        // working on the request: the reply's new single-use token never arrived, the next request went out with
+        // the old one, and CommPilot signed the session out ("Error loading the menu … no target object"). A big
+        // customer's pages take that long on the main site.
+        setTimeout(function () { done({ auth: false, timedOut: true }); }, timeoutMs || CP_FRAME_WAIT_MS);
       });
     }
 
@@ -802,7 +807,7 @@
           if (failed || cpSectionAborted || generation !== cpAggGeneration || !cpAggActive) { settle(null); return; }
           var tokEl = document.getElementsByName("formtokenserial")[0];
           var tok = (tokEl ? tokEl.value : null) || cpAggToken;
-          return cpFollowFrame("/commpilot/Common/folder_contents.jsp", { folder: f.folder, menuId: f.menuId || "2" }, tok, 0, 20000)
+          return cpFollowFrame("/commpilot/Common/folder_contents.jsp", { folder: f.folder, menuId: f.menuId || "2" }, tok, 0, CP_FRAME_WAIT_MS)
             .then(function (res) {
               if (res && res.doc) {
                 var nt = res.doc.getElementsByName("formtokenserial")[0];
@@ -4519,6 +4524,13 @@
                 } catch (e) {}
                 return;
               }
+              if (res && res.timedOut) {
+                // CommPilot did not answer at all. A retry now would go out beside the request it may still be
+                // working on, with a token it has already replaced: stay on this page and say so.
+                console.warn("[pjax] no answer from CommPilot for " + url + " — staying on the current page");
+                cpUploadNotice("CommPilot did not answer. Wait a moment, then try again.");
+                return;
+              }
               if (!res || res.auth === false || !res.doc || !res.doc.querySelector('td[width="82%"]')) {
                 // The follow came back unusable — EITHER the login page (auth:false) OR a non-content/error doc.
                 // A grid search rotating the single-use formtokenserial under us produces the SECOND case (no
@@ -7281,7 +7293,7 @@
           var needsEntityEntry = cpEntityEntry && cpEntityEntry.url;
           var restoreUrl = needsEntityEntry ? cpEntityEntry.url : "/commpilot/Common/folder_contents.jsp";
           var restoreParams = needsEntityEntry ? cpEntityEntry.params || {} : { folder: restoreFolder, menuId: restoreMenuId };
-          cpFollowFrame(restoreUrl, restoreParams, restoreToken, 0, 20000).then(function (res) {
+          cpFollowFrame(restoreUrl, restoreParams, restoreToken, 0, CP_FRAME_WAIT_MS).then(function (res) {
             var restored = !!(res && res.doc && res.doc.querySelector('td[width="82%"] a.navMenuItem'));
             cpDbg("[pjax] board context restore", restored, !!(res && res.doc), !!(res && res.auth === false), res && res.doc && res.doc.title,
               res && res.doc && res.doc.querySelectorAll('td[width="82%"] a.navMenuItem').length);

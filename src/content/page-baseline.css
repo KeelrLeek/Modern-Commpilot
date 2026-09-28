@@ -18,6 +18,7 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] {
   --pb-hairline: color-mix(in srgb, var(--d-line) 72%, transparent);
 
   & td[width="82%"][valign="top"] { padding: var(--pb-gutter); }
+  & td[width="82%"] > form[name="mainForm"] { margin-bottom: 0; }   /* quirks mode's 1em: dead space under the card */
   /* Some frames have no width and shrink to their content; every page uses the full width. */
   & td[width="82%"] > form[name="mainForm"] > table { width: 100%; }
 
@@ -57,7 +58,7 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] {
     & td.cp-frame-body > br { display: none; }
     & td.cp-frame-body tr.cp-frame-gap > td { height: 6px; padding: 0; font-size: 0; line-height: 0; }
     & td.cp-frame-body tr.cp-frame-gap img { display: none; }
-    & td.cp-frame-body > :is(table, div, fieldset, span):not(.cp-searchbar-wrap, .cp-frame-results, .cp-frame-pager, .cp-frame-rule) {
+    & td.cp-frame-body > :is(table, div, fieldset, span):not(.cp-searchbar-wrap, .cp-frame-results, .cp-frame-pager, .cp-frame-rule, .cp-pager) {
       margin-block: var(--pb-inset);
     }
 
@@ -82,7 +83,7 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] {
     & a.listSortHeader { padding: 0; background: transparent; color: var(--d-text); font: inherit; text-decoration: none; }
     & a.listSortHeader:hover { color: var(--d-accent); }
     & tr[id^="Row"] > td {
-      padding: var(--pb-cell-y) var(--pb-cell-x); border-bottom: 1px solid var(--pb-hairline);
+      padding: calc(var(--pb-cell-y) + var(--cp-row-fill, 0px)) var(--pb-cell-x); border-bottom: 1px solid var(--pb-hairline);
       font-size: 13px; line-height: 1.45; vertical-align: middle;
     }
     & tr[id^="Row"]:last-child > td { border-bottom: 0; }

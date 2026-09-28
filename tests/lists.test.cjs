@@ -107,6 +107,18 @@ test('a list shows as many rows as fit the window, pages the rest, and refits on
     assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('table.cp-pager-native')).display), 'none',
       'CommPilot’s 20-row pager is replaced');
     assert.match(await page.locator('.cp-pager').innerText(), new RegExp(`1–${first.length} of 60`));
+    // The page reaches the bottom of the window: the pager sits right under the last row, and what is left under
+    // the list is the page's own margin, not a row's worth of empty space.
+    const fit = await page.evaluate(() => {
+      const cell = document.querySelector('td[width="82%"]');
+      const rows = [...document.querySelectorAll('tr[id^="Row"]')].filter(tr => getComputedStyle(tr).display !== 'none');
+      const last = rows.at(-1).getBoundingClientRect(), pager = document.querySelector('.cp-pager').getBoundingClientRect();
+      const form = cell.querySelector('form').getBoundingClientRect();
+      return { gap: pager.top - last.bottom, left: cell.getBoundingClientRect().bottom - parseFloat(getComputedStyle(cell).paddingBottom) - form.bottom,
+        row: last.height };
+    });
+    assert.ok(Math.abs(fit.gap) <= 1, `no gap between the last row and the pager (${fit.gap}px)`);
+    assert.ok(fit.left >= 0 && fit.left < 2, `no space left under the list (${fit.left}px)`);
     await page.getByRole('button', { name: 'Next page' }).click();
     assert.equal((await shown(page))[0], `Row${first.length + 1}`);
     await page.setViewportSize({ width: 1280, height: 1100 });

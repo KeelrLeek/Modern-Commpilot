@@ -204,6 +204,20 @@
     return rows >= 8 ? rows : DEFAULT_PAGE;
   }
 
+  // A full page of rows leaves less than a row of space under the list. Spread it over the rows (under a pixel
+  // or two each) so the card reaches the bottom of the window with the pager right under the last row.
+  function fillRows(cell, table, count) {
+    const box = cell.getBoundingClientRect();
+    const end = Math.max(...[...cell.children].map(el => {
+      const r = el.getBoundingClientRect();
+      return r.bottom + (parseFloat(getComputedStyle(el).marginBottom) || 0);
+    }));
+    const spare = box.bottom - (parseFloat(getComputedStyle(cell).paddingBottom) || 0) - end;
+    if (spare <= 0 || count < 8) return;
+    table.style.setProperty('--cp-row-fill', `${Math.min(4, spare / count / 2).toFixed(2)}px`);
+    if (cell.scrollHeight > cell.clientHeight) table.style.removeProperty('--cp-row-fill');   // never into a scroll
+  }
+
   function page(cell, table) {
     const fill = table.dataset.cpFill;
     const native = nativePager(table);
@@ -250,6 +264,7 @@
       tr.classList.toggle('cp-row-end', i === Math.min(rows.length, from + count) - 1);
     });
     // Measure with a full page of CommPilot's size showing, then show what fits.
+    table.style.removeProperty('--cp-row-fill');
     if (!state.perPage) show(0, DEFAULT_PAGE);
     let perPage = fit(cell, table);
     let pages = Math.max(1, Math.ceil(rows.length / perPage));
@@ -268,6 +283,8 @@
     state.perPage = perPage;
     state.start = current * perPage;
     freezeColumns(table, state);
+    // Only a page that is full: the last, shorter page keeps its natural rows.
+    if (pages > 1 && current < pages - 1 && perPage !== DEFAULT_PAGE) fillRows(cell, table, perPage);
     // While pjax.js fetches the rest, the pager says so and nothing else changes; the totals appear once.
     const loading = table.dataset.cpFill === 'loading';
     state.el.classList.toggle('cp-pager-loading', loading);
