@@ -17,7 +17,7 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] {
   --pb-title: clamp(20px, .55vw + 12px, 25px);
   --pb-hairline: color-mix(in srgb, var(--d-line) 72%, transparent);
 
-  & td[width="82%"][valign="top"] { padding: var(--pb-gutter) var(--pb-gutter) 40px; }
+  & td[width="82%"][valign="top"] { padding: var(--pb-gutter); }
   /* Some frames have no width and shrink to their content; every page uses the full width. */
   & td[width="82%"] > form[name="mainForm"] > table { width: 100%; }
 
@@ -94,9 +94,39 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] {
     }
     & table.cp-frame-results > tbody > tr > td:first-child > img[width="20"] { display: none; }
     & table.cp-frame-results > tbody > tr > td:last-child { padding-right: var(--pb-inset); }
-    & :is(tr.unselected, td.unselected, a.tableLink) { background: transparent; }
-    & tr[id^="Row"]:hover > td,
-    & tr[id^="Row"]:hover a.tableLink { background: var(--d-raised); }
+    & :is(tr.unselected, td.unselected, tr.hilite, td.hilite, a.tableLink, a.tableLinkHover) { background: transparent; }
+    /* A row opens as a whole (lists.js): a quiet tint under the pointer, the text keeps its colour. CommPilot's own
+       hover script (mouseOverA) swaps each link's class from tableLink to tableLinkHover, which the theme left
+       unstyled (a bright link colour); both look the same here. */
+    & tr[id^="Row"] > td { background: transparent; }
+    & tr[id^="Row"] a:is(.tableLink, .tableLinkHover),
+    & tr[id^="Row"] a:is(.tableLink, .tableLinkHover):hover { color: inherit; text-decoration: none; background: none; }
+    & tr.cp-row-link { cursor: pointer; }
+    & tr.cp-row-link:hover > td { background: color-mix(in srgb, var(--d-accent) 11%, var(--d-surface)); }
+    & tr.cp-row-link:hover > td:first-child { box-shadow: inset 2px 0 var(--d-accent); }
+    & tr.cp-row-link:focus-visible { outline: 2px solid var(--d-ring); outline-offset: -2px; }
+    & tr.cp-row-link > td[width="20"]:first-child + td { font-weight: 600; }
+    & .cp-col-edit { display: none; }
+    /* Paged to the window (lists.js): rows off the current page, and CommPilot's pager it replaces. */
+    & tr.cp-row-off { display: none; }
+    & tr[id^="Row"].cp-row-end > td { border-bottom: 0; }
+    & table.cp-pager-native { display: none; }
+    & .cp-pager {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px;
+      min-height: 38px; box-sizing: border-box; padding: 5px var(--pb-inset); border-top: 1px solid var(--d-line);
+      color: var(--d-muted); font: 500 12.5px/1.3 "Inter", sans-serif; font-variant-numeric: tabular-nums;
+    }
+    & td.cp-frame-body > .cp-pager { margin-inline: calc(-1 * var(--pb-inset)); }
+    & .cp-pager-nav { display: inline-flex; align-items: center; gap: 8px; }
+    & .cp-pager-nav[hidden] { display: none; }
+    & .cp-pager-page { color: var(--d-text); }
+    & button.cp-pager-btn {
+      min-width: 28px; min-height: 26px; padding: 0 8px; border: 1px solid var(--d-line) !important;
+      border-radius: var(--pb-radius-control); background: var(--d-surface) !important; color: var(--d-text) !important;
+      font: 600 14px/1 "Inter", sans-serif; box-shadow: none; transform: none;
+    }
+    & button.cp-pager-btn:hover:not(:disabled) { border-color: var(--d-accent) !important; }
+    & button.cp-pager-btn:disabled { opacity: .4; }
     /* CommPilot indents forms with a 20px column holding a spacer image; the card's inset replaces it. */
     & td[width="20"]:has(> img[width="20"]:only-child) { width: 0; padding: 0; }
     & td[width="20"] > img[width="20"]:only-child { display: none; }
@@ -139,10 +169,10 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] {
     }
 
     /* Fields and buttons: one control height. */
-    & :is(input:not([type="hidden"], [type="checkbox"], [type="radio"], [type="image"]), select, textarea, button):not(.bw-select-trigger, .cp-switch, .cp-seg-opt, .cp-ev-day, .cp-searchbar-add) {
+    & :is(input:not([type="hidden"], [type="checkbox"], [type="radio"], [type="image"]), select, textarea, button):not(.bw-select-trigger, .cp-switch, .cp-seg-opt, .cp-ev-day, .cp-searchbar-add, .cp-pager-btn) {
       min-height: var(--pb-control); padding-block: 3px; border-radius: var(--pb-radius-control);
     }
-    & :is(input[type="button"], input[type="submit"], input[type="reset"], button):not(.bw-select-trigger, .cp-switch, .cp-seg-opt, .cp-ev-day, .cp-searchbar-add) {
+    & :is(input[type="button"], input[type="submit"], input[type="reset"], button):not(.bw-select-trigger, .cp-switch, .cp-seg-opt, .cp-ev-day, .cp-searchbar-add, .cp-pager-btn) {
       padding-inline: 12px;
     }
     & :is(.error, .warning, .informational) { border-radius: var(--pb-radius-control); }

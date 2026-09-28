@@ -353,7 +353,7 @@ test('the shared page frame: actions beside the title, one flat card, compact ro
     assert.deepEqual([frame.editBorder, frame.editDisplay], ['0px', 'inline'], 'a row’s Edit is a plain link, not a header pill');
     assert.deepEqual([frame.findDisplay, frame.findBorder], ['inline-flex', '1px'], 'Find outside the rows is a compact button');
     assert.equal(frame.rule, false, 'the empty band under the results is gone');
-    assert.equal(frame.pagerText, 'Page 1 of 1');
+    assert.equal(frame.pagerText, '[ Page 1 of 1 ]', 'CommPilot’s pager text stays as served (bulk tools read it)');
     assert.ok(Math.abs(frame.bleed[0] - frame.bleed[2]) < 2 && Math.abs(frame.bleed[1] - frame.bleed[2]) < 2, 'results and pager run edge to edge in the card');
     assert.deepEqual(frame.innerCard, ['0px', 'rgba(0, 0, 0, 0)'], 'no card inside the card');
     assert.ok(frame.findLine[0] < frame.findLine[1] / 2, 'the Find line packs together');

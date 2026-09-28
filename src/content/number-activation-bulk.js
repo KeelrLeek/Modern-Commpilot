@@ -54,8 +54,8 @@
   }
 
   function pageState() {
-    const text = content()?.innerText || '';
-    const match = /\[\s*Page\s+(\d+)\s+of\s+(\d+)\s*\]/i.exec(text);
+    const text = content()?.textContent || '';   // CommPilot's pager may be hidden behind lists.js's own
+    const match = /\[?\s*Page\s+(\d+)\s+of\s+(\d+)\s*\]?/i.exec(text);
     if (!match) throw Error('CommPilot did not show the Activate Numbers page count.');
     const current = Number(match[1]), total = Number(match[2]);
     if (!Number.isSafeInteger(current) || !Number.isSafeInteger(total) ||

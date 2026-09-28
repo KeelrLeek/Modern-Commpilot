@@ -534,12 +534,8 @@
       // The older one-line "Find" form some lists keep under the pager.
       if (!table.querySelector('table') && !table.classList.contains('cp-searchbar') && table.querySelector('[name="findKey"]'))
         table.classList.add('cp-findline');
-      if (!table.querySelector('table') && /\[\s*Page\s+\d+\s+of\s+\d+\s*\]/.test(table.textContent)) {
+      if (!table.querySelector('table') && /\[\s*Page\s+\d+\s+of\s+\d+\s*\]/.test(table.textContent))
         table.classList.add('cp-frame-pager');
-        const walker = document.createTreeWalker(table, NodeFilter.SHOW_TEXT);
-        for (let node = walker.nextNode(); node; node = walker.nextNode())
-          node.textContent = node.textContent.replace(/\[\s*(Page\s+\d+\s+of\s+\d+)\s*\]/, '$1');
-      }
     }
   }
 

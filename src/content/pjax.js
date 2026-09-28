@@ -940,7 +940,19 @@
     // opts.onPage(pageRows, pageIdx, totalPages) fires per page (render page 1 instantly, stream the rest);
     // opts.signal.aborted short-circuits the loop (a newer search supersedes this one). Rejects on a failed
     // search/auth so the caller can FALL BACK to the legacy paginated table (never strand the user).
+    // Every caller (bulk tools, exports) spends the single-use token itself. The search's first POST starts
+    // synchronously, so a navigation sent right after it waits for its token; with a list fill running (see
+    // cpListFill below) the fill stops first and lets its request land, and a reserved in-flight count keeps
+    // any navigation behind this search meanwhile.
     function cpListSearch(criteria, opts) {
+      if (!cpListFill) return cpListSearchRun(criteria, opts);
+      cpInflightPosts++;
+      var held = true, release = function () { if (held) { held = false; cpInflightPosts = Math.max(0, cpInflightPosts - 1); } };
+      return cpListFillStop().then(function () {
+        try { return cpListSearchRun(criteria, opts); } finally { release(); }
+      }, function (e) { release(); throw e; });
+    }
+    function cpListSearchRun(criteria, opts) {
       opts = opts || {};
       var tokEl = document.getElementsByName("formtokenserial")[0];
       var tok = tokEl ? tokEl.value : null;
@@ -1055,6 +1067,126 @@
     }
     // Expose for the grid builder + live diagnostics.
     window.cpListSearch = cpListSearch;
+
+    // --- List fill: every row of a native result list, for a page size that fits the window --------------
+    // CommPilot pages a list 20 rows at a time. lists.js shows as many rows as fit the window, so it needs the
+    // whole list: fetch pages 2..M of the list just shown (the same sequential page.jsp walk as cpListSearch,
+    // threading the single-use token) and append their rows to the live table, each wired to its own row's
+    // redirectPost target. A last request for page 1 puts CommPilot's own list state back where the page
+    // shows it (sort and Back then behave as before). The fill always yields: it sends a request only while no
+    // other token-bearing POST is in flight, and navigation, Reload and cpListSearch stop it and wait for its
+    // request. Any failure (a page with no rows - Admins-style lists render theirs client-side - or a session
+    // bounce) removes the added rows and leaves CommPilot's own pager.
+    var cpListFill = null;
+    var CP_LIST_FILL_MAX_PAGES = 50;
+    function cpListFillStop() {
+      var s = cpListFill;
+      if (!s) return Promise.resolve();
+      s.abort = true;
+      return (s.busy || Promise.resolve()).then(function () {}, function () {});
+    }
+    function cpJsString(v) {
+      return String(v).replace(/\\u([0-9a-fA-F]{4})/g, function (m, h) { return String.fromCharCode(parseInt(h, 16)); })
+        .replace(/\\x([0-9a-fA-F]{2})/g, function (m, h) { return String.fromCharCode(parseInt(h, 16)); })
+        .replace(/\\([\\'"\/])/g, "$1");
+    }
+    // The row's click target, from the redirectPost its own script wires (one per row).
+    function cpRowDrill(tr) {
+      var m = /redirectPost\s*\(\s*(['"])((?:\\.|(?!\1)[^\\])*)\1\s*,\s*(\{[\s\S]*?\})\s*\)/.exec(tr.innerHTML);
+      if (!m) return null;
+      var params = {}, re = /(\w+)\s*:\s*(['"])((?:\\.|(?!\2)[^\\])*)\2/g, mm;
+      while ((mm = re.exec(m[3]))) params[mm[1]] = cpJsString(mm[3]);
+      return { url: cpJsString(m[2]), params: params };
+    }
+    function cpListFillStart() {
+      cpListFillStop();
+      if (window !== window.top || cpGridState) return;
+      var cell = document.querySelector('td[width="82%"]');
+      if (!cell || cell.querySelector(":scope > .cp-console")) return;
+      var tables = cell.querySelectorAll('table:has(> tbody > tr[id^="Row"])');
+      if (tables.length !== 1) return;
+      var table = tables[0];
+      var po = /Page\s+(\d+)\s+of\s+(\d+)/i.exec(cell.textContent || "");
+      if (!po || +po[1] !== 1 || +po[2] < 2 || +po[2] > CP_LIST_FILL_MAX_PAGES) return;
+      var desc = cpSearchDescriptor(document);
+      if (!desc) return;
+      var total = +po[2], added = [];
+      var state = { abort: false, busy: null };
+      cpListFill = state;
+      table.setAttribute("data-cp-fill", "loading");
+      table.setAttribute("data-cp-pages", String(total));
+      var count = table.querySelectorAll(':scope > tbody > tr[id^="Row"]').length;
+      var announce = function (status) {
+        if (cpListFill === state) cpListFill = null;
+        if (status !== "done") added.forEach(function (tr) { tr.remove(); });
+        table.setAttribute("data-cp-fill", status);
+        document.dispatchEvent(new CustomEvent("cp:list-fill"));
+      };
+      var hop = function (value) {
+        if (state.abort || !table.isConnected) return Promise.reject(new Error("stopped"));
+        if (cpInflightPosts > 0) return Promise.reject(new Error("busy"));
+        var tokEl = document.getElementsByName("formtokenserial")[0];
+        state.busy = cpFollow(location.origin + "/commpilot/Common/page.jsp",
+          { returnPage: desc.returnPage, tableName: desc.tableName, value: String(value) }, tokEl ? tokEl.value : null, 0)
+          .then(function (res) {
+            state.busy = null;
+            if (!res || res.auth === false || res.err || !res.doc) throw new Error("page " + value + " failed");
+            var nt = res.doc.getElementsByName("formtokenserial")[0];
+            if (nt && nt.value) cpWriteToken(nt.value);
+            return res.doc;
+          }, function (e) { state.busy = null; throw e; });
+        return state.busy;
+      };
+      var append = function (doc, pageNo) {
+        var rows = doc.querySelectorAll('tr[id^="Row"]');
+        if (!rows.length) throw new Error("page " + pageNo + " has no rows");
+        var last = table.querySelectorAll(':scope > tbody > tr[id^="Row"]');
+        last = last[last.length - 1];
+        rows.forEach(function (src) {
+          var drill = cpRowDrill(src);
+          var tr = document.importNode(src, true);
+          tr.querySelectorAll("script").forEach(function (sc) { sc.remove(); });
+          var oldId = tr.id;
+          tr.id = "Row" + (++count);
+          tr.querySelectorAll("[id]").forEach(function (el) {
+            if (el.id.indexOf(oldId + "Col") === 0) el.id = tr.id + el.id.slice(oldId.length);
+          });
+          tr.setAttribute("data-cp-page", String(pageNo));
+          if (drill) {
+            tr.setAttribute("data-cp-drill", "1");
+            tr.querySelectorAll("a").forEach(function (a) {
+              a.addEventListener("click", function () { window.redirectPost(drill.url, drill.params); });
+            });
+          }
+          last.after(tr);
+          last = tr;
+          added.push(tr);
+        });
+      };
+      // Let the page's own start-up requests finish before the first request.
+      var start = Date.now();
+      var seq = new Promise(function (resolve, reject) {
+        (function idle() {
+          if (state.abort) { reject(new Error("stopped")); return; }
+          if (cpInflightPosts === 0) { resolve(); return; }
+          if (Date.now() - start > 3000) { reject(new Error("busy")); return; }
+          setTimeout(idle, 50);
+        })();
+      });
+      for (var p = 1; p < total; p++) (function (p) {
+        seq = seq.then(function () { return hop(p); }).then(function (doc) { append(doc, p + 1); });
+      })(p);
+      seq.then(function () { return hop(0); })
+        .then(function () { table.setAttribute("data-cp-rows", String(count)); announce("done"); },
+          function (e) { cpDbg("[pjax] list fill stopped:", e && e.message); announce(state.abort ? "stopped" : "failed"); });
+    }
+    window.cpListFillStart = cpListFillStart;
+    if (window === window.top) {
+      var cpListFillSoon = function () { setTimeout(cpListFillStart, 200); };
+      document.addEventListener("cp:reskin", cpListFillSoon);
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", cpListFillSoon, { once: true });
+      else cpListFillSoon();
+    }
 
     // Redesigned search grid is now the DEFAULT on every host (0.2.193). localStorage is per-origin, so an
     // opt-in flag meant each new host showed the OLD menus until set — friction for the multi-host rollout.
@@ -4224,6 +4356,7 @@
           // with THIS POST.
           try { if (cpGridState && cpGridState._searchAbort) cpGridState._searchAbort.abort(); } catch (e) {}
           try { if (cpGridState && cpGridState._sweepAbort) cpGridState._sweepAbort.abort(); } catch (e) {}
+          try { cpListFillStop(); } catch (e) {}
           var drainSeq = ++cpTokenDrainSeq;
           // Aborting a grid sweep stops its NEXT page request, but a POST that
           // already reached CommPilot can still consume the single-use token.
@@ -5133,6 +5266,7 @@
       // Abort any active grid search OR deep sweep FIRST so it stops launching token-rotating page.jsp hops.
       if (_gs && _gs._searchAbort) { try { _gs._searchAbort.abort(); } catch (e2) {} }
       if (_gs && _gs._sweepAbort) { try { _gs._sweepAbort.abort(); } catch (e2) {} }
+      try { cpListFillStop(); } catch (e2) {}
       // THE FIX for the "rapid 2 broad searches + reload → logout" bug: when the search GRID is active we are on
       // a real, GET-loadable list URL (Reseller/Groups), so a NATIVE reload lands on the same authenticated page
       // with NO formtokenserial POST at all — completely sidestepping the single-use-token race that bounced the

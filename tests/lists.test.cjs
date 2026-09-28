@@ -1,0 +1,130 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { chromium } = require('playwright-core');
+
+const root = path.resolve(__dirname, '..');
+const browserPath = [
+  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+].find(fs.existsSync);
+
+// A CommPilot result list as the server renders it (trimmed): a header row, then rows whose links each carry a
+// wiring script that opens the row's own page, and an Edit link in the last column.
+function row(n, name, target = name) {
+  const link = (id, text) => `<a id="${id}" class="${text === 'Edit' ? 'headerLink' : 'tableLink'}">${text}</a>
+    <script>document.getElementById('${id}').addEventListener('click', function () {
+      redirectPost('/commpilot/Reseller/Groups/Modify/index.jsp', { key: '${text === 'Edit' ? target : name}' }); });</script>`;
+  return `<tr id="Row${n}" class="unselected"><td width="20">&nbsp;</td><td>${link(`Row${n}Col0`, name)}</td>
+    <td width="0">&nbsp;</td><td>${link(`Row${n}Col1`, '25')}</td><td width="0">&nbsp;</td>
+    <td class="unselected">${link(`link_${n}`, 'Edit')}</td></tr>`;
+}
+function listPage(rows, { pager = 'Page 1 of 1', fill = '' } = {}) {
+  return `<!doctype html><html data-cp-direction="graphite"><head><title>Groups</title></head>
+    <body id="initBody.menuTemplate"><table height="100%"><tbody><tr><td width="82%" valign="top">
+    <form name="mainForm"><table width="100%"><tbody>
+      <tr><td class="screenName">Groups</td></tr>
+      <tr id="buttonbartop"><td class="buttonbar"><input type="button" name="ok" value="OK"></td></tr>
+      <tr><td class="enduserbody">
+        <table width="100%" cellpadding="2" ${fill ? `data-cp-fill="${fill}"` : ''}><tbody>
+          <tr><td class="listHeader"><img src="/commpilot/Graphics/onepx.gif" width="20" height="1"></td>
+            <td class="listHeader">Group ID</td><td class="listHeader"><img src="/commpilot/Graphics/onepx.gif" width="0" height="1"></td>
+            <td class="listHeader">User Limit</td><td class="listHeader"><img src="/commpilot/Graphics/onepx.gif" width="0" height="1"></td>
+            <td class="listHeader">Edit</td></tr>
+          ${rows}
+        </tbody></table>
+        <table class="enduserbody" width="100%"><tbody><tr><td width="33%"></td><td width="33%">[ ${pager} ]</td><td width="33%"></td></tr></tbody></table>
+      </td></tr>
+    </tbody></table></form>
+    </td></tr></tbody></table>
+    <script>window.opened = []; window.redirectPost = (url, params) => window.opened.push(params.key);</script>
+    </body></html>`;
+}
+const names = n => Array.from({ length: n }, (_, i) => row(i + 1, `Group ${String(i + 1).padStart(2, '0')}`)).join('');
+
+async function open(browser, html, viewport = { width: 1280, height: 720 }) {
+  const page = await browser.newPage({ viewport });
+  await page.route('https://apps-sbx.avpaas.io/**', route => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+  await page.goto('https://apps-sbx.avpaas.io/commpilot/Reseller/Groups/', { waitUntil: 'domcontentloaded' });
+  for (const file of ['native-theme.css', 'theme-palettes.css', 'page-baseline.css', 'forms.css'])
+    await page.addStyleTag({ path: path.join(root, 'src/content', file) });
+  await page.addScriptTag({ path: path.join(root, 'src/content/forms.js') });
+  await page.addScriptTag({ path: path.join(root, 'src/content/lists.js') });
+  await page.locator('tr.cp-row-link').first().waitFor({ state: 'attached' });
+  return page;
+}
+const shown = page => page.evaluate(() => [...document.querySelectorAll('tr[id^="Row"]')]
+  .filter(tr => getComputedStyle(tr).display !== 'none').map(tr => tr.id));
+
+test('a whole result row opens its page, by click or keyboard, and Edit goes where it repeats the row', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await open(browser, listPage(names(3)));
+    await page.locator('#Row2 > td').nth(3).click({ position: { x: 60, y: 5 } });   // the cell, beside its text
+    assert.deepEqual(await page.evaluate(() => window.opened), ['Group 02'], 'the row opened through its own link');
+    await page.locator('#Row3').focus();
+    await page.keyboard.press('Enter');
+    assert.deepEqual(await page.evaluate(() => window.opened), ['Group 02', 'Group 03']);
+    const edit = await page.evaluate(() => [...document.querySelectorAll('table.cp-frame-results > tbody > tr')].map(tr => getComputedStyle(tr.lastElementChild).display));
+    assert.ok(edit.every(d => d === 'none'), 'the Edit column is hidden on every row');
+    // CommPilot's own hover script swaps the link class to tableLinkHover while the pointer is on it.
+    await page.hover('#Row1Col0');
+    await page.evaluate(() => { document.querySelector('#Row1Col0').className = 'tableLinkHover'; });
+    await page.waitForTimeout(400);   // the theme's colour transition from the link colour
+    const hover = await page.evaluate(() => {
+      const link = document.querySelector('#Row1Col0');
+      return [getComputedStyle(link).color, getComputedStyle(link.closest('td')).color, getComputedStyle(document.getElementById('Row1')).cursor];
+    });
+    assert.equal(hover[0], hover[1], 'row text keeps the row colour');
+    assert.equal(hover[2], 'pointer');
+    await page.close();
+
+    // One row whose Edit opens a different page than its name: Edit stays, and that row is not a whole-row link.
+    const mixed = await open(browser, listPage(row(1, 'Group 01') + row(2, 'Group 02', 'Somewhere else')));
+    assert.equal(await mixed.evaluate(() => getComputedStyle(document.querySelector('#Row1 > td:last-child')).display), 'table-cell');
+    assert.deepEqual(await mixed.evaluate(() => [...document.querySelectorAll('tr.cp-row-link')].map(tr => tr.id)), ['Row1']);
+  } finally { await browser.close(); }
+});
+
+test('a list shows as many rows as fit the window, pages the rest, and refits on resize', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await open(browser, listPage(names(60), { pager: 'Page 1 of 3', fill: 'done' }));
+    await page.locator('.cp-pager').waitFor();
+    await page.waitForTimeout(300);
+    const first = await shown(page);
+    const scroll = await page.evaluate(() => { const c = document.querySelector('td[width="82%"]'); return c.scrollHeight - c.clientHeight; });
+    assert.ok(first.length >= 8 && first.length < 60, `a window's worth of rows (${first.length})`);
+    assert.equal(first[0], 'Row1');
+    assert.ok(scroll <= 0, `the page does not scroll (${scroll}px)`);
+    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('table.cp-pager-native')).display), 'none',
+      'CommPilot’s 20-row pager is replaced');
+    assert.match(await page.locator('.cp-pager').innerText(), new RegExp(`1–${first.length} of 60`));
+    await page.getByRole('button', { name: 'Next page' }).click();
+    assert.equal((await shown(page))[0], `Row${first.length + 1}`);
+    await page.setViewportSize({ width: 1280, height: 1100 });
+    await page.waitForFunction(n => [...document.querySelectorAll('tr[id^="Row"]')]
+      .filter(tr => getComputedStyle(tr).display !== 'none').length > n, first.length);
+    const taller = await shown(page);
+    assert.ok(taller.length > first.length, `a taller window shows more rows (${taller.length})`);
+    assert.ok(taller.includes(`Row${first.length + 1}`), 'and keeps the row you were on in view');
+  } finally { await browser.close(); }
+});
+
+test('a list whose other pages are not all here keeps CommPilot’s own pager', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    for (const fill of ['', 'failed']) {
+      const page = await open(browser, listPage(names(20), { pager: 'Page 1 of 3', fill }));
+      await page.waitForTimeout(300);
+      assert.equal(await page.locator('.cp-pager').count(), 0, `no lists.js pager (fill “${fill}”)`);
+      assert.equal((await shown(page)).length, 20);
+      assert.match(await page.locator('td.cp-frame-body').innerText(), /\[ Page 1 of 3 \]/);
+      await page.close();
+    }
+  } finally { await browser.close(); }
+});
