@@ -175,5 +175,28 @@ test('the user-id pill copies the id, and the extension chip joined to it copies
     await page.evaluate(html => { document.getElementById('crumbs').innerHTML = html; }, trail().replace('TriSandbox1002', 'TriSandbox1003'));
     await page.waitForFunction(() => document.querySelector('#crumbs .cp-bc span.headerAuthLevel')?.textContent.trim() === 'TriSandbox1003' &&
       document.querySelector('#crumbs .cp-ext-chip')?.textContent.replace(/\s+/g, ' ').trim() === 'EXT –');
+
+    // Opened from a Users list: the row's extension is known, so pjax.js has nothing to read from Addresses.
+    await page.evaluate(() => {
+      const list = document.createElement('table');
+      list.innerHTML = '<tbody><tr><td class="listHeader">User ID <script>void 0</script></td><td class="listHeader">Last Name</td>' +
+        '<td class="listHeader">Extension</td></tr><tr id="Row0"><td><a class="tableLink">TriSandbox1004</a></td><td>Four</td>' +
+        '<td>1004</td></tr><tr id="Row1"><td><a class="tableLink">TriSandbox1005</a></td><td>Five</td><td>&nbsp;</td></tr></tbody>';
+      document.querySelector('td[width="82%"]').append(list);
+    });
+    const openListed = async (row, user) => {
+      await page.click(`#${row} td:nth-child(2)`);
+      await page.evaluate(html => { document.getElementById('crumbs').innerHTML = html; }, trail().replace('TriSandbox1002', user));
+      await page.waitForFunction(user => document.querySelector('#crumbs .cp-bc span.headerAuthLevel')?.textContent.trim() === user &&
+        document.querySelector('#crumbs .cp-ext-chip')?.dataset.state !== 'unknown', user);
+      return page.evaluate(() => ({
+        chip: document.querySelector('#crumbs .cp-ext-chip').textContent.replace(/\s+/g, ' ').trim(),
+        tip: document.querySelector('#crumbs .cp-ext-chip').dataset.cpTip,
+        state: document.querySelector('#crumbs span.headerAuthLevel').getAttribute('data-cp-extension-state'),
+      }));
+    };
+    assert.deepEqual(await openListed('Row0', 'TriSandbox1004'), { chip: 'EXT 1004', tip: 'Copy extension 1004', state: 'done' });
+    assert.deepEqual(await openListed('Row1', 'TriSandbox1005'), { chip: 'EXT –', tip: 'This user has no extension', state: 'done' },
+      'a listed user without an extension is known too');
   } finally { await browser.close(); }
 });

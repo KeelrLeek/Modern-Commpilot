@@ -76,18 +76,18 @@
       ? input.value.trim() : null;
   }
 
+  // null: not known yet. "" is known: the user has no extension.
   function cachedExtension(context) {
     try {
-      return sessionStorage.getItem(context.cacheKey) || "";
+      return sessionStorage.getItem(context.cacheKey);
     } catch (_) {
-      return "";
+      return null;
     }
   }
 
   function rememberExtension(context, value) {
     try {
-      if (value) sessionStorage.setItem(context.cacheKey, value);
-      else sessionStorage.removeItem(context.cacheKey);
+      sessionStorage.setItem(context.cacheKey, value || "");
     } catch (_) {
       // The current Addresses field can still be copied if storage is blocked.
     }
@@ -95,7 +95,40 @@
 
   function extensionFor(context) {
     const visible = displayedExtension(context);
-    return visible === null ? cachedExtension(context) : visible;
+    return visible === null ? cachedExtension(context) || "" : visible;
+  }
+
+  // A Users list shows each user's extension: note it for the row being opened, so the user's pages know it
+  // without pjax.js reading their Addresses page (which takes BroadWorks seconds in a group with many numbers
+  // and devices). The header and the rows share column positions.
+  const LISTED_KEY = "bw-extension-listed";
+  function cellText(cell) {
+    const copy = cell.cloneNode(true);
+    copy.querySelectorAll("script, style").forEach(node => node.remove());
+    return copy.textContent.replace(/\s+/g, " ").trim();
+  }
+  function noteListedExtension(event) {
+    const row = event.target instanceof Element ? event.target.closest('tr[id^="Row"]') : null;
+    const head = row?.parentElement?.querySelector(":scope > tr:has(> td.listHeader)");
+    if (!head) return;
+    const names = Array.from(head.children, cell => normalize(cellText(cell)));
+    const idAt = names.indexOf("user id"), extAt = names.indexOf("extension");
+    if (idAt < 0 || extAt < 0 || row.children.length !== names.length) return;
+    const userId = cellText(row.children[idAt]);
+    if (!userId) return;
+    try {
+      sessionStorage.setItem(LISTED_KEY, JSON.stringify({
+        origin: location.origin, userId, extension: cellText(row.children[extAt]), at: Date.now()
+      }));
+    } catch (_) {}
+  }
+  function adoptListedExtension(context) {
+    if (cachedExtension(context) !== null) return;
+    try {
+      const listed = JSON.parse(sessionStorage.getItem(LISTED_KEY) || "null");
+      if (listed && listed.origin === location.origin && normalize(listed.userId) === normalize(context.userId) &&
+          Date.now() - listed.at < 10 * 60 * 1000) rememberExtension(context, listed.extension);
+    } catch (_) {}
   }
 
   function fallbackCopy(value) {
@@ -198,7 +231,7 @@
     const cached = cachedExtension(context);
     if (read === "done" && span.hasAttribute("data-cp-extension")) {
       rememberExtension(context, span.getAttribute("data-cp-extension"));
-    } else if (!read && cached) {   // already known for this user: nothing for pjax.js to read
+    } else if (!read && cached !== null) {   // already known for this user: nothing for pjax.js to read
       span.setAttribute("data-cp-extension", cached);
       span.setAttribute("data-cp-extension-state", "done");
     }
@@ -264,6 +297,7 @@
   function syncCopyControls() {
     const context = userBreadcrumb();
     if (!context) return;
+    adoptListedExtension(context);
     if (themed()) {
       watchExtensionField(context);
       syncPillControls(context);
@@ -938,6 +972,7 @@
     for (const name of ["cp:user-extension", "cp:theme-change"]) {
       document.addEventListener(name, () => requestAnimationFrame(syncCopyControls));
     }
+    document.addEventListener("click", noteListedExtension, true);
     document.addEventListener("pointerdown", event => {
       if (!openSelect || popover.contains(event.target)) return;
       const info = selectInfo.get(openSelect);
