@@ -5525,7 +5525,10 @@
         "/Reseller/CallCenter/", "/Reseller/MeetMeConferencing/", "/Reseller/EmergencyCallNotification/", "/Reseller/MailParameters/"],
       G: ["/Group/EmergencyCallNotification/", "/Group/ExtensionMgmt/",
         "/Group/DeviceActivationPolicy/", "/Group/Call_Center/ExternalReporting/"],
-      U: ["/User/DND/", "/User/CW/", "/User/RemoteOffice/", "/User/CF/Always/", "/User/CF/Busy/", "/User/CF/Not_Reachable/"]
+      U: ["/User/DND/", "/User/CW/", "/User/RemoteOffice/", "/User/CF/Always/", "/User/CF/Busy/", "/User/CF/Not_Reachable/",
+        "/User/CallingNameDelivery/", "/User/CallingNumberDelivery/", "/User/CF/AlwaysSecondary/", "/User/CF/No_Answer/",
+        "/User/SCF/", "/User/CallMeNow/", "/User/HotelingHost/", "/User/MWIMobile/", "/User/Icn/",
+        "/User/GroupNightForwarding/", "/User/AutomaticHoldRetrieve/"]
     };
     // The known multi-value pages need matching placeholder rows so a late read
     // does not resize the menu option while someone is scanning the board.
@@ -5536,7 +5539,14 @@
       "/Group/EmergencyCallNotification/": 2,
       "/Group/ExtensionMgmt/": 3,
       "/Group/DeviceActivationPolicy/": 3,
-      "/User/CF/Always/": 2
+      "/User/CF/Always/": 2,
+      "/User/CallingNameDelivery/": 2,
+      "/User/CallingNumberDelivery/": 2,
+      "/User/CF/AlwaysSecondary/": 2,
+      "/User/CF/No_Answer/": 2,
+      "/User/SCF/": 2,
+      "/User/HotelingHost/": 2,
+      "/User/MWIMobile/": 2
     };
     // Notification-email labels follow each form's input order. Voice Messaging
     // has three fields; the other notification forms have one.
@@ -5566,12 +5576,13 @@
       if (pill.__cpEditing) return;
       pill.__cpEditing = true;
       var isChoice = r.edit && (r.edit.type === "radio" || r.edit.type === "checkbox");
-      var old = isChoice ? (r.value === "On" ? "true" : "false") : (r.empty ? "" : pill.textContent);
+      var choices = r.edit && r.edit.options || [["true", "On"], ["false", "Off"]];
+      var old = isChoice ? (r.edit.options ? r.edit.current : r.value === "On" ? "true" : "false") : (r.empty ? "" : pill.textContent);
       var wrap = pill.parentNode;
       var inp = document.createElement(isChoice ? "select" : "input");
       inp.className = "cp-leaf-editin";
       if (isChoice) {
-        [["true", "On"], ["false", "Off"]].forEach(function (pair) {
+        choices.forEach(function (pair) {
           var option = document.createElement("option"); option.value = pair[0]; option.textContent = pair[1]; inp.appendChild(option);
         });
         inp.setAttribute("aria-label", "Set " + r.label);
@@ -5599,7 +5610,8 @@
         cpLeafSave(r.edit, nv).then(function (good) {
           done();
           if (good) {
-            var display = isChoice ? (nv === "true" ? "On" : "Off") : (nv || "None");
+            var display = isChoice ? choices.filter(function (c) { return c[0] === nv; })[0][1] : (nv || "None");
+            if (r.edit.options) r.edit.current = nv;
             pill.textContent = display;
             pill.title = display;
             pill.classList.toggle("cp-leaf-defpill-empty", !isChoice && !nv);
@@ -5669,7 +5681,7 @@
             if (refusal) { resolve({ ok: false, reason: refusal }); return; }
             var type = edit.type || "text";
             var sourceInputs = [].slice.call(form.getElementsByTagName("input")).filter(function (el) { return el.name === edit.name && el.type === type; });
-            if ((type === "radio" && (sourceInputs.length !== 2 || !sourceInputs.some(function (el) { return el.value === newValue; }))) ||
+            if ((type === "radio" && (sourceInputs.length < 2 || !sourceInputs.some(function (el) { return el.value === newValue; }))) ||
               (type !== "radio" && sourceInputs.length !== 1)) { resolve(false); return; }
             var params = {};
             [].slice.call(form.querySelectorAll("input, select, textarea")).forEach(function (el) {
@@ -5926,6 +5938,32 @@
               v.innerHTML = (r.pill === "sys" ? CP_SVG_SRC_SYS : CP_SVG_SRC_RES);
               var vt = document.createElement("span"); vt.textContent = r.value; v.appendChild(vt);
               v.title = r.value;
+            } else if (r.kind === "defpill" && r.edit && !r.edit.options && (r.edit.type === "radio" || r.edit.type === "checkbox")) {
+              // An on/off setting: the same On | Off control as the service's own switch; a click saves it.
+              v = document.createElement("span");
+              v.className = "cp-leaf-valwrap";
+              (function (rr) {
+                var sw = cpSegSwitch(rr.label);
+                sw.classList.add("cp-leaf-switch");
+                cpSegShow(sw, rr.value === "On");
+                sw.addEventListener("click", function (ev) {
+                  ev.stopPropagation(); ev.preventDefault();
+                  var want = cpSegWants(sw, ev);
+                  if (want === null || sw.classList.contains("cp-svc-busy")) return;
+                  cpSegShow(sw, want);
+                  sw.classList.add("cp-svc-busy");
+                  sw.setAttribute("aria-busy", "true");
+                  cpLeafSave(rr.edit, want ? "true" : "false").then(function (good) {
+                    sw.classList.remove("cp-svc-busy");
+                    sw.removeAttribute("aria-busy");
+                    if (good) rr.value = want ? "On" : "Off";
+                    else cpSegShow(sw, !want);
+                    sw.classList.add(good ? "cp-svc-saved" : "cp-svc-failed");
+                    setTimeout(function () { sw.classList.remove("cp-svc-saved", "cp-svc-failed"); }, 1200);
+                  });
+                });
+                v.appendChild(sw);
+              })(r);
             } else if (r.kind === "defpill") {
               // Values can be copied; editable settings also get a pencil action.
               v = document.createElement("span");
@@ -6026,6 +6064,28 @@
       "/User/CF/Not_Reachable/": ["forwardedToNumber", "Forward to"], "/User/SCF/": ["forwardedToNumber", "Forward to"],
       "/User/RemoteOffice/": ["remoteOfficeNumber", "Remote number"], "/User/MWIMobile/": ["e164MobileNumber", "Mobile number"]
     };
+    // The On | Off control (the user's pick, 2026-09-28: style C): both states side by side, the current one lit —
+    // green for on, red for off. It is the service's switch on an option's title and Peek's on/off rows. A click on
+    // the side already lit does nothing; anywhere else flips it.
+    function cpSegSwitch(label) {
+      var el = document.createElement("button");
+      el.type = "button";
+      el.className = "cp-svc-switch";
+      el.setAttribute("role", "switch");
+      el.setAttribute("aria-label", label);
+      el.innerHTML = '<span class="cp-seg-on" aria-hidden="true">On</span><span class="cp-seg-off" aria-hidden="true">Off</span>';
+      return el;
+    }
+    function cpSegShow(el, on) {
+      el.dataset.state = on ? "on" : "off";
+      el.setAttribute("aria-checked", String(on));
+    }
+    function cpSegWants(el, event) {
+      var side = event.target && event.target.closest && event.target.closest(".cp-seg-on, .cp-seg-off");
+      var on = el.dataset.state === "on";
+      if (side && side.classList.contains(on ? "cp-seg-on" : "cp-seg-off")) return null;
+      return !on;
+    }
     function cpServiceSwitches(bodyEl) {
       if (!bodyEl) return;
       bodyEl.querySelectorAll("a.navMenuItem[name]").forEach(function (link) {
@@ -6037,18 +6097,13 @@
         var name = cpServiceName(link);
         var el;
         if (CP_SWITCH_ROUTES.indexOf(route) !== -1) {
-          el = document.createElement("button");
-          el.type = "button";
-          el.className = "cp-svc-switch";
-          el.setAttribute("role", "switch");
-          el.setAttribute("aria-label", name);
+          el = cpSegSwitch(name);
           el.disabled = true;
           el.title = "Available when the menu has finished loading";
-          el.innerHTML = '<span class="cp-svc-word" aria-hidden="true"></span><span class="cp-svc-knob" aria-hidden="true"></span>';
           el.addEventListener("click", function (event) {
             event.preventDefault();
             event.stopPropagation();
-            cpFlipService(link, el);
+            if (cpSegWants(el, event) !== null) cpFlipService(link, el);
           });
         } else {
           // Not a plain on/off page: the state is shown, and the option opens as usual to change it.
@@ -6068,35 +6123,50 @@
       if (existing) return existing;
       var m = /^([\s\S]*?)(\s*-\s*)(On|Off)\s*$/i.exec(link.textContent || "");
       if (!m) return null;
-      var texts = [], walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT);
-      while (walker.nextNode()) texts.push(walker.currentNode);
-      var last = texts[texts.length - 1], tail = m[2] + m[3];
-      if (!last || (last.textContent || "").replace(/\s+$/, "").slice(-tail.length) !== tail) return null;
-      var at = last.textContent.replace(/\s+$/, "").length - tail.length;
-      var part = last.splitText(at);
-      var span = document.createElement("span");
-      span.className = "bw-on-off-status";
-      span.dataset.bwOwned = "1";
-      span.dataset.bwState = m[3].toLowerCase();
-      part.replaceWith(span);
-      span.appendChild(part);
+      // The words can span text nodes (CommPilot: "Name - <span class="serviceOff">Off</span>"): wrap each piece.
+      var start = m[1].length, end = start + m[2].length + m[3].length, offset = 0, pieces = [];
+      var walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        var node = walker.currentNode, next = offset + node.textContent.length;
+        pieces.push({ node: node, start: offset, end: next });
+        offset = next;
+      }
+      var first = null;
+      pieces.forEach(function (piece) {
+        var from = Math.max(start, piece.start) - piece.start, to = Math.min(end, piece.end) - piece.start;
+        if (to <= from) return;
+        var part = from ? piece.node.splitText(from) : piece.node;
+        if (part.textContent.length > to - from) part.splitText(to - from);
+        var span = document.createElement("span");
+        span.className = "bw-on-off-status";
+        span.dataset.bwOwned = "1";
+        span.dataset.bwState = m[3].toLowerCase();
+        part.replaceWith(span);
+        span.appendChild(part);
+        first = first || span;
+      });
       link.dataset.bwColoredLabel = link.textContent || "";
-      return span;
+      return first;
     }
     function cpServiceName(link) {
       return (link.textContent || "").replace(/\s*-\s*(On|Off)\s*$/i, "").replace(/\s+/g, " ").trim();
     }
     function cpShowServiceState(link, el, on) {
-      var status = cpServiceStatus(link), name = cpServiceName(link);
-      if (status) {
-        status.dataset.bwState = on ? "on" : "off";
-        status.textContent = status.textContent.replace(/(On|Off)(\s*)$/i, (on ? "On" : "Off") + "$2");
+      var name = cpServiceName(link);
+      // CommPilot's label can split the words over several status spans (" - " and <span class="serviceOff">Off</span>):
+      // the word is in the last one.
+      if (cpServiceStatus(link)) {
+        var parts = link.querySelectorAll(".bw-on-off-status[data-bw-owned='1']");
+        [].forEach.call(parts, function (part) { part.dataset.bwState = on ? "on" : "off"; });
+        var last = parts[parts.length - 1];
+        last.textContent = last.textContent.replace(/(On|Off)(\s*)$/i, (on ? "On" : "Off") + "$2");
+        var native = last.closest(".serviceOn, .serviceOff");
+        if (native) native.className = on ? "serviceOn" : "serviceOff";
         link.dataset.bwColoredLabel = link.textContent || "";
       }
       el.dataset.state = on ? "on" : "off";
       if (el.matches(".cp-svc-switch")) {
-        el.querySelector(".cp-svc-word").textContent = on ? "On" : "Off";
-        el.setAttribute("aria-checked", String(on));
+        cpSegShow(el, on);
         if (!el.disabled) el.title = "Turn " + name + " " + (on ? "off" : "on");
       } else {
         el.textContent = on ? "On" : "Off";
@@ -6272,11 +6342,57 @@
         var remoteNumber = editableText("Remote number", "remoteOfficeNumber");
         return remoteNumber ? [remoteNumber] : null;
       }
-      if (route === "/User/CF/Always/" || route === "/User/CF/Busy/" || route === "/User/CF/Not_Reachable/") {
+      // A radio group with more than on/off: its choices, labelled as on the page.
+      function choice(label, name, labels) {
+        var value = radio(name);
+        if (value === null || !labels[value]) return null;
+        return { label:label, value:labels[value], kind:"defpill", empty:false, copy:false, keepLabel:true,
+          edit:{ path:path, name:name, type:"radio", current:value,
+            options:Object.keys(labels).map(function (v) { return [v, labels[v]]; }) } };
+      }
+      if (route === "/User/CallingNameDelivery/" || route === "/User/CallingNumberDelivery/") {
+        var external = radio("external"), internal = radio("internal");
+        if (external === null || internal === null) return null;
+        return [toggle("External calls", "external", "radio", external === "true"),
+          toggle("Internal calls", "internal", "radio", internal === "true")];
+      }
+      if (route === "/User/CallMeNow/") {
+        var confirm = choice("Answer confirmation", "answerConfirmation", { "None": "None", "Any Key": "Any key", "Passcode": "Passcode" });
+        return confirm ? [confirm] : null;
+      }
+      if (route === "/User/GroupNightForwarding/") {
+        var night = choice("Night forwarding", "gnfActive", { "Use Group": "Use group setting", "On": "On", "Off": "Off" });
+        return night ? [night] : null;
+      }
+      if (route === "/User/HotelingHost/") {
+        var enforce = checked("enforceAssociationLimit"), hours = editableText("Limit (hours)", "associationLimit");
+        if (enforce === null || !hours) return null;
+        return [toggle("Association limit", "enforceAssociationLimit", "checkbox", enforce), hours];
+      }
+      if (route === "/User/MWIMobile/") {
+        var mobile = editableText("Mobile number", "e164MobileNumber"), missed = checked("sendMca");
+        if (!mobile || missed === null) return null;
+        return [mobile, toggle("Missed call alert", "sendMca", "checkbox", missed)];
+      }
+      if (route === "/User/Icn/") {
+        var mail = editableText("E-mail to", "toAddress");
+        return mail ? [mail] : null;
+      }
+      if (route === "/User/AutomaticHoldRetrieve/") {
+        var recall = editableText("Recall timer (seconds)", "recallTimerSeconds");
+        return recall ? [recall] : null;
+      }
+      if (route === "/User/CF/No_Answer/") {
+        var noAnswerTo = editableText("Forward to", "forwardedToNumber"), rings = selectValue("numberOfRings");
+        if (!noAnswerTo) return null;
+        return rings === null ? [noAnswerTo] : [noAnswerTo, { label:"Rings", value:rings }];
+      }
+      if (route === "/User/CF/Always/" || route === "/User/CF/Busy/" || route === "/User/CF/Not_Reachable/" ||
+          route === "/User/CF/AlwaysSecondary/" || route === "/User/SCF/") {
         var destination = editableText("Forward to", "forwardedToNumber");
         if (!destination) return null;
         var forwardingRows = [destination];
-        if (route === "/User/CF/Always/") {
+        if (route === "/User/CF/Always/" || route === "/User/CF/AlwaysSecondary/" || route === "/User/SCF/") {
           var forwardSplash = checked("ringSplash");
           if (forwardSplash === null) return null;
           forwardingRows.push(toggle("Ring splash", "ringSplash", "checkbox", forwardSplash));

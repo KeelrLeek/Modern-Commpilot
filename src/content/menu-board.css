@@ -384,52 +384,51 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-tab:focus-visi
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-item:focus-visible { outline:2px solid var(--d-ring); outline-offset:-2px; }
 @media (prefers-reduced-motion: reduce) { html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-pill svg { transition:none; } }
 
-/* Service switches (pjax.js cpServiceSwitches). An option ending in "- On"/"- Off" shows a toggle at the right of
-   its title instead of the words (kept in the link, hidden): a track with its state spelled out and a knob, green
-   and to the right when on, red and to the left when off (the palette's On/Off colours, tuned for contrast on its
-   surface). A service whose page is not a plain on/off choice shows the same colours as a flat read-only pill. */
-html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body td.cp-svc-cell { padding-right: 96px !important; }
+/* Service switches (pjax.js cpSegSwitch — the user's pick, style C). An option ending in "- On"/"- Off" shows an
+   On | Off control right after its name instead of the words (kept in the link, hidden); the current side is
+   lit, green for on and red for off (the palette's On/Off colours, tuned for contrast on its surface). Peek's on/off
+   rows use the same control. A service whose page is not a plain on/off choice shows only its lit side, read-only. */
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body td.cp-svc-cell a.navMenuItem .bw-on-off-status { display: none !important; }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body button.cp-svc-switch {
   --svc: var(--d-off);
-  position: absolute; right: 18px; top: 11px; box-sizing: border-box; width: 62px; height: 26px; min-height: 0 !important;
-  margin: 0 !important; padding: 0 !important; border: 1.5px solid color-mix(in srgb, var(--svc) 60%, transparent) !important;
-  border-radius: 13px !important; background: color-mix(in srgb, var(--svc) 14%, var(--d-surface)) !important;
-  box-shadow: none !important; transform: none !important; cursor: pointer;
-  transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease, opacity .18s ease;
+  position: relative; display: inline-flex; align-items: stretch; box-sizing: border-box; height: 20px; vertical-align: 2px;
+  min-height: 0 !important; margin: 0 0 0 8px !important; padding: 0 !important; overflow: hidden;
+  border: 1px solid var(--d-line) !important; border-radius: 7px !important; background: var(--d-surface) !important;
+  box-shadow: none !important; transform: none !important; cursor: pointer; transition: box-shadow .15s ease, opacity .15s ease;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body button.cp-svc-switch[data-state="on"] { --svc: var(--d-on); }
-html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body button.cp-svc-switch:not(:disabled):hover {
-  border-color: var(--svc) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--svc) 16%, transparent) !important;
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body button.cp-svc-switch.cp-leaf-switch { flex: none; height: 22px; vertical-align: middle; margin-left: auto !important; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch :is(.cp-seg-on, .cp-seg-off),
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body span.cp-svc-state {
+  display: inline-flex; align-items: center; padding: 0 8px; font: 800 9.5px/1 "Inter", sans-serif; letter-spacing: .08em; text-transform: uppercase;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch :is(.cp-seg-on, .cp-seg-off) {
+  color: var(--d-muted); opacity: .7; transition: background-color .15s ease, color .15s ease, opacity .15s ease;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch[data-state="on"] .cp-seg-on,
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch[data-state="off"] .cp-seg-off {
+  background: color-mix(in srgb, var(--svc) 20%, var(--d-surface)); color: var(--svc); opacity: 1;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch:not(:disabled):not(.cp-svc-busy)[data-state="on"] .cp-seg-off:hover,
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch:not(:disabled):not(.cp-svc-busy)[data-state="off"] .cp-seg-on:hover {
+  background: var(--d-raised); opacity: 1;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body button.cp-svc-switch:disabled:not(.cp-svc-busy) { opacity: .45; cursor: default; }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body button.cp-svc-switch:focus-visible { outline: 2px solid var(--d-ring); outline-offset: 2px; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body button.cp-svc-switch.cp-svc-busy { cursor: progress; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch.cp-svc-busy[data-state="on"] .cp-seg-on,
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch.cp-svc-busy[data-state="off"] .cp-seg-off { animation: cp-seg-pulse .8s ease-in-out infinite alternate; }
+@keyframes cp-seg-pulse { from { opacity: 1; } to { opacity: .45; } }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body button.cp-svc-switch.cp-svc-saved {
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--svc) 28%, transparent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--svc) 30%, transparent) !important;
 }
-html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-word {
-  position: absolute; top: 50%; right: 9px; transform: translateY(-50%);
-  color: var(--svc); font: 800 10px/1 "Inter", sans-serif; letter-spacing: .08em; text-transform: uppercase;
-  transition: left .18s ease, right .18s ease;
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body button.cp-svc-switch.cp-svc-failed {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--d-off) 35%, transparent) !important;
 }
-html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch[data-state="on"] .cp-svc-word { right: auto; left: 10px; }
-html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-knob {
-  position: absolute; top: 3px; left: 3px; box-sizing: border-box; width: 17px; height: 17px; border-radius: 50%;
-  background: var(--svc); box-shadow: 0 1px 2px #0003; transition: transform .18s ease, background-color .18s ease;
-}
-html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch[data-state="on"] .cp-svc-knob { transform: translateX(36px); }
-html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch.cp-svc-busy .cp-svc-knob {
-  border: 2px solid color-mix(in srgb, var(--svc) 30%, transparent); border-top-color: var(--svc);
-  background: var(--d-surface); box-shadow: none; animation: cp-spin .8s linear infinite;
-}
-html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch.cp-svc-busy[data-state="on"] .cp-svc-knob { animation-name: cp-svc-spin-on; }
-@keyframes cp-svc-spin-on { from { transform: translateX(36px) rotate(0); } to { transform: translateX(36px) rotate(360deg); } }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body span.cp-svc-state {
   --svc: var(--d-off);
-  position: absolute; right: 18px; top: 13px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
-  min-width: 40px; height: 22px; padding: 0 9px; border-radius: 11px;
-  background: color-mix(in srgb, var(--svc) 12%, transparent); color: var(--svc);
-  font: 800 10px/1 "Inter", sans-serif; letter-spacing: .08em; text-transform: uppercase;
+  box-sizing: border-box; height: 20px; margin-left: 8px; vertical-align: 2px; border-radius: 7px;
+  background: color-mix(in srgb, var(--svc) 20%, var(--d-surface)); color: var(--svc);
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body span.cp-svc-state[data-state="on"] { --svc: var(--d-on); }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-note {
@@ -438,6 +437,5 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-note {
   font: 500 12px/1.4 "Inter", sans-serif;
 }
 @media (prefers-reduced-motion: reduce) {
-  html[data-cp-direction] body[id="initBody.menuTemplate"] :is(.cp-svc-knob, .cp-svc-word, .cp-svc-switch) { transition: none; }
-  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch.cp-svc-busy .cp-svc-knob { animation-duration: 2.4s; }
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch :is(.cp-seg-on, .cp-seg-off) { transition: none; animation: none !important; }
 }

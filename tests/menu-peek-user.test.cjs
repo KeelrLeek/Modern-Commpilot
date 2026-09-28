@@ -21,7 +21,9 @@ const routes = {
   always: '/User/CF/Always/',
   busy: '/User/CF/Busy/',
   unreachable: '/User/CF/Not_Reachable/',
-  portal: '/User/VoicePortalCalling/'
+  portal: '/User/VoicePortalCalling/',
+  cnd: '/User/CallingNameDelivery/',
+  gnf: '/User/GroupNightForwarding/'
 };
 
 function menu(items) {
@@ -68,6 +70,10 @@ function formFor(route, values) {
       `<input type="text" name="profileField${i}" value="value${i}">`).join('');
   } else if (route === routes.acr || route === routes.portal) {
     fields = radio('active', state.active);
+  } else if (route === routes.gnf) {
+    fields = ['Use Group', 'On', 'Off'].map(v => `<input type="radio" name="gnfActive" value="${v}"${state.gnfActive === v ? ' checked' : ''}>`).join('');
+  } else if (route === routes.cnd) {
+    fields = radio('external', state.external) + radio('internal', state.internal);
   } else if (route === routes.dnd) {
     fields = radio('active', state.active) + checkbox('ringSplash', state.ringSplash);
   } else if (route === routes.cw) {
@@ -92,10 +98,10 @@ test('User options switch their service on and off, and Peek keeps the rest of t
     // CommPilot's option labels end in the service's state.
     const userMenus = {
       U0: menu([['Profile', routes.dense]]),
-      U1: menu([['Anonymous Rejection - Off', routes.acr], ['Do Not Disturb - Off', routes.dnd],
+      U1: menu([['Anonymous Rejection - Off', routes.acr], ['Do Not Disturb - <span class="serviceOff">Off</span>', routes.dnd],
         ['Call Forwarding Always - Off', routes.always], ['Call Forwarding Busy - Off', routes.busy],
-        ['Call Forwarding Not Reachable - Off', routes.unreachable], ['Calling Name Delivery - On', '/User/CallingNameDelivery/']]),
-      U2: menu([['Call Waiting - On', routes.cw], ['Remote Office - Off', routes.remote]]),
+        ['Call Forwarding Not Reachable - Off', routes.unreachable], ['Calling Name Delivery - On', routes.cnd]]),
+      U2: menu([['Call Waiting - On', routes.cw], ['Remote Office - Off', routes.remote], ['Group Night Forwarding - Off', routes.gnf]]),
       U3: menu([['Voice Portal Calling - On', routes.portal]])
     };
     const values = {
@@ -106,7 +112,9 @@ test('User options switch their service on and off, and Peek keeps the rest of t
       [routes.always]: { active: false, forwardedToNumber: '', ringSplash: false },
       [routes.busy]: { active: false, forwardedToNumber: '' },
       [routes.unreachable]: { active: false, forwardedToNumber: '' },
-      [routes.portal]: { active: true }
+      [routes.portal]: { active: true },
+      [routes.cnd]: { external: true, internal: true },
+      [routes.gnf]: { gnfActive: 'Use Group' }
     };
     let context = 'reseller';
     const requests = [];
@@ -134,6 +142,9 @@ test('User options switch their service on and off, and Peek keeps the rest of t
           const state = values[routeName];
           if (state) {
             if ('active' in state) state.active = params.get('active') === 'true';
+            if ('external' in state) state.external = params.get('external') === 'true';
+            if ('gnfActive' in state) state.gnfActive = params.get('gnfActive');
+            if ('internal' in state) state.internal = params.get('internal') === 'true';
             if ('ringSplash' in state) state.ringSplash = params.has('ringSplash');
             if ('disableCLID' in state) state.disableCLID = params.has('disableCLID');
             if ('remoteOfficeNumber' in state) state.remoteOfficeNumber = params.get('remoteOfficeNumber') || '';
@@ -159,13 +170,14 @@ test('User options switch their service on and off, and Peek keeps the rest of t
       userEntry, { timeout: 10000 });
     await page.waitForFunction(() => document.querySelectorAll('.cp-console-section .cp-console-body[data-cp-loaded="1"]').length === 4,
       null, { timeout: 20000 });
-    await page.waitForFunction(() => document.querySelectorAll('.cp-leaf-summary').length === 6,
+    await page.waitForFunction(() => document.querySelectorAll('.cp-leaf-summary').length === 8,
       null, { timeout: 10000 });
 
     // The service's own on/off is its switch, so Peek does not repeat it (and a page with nothing else to show
     // has no Peek at all).
     const expected = [
-      [routes.dnd, 1], [routes.cw, 1], [routes.remote, 1], [routes.always, 2], [routes.busy, 1], [routes.unreachable, 1]
+      [routes.dnd, 1], [routes.cw, 1], [routes.remote, 1], [routes.always, 2], [routes.busy, 1], [routes.unreachable, 1],
+      [routes.cnd, 2], [routes.gnf, 1]
     ];
     const boxFor = target => page.locator(`a[name="${target}"]`)
       .locator('xpath=ancestor::tr[1]/following-sibling::tr[1]//div[contains(@class,"cp-leaf-summary")]');
@@ -193,7 +205,8 @@ test('User options switch their service on and off, and Peek keeps the rest of t
       const control = cell.querySelector('.cp-svc-switch, .cp-svc-state');
       return {
         control: control && (control.matches('button') ? 'switch' : 'state'), state: control?.dataset.state,
-        checked: control?.getAttribute('aria-checked'), disabled: control?.disabled ?? null, shown: control?.textContent.trim(),
+        checked: control?.getAttribute('aria-checked'), disabled: control?.disabled ?? null,
+        shown: control?.matches('button') ? control.querySelector(control.dataset.state === 'on' ? '.cp-seg-on' : '.cp-seg-off').textContent : control?.textContent.trim(),
         words: getComputedStyle(link.querySelector('.bw-on-off-status')).display, label: link.textContent.trim(),
         note: link.closest('tr').nextElementSibling.querySelector('.cp-svc-note')?.textContent || null,
       };
@@ -205,10 +218,12 @@ test('User options switch their service on and off, and Peek keeps the rest of t
       words: 'none', label: 'Call Waiting - On', note: null });
     const cnd = await option('/User/CallingNameDelivery/');
     assert.deepEqual([cnd.control, cnd.state, cnd.shown], ['state', 'on', 'On'], 'not a plain on/off page: its state, read-only');
-    assert.equal(await page.locator('.cp-svc-switch').count(), 8);
+    assert.equal(await page.locator('td.cp-svc-cell > .cp-svc-switch').count(), 8, 'title switches');
 
     // Turning Do Not Disturb on with its switch: CommPilot saves it, and the label follows.
-    await switchFor(routes.dnd).click();
+    await switchFor(routes.dnd).locator('.cp-seg-off').click();   // the side already lit: nothing happens
+    assert.equal(requests.some(r => r.pathname === '/commpilot' + routes.dnd && r.params.has('apply')), false);
+    await switchFor(routes.dnd).locator('.cp-seg-on').click();
     await page.waitForFunction(target => document.querySelector(`a[name="${target}"]`).closest('td')
       .querySelector('.cp-svc-switch:not(.cp-svc-busy)')?.getAttribute('aria-checked') === 'true', routes.dnd);
     assert.equal(values[routes.dnd].active, true);
@@ -219,7 +234,7 @@ test('User options switch their service on and off, and Peek keeps the rest of t
 
     // Call Forwarding Always has no number to forward to: the switch goes back, says why, and opens that editor.
     const appliesBefore = requests.filter(r => r.params.has('apply')).length;
-    await switchFor(routes.always).click();
+    await switchFor(routes.always).locator('.cp-seg-on').click();
     await page.waitForFunction(target => document.querySelector(`a[name="${target}"]`).closest('tr').nextElementSibling
       .querySelector('.cp-svc-note'), routes.always);
     const always = await option(routes.always);
@@ -242,16 +257,35 @@ test('User options switch their service on and off, and Peek keeps the rest of t
     assert.ok(requests.filter(r => r.pathname === '/commpilot' + routes.dnd && !r.params.has('apply')).length >= 3,
       'initial read, fresh form, and verification read must all use PJAX');
 
+    // Peek's on/off rows are the same On | Off control.
     const dndSplash = dnd.locator('.cp-leaf-row').nth(0);
-    await dndSplash.getByRole('button', { name: 'Edit value' }).click();
-    await dndSplash.locator('select.cp-leaf-editin').selectOption('true');
-    await dndSplash.getByRole('button', { name: 'Save' }).click();
-    await page.waitForFunction(() => document.querySelector('a[name="/User/DND/"]')
-      ?.closest('tr')?.nextElementSibling?.querySelectorAll('.cp-leaf-defpill')[0]?.textContent === 'On');
+    await dndSplash.locator('.cp-seg-on').click();
+    await page.waitForFunction(() => document.querySelector('a[name="/User/DND/"]')?.closest('tr')?.nextElementSibling
+      ?.querySelector('.cp-leaf-switch:not(.cp-svc-busy)[data-state="on"]'));
     assert.equal(values[routes.dnd].ringSplash, true);
     const dndApplies = requests.filter(r => r.pathname === '/commpilot' + routes.dnd && r.params.has('apply'));
     assert.equal(dndApplies.at(-1).params.get('active'), 'true');
     assert.equal(dndApplies.at(-1).params.get('ringSplash'), 'on');
+
+    // A simple service with two on/off settings gets a Peek box: turning Internal off keeps External.
+    const cndBox = boxFor(routes.cnd);
+    await cndBox.locator('.cp-leaf-row').nth(1).locator('.cp-seg-off').click();
+    await page.waitForFunction(target => document.querySelector(`a[name="${target}"]`).closest('tr').nextElementSibling
+      .querySelectorAll('.cp-leaf-switch:not(.cp-svc-busy)')[1]?.dataset.state === 'off', routes.cnd);
+    assert.deepEqual(values[routes.cnd], { external: true, internal: false });
+    const cndApply = requests.find(r => r.pathname === '/commpilot' + routes.cnd && r.params.has('apply'));
+    assert.deepEqual([cndApply?.params.get('external'), cndApply?.params.get('internal')], ['true', 'false']);
+
+    // A setting with more than on/off offers its own choices.
+    const gnf = boxFor(routes.gnf);
+    assert.equal((await gnf.locator('.cp-leaf-defpill').textContent()).trim(), 'Use group setting');
+    await gnf.getByRole('button', { name: 'Edit value' }).click();
+    assert.deepEqual(await gnf.locator('select.cp-leaf-editin option').allTextContents(), ['Use group setting', 'On', 'Off']);
+    await gnf.locator('select.cp-leaf-editin').selectOption('On');
+    await gnf.getByRole('button', { name: 'Save' }).click();
+    await page.waitForFunction(target => document.querySelector(`a[name="${target}"]`).closest('tr').nextElementSibling
+      .querySelector('.cp-leaf-defpill')?.textContent === 'On', routes.gnf);
+    assert.equal(values[routes.gnf].gnfActive, 'On');
 
     const remote = boxFor(routes.remote);
     await remote.locator('.cp-leaf-row').nth(0).getByRole('button', { name: 'Edit value' }).click();
