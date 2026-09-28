@@ -339,3 +339,47 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-tail { flex
 @media(prefers-reduced-motion:reduce){
   html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head::after { transition:none; }
 }
+
+/* ---- Breadcrumb page menu (pjax.js cpDecoratePageMenu) ----------------------------------------------- */
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-pill {
+  display:inline-flex !important; align-items:center; gap:6px; margin:0 0 0 10px !important; padding:4px 10px 4px 11px !important;
+  min-height:0 !important; border:1px solid var(--d-line) !important; border-radius:8px !important; background:var(--d-surface) !important;
+  color:var(--d-text) !important; font:600 12.5px/1.3 "Inter", sans-serif !important; vertical-align:middle; cursor:pointer; box-shadow:none !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-pill svg { width:14px; height:14px; color:var(--d-muted); transition:transform .15s; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-pill[aria-expanded="true"] {
+  border-color:var(--d-accent) !important; box-shadow:0 0 0 3px color-mix(in srgb, var(--d-accent) 18%, transparent) !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-pill[aria-expanded="true"] svg { transform:rotate(180deg); }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-pill:focus-visible { outline:2px solid var(--d-ring); outline-offset:2px; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-menu {
+  position:fixed; z-index:2147483000; width:min(580px, calc(100vw - 24px)); max-height:70vh; overflow:auto; padding:10px;
+  background:var(--d-surface); color:var(--d-text); border:1px solid var(--d-line); border-radius:12px;
+  box-shadow:0 18px 48px rgba(10, 30, 50, .24); font:13px/1.4 "Inter", sans-serif; text-align:left;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-tabs {
+  display:flex; flex-wrap:wrap; gap:4px; padding:2px 2px 10px; margin-bottom:8px; border-bottom:1px solid var(--d-line);
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-tab {
+  padding:5px 10px !important; min-height:0 !important; border:0 !important; border-radius:7px !important; background:transparent !important;
+  color:var(--d-muted) !important; font:600 12px/1.3 "Inter", sans-serif !important; box-shadow:none !important; cursor:pointer;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-tab[aria-pressed="true"] {
+  background:var(--d-raised) !important; color:var(--d-text) !important; box-shadow:inset 0 -2px 0 var(--d-accent) !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-cols { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:4px 14px; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-group {
+  padding:8px 8px 6px; color:var(--d-muted); font:700 10.5px/1 "Inter", sans-serif; letter-spacing:.08em; text-transform:uppercase;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-item {
+  display:block; width:100%; padding:7px 8px !important; min-height:0 !important; border:0 !important; border-radius:7px !important;
+  background:transparent !important; color:var(--d-text) !important; font:500 13px/1.35 "Inter", sans-serif !important;
+  text-align:left; box-shadow:none !important; cursor:pointer;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-item:hover { background:var(--d-raised) !important; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-item[aria-current="page"] {
+  background:color-mix(in srgb, var(--d-accent) 12%, var(--d-surface)) !important; color:var(--d-accent) !important; font-weight:650 !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-tab:focus-visible,
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-item:focus-visible { outline:2px solid var(--d-ring); outline-offset:-2px; }
+@media (prefers-reduced-motion: reduce) { html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-pill svg { transition:none; } }

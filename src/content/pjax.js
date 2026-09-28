@@ -6740,6 +6740,7 @@
             currentBoard.querySelectorAll(".cp-leaf-summary:not([data-cp-peek-started])").forEach(function (box) { box.remove(); });
             return;
           }
+          try { cpHarvestPageMenu(currentBoard); } catch (e) { console.warn("[pjax] page menu harvest", e); }
           if (!/^[RGU]\d+$/.test(secs[0].getAttribute("data-cp-folder") || "")) return;
           secs.forEach(function (s) { cpSummarizeLeaves(s.querySelector(".cp-console-body")); });
         }
@@ -6871,6 +6872,183 @@
       search.parentNode.insertBefore(button, search);
     }
 
+    // ---- Breadcrumb page menu ---------------------------------------------------------------------------
+    // When a board finishes, every option of the level is stored (per sidebar + breadcrumb trail, so each
+    // entity has its own). On that level's other pages the current page joins the breadcrumb as a pill whose
+    // menu lists the level's folders and pages; choosing one navigates through PJAX with the option's own
+    // redirectPost target, read from CommPilot's wiring script for that link.
+    var CP_PAGE_MENU_PREFIX = "cp-page-menu:";
+    function cpPageMenuKey() {
+      var nav = document.querySelector('form[name="leftNavForm"]');
+      var trail = [].slice.call(document.querySelectorAll('td.headerBar a.headerAuthLevelLink, td.headerBar span.headerAuthLevel'))
+        .map(function (el) { return (el.textContent || "").replace(/\s+/g, " ").trim(); }).join(">");
+      return CP_PAGE_MENU_PREFIX + cpSidebarSig(nav) + "|" + trail;
+    }
+    function cpUnescapeJs(text) {
+      return String(text).replace(/\\u([0-9a-fA-F]{4})/g, function (_, hex) { return String.fromCharCode(parseInt(hex, 16)); })
+        .replace(/\\(['"\\/])/g, "$1");
+    }
+    // id → {url, params} from the menu's wiring scripts (redirectPost('…', {…}) inside the link's handler).
+    function cpWiringTargets(root) {
+      var targets = {};
+      var re = /getElementById\(\s*['"]([^'"]+)['"]\s*\)[\s\S]*?redirectPost\(\s*['"]((?:[^'"\\]|\\.)*)['"]\s*,\s*(\{[^}]*\})?/g;
+      root.querySelectorAll("script").forEach(function (script) {
+        var src = script.textContent || "", m;
+        re.lastIndex = 0;
+        while ((m = re.exec(src))) {
+          var params = {}, pm, pre = /(\w+)\s*:\s*['"]((?:[^'"\\]|\\.)*)['"]/g;
+          while (m[3] && (pm = pre.exec(m[3]))) params[pm[1]] = cpUnescapeJs(pm[2]);
+          targets[m[1]] = { url: cpUnescapeJs(m[2]), params: params };
+        }
+      });
+      root.querySelectorAll("a.navMenuItem[onclick]").forEach(function (a) {
+        var m = /redirectPost\(\s*['"]((?:[^'"\\]|\\.)*)['"]\s*,\s*(\{[^}]*\})?/.exec(a.getAttribute("onclick") || "");
+        if (m && a.id && !targets[a.id]) targets[a.id] = { url: cpUnescapeJs(m[1]), params: {} };
+      });
+      return targets;
+    }
+    function cpOptionLabel(a) {
+      var copy = a.cloneNode(true);
+      copy.querySelectorAll(".bw-on-off-status").forEach(function (s) { s.remove(); });
+      return (copy.textContent || "").replace(/\s+/g, " ").trim().replace(/\s*-\s*(On|Off)?$/, "");
+    }
+    function cpHarvestPageMenu(board) {
+      var folders = [];
+      board.querySelectorAll(".cp-console-section").forEach(function (sec) {
+        var body = sec.querySelector(".cp-console-body");
+        if (!body) return;
+        var targets = cpWiringTargets(body), options = [], group = "Basic";
+        body.querySelectorAll(".menuCategory, a.navMenuItem").forEach(function (el) {
+          if (!el.matches("a.navMenuItem")) {
+            var heading = (el.textContent || "").replace(/\s+/g, " ").trim();
+            if (heading) group = heading.charAt(0).toUpperCase() + heading.slice(1).toLowerCase();
+            return;
+          }
+          var path = el.getAttribute("name") || "";
+          var target = (el.id && targets[el.id]) || (path ? { url: "/commpilot" + path, params: {} } : null);
+          var label = cpOptionLabel(el);
+          if (label && target) options.push({ label: label, group: group, url: target.url, params: target.params });
+        });
+        var name = ((sec.querySelector(".cp-console-head-name") || {}).textContent || "").trim();
+        if (options.length) folders.push({ name: name || sec.getAttribute("data-cp-folder"), options: options });
+      });
+      if (folders.length) sessionStorage.setItem(cpPageMenuKey(), JSON.stringify({ folders: folders }));
+    }
+    function cpMenuPath(url) {
+      var p = String(url || "").replace(/^https?:\/\/[^/]+/, "").split(/[?#]/)[0].replace(/index\.jsp$/, "");
+      return p.charAt(p.length - 1) === "/" ? p : p + "/";
+    }
+    function cpClosePageMenu() {
+      var menu = document.querySelector(".cp-page-menu");
+      if (menu) menu.remove();
+      var pill = document.querySelector(".cp-page-pill");
+      if (pill) pill.setAttribute("aria-expanded", "false");
+      document.removeEventListener("click", cpPageMenuOutside, true);
+      document.removeEventListener("keydown", cpPageMenuKeys, true);
+    }
+    function cpPageMenuOutside(e) {
+      if (e.target.closest && e.target.closest(".cp-page-menu, .cp-page-pill")) return;
+      cpClosePageMenu();
+    }
+    function cpPageMenuKeys(e) {
+      if (e.key === "Escape") { cpClosePageMenu(); var pill = document.querySelector(".cp-page-pill"); if (pill) pill.focus(); }
+    }
+    function cpDecoratePageMenu() {
+      cpClosePageMenu();
+      document.querySelectorAll(".cp-page-pill").forEach(function (p) { p.remove(); });
+      var data = null;
+      try { data = JSON.parse(sessionStorage.getItem(cpPageMenuKey()) || "null"); } catch (e) {}
+      if (!data || !data.folders) return;
+      var here = cpMenuPath(location.pathname), best = null;
+      data.folders.forEach(function (folder) {
+        folder.options.forEach(function (option) {
+          var p = cpMenuPath(option.url);
+          if (here.indexOf(p) === 0 && (!best || p.length > best.path.length)) best = { path: p, folder: folder, option: option };
+        });
+      });
+      if (!best) return;
+      var anchor = document.querySelector("td.headerBar span.headerAuthLevel") ||
+        [].slice.call(document.querySelectorAll("td.headerBar a.headerAuthLevelLink")).pop();
+      if (!anchor) return;
+      var pill = document.createElement("button");
+      pill.type = "button";
+      pill.className = "cp-page-pill";
+      pill.setAttribute("aria-haspopup", "true");
+      pill.setAttribute("aria-expanded", "false");
+      pill.innerHTML = '<span></span><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+      pill.firstChild.textContent = best.option.label;
+      pill.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (document.querySelector(".cp-page-menu")) { cpClosePageMenu(); return; }
+        cpOpenPageMenu(pill, data, best);
+      });
+      anchor.parentNode.insertBefore(pill, anchor.nextSibling);
+    }
+    function cpOpenPageMenu(pill, data, current) {
+      var menu = document.createElement("div");
+      menu.className = "cp-page-menu";
+      menu.setAttribute("role", "dialog");
+      menu.setAttribute("aria-label", "Pages at this level");
+      var tabs = document.createElement("div");
+      tabs.className = "cp-page-tabs";
+      var cols = document.createElement("div");
+      cols.className = "cp-page-cols";
+      function show(folder) {
+        [].forEach.call(tabs.children, function (t) { t.setAttribute("aria-pressed", String(t.__folder === folder)); });
+        cols.textContent = "";
+        var groups = [];
+        folder.options.forEach(function (o) {
+          var g = groups.find(function (x) { return x.name === o.group; });
+          if (!g) groups.push(g = { name: o.group, items: [] });
+          g.items.push(o);
+        });
+        groups.forEach(function (g) {
+          var col = document.createElement("div");
+          var head = document.createElement("div");
+          head.className = "cp-page-group";
+          head.textContent = g.name;
+          col.appendChild(head);
+          g.items.forEach(function (o) {
+            var item = document.createElement("button");
+            item.type = "button";
+            item.className = "cp-page-item";
+            item.textContent = o.label;
+            if (o === current.option) item.setAttribute("aria-current", "page");
+            item.addEventListener("click", function () {
+              cpClosePageMenu();
+              if (o !== current.option) cpHook(o.url, o.params || {});
+            });
+            col.appendChild(item);
+          });
+          cols.appendChild(col);
+        });
+      }
+      data.folders.forEach(function (folder) {
+        var tab = document.createElement("button");
+        tab.type = "button";
+        tab.className = "cp-page-tab";
+        tab.textContent = folder.name;
+        tab.__folder = folder;
+        tab.addEventListener("click", function (e) { e.stopPropagation(); show(folder); });
+        tabs.appendChild(tab);
+      });
+      var currentFolder = data.folders.find(function (f) { return f.name === current.folder.name; }) || data.folders[0];
+      menu.appendChild(tabs);
+      menu.appendChild(cols);
+      document.body.appendChild(menu);
+      show(currentFolder);
+      var r = pill.getBoundingClientRect();
+      menu.style.top = Math.round(r.bottom + 8) + "px";
+      menu.style.left = Math.round(Math.max(12, Math.min(r.left - 40, document.documentElement.clientWidth - menu.offsetWidth - 12))) + "px";
+      pill.setAttribute("aria-expanded", "true");
+      setTimeout(function () {
+        document.addEventListener("click", cpPageMenuOutside, true);
+        document.addEventListener("keydown", cpPageMenuKeys, true);
+      }, 0);
+      var focus = menu.querySelector('.cp-page-item[aria-current="page"]') || menu.querySelector(".cp-page-item");
+      if (focus) focus.focus();
+    }
+
     var cpBoardBuildQueued = false;
     function cpAutoConsole() {
       var cell = document.querySelector('td[width="82%"][valign="top"]');
@@ -6878,6 +7056,7 @@
         document.querySelector('form[name="leftNavForm"] a.leftnavfolder, form[name="leftNavForm"] a.leftnavfolderopen'));
       if (!isFolderMenu) {
         cpReloadEntry = null;   // the reload did not land on a folder menu; later boards need a real entry
+        try { cpDecoratePageMenu(); } catch (e) { console.warn("[pjax] page menu", e); }
         if (cpPeekObserver) { cpPeekObserver.disconnect(); cpPeekObserver = null; }
         document.documentElement.classList.remove("cp-board-active");
         if (cpPopScroll !== null && cell) {
