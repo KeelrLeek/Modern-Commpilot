@@ -84,18 +84,19 @@ function formFor(route, values) {
     <input type="submit" name="apply" value="Apply"></form>`;
 }
 
-test('User Peek keeps only compact settings and verifies radio, checkbox, and text edits in PJAX', async () => {
+test('User options switch their service on and off, and Peek keeps the rest of the compact settings', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    // CommPilot's option labels end in the service's state.
     const userMenus = {
       U0: menu([['Profile', routes.dense]]),
-      U1: menu([['Anonymous Rejection', routes.acr], ['Do Not Disturb', routes.dnd],
-        ['Call Forwarding Always', routes.always], ['Call Forwarding Busy', routes.busy],
-        ['Call Forwarding Not Reachable', routes.unreachable]]),
-      U2: menu([['Call Waiting', routes.cw], ['Remote Office', routes.remote]]),
-      U3: menu([['Voice Portal Calling', routes.portal]])
+      U1: menu([['Anonymous Rejection - Off', routes.acr], ['Do Not Disturb - Off', routes.dnd],
+        ['Call Forwarding Always - Off', routes.always], ['Call Forwarding Busy - Off', routes.busy],
+        ['Call Forwarding Not Reachable - Off', routes.unreachable], ['Calling Name Delivery - On', '/User/CallingNameDelivery/']]),
+      U2: menu([['Call Waiting - On', routes.cw], ['Remote Office - Off', routes.remote]]),
+      U3: menu([['Voice Portal Calling - On', routes.portal]])
     };
     const values = {
       [routes.acr]: { active: false },
@@ -158,12 +159,13 @@ test('User Peek keeps only compact settings and verifies radio, checkbox, and te
       userEntry, { timeout: 10000 });
     await page.waitForFunction(() => document.querySelectorAll('.cp-console-section .cp-console-body[data-cp-loaded="1"]').length === 4,
       null, { timeout: 20000 });
-    await page.waitForFunction(() => document.querySelectorAll('.cp-leaf-summary').length === 8,
+    await page.waitForFunction(() => document.querySelectorAll('.cp-leaf-summary').length === 6,
       null, { timeout: 10000 });
 
+    // The service's own on/off is its switch, so Peek does not repeat it (and a page with nothing else to show
+    // has no Peek at all).
     const expected = [
-      [routes.acr, 1], [routes.dnd, 2], [routes.cw, 2], [routes.remote, 2],
-      [routes.always, 3], [routes.busy, 2], [routes.unreachable, 2], [routes.portal, 1]
+      [routes.dnd, 1], [routes.cw, 1], [routes.remote, 1], [routes.always, 2], [routes.busy, 1], [routes.unreachable, 1]
     ];
     const boxFor = target => page.locator(`a[name="${target}"]`)
       .locator('xpath=ancestor::tr[1]/following-sibling::tr[1]//div[contains(@class,"cp-leaf-summary")]');
@@ -178,6 +180,55 @@ test('User Peek keeps only compact settings and verifies radio, checkbox, and te
       assert.ok(count <= 3, target);
     }
     assert.equal(await boxFor(routes.dense).count(), 0, 'dense User Profile must stay a native page');
+    for (const target of [routes.acr, routes.portal]) {
+      assert.equal(await boxFor(target).count(), 0, `${target} has nothing to preview besides its switch`);
+      assert.equal(requests.some(r => r.pathname === '/commpilot' + target), false, `${target} is not read for Peek`);
+    }
+
+    // Switches: every "- On/Off" option whose page is a plain on/off choice; the others show their state.
+    const switchFor = target => page.locator(`a[name="${target}"]`).locator('xpath=ancestor::td[1]').locator('button.cp-svc-switch');
+    const option = target => page.evaluate(target => {
+      const link = document.querySelector(`a[name="${target}"]`);
+      const cell = link.closest('td');
+      const control = cell.querySelector('.cp-svc-switch, .cp-svc-state');
+      return {
+        control: control && (control.matches('button') ? 'switch' : 'state'), state: control?.dataset.state,
+        checked: control?.getAttribute('aria-checked'), disabled: control?.disabled ?? null, shown: control?.textContent.trim(),
+        words: getComputedStyle(link.querySelector('.bw-on-off-status')).display, label: link.textContent.trim(),
+        note: link.closest('tr').nextElementSibling.querySelector('.cp-svc-note')?.textContent || null,
+      };
+    }, target);
+    await page.waitForFunction(() => [...document.querySelectorAll('.cp-svc-switch')].every(el => !el.disabled));
+    assert.deepEqual(await option(routes.dnd), { control: 'switch', state: 'off', checked: 'false', disabled: false, shown: 'Off',
+      words: 'none', label: 'Do Not Disturb - Off', note: null });
+    assert.deepEqual(await option(routes.cw), { control: 'switch', state: 'on', checked: 'true', disabled: false, shown: 'On',
+      words: 'none', label: 'Call Waiting - On', note: null });
+    const cnd = await option('/User/CallingNameDelivery/');
+    assert.deepEqual([cnd.control, cnd.state, cnd.shown], ['state', 'on', 'On'], 'not a plain on/off page: its state, read-only');
+    assert.equal(await page.locator('.cp-svc-switch').count(), 8);
+
+    // Turning Do Not Disturb on with its switch: CommPilot saves it, and the label follows.
+    await switchFor(routes.dnd).click();
+    await page.waitForFunction(target => document.querySelector(`a[name="${target}"]`).closest('td')
+      .querySelector('.cp-svc-switch:not(.cp-svc-busy)')?.getAttribute('aria-checked') === 'true', routes.dnd);
+    assert.equal(values[routes.dnd].active, true);
+    assert.equal((await option(routes.dnd)).label, 'Do Not Disturb - On');
+    const dndSwitchApply = requests.find(r => r.pathname === '/commpilot' + routes.dnd && r.params.has('apply'));
+    assert.equal(dndSwitchApply?.params.get('active'), 'true');
+    assert.equal(dndSwitchApply?.params.has('ringSplash'), false, 'nothing else on the page changes');
+
+    // Call Forwarding Always has no number to forward to: the switch goes back, says why, and opens that editor.
+    const appliesBefore = requests.filter(r => r.params.has('apply')).length;
+    await switchFor(routes.always).click();
+    await page.waitForFunction(target => document.querySelector(`a[name="${target}"]`).closest('tr').nextElementSibling
+      .querySelector('.cp-svc-note'), routes.always);
+    const always = await option(routes.always);
+    assert.deepEqual([always.state, always.checked, always.label], ['off', 'false', 'Call Forwarding Always - Off']);
+    assert.match(always.note, /needs a forward to number/);
+    assert.equal(requests.filter(r => r.params.has('apply')).length, appliesBefore, 'nothing is sent');
+    assert.equal(values[routes.always].active, false);
+    assert.equal(await boxFor(routes.always).locator('input.cp-leaf-editin').count(), 1, 'the Forward to editor opened');
+    await boxFor(routes.always).locator('input.cp-leaf-editin').press('Escape');
     assert.equal(requests.some(r => r.pathname === '/commpilot' + routes.dense), false,
       'dense User Profile must not be fetched for Peek');
     assert.ok(requests.filter(r => r.pathname === userEntry).length >= 2,
@@ -188,36 +239,26 @@ test('User Peek keeps only compact settings and verifies radio, checkbox, and te
     }
 
     const dnd = boxFor(routes.dnd);
-    const dndActive = dnd.locator('.cp-leaf-row').nth(0);
-    await dndActive.getByRole('button', { name: 'Edit value' }).click();
-    await dndActive.locator('select.cp-leaf-editin').selectOption('true');
-    await dndActive.getByRole('button', { name: 'Save' }).click();
-    await page.waitForFunction(() => document.querySelector('a[name="/User/DND/"]')
-      ?.closest('tr')?.nextElementSibling?.querySelector('.cp-leaf-defpill')?.textContent === 'On');
-    assert.equal(values[routes.dnd].active, true);
-    const dndRadioApply = requests.find(r => r.pathname === '/commpilot' + routes.dnd && r.params.has('apply'));
-    assert.equal(dndRadioApply?.params.get('active'), 'true');
-    assert.equal(dndRadioApply?.params.has('ringSplash'), false);
     assert.ok(requests.filter(r => r.pathname === '/commpilot' + routes.dnd && !r.params.has('apply')).length >= 3,
       'initial read, fresh form, and verification read must all use PJAX');
 
-    const dndSplash = dnd.locator('.cp-leaf-row').nth(1);
+    const dndSplash = dnd.locator('.cp-leaf-row').nth(0);
     await dndSplash.getByRole('button', { name: 'Edit value' }).click();
     await dndSplash.locator('select.cp-leaf-editin').selectOption('true');
     await dndSplash.getByRole('button', { name: 'Save' }).click();
     await page.waitForFunction(() => document.querySelector('a[name="/User/DND/"]')
-      ?.closest('tr')?.nextElementSibling?.querySelectorAll('.cp-leaf-defpill')[1]?.textContent === 'On');
+      ?.closest('tr')?.nextElementSibling?.querySelectorAll('.cp-leaf-defpill')[0]?.textContent === 'On');
     assert.equal(values[routes.dnd].ringSplash, true);
     const dndApplies = requests.filter(r => r.pathname === '/commpilot' + routes.dnd && r.params.has('apply'));
     assert.equal(dndApplies.at(-1).params.get('active'), 'true');
     assert.equal(dndApplies.at(-1).params.get('ringSplash'), 'on');
 
     const remote = boxFor(routes.remote);
-    await remote.locator('.cp-leaf-row').nth(1).getByRole('button', { name: 'Edit value' }).click();
+    await remote.locator('.cp-leaf-row').nth(0).getByRole('button', { name: 'Edit value' }).click();
     await remote.locator('input.cp-leaf-editin').fill('12025550123');
     await remote.getByRole('button', { name: 'Save' }).click();
     await page.waitForFunction(() => document.querySelector('a[name="/User/RemoteOffice/"]')
-      ?.closest('tr')?.nextElementSibling?.querySelectorAll('.cp-leaf-defpill')[1]?.textContent === '12025550123');
+      ?.closest('tr')?.nextElementSibling?.querySelectorAll('.cp-leaf-defpill')[0]?.textContent === '12025550123');
     assert.equal(values[routes.remote].remoteOfficeNumber, '12025550123');
     const remoteApply = requests.find(r => r.pathname === '/commpilot' + routes.remote && r.params.has('apply'));
     assert.equal(remoteApply?.params.get('active'), 'false');

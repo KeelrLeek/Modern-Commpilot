@@ -261,6 +261,14 @@ test('extension popup changes the active CommPilot page and keeps the choice in 
     await page.keyboard.press('Escape');   // still open from the palette pick above
     await page.getByRole('button', { name: 'Settings' }).click();
     const settings = page.getByRole('dialog', { name: 'Settings' });
+    // The gear is an extension file (CommPilot's content policy blocks data: images).
+    const gear = await page.evaluate(() => {
+      const mask = getComputedStyle(document.getElementById('cp-appearance-toggle'), '::before').maskImage;
+      const src = mask.match(/url\("?([^"\)]+)/)?.[1];
+      return new Promise(resolve => { const image = new Image(); image.onload = () => resolve({ src, loaded: image.naturalWidth > 0 });
+        image.onerror = () => resolve({ src, loaded: false }); image.src = src; });
+    });
+    assert.ok(gear.src?.startsWith('chrome-extension://') && gear.src.endsWith('/assets/icons/settings.svg') && gear.loaded, JSON.stringify(gear));
     const previews = settings.getByRole('switch', { name: /Menu previews/ });
     assert.equal(await previews.isChecked(), true);
     await previews.click();

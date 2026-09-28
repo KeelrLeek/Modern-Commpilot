@@ -5525,8 +5525,7 @@
         "/Reseller/CallCenter/", "/Reseller/MeetMeConferencing/", "/Reseller/EmergencyCallNotification/", "/Reseller/MailParameters/"],
       G: ["/Group/EmergencyCallNotification/", "/Group/ExtensionMgmt/",
         "/Group/DeviceActivationPolicy/", "/Group/Call_Center/ExternalReporting/"],
-      U: ["/User/ACR/", "/User/DND/", "/User/CW/", "/User/RemoteOffice/",
-        "/User/CF/Always/", "/User/CF/Busy/", "/User/CF/Not_Reachable/", "/User/VoicePortalCalling/"]
+      U: ["/User/DND/", "/User/CW/", "/User/RemoteOffice/", "/User/CF/Always/", "/User/CF/Busy/", "/User/CF/Not_Reachable/"]
     };
     // The known multi-value pages need matching placeholder rows so a late read
     // does not resize the menu option while someone is scanning the board.
@@ -5537,12 +5536,7 @@
       "/Group/EmergencyCallNotification/": 2,
       "/Group/ExtensionMgmt/": 3,
       "/Group/DeviceActivationPolicy/": 3,
-      "/User/DND/": 2,
-      "/User/CW/": 2,
-      "/User/RemoteOffice/": 2,
-      "/User/CF/Always/": 3,
-      "/User/CF/Busy/": 2,
-      "/User/CF/Not_Reachable/": 2
+      "/User/CF/Always/": 2
     };
     // Notification-email labels follow each form's input order. Voice Messaging
     // has three fields; the other notification forms have one.
@@ -5646,11 +5640,19 @@
     // value, POST with apply="Apply" (saves WITHOUT the OK page-exit, so the response is the page itself and
     // the new value can be verified). Serialized through the section queue — token-rotating calls never race.
     function cpLeafSave(edit, newValue) {
+      return cpLeafSaveChecked(edit, newValue, null).then(function (result) { return result.ok; });
+    }
+    // check(form) may refuse a save before anything is sent: it returns a reason, or nothing to go ahead.
+    // Resolves { ok, reason }: reason is check()'s, "refused" (CommPilot did not keep the value) or "failed".
+    function cpLeafSaveChecked(edit, newValue, check) {
       // Same ownership rule as cpFetchLeaf: once an option opens (or the board is gone), stop before the next
       // POST instead of sending it with the token the navigation now owns. A skipped step reports "not saved".
       var ownerBoard = document.querySelector(".cp-console");
       function owned() { return !cpSectionAborted && !cpNavPending && !!ownerBoard && ownerBoard.isConnected; }
-      return new Promise(function (resolve) {
+      return new Promise(function (settle) {
+        var resolve = function (value) {
+          settle(value === true ? { ok: true } : value && typeof value === "object" ? value : { ok: false, reason: "failed" });
+        };
         cpEnqueueSection(function () {
           if (!owned()) { resolve(false); return; }
           var tokEl = document.getElementsByName("formtokenserial")[0];
@@ -5663,6 +5665,8 @@
             if (!form || form.querySelector('input[type="password"], input[type="file"]') || !form.querySelector('[name="apply"]')) {
               resolve(false); return;
             }
+            var refusal = check && check(form);
+            if (refusal) { resolve({ ok: false, reason: refusal }); return; }
             var type = edit.type || "text";
             var sourceInputs = [].slice.call(form.getElementsByTagName("input")).filter(function (el) { return el.name === edit.name && el.type === type; });
             if ((type === "radio" && (sourceInputs.length !== 2 || !sourceInputs.some(function (el) { return el.value === newValue; }))) ||
@@ -5687,7 +5691,7 @@
               if (!res2 || res2.auth === false || res2.err || !res2.doc) { resolve(false); return; }
               var nt2 = res2.doc.getElementsByName("formtokenserial")[0];
               if (nt2) { var ts2 = document.getElementsByName("formtokenserial"); for (var j = 0; j < ts2.length; j++) ts2[j].value = nt2.value; }
-              if (!cpLeafMatches(res2.doc, edit, newValue)) { resolve(false); return; }
+              if (!cpLeafMatches(res2.doc, edit, newValue)) { resolve({ ok: false, reason: "refused" }); return; }
               if (!owned()) { resolve(false); return; }
               var tok3 = document.getElementsByName("formtokenserial")[0];
               return cpFollow(edit.path, {}, tok3 ? tok3.value : null, 0).then(function (res3) {
@@ -6003,6 +6007,173 @@
       });
     }
 
+    // Service switches. A user's menu options that end in "- On"/"- Off" get a switch at the right of the option's title
+    // (the words are kept in the link, hidden, for everything that reads them). The switch flips the service in
+    // place for the services whose page is a plain on/off choice (radio "active" true/false) on a small form —
+    // surveyed on the sandbox 2026-09-28; the others (on/off inside a larger form, or no single on/off control)
+    // show their state as a read-only pill and open like any option. A flip is Peek's save: the page is read
+    // fresh, only "active" changes, Apply, and the page is read again to confirm. Switches render with their
+    // section, disabled until the board has restored the user's context (settlePeekReads), like Peek's reads.
+    var CP_SWITCH_ROUTES = ["/User/ACR/", "/User/AutomaticCallback/", "/User/AutomaticHoldRetrieve/", "/User/BargeinExempt/",
+      "/User/CallMeNow/", "/User/CF/Always/", "/User/CF/AlwaysSecondary/", "/User/CF/Busy/", "/User/CF/No_Answer/",
+      "/User/CF/Not_Reachable/", "/User/CIDB/", "/User/COLR/", "/User/CW/", "/User/DND/", "/User/ExternalCLIDDelivery/",
+      "/User/HotelingHost/", "/User/ICSA/", "/User/IntegratedIMP/", "/User/InternalCLIDDelivery/", "/User/MWIMobile/",
+      "/User/PhysicalLocation/", "/User/RemoteOffice/", "/User/SCF/", "/User/SilentAlerting/", "/User/VoicePortalCalling/"];
+    // Services CommPilot only turns on with a number: the number's field and what it is called in Peek.
+    var CP_SWITCH_NEEDS = {
+      "/User/CF/Always/": ["forwardedToNumber", "Forward to"], "/User/CF/AlwaysSecondary/": ["forwardedToNumber", "Forward to"],
+      "/User/CF/Busy/": ["forwardedToNumber", "Forward to"], "/User/CF/No_Answer/": ["forwardedToNumber", "Forward to"],
+      "/User/CF/Not_Reachable/": ["forwardedToNumber", "Forward to"], "/User/SCF/": ["forwardedToNumber", "Forward to"],
+      "/User/RemoteOffice/": ["remoteOfficeNumber", "Remote number"], "/User/MWIMobile/": ["e164MobileNumber", "Mobile number"]
+    };
+    function cpServiceSwitches(bodyEl) {
+      if (!bodyEl) return;
+      bodyEl.querySelectorAll("a.navMenuItem[name]").forEach(function (link) {
+        var cell = link.closest("td");
+        if (!cell || cell.querySelector(".cp-svc-switch, .cp-svc-state")) return;
+        var status = cpServiceStatus(link);
+        if (!status) return;
+        var route = link.getAttribute("name");
+        var name = cpServiceName(link);
+        var el;
+        if (CP_SWITCH_ROUTES.indexOf(route) !== -1) {
+          el = document.createElement("button");
+          el.type = "button";
+          el.className = "cp-svc-switch";
+          el.setAttribute("role", "switch");
+          el.setAttribute("aria-label", name);
+          el.disabled = true;
+          el.title = "Available when the menu has finished loading";
+          el.innerHTML = '<span class="cp-svc-word" aria-hidden="true"></span><span class="cp-svc-knob" aria-hidden="true"></span>';
+          el.addEventListener("click", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            cpFlipService(link, el);
+          });
+        } else {
+          // Not a plain on/off page: the state is shown, and the option opens as usual to change it.
+          el = document.createElement("span");
+          el.className = "cp-svc-state";
+          el.title = "Open " + name + " to change it";
+        }
+        cell.classList.add("cp-svc-cell");
+        cell.appendChild(el);
+        cpShowServiceState(link, el, status.dataset.bwState === "on");
+      });
+    }
+    // The "- On"/"- Off" words at the end of the option's link, wrapped as enhancer.js's colorize() would (it then
+    // leaves them alone); the switch or state pill replaces them on screen.
+    function cpServiceStatus(link) {
+      var existing = link.querySelector(".bw-on-off-status[data-bw-owned='1']");
+      if (existing) return existing;
+      var m = /^([\s\S]*?)(\s*-\s*)(On|Off)\s*$/i.exec(link.textContent || "");
+      if (!m) return null;
+      var texts = [], walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) texts.push(walker.currentNode);
+      var last = texts[texts.length - 1], tail = m[2] + m[3];
+      if (!last || (last.textContent || "").replace(/\s+$/, "").slice(-tail.length) !== tail) return null;
+      var at = last.textContent.replace(/\s+$/, "").length - tail.length;
+      var part = last.splitText(at);
+      var span = document.createElement("span");
+      span.className = "bw-on-off-status";
+      span.dataset.bwOwned = "1";
+      span.dataset.bwState = m[3].toLowerCase();
+      part.replaceWith(span);
+      span.appendChild(part);
+      link.dataset.bwColoredLabel = link.textContent || "";
+      return span;
+    }
+    function cpServiceName(link) {
+      return (link.textContent || "").replace(/\s*-\s*(On|Off)\s*$/i, "").replace(/\s+/g, " ").trim();
+    }
+    function cpShowServiceState(link, el, on) {
+      var status = cpServiceStatus(link), name = cpServiceName(link);
+      if (status) {
+        status.dataset.bwState = on ? "on" : "off";
+        status.textContent = status.textContent.replace(/(On|Off)(\s*)$/i, (on ? "On" : "Off") + "$2");
+        link.dataset.bwColoredLabel = link.textContent || "";
+      }
+      el.dataset.state = on ? "on" : "off";
+      if (el.matches(".cp-svc-switch")) {
+        el.querySelector(".cp-svc-word").textContent = on ? "On" : "Off";
+        el.setAttribute("aria-checked", String(on));
+        if (!el.disabled) el.title = "Turn " + name + " " + (on ? "off" : "on");
+      } else {
+        el.textContent = on ? "On" : "Off";
+      }
+    }
+    function cpEnableServiceSwitches(board) {
+      board.querySelectorAll(".cp-svc-switch:disabled:not(.cp-svc-busy)").forEach(function (el) {
+        el.disabled = false;
+        el.title = "Turn " + el.getAttribute("aria-label") + " " + (el.dataset.state === "on" ? "off" : "on");
+      });
+    }
+    function cpFlipService(link, el) {
+      if (el.disabled || el.classList.contains("cp-svc-busy")) return;
+      var route = link.getAttribute("name"), name = cpServiceName(link);
+      var was = el.dataset.state === "on", on = !was;
+      var needs = CP_SWITCH_NEEDS[route];
+      cpServiceNote(link, null);
+      cpShowServiceState(link, el, on);   // the switch moves at once; it moves back if CommPilot does not agree
+      el.classList.add("cp-svc-busy");
+      el.setAttribute("aria-busy", "true");
+      cpLeafSaveChecked({ path: "/commpilot" + route, name: "active", type: "radio" }, on ? "true" : "false", function (form) {
+        // A page that has grown beyond a plain on/off choice is changed on the page itself.
+        var settable = {};
+        [].slice.call(form.querySelectorAll("input, select, textarea")).forEach(function (f) {
+          var t = (f.type || "").toLowerCase();
+          if (f.name && !/^(hidden|submit|button|image|reset)$/.test(t)) settable[f.name] = true;
+        });
+        if (Object.keys(settable).length > 3 || form.querySelector("select[multiple]")) return "complex";
+        if (on && needs) {
+          var number = [].slice.call(form.querySelectorAll('input[type="text"]')).filter(function (f) { return f.name === needs[0]; })[0];
+          if (number && !(number.value || "").trim()) return "needs";
+        }
+      }).then(function (result) {
+        el.classList.remove("cp-svc-busy");
+        el.removeAttribute("aria-busy");
+        if (!el.isConnected) return;
+        if (result.ok) {
+          cpShowServiceState(link, el, on);
+          el.classList.add("cp-svc-saved");
+          setTimeout(function () { el.classList.remove("cp-svc-saved"); }, 1200);
+          return;
+        }
+        cpShowServiceState(link, el, was);
+        var message = result.reason === "needs" ? name + " needs a " + needs[1].toLowerCase() + " number before it can be turned on." :
+          result.reason === "complex" ? "Open " + name + " to turn it " + (on ? "on" : "off") + ": its page has more settings." :
+          result.reason === "refused" ? "CommPilot did not turn " + name + " " + (on ? "on" : "off") + ". Open it to see why." :
+          "Could not reach CommPilot. " + name + " was not changed.";
+        cpServiceNote(link, message, result.reason === "needs");
+        // Missing number: open Peek's editor for it, when the option shows one.
+        if (result.reason === "needs") {
+          var dock = link.closest("tr") && link.closest("tr").nextElementSibling;
+          var rows = dock ? dock.querySelectorAll(".cp-leaf-summary .cp-leaf-row") : [];
+          [].forEach.call(rows, function (row) {
+            var key = row.querySelector(".cp-leaf-key");
+            var edit = row.querySelector('.cp-leaf-actbtn[aria-label="Edit value"]');
+            if (key && edit && key.title === needs[1]) edit.click();
+          });
+        }
+      });
+    }
+    // A short message under the option's description (why a switch moved back).
+    function cpServiceNote(link, message, keep) {
+      var titleRow = link.closest("tr"), descRow = titleRow && titleRow.nextElementSibling;
+      var cell = descRow && descRow.querySelector("td");
+      if (!cell) return;
+      var old = cell.querySelector(".cp-svc-note");
+      if (old) old.remove();
+      if (!message) return;
+      var note = document.createElement("div");
+      note.className = "cp-svc-note";
+      note.setAttribute("role", "status");
+      note.textContent = message;
+      var peek = cell.querySelector(".cp-leaf-summary");
+      cell.insertBefore(note, peek || null);
+      setTimeout(function () { if (note.isConnected) note.remove(); }, keep ? 12000 : 8000);
+    }
+
     // Group and User Peeks have explicit small-page recipes. This keeps list,
     // credential, and dense forms out of the board and fixes each dock's row count.
     function cpReadCompactLeaf(cell, path) {
@@ -6051,7 +6222,7 @@
         var field = input(name, "text");
         if (!field || named(name).length !== 1) return null;
         var value = (field.value || "").trim();
-        return { label:label, value:value || "None", kind:"defpill", empty:!value,
+        return { label:label, value:value || "None", kind:"defpill", empty:!value, keepLabel:true,
           edit:{ path:path, name:name, type:"text" } };
       }
       if (route === "/Group/EmergencyCallNotification/") {
@@ -6086,32 +6257,25 @@
         if (reporting === null) return null;
         return [{ label:"External reports", value:/^enhanced$/i.test(reporting) ? "Enhanced" : "Off" }];
       }
-      if (route === "/User/ACR/" || route === "/User/VoicePortalCalling/") {
-        var single = radio("active");
-        if (single === null) return null;
-        return [toggle("Enabled", "active", "radio", single === "true")];
-      }
+      // The service's own on/off is its switch in the option's title row (cpServiceSwitches), not a Peek row.
       if (route === "/User/DND/") {
-        var dnd = radio("active"), splash = checked("ringSplash");
-        if (dnd === null || splash === null) return null;
-        return [toggle("Do not disturb", "active", "radio", dnd === "true"),
-          toggle("Ring splash", "ringSplash", "checkbox", splash)];
+        var splash = checked("ringSplash");
+        if (splash === null) return null;
+        return [toggle("Ring splash", "ringSplash", "checkbox", splash)];
       }
       if (route === "/User/CW/") {
-        var waiting = radio("active"), hideId = checked("disableCLID");
-        if (waiting === null || hideId === null) return null;
-        return [toggle("Call waiting", "active", "radio", waiting === "true"),
-          toggle("Hide caller ID", "disableCLID", "checkbox", hideId)];
+        var hideId = checked("disableCLID");
+        if (hideId === null) return null;
+        return [toggle("Hide caller ID", "disableCLID", "checkbox", hideId)];
       }
       if (route === "/User/RemoteOffice/") {
-        var remote = radio("active"), remoteNumber = editableText("Remote number", "remoteOfficeNumber");
-        if (remote === null || !remoteNumber) return null;
-        return [toggle("Remote office", "active", "radio", remote === "true"), remoteNumber];
+        var remoteNumber = editableText("Remote number", "remoteOfficeNumber");
+        return remoteNumber ? [remoteNumber] : null;
       }
       if (route === "/User/CF/Always/" || route === "/User/CF/Busy/" || route === "/User/CF/Not_Reachable/") {
-        var forwarding = radio("active"), destination = editableText("Forward to", "forwardedToNumber");
-        if (forwarding === null || !destination) return null;
-        var forwardingRows = [toggle("Forwarding", "active", "radio", forwarding === "true"), destination];
+        var destination = editableText("Forward to", "forwardedToNumber");
+        if (!destination) return null;
+        var forwardingRows = [destination];
         if (route === "/User/CF/Always/") {
           var forwardSplash = checked("ringSplash");
           if (forwardSplash === null) return null;
@@ -6848,6 +7012,7 @@
           // every header. The console shows ONE breadcrumb, pinned at the top of the panel (built in
           // cpBuildConsole). Also clears any already-converted crumb that rode in via the anchor cache.
           bodyEl.querySelectorAll(".cp-breadcrumb, a.headerAuthLevelLink").forEach(function (b) { b.remove(); });
+          try { cpServiceSwitches(bodyEl); } catch (e) { console.warn("[pjax] service switches", e); }
           cpRevealSection(sec, aboveAnchor);   // animated cascade for anchor + below; plain show for above
           document.dispatchEvent(new Event("cp:reskin"));   // wrapMenuCards etc. → the section's FINAL height
           if (/^[RGU]\d+$/.test(folder || "")) cpSummarizeLeaves(bodyEl, true);
@@ -6985,7 +7150,7 @@
           }
           try { cpHarvestPageMenu(currentBoard); } catch (e) { console.warn("[pjax] page menu harvest", e); }
           if (!/^[RGU]\d+$/.test(secs[0].getAttribute("data-cp-folder") || "")) return;
-          if (/^U/.test(secs[0].getAttribute("data-cp-folder"))) cpReadUserExtension();
+          if (/^U/.test(secs[0].getAttribute("data-cp-folder"))) { cpEnableServiceSwitches(currentBoard); cpReadUserExtension(); }
           secs.forEach(function (s) { cpSummarizeLeaves(s.querySelector(".cp-console-body")); });
         }
         // Folder prefetches at SP/Group/User level mutate CommPilot's server-side

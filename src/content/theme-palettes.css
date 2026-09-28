@@ -185,10 +185,6 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .menuCategory {
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .menuCategory::before { background:var(--d-accent); box-shadow:none; }
 html[data-cp-direction] body[id="initBody.menuTemplate"] a.navMenuItem { color:var(--d-text); }
-html[data-cp-direction] body[id="initBody.menuTemplate"] td:is([width="50%"],[width="100%"])[valign="TOP"] > table tr:has(a.navMenuItem) > td::after {
-  top:10px; width:24px; height:24px; border:1px solid var(--d-line); border-radius:8px;
-  background:var(--d-raised); color:var(--d-muted); text-align:center; line-height:22px; font-size:14px;
-}
 html[data-cp-direction] body[id="initBody.menuTemplate"] td:is([width="50%"],[width="100%"])[valign="TOP"] > table tr:has(a.navMenuItem):hover > td,
 html[data-cp-direction] body[id="initBody.menuTemplate"] td:is([width="50%"],[width="100%"])[valign="TOP"] > table tr:has(a.navMenuItem):hover + tr > td { background:var(--d-raised); }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .buttonbar,

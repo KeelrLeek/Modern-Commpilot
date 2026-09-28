@@ -54,7 +54,7 @@ test('Basic-only board folders use the same skinned column as two-column folders
       assert.ok(Math.abs(result.paired.width - result.basic.width) < 2, `${palette}: ${JSON.stringify(result)}`);
       assert.equal(result.basic.border, result.paired.border, palette);
       assert.equal(result.basic.surface, result.paired.surface, palette);
-      assert.equal(result.basic.arrow, result.paired.arrow, palette);
+      assert.deepEqual([result.basic.arrow, result.paired.arrow], ['none', 'none'], `${palette}: option cards have no arrow`);
       assert.notEqual(result.basic.border, '0px', palette);
     }
   } finally {

@@ -383,3 +383,61 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-item[aria-curr
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-tab:focus-visible,
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-item:focus-visible { outline:2px solid var(--d-ring); outline-offset:-2px; }
 @media (prefers-reduced-motion: reduce) { html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-page-pill svg { transition:none; } }
+
+/* Service switches (pjax.js cpServiceSwitches). An option ending in "- On"/"- Off" shows a toggle at the right of
+   its title instead of the words (kept in the link, hidden): a track with its state spelled out and a knob, green
+   and to the right when on, red and to the left when off (the palette's On/Off colours, tuned for contrast on its
+   surface). A service whose page is not a plain on/off choice shows the same colours as a flat read-only pill. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body td.cp-svc-cell { padding-right: 96px !important; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body td.cp-svc-cell a.navMenuItem .bw-on-off-status { display: none !important; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body button.cp-svc-switch {
+  --svc: var(--d-off);
+  position: absolute; right: 18px; top: 11px; box-sizing: border-box; width: 62px; height: 26px; min-height: 0 !important;
+  margin: 0 !important; padding: 0 !important; border: 1.5px solid color-mix(in srgb, var(--svc) 60%, transparent) !important;
+  border-radius: 13px !important; background: color-mix(in srgb, var(--svc) 14%, var(--d-surface)) !important;
+  box-shadow: none !important; transform: none !important; cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease, opacity .18s ease;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body button.cp-svc-switch[data-state="on"] { --svc: var(--d-on); }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body button.cp-svc-switch:not(:disabled):hover {
+  border-color: var(--svc) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--svc) 16%, transparent) !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body button.cp-svc-switch:disabled:not(.cp-svc-busy) { opacity: .45; cursor: default; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body button.cp-svc-switch:focus-visible { outline: 2px solid var(--d-ring); outline-offset: 2px; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body button.cp-svc-switch.cp-svc-saved {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--svc) 28%, transparent) !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-word {
+  position: absolute; top: 50%; right: 9px; transform: translateY(-50%);
+  color: var(--svc); font: 800 10px/1 "Inter", sans-serif; letter-spacing: .08em; text-transform: uppercase;
+  transition: left .18s ease, right .18s ease;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch[data-state="on"] .cp-svc-word { right: auto; left: 10px; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-knob {
+  position: absolute; top: 3px; left: 3px; box-sizing: border-box; width: 17px; height: 17px; border-radius: 50%;
+  background: var(--svc); box-shadow: 0 1px 2px #0003; transition: transform .18s ease, background-color .18s ease;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch[data-state="on"] .cp-svc-knob { transform: translateX(36px); }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch.cp-svc-busy .cp-svc-knob {
+  border: 2px solid color-mix(in srgb, var(--svc) 30%, transparent); border-top-color: var(--svc);
+  background: var(--d-surface); box-shadow: none; animation: cp-spin .8s linear infinite;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch.cp-svc-busy[data-state="on"] .cp-svc-knob { animation-name: cp-svc-spin-on; }
+@keyframes cp-svc-spin-on { from { transform: translateX(36px) rotate(0); } to { transform: translateX(36px) rotate(360deg); } }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body span.cp-svc-state {
+  --svc: var(--d-off);
+  position: absolute; right: 18px; top: 13px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+  min-width: 40px; height: 22px; padding: 0 9px; border-radius: 11px;
+  background: color-mix(in srgb, var(--svc) 12%, transparent); color: var(--svc);
+  font: 800 10px/1 "Inter", sans-serif; letter-spacing: .08em; text-transform: uppercase;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body span.cp-svc-state[data-state="on"] { --svc: var(--d-on); }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-note {
+  margin: 8px 0 0; padding: 6px 10px; border-radius: 8px;
+  background: color-mix(in srgb, var(--d-off) 10%, transparent); color: var(--d-text);
+  font: 500 12px/1.4 "Inter", sans-serif;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-cp-direction] body[id="initBody.menuTemplate"] :is(.cp-svc-knob, .cp-svc-word, .cp-svc-switch) { transition: none; }
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-svc-switch.cp-svc-busy .cp-svc-knob { animation-duration: 2.4s; }
+}

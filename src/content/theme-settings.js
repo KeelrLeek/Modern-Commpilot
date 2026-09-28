@@ -146,6 +146,7 @@
       button.id = "cp-appearance-toggle";
       button.type = "button";
       button.textContent = "Settings";
+      try { button.style.setProperty("--cp-settings-gear", `url("${chrome.runtime.getURL("assets/icons/settings.svg")}")`); } catch (_) {}
       button.setAttribute("aria-controls", "cp-appearance-panel");
       button.setAttribute("aria-expanded", "false");
       header.append(button);

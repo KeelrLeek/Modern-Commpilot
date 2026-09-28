@@ -252,14 +252,6 @@ body[id="initBody.menuTemplate"] td:is([width="50%"],[width="100%"])[valign="TOP
   position: relative;
   padding: 13px 18px 0;
 }
-body[id="initBody.menuTemplate"] td:is([width="50%"],[width="100%"])[valign="TOP"] > table tr:has(a.navMenuItem) > td::after {
-  content: "↗";
-  position: absolute;
-  right: 18px;
-  top: 13px;
-  color: #83a3b8;
-  font: 17px/1 "Inter", sans-serif;
-}
 body[id="initBody.menuTemplate"] td:is([width="50%"],[width="100%"])[valign="TOP"] > table tr:has(a.navMenuItem) + tr > td {
   padding: 4px 32px 14px 18px;
   border-bottom: 1px solid var(--cp-line-soft);
