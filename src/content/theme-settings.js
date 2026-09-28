@@ -3,10 +3,40 @@
   const key = "cpThemePalette";
   const choices = new Set(["nord", "atlas", "graphite", "terra"]);
   const paletteNames = { nord: "Nord", atlas: "Atlas", graphite: "Graphite", terra: "Terra" };
-  const root = document.documentElement;
   let shellFrame = 0;
   let currentPalette = "atlas";
   let panel;
+
+  // CommPilot gives the page PJAX starts from <body id="initBody.menuTemplate">, but a content page opened
+  // directly (the browser Reload button replays the page with a plain POST) comes back around the same shell
+  // as <body id="initBody">. The theme, PJAX's page layouts and the Appearance control all key off the menu
+  // template's id, so the same shell gets that id while the page is still parsing, before it paints. Pages
+  // without CommPilot's left navigation form (Login, error pages) and pages with another id are left alone.
+  function adoptShell() {
+    const body = document.body;
+    if (window !== window.top || !body || body.id === "initBody.menuTemplate") return Boolean(body);
+    if (!/^initBody(\.|$)/.test(body.id)) return true;
+    if (!document.querySelector('form[name="leftNavForm"]')) return false;
+    body.id = "initBody.menuTemplate";
+    return true;
+  }
+  try {
+    if (!adoptShell() && document.readyState === "loading") {
+      // At document_start even <html> may not exist yet, so watch the document itself.
+      const watch = new MutationObserver(() => { if (adoptShell()) watch.disconnect(); });
+      watch.observe(document, { childList: true, subtree: true });
+      document.addEventListener("DOMContentLoaded", () => { watch.disconnect(); adoptShell(); }, { once: true });
+    }
+  } catch (error) { console.warn("[CommPilot] shell", error); }
+
+  // The palette can arrive before <html> exists (document_start).
+  function withRoot(fn) {
+    if (document.documentElement) { fn(document.documentElement); return; }
+    const wait = new MutationObserver(() => {
+      if (document.documentElement) { wait.disconnect(); fn(document.documentElement); }
+    });
+    wait.observe(document, { childList: true });
+  }
 
   function syncControls() {
     const button = document.getElementById("cp-appearance-toggle");
@@ -20,7 +50,7 @@
   function apply(value) {
     const palette = value === "midnight" ? "nord" : choices.has(value) ? value : "atlas";
     currentPalette = palette;
-    root.dataset.cpDirection = palette;
+    withRoot(root => { root.dataset.cpDirection = palette; });
     syncControls();
     document.dispatchEvent(new CustomEvent("cp:theme-change", { detail: { palette } }));
     scheduleShellMeasure();

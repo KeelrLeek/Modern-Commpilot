@@ -318,3 +318,39 @@ test('2.0 theme restyles sort arrows, On/Off labels, and the copy buttons in eve
     assert.equal((await look()).marks, 1, 'decorating again does not add a second chevron');
   } finally { await browser.close(); }
 });
+
+test('a page reopened by the browser Reload button (body initBody) gets the 2.0 shell before it paints', async () => {
+  assert.ok(edge, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: edge, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await page.addInitScript(() => {
+      window.chrome.storage = { local: { get: (_, done) => setTimeout(() => done({}), 0), set: (_, done) => done && done() },
+        onChanged: { addListener: () => {} } };
+      window.chrome.runtime = { getURL: p => `chrome-extension://test/${p}` };
+    });
+    // The extension injects theme-settings.js at document_start, before CommPilot's body is parsed.
+    await page.addInitScript({ path: path.join(root, 'src/content/theme-settings.js') });
+    const pages = {
+      '/commpilot/Reseller/Groups/': `<!doctype html><html><body id="initBody">
+        <table><tr><td class="headerBar"><a class="headerLink">Help</a><a class="headerLink">Home</a></td></tr></table>
+        <table height="100%"><tbody><tr><td class="headandfoot" width="18%"><form name="leftNavForm">
+          <a class="leftnavfolderopen" href="#">Profile</a></form></td>
+        <td width="82%" valign="top"><table><tr><td class="screenName">Groups</td></tr></table></td></tr></tbody></table>
+      </body></html>`,
+      '/commpilot/Login/': `<!doctype html><html><body id="initBody"><form name="loginForm"><input name="user"></form></body></html>`
+    };
+    await page.route('https://apps-sbx.avpaas.io/**', route => route.fulfill({ status: 200, contentType: 'text/html',
+      body: pages[new URL(route.request().url()).pathname] || '' }));
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Reseller/Groups/');
+    await page.addStyleTag({ path: path.join(root, 'src/content/native-theme.css') });
+    await page.addStyleTag({ path: path.join(root, 'src/content/theme-palettes.css') });
+    const shell = await page.evaluate(() => ({ id: document.body.id, palette: document.documentElement.dataset.cpDirection,
+      background: getComputedStyle(document.body).backgroundColor }));
+    assert.deepEqual(shell, { id: 'initBody.menuTemplate', palette: 'atlas', background: 'rgb(237, 242, 247)' });
+    await page.waitForFunction(() => document.getElementById('cp-appearance-toggle'));
+
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Login/');
+    assert.equal(await page.evaluate(() => document.body.id), 'initBody', 'a page without the shell is left alone');
+  } finally { await browser.close(); }
+});

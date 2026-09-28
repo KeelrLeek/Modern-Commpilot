@@ -4381,6 +4381,12 @@
           // do NOT exclude /Modify/ broadly — SP/Group/User console drill-ins use Modify and ARE valid recover-navs.
           // See [[gotcha-idle-connection-drop-dead-click]].
           var _submitNav = !!(params && (params.ok != null || params.apply != null || params.delete != null || params.cancel != null || params.buttonClicked != null));
+          // A SAVE (OK / Apply / Delete) must never be replayed: Back or Forward onto an entry holding its POST
+          // re-sent the save with the old values (found live 2026-09-28: Back after two Applies re-saved the
+          // first). A save replaces the current history entry and keeps that page's own navigation instead, so
+          // Back goes to where you were before the page. Searches (buttonClicked with no value) still push.
+          var _saveNav = !!(params && (params.ok != null || params.apply != null || params.delete != null ||
+            /^(ok|apply|delete)$/i.test(String(params.buttonClicked || ""))));
           var _numberEditForm = /\/Group\/GroupDnManagement\/Nested\//.test(url);
           var _addForm = /\/(?:Add|AddRange|AddModify)\//.test(url) || _numberEditForm;
           // Remember the list a form is being OPENED from (location is still the list here, pre-swap).
@@ -4631,10 +4637,12 @@
               // when re-executed. Make the fetched page's URL current first, so
               // those actions resolve as they would after a native navigation.
               cpConfigFilesForwarded = false;
-              var cpState = { cpNav: { url: url, params: params || {},
-                entry: (cpEntityEntry && cpEntityEntry.url !== url) ?
-                  { url: cpEntityEntry.url, params: cpEntityEntry.params || {} } : null } };
-              var cpHistoryMode = cpPopReplaying || cpAutoReplaceUrl === url ||
+              var cpPrevNav = history.state && history.state.cpNav;
+              var cpState = _saveNav ? { cpNav: cpPrevNav && cpPrevNav.url ? cpPrevNav : { url: url, params: {} } } :
+                { cpNav: { url: url, params: params || {},
+                  entry: (cpEntityEntry && cpEntityEntry.url !== url) ?
+                    { url: cpEntityEntry.url, params: cpEntityEntry.params || {} } : null } };
+              var cpHistoryMode = _saveNav || cpPopReplaying || cpAutoReplaceUrl === url ||
                 (cpLoader === cpFollowFrame && history.length > cpHistoryBeforeLoad) ? "replace" : "push";
               if (cpAutoReplaceUrl === url) cpAutoReplaceUrl = null;
               var cpHistoryCommitted = false;
