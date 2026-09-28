@@ -1,0 +1,172 @@
+/* CommPilot 2.0 shared page baseline. Every CommPilot page is built from the same parts: a frame (title,
+   description, an action bar above and a copy below, the content cell) and, inside it, search criteria, result
+   lists, a pager, form tables and fieldsets. This file gives all of them one spacing scale and one surface:
+   the content is a single card and nothing inside it is boxed again. Density follows the viewport, so a laptop
+   at 150% scaling and a 1440p monitor both show the data without extra scrolling.
+   forms.js (pageFrame) marks the frame parts (cp-frame-*); everything else keys off CommPilot's own classes, so
+   a page the transform skips still gets the flat card, the compact rows and the slim bars. The menu board
+   (.cp-console, added to the same content cell by pjax.js) keeps its own styles: nothing here reaches into it. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] {
+  --pb-gutter: clamp(14px, 1.25vw, 24px);     /* around the page content */
+  --pb-inset: clamp(12px, .8vw, 16px);        /* inside the card */
+  --pb-cell-y: 6px;                           /* result rows */
+  --pb-cell-x: 10px;
+  --pb-control: 30px;                         /* fields and buttons */
+  --pb-radius: 10px;
+  --pb-radius-control: 7px;
+  --pb-title: clamp(20px, .55vw + 12px, 25px);
+  --pb-hairline: color-mix(in srgb, var(--d-line) 72%, transparent);
+
+  & td[width="82%"][valign="top"] { padding: var(--pb-gutter) var(--pb-gutter) 40px; }
+  /* Some frames have no width and shrink to their content; every page uses the full width. */
+  & td[width="82%"] > form[name="mainForm"] > table { width: 100%; }
+
+  /* ---- Frame: title with the page's actions, description, then the card -------------------------------- */
+  & td.screenName {
+    padding: 0 0 6px; color: var(--d-text);
+    font: 680 var(--pb-title)/1.15 "Geist", "Inter", sans-serif; letter-spacing: -.03em;
+  }
+  & td.tip { padding: 0 0 12px; color: var(--d-muted); font: 400 13px/1.5 "Inter", sans-serif; }
+  & table.cp-frame > tbody > tr.cp-frame-spacer,
+  & table.cp-frame > tbody > tr.cp-frame-moved { display: none; }
+  /* The title row stays at the top while the page scrolls, so OK / Apply / Cancel are always in reach. */
+  & tr.cp-frame-titlerow > td.screenName {
+    position: sticky; top: 0; z-index: 6; padding: 6px 0 8px; background: var(--d-main);
+  }
+  & .cp-frame-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+  & .cp-frame-title { min-width: 0; }
+  & .cp-frame-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; letter-spacing: 0; }
+
+  /* ---- Inside the page content (the cell's children other than the menu board) --------------------------- */
+  & td[width="82%"] > :not(.cp-console) {
+    /* Action bars CommPilot keeps (text or fields in them): a plain row of controls, not a band. */
+    & td.buttonbar,
+    & td.headandfoot {
+      height: auto; padding: 6px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none;
+    }
+
+    /* One card: the outermost content box; everything nested in it is flat. */
+    &.enduserbody, & .enduserbody {
+      padding: var(--pb-inset); border: 1px solid var(--d-line); border-radius: var(--pb-radius);
+      background: var(--d-surface); box-shadow: none;
+    }
+    & .enduserbody .enduserbody { padding: 0; border: 0; border-radius: 0; background: transparent; }
+    /* In the marked frame the card's parts carry their own vertical spacing, so full-width parts (the search
+       line's divider, the result header band, the pager) can run edge to edge. */
+    & td.enduserbody.cp-frame-body { padding: 0 var(--pb-inset); overflow: clip; }
+    & td.cp-frame-body > br { display: none; }
+    & td.cp-frame-body tr.cp-frame-gap > td { height: 6px; padding: 0; font-size: 0; line-height: 0; }
+    & td.cp-frame-body tr.cp-frame-gap img { display: none; }
+    & td.cp-frame-body > :is(table, div, fieldset, span):not(.cp-searchbar-wrap, .cp-frame-results, .cp-frame-pager, .cp-frame-rule) {
+      margin-block: var(--pb-inset);
+    }
+
+    /* Search criteria: one line at the top of the card. */
+    & td.cp-frame-body > .cp-searchbar-wrap { padding-block: var(--pb-inset); }
+    & td.cp-frame-body > .cp-searchbar-wrap:has(~ .cp-frame-results) {
+      margin-inline: calc(-1 * var(--pb-inset)); padding-inline: var(--pb-inset);
+      border-bottom: 1px solid var(--d-line);
+    }
+
+    /* Result lists. */
+    & td.cp-frame-body > table.cp-frame-results {
+      width: calc(100% + 2 * var(--pb-inset)) !important; margin-inline: calc(-1 * var(--pb-inset));
+      border-collapse: separate; border-spacing: 0;
+    }
+    & table.cp-frame-results > tbody > tr.cp-frame-spacer,
+    & table.cp-frame-rule { display: none; }
+    & td.listHeader {
+      padding: 7px var(--pb-cell-x); border-bottom: 1px solid var(--d-line); background: var(--d-raised);
+      color: var(--d-muted); font: 650 12px/1.3 "Inter", sans-serif; letter-spacing: .01em; white-space: nowrap;
+    }
+    & a.listSortHeader { padding: 0; background: transparent; color: var(--d-text); font: inherit; text-decoration: none; }
+    & a.listSortHeader:hover { color: var(--d-accent); }
+    & tr[id^="Row"] > td {
+      padding: var(--pb-cell-y) var(--pb-cell-x); border-bottom: 1px solid var(--pb-hairline);
+      font-size: 13px; line-height: 1.45; vertical-align: middle;
+    }
+    & tr[id^="Row"]:last-child > td { border-bottom: 0; }
+    /* CommPilot's zero-width separator columns and its 20px lead column only add gaps. */
+    & tr[id^="Row"] > td[width="0"],
+    & td.listHeader:has(> img[width="0"]:only-child) { width: 0; padding: 0; }
+    & table.cp-frame-results > tbody > tr > td:first-child {
+      width: 0; padding: 0 0 0 max(4px, calc(var(--pb-inset) - var(--pb-cell-x)));
+    }
+    & table.cp-frame-results > tbody > tr > td:first-child > img[width="20"] { display: none; }
+    & table.cp-frame-results > tbody > tr > td:last-child { padding-right: var(--pb-inset); }
+    & :is(tr.unselected, td.unselected, a.tableLink) { background: transparent; }
+    & tr[id^="Row"]:hover > td,
+    & tr[id^="Row"]:hover a.tableLink { background: var(--d-raised); }
+    /* CommPilot indents forms with a 20px column holding a spacer image; the card's inset replaces it. */
+    & td[width="20"]:has(> img[width="20"]:only-child) { width: 0; padding: 0; }
+    & td[width="20"] > img[width="20"]:only-child { display: none; }
+
+    /* CommPilot reuses the header's link class for actions in the page (Find, Find All) and in result rows
+       (Edit). In the page they are compact buttons; in a row, a plain action link so the row keeps its height. */
+    & a.headerLink {
+      display: inline-flex; align-items: center; box-sizing: border-box; min-height: var(--pb-control); margin: 0;
+      padding: 0 12px; border: 1px solid var(--d-line); border-radius: var(--pb-radius-control);
+      background: var(--d-surface); box-shadow: none; color: var(--d-text);
+      font: 600 13px/1.3 "Inter", sans-serif; text-decoration: none; white-space: nowrap;
+    }
+    & a.headerLink::before { content: none; }
+    & a.headerLink:hover { border-color: var(--d-accent); color: var(--d-text); }
+    & tr[id^="Row"] a.headerLink {
+      display: inline; min-height: 0; padding: 0; border: 0; border-radius: 0; background: none;
+      font-size: 12.5px; line-height: 1.45;
+      text-decoration: underline; text-decoration-color: var(--d-line); text-underline-offset: 3px;
+    }
+    & tr[id^="Row"] a.headerLink:hover { color: var(--d-accent); text-decoration-color: currentColor; }
+    /* The older one-line "Find" form under some lists: packed together instead of spread across the card. */
+    & table.cp-findline { width: auto !important; }
+    & table.cp-findline > tbody > tr > td { padding: 0 8px 0 0; }
+
+    /* Pager: the card's footer line. */
+    & td.cp-frame-body > table.cp-frame-pager {
+      width: calc(100% + 2 * var(--pb-inset)) !important; margin-inline: calc(-1 * var(--pb-inset));
+      border-top: 1px solid var(--d-line); border-spacing: 0;
+    }
+    & table.cp-frame-pager td { padding: 6px var(--pb-inset); color: var(--d-muted); font-size: 12px; }
+
+    /* Fieldsets: labelled sections, not boxes. */
+    & fieldset {
+      margin: 12px 0 0; padding: 4px 0 0; border: 0; border-top: 1px solid var(--pb-hairline);
+      border-radius: 0; background: transparent;
+    }
+    & legend {
+      padding: 0 8px 0 0; color: var(--d-muted);
+      font: 700 11px/1.2 "Inter", sans-serif; letter-spacing: .06em; text-transform: uppercase;
+    }
+
+    /* Fields and buttons: one control height. */
+    & :is(input:not([type="hidden"], [type="checkbox"], [type="radio"], [type="image"]), select, textarea, button):not(.bw-select-trigger, .cp-switch, .cp-seg-opt, .cp-ev-day, .cp-searchbar-add) {
+      min-height: var(--pb-control); padding-block: 3px; border-radius: var(--pb-radius-control);
+    }
+    & :is(input[type="button"], input[type="submit"], input[type="reset"], button):not(.bw-select-trigger, .cp-switch, .cp-seg-opt, .cp-ev-day, .cp-searchbar-add) {
+      padding-inline: 12px;
+    }
+    & :is(.error, .warning, .informational) { border-radius: var(--pb-radius-control); }
+  }
+}
+
+/* Short screens (a 1080p laptop at 150%, a 768p panel): tighter shell and rows, so more data fits. */
+@media (max-height: 860px) {
+  html[data-cp-direction] body[id="initBody.menuTemplate"] {
+    --pb-cell-y: 4px; --pb-control: 28px;
+    & td.headerBar:has(> img[src$="/conf/clientLogo.gif"]),
+    & td.headerBar:has(a.headerLink):not(:has(.headerBarWelcome)) { height: 52px; padding-block: 6px; }
+    & td.headerBar:has(a.headerAuthLevelLink),
+    & td.headerBar:has(.headerBarWelcome) { height: 40px; padding-block: 4px; }
+    & td.headandfoot[width="18%"] { padding-top: 14px; }
+    & form[name="leftNavForm"] :is(td.leftnavfolder, td.leftnavfolderopen) { padding: 2px 0; }
+    & :is(a.leftnavfolder, a.leftnavfolderopen) { min-height: 36px; padding-block: 5px; }
+  }
+}
+
+/* A stuck title row gets a divider once the page has scrolled. */
+@supports (animation-timeline: scroll()) {
+  html[data-cp-direction] body[id="initBody.menuTemplate"] tr.cp-frame-titlerow > td.screenName {
+    animation: cp-frame-stuck linear both; animation-timeline: scroll(nearest block); animation-range: 0 32px;
+  }
+}
+@keyframes cp-frame-stuck { to { box-shadow: 0 1px 0 var(--d-line); } }

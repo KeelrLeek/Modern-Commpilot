@@ -481,11 +481,73 @@
     sync();
   }
 
+  /* ---- Shared page frame: header with actions, one content card ------------------------------------- */
+  // CommPilot pages share one frame: title (td.screenName), description (td.tip), an action bar above and a
+  // duplicate below (tr#buttonbartop / tr#buttonbarbottom), and the content cell (td.enduserbody). The page's own
+  // buttons move beside the title (they stay in the form); the duplicate bar hides; the content is one card.
+  function pageFrame(cell) {
+    if (cell.querySelector(':scope > .cp-console')) return;   // the menu board (pjax.js) replaces the page
+    const frame = cell.querySelector('form[name="mainForm"] > table');
+    if (!frame || frame.classList.contains('cp-frame')) return;
+    const rows = frame.querySelectorAll(':scope > tbody > tr');
+    const title = frame.querySelector(':scope > tbody > tr > td.screenName');
+    const body = frame.querySelector(':scope > tbody > tr > td.enduserbody');
+    if (!title || !body || rows.length > 16) return;
+    frame.classList.add('cp-frame');
+    body.classList.add('cp-frame-body');
+    // Spacer rows (empty cells, one-pixel images) only add height between the parts.
+    const blank = el => !clean(el.textContent) &&
+      !el.querySelector('input:not([type="hidden"]), select, textarea, button, a, table, fieldset, .cp-set, .cp-dl, .cp-ev');
+    rows.forEach(tr => { if (blank(tr)) tr.classList.add('cp-frame-spacer'); });
+    const top = frame.querySelector(':scope > tbody > tr#buttonbartop > td.buttonbar');
+    const bottom = frame.querySelector(':scope > tbody > tr#buttonbarbottom');
+    // Only a bar of plain buttons moves; anything else (text, fields) keeps CommPilot's bar.
+    const movable = top && [...top.childNodes].every(n => n.nodeType === 3 ? !clean(n.textContent) :
+      n.nodeType === 8 || n.tagName === 'SCRIPT' || n.tagName === 'BR' ||
+      (n.tagName === 'INPUT' && ['hidden', 'submit', 'button', 'reset'].includes(n.type)) || n.tagName === 'BUTTON');
+    const head = make('div', 'cp-frame-head');
+    const name = make('span', 'cp-frame-title');
+    name.append(...title.childNodes);
+    head.appendChild(name);
+    if (movable) {
+      const actions = make('div', 'cp-frame-actions');
+      top.querySelectorAll('input[type="submit"], input[type="button"], input[type="reset"], button').forEach(b => actions.appendChild(b));
+      if (actions.children.length) head.appendChild(actions);
+      top.closest('tr').classList.add('cp-frame-moved');
+      bottom?.classList.add('cp-frame-moved');
+    }
+    title.appendChild(head);
+    title.closest('tr').classList.add('cp-frame-titlerow');
+    // Blank rows inside the content (an &nbsp; line or spacer images) separate groups of fields: keep them as a
+    // small, even gap instead of a full text line.
+    const spacerOnly = tr => [...tr.querySelectorAll('img')].every(img => /onepx\.gif$/i.test(img.getAttribute('src') || ''));
+    body.querySelectorAll('tr:not(.cp-frame-spacer)').forEach(tr => { if (blank(tr) && spacerOnly(tr)) tr.classList.add('cp-frame-gap'); });
+    // A settings card headed with the page's own title repeats it.
+    body.querySelectorAll('.cp-set-head').forEach(h => { if (clean(h.textContent).toLowerCase() === clean(name.textContent).toLowerCase()) h.hidden = true; });
+    // Results, the empty band CommPilot draws under them, and the pager, so the card can give them dividers
+    // and one inset.
+    for (const table of body.querySelectorAll('table')) {
+      if (table.querySelector(':scope > tbody > tr > td.listHeader') && table.querySelector(':scope > tbody > tr[id^="Row"]')) {
+        table.classList.add('cp-frame-results');
+        table.querySelectorAll(':scope > tbody > tr:not([id^="Row"])').forEach(tr => { if (blank(tr)) tr.classList.add('cp-frame-spacer'); });
+      } else if (blank(table) && table.querySelector(':scope > tbody > tr > td.listHeader')) table.classList.add('cp-frame-rule');
+      // The older one-line "Find" form some lists keep under the pager.
+      if (!table.querySelector('table') && !table.classList.contains('cp-searchbar') && table.querySelector('[name="findKey"]'))
+        table.classList.add('cp-findline');
+      if (!table.querySelector('table') && /\[\s*Page\s+\d+\s+of\s+\d+\s*\]/.test(table.textContent)) {
+        table.classList.add('cp-frame-pager');
+        const walker = document.createTreeWalker(table, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode())
+          node.textContent = node.textContent.replace(/\[\s*(Page\s+\d+\s+of\s+\d+)\s*\]/, '$1');
+      }
+    }
+  }
+
   function apply() {
     if (!active()) return;
     const cell = content();
     if (!cell) return;
-    for (const transform of [searchBar, eventEditor, settingsRows, pickLists]) {
+    for (const transform of [searchBar, eventEditor, settingsRows, pickLists, pageFrame]) {
       try { transform(cell); } catch (error) { console.warn('[CommPilot forms]', transform.name, error); }
     }
   }

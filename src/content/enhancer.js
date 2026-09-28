@@ -664,7 +664,8 @@
   }
 
   function enhanceMenu(menu) {
-    if (menuInfo.has(menu) || menu.closest(".bw-search-popover, .bw-menu-search")) return;
+    // .cp-dl: the extension's own pick lists (forms.js) are listboxes with their own filter field.
+    if (menuInfo.has(menu) || menu.closest(".bw-search-popover, .bw-menu-search, .cp-dl")) return;
     if (menu.querySelector("input[type='search'], input[role='combobox']")) return;
     const rows = menuRows(menu, null);
     if (rows.length < 2) return;

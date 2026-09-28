@@ -607,6 +607,21 @@ test('custom listboxes filter options and dynamic menus are enhanced', async () 
   await lateInput.waitFor();
   await lateInput.fill('Beta');
   assert.equal(await page.locator('#late-menu [role="option"]:visible').innerText(), 'Beta');
+  // The extension's own pick lists (forms.js .cp-dl) already have a Filter field: no second search box.
+  await page.evaluate(() => {
+    const pick = document.createElement('div');
+    pick.className = 'cp-dl';
+    pick.innerHTML = '<div class="cp-dl-list" id="pick-list" role="listbox">' +
+      '<div class="cp-dl-row" role="option">Alpha</div><div class="cp-dl-row" role="option">Beta</div></div>';
+    document.body.append(pick);
+    const control = document.createElement('div');
+    control.id = 'after-pick';
+    control.setAttribute('role', 'listbox');
+    control.innerHTML = '<div role="option">One</div><div role="option">Two</div>';
+    document.body.append(control);
+  });
+  await page.locator('#after-pick .bw-menu-search-input').waitFor();
+  assert.equal(await page.locator('#pick-list .bw-menu-search').count(), 0);
   await page.close();
 });
 

@@ -40,14 +40,14 @@ html[data-cp-direction] .cp-searchbar-add[hidden] { display:none; }
 
 /* ---- Small settings forms: settings rows ------------------------------------------------------------ */
 html[data-cp-direction] table.cp-set-native { display:none !important; }
-html[data-cp-direction] .cp-set {
-  max-width:780px; margin:8px 0 14px; background:var(--d-surface); border:1px solid var(--d-line); border-radius:12px;
-  overflow:hidden; color:var(--d-text); font:13.5px/1.45 "Inter", sans-serif;
+/* The rows sit flat in the page card (page-baseline.css): no box of their own. */
+html[data-cp-direction] .cp-set { max-width:780px; margin:0; color:var(--d-text); font:13px/1.45 "Inter", sans-serif; }
+html[data-cp-direction] .cp-set-head {
+  padding:0 0 6px; color:var(--d-muted); font:700 11px/1.2 "Inter", sans-serif; letter-spacing:.06em; text-transform:uppercase;
 }
-html[data-cp-direction] .cp-set-head { padding:12px 18px; font-weight:650; background:var(--d-raised); border-bottom:1px solid var(--d-line); }
 html[data-cp-direction] .cp-set-row {
-  display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:center; gap:10px 18px;
-  padding:12px 18px; border-top:1px solid var(--d-line);
+  display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:center; gap:8px 18px;
+  padding:8px 0; border-top:1px solid var(--pb-hairline, var(--d-line));
 }
 html[data-cp-direction] .cp-set-row:first-of-type, html[data-cp-direction] .cp-set-head + .cp-set-row { border-top:0; }
 html[data-cp-direction] .cp-set-label { font-weight:600; }
@@ -89,28 +89,28 @@ html[data-cp-direction] .cp-switch:disabled { opacity:.5; cursor:not-allowed; }
 html[data-cp-direction] tr.cp-dl-native { display:none !important; }
 html[data-cp-direction] .cp-dl {
   display:grid; grid-template-columns:minmax(0, 1fr) auto minmax(0, 1fr); gap:14px; align-items:stretch;
-  max-width:1000px; margin:6px 0 10px; color:var(--d-text); font:13px/1.45 "Inter", sans-serif; text-align:left;
+  max-width:1000px; margin:0; color:var(--d-text); font:13px/1.45 "Inter", sans-serif; text-align:left;
 }
 @media (max-width: 760px) { html[data-cp-direction] .cp-dl { grid-template-columns:1fr; } }
 html[data-cp-direction] .cp-dl-pane {
   display:flex; flex-direction:column; min-width:0; background:var(--d-surface); border:1px solid var(--d-line);
-  border-radius:12px; overflow:hidden;
+  border-radius:var(--pb-radius, 10px); overflow:hidden;
 }
-html[data-cp-direction] .cp-dl-head { display:flex; align-items:center; gap:8px; padding:12px 14px 10px; font-weight:650; }
+html[data-cp-direction] .cp-dl-head { display:flex; align-items:center; gap:8px; padding:9px 12px 7px; font-weight:650; }
 html[data-cp-direction] .cp-dl-count {
   font:600 11px/1 "Inter", sans-serif; padding:3px 7px; border-radius:99px; background:var(--d-raised); color:var(--d-muted);
 }
-html[data-cp-direction] .cp-dl-filter { margin:0 12px 10px; width:auto !important; }
-html[data-cp-direction] .cp-dl-list { flex:1; min-height:200px; max-height:320px; overflow:auto; padding:4px; border-top:1px solid var(--d-line); }
+html[data-cp-direction] .cp-dl-filter { margin:0 10px 8px; width:auto !important; }
+html[data-cp-direction] .cp-dl-list { flex:1; min-height:150px; max-height:clamp(160px, 26vh, 300px); overflow:auto; padding:3px; border-top:1px solid var(--d-line); }
 html[data-cp-direction] .cp-dl-row {
-  display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:7px; cursor:pointer; user-select:none;
+  display:flex; align-items:center; gap:9px; padding:4px 8px; border-radius:6px; cursor:pointer; user-select:none; line-height:1.35;
 }
 html[data-cp-direction] .cp-dl-row:hover { background:var(--d-raised); }
 html[data-cp-direction] .cp-dl-row:focus-visible { outline:2px solid var(--d-ring); outline-offset:-2px; }
 html[data-cp-direction] .cp-dl-row[aria-selected="true"] {
   background:color-mix(in srgb, var(--d-accent) 14%, var(--d-surface)); color:var(--d-accent); font-weight:600;
 }
-html[data-cp-direction] .cp-dl-box { width:15px; height:15px; flex:none; border:1.5px solid var(--d-line); border-radius:4px; }
+html[data-cp-direction] .cp-dl-box { width:14px; height:14px; flex:none; border:1.5px solid var(--d-line); border-radius:4px; }
 html[data-cp-direction] .cp-dl-row[aria-selected="true"] .cp-dl-box { background:var(--d-accent); border-color:var(--d-accent); }
 html[data-cp-direction] .cp-dl-empty { padding:18px; color:var(--d-muted); text-align:center; }
 html[data-cp-direction] .cp-dl-moves { display:flex; flex-direction:column; justify-content:center; gap:8px; }
@@ -122,17 +122,14 @@ html[data-cp-direction] .cp-dl-primary {
 
 /* ---- Schedule event editor: summary and pickers ------------------------------------------------------ */
 html[data-cp-direction] .cp-ev-native { display:none !important; }
-html[data-cp-direction] .cp-ev {
-  max-width:840px; margin:8px 0 14px; background:var(--d-surface); border:1px solid var(--d-line); border-radius:12px;
-  overflow:hidden; color:var(--d-text); font:13.5px/1.45 "Inter", sans-serif; text-align:left;
-}
+html[data-cp-direction] .cp-ev { max-width:840px; margin:0; color:var(--d-text); font:13px/1.45 "Inter", sans-serif; text-align:left; }
 html[data-cp-direction] .cp-ev-sum {
-  display:flex; align-items:center; gap:10px; padding:13px 18px; font-weight:600; border-bottom:1px solid var(--d-line);
-  background:color-mix(in srgb, var(--d-accent) 9%, var(--d-surface));
+  display:flex; align-items:center; gap:10px; padding:9px 12px; margin-bottom:4px; font-weight:600;
+  border-radius:var(--pb-radius-control, 7px); background:color-mix(in srgb, var(--d-accent) 9%, var(--d-surface));
 }
 html[data-cp-direction] .cp-ev-sum svg { width:18px; height:18px; flex:none; color:var(--d-accent); }
 html[data-cp-direction] .cp-ev-row {
-  display:grid; grid-template-columns:130px minmax(0, 1fr); align-items:center; gap:14px; padding:12px 18px; border-top:1px solid var(--d-line);
+  display:grid; grid-template-columns:130px minmax(0, 1fr); align-items:center; gap:14px; padding:8px 0; border-top:1px solid var(--pb-hairline, var(--d-line));
 }
 html[data-cp-direction] .cp-ev-sum + .cp-ev-row { border-top:0; }
 html[data-cp-direction] .cp-ev-row[hidden] { display:none; }

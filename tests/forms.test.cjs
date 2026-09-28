@@ -64,7 +64,7 @@ async function open(browser, html) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await page.route('https://apps-sbx.avpaas.io/**', route => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
   await page.goto('https://apps-sbx.avpaas.io/commpilot/Group/Page/', { waitUntil: 'domcontentloaded' });
-  for (const file of ['native-theme.css', 'theme-palettes.css', 'forms.css'])
+  for (const file of ['native-theme.css', 'theme-palettes.css', 'page-baseline.css', 'forms.css'])
     await page.addStyleTag({ path: path.join(root, 'src/content', file) });
   await page.addScriptTag({ path: path.join(root, 'src/content/forms.js') });
   return page;
@@ -279,5 +279,120 @@ test('the schedule event editor shows a summary and pickers that write CommPilot
     assert.equal(await page.getByRole('button', { name: 'Saturday' }).isVisible(), false, 'the weekly row hides');
     assert.equal(await page.locator('#rangeRow').isVisible(), true, 'the recurrence range stays native');
     assert.equal(await page.locator('#durationTime').isVisible(), false);
+  } finally { await browser.close(); }
+});
+
+// The Groups list after a search, as CommPilot frames it (trimmed): spacer rows, the action bar above and its copy
+// below, the results with zero-width separator columns and row Edit links, the empty band under the results,
+// the pager, and the older one-line Find form.
+const listPage = shell(`<form name="mainForm" id="mainForm" method="post"><input type="hidden" name="formtokenserial" value="t1">
+  <table width="100%" border="0" cellpadding="0"><tbody>
+  <tr><td height="10"></td></tr>
+  <tr><td class="screenName">Groups</td></tr>
+  <tr><td height="5"></td></tr>
+  <tr><td class="tip">Search for groups in the reseller.</td></tr>
+  <tr><td height="5"></td></tr>
+  <tr id="buttonbartop"><td class="buttonbar"> <input type="button" name="ok" value="OK" onclick="window.okClicks = (window.okClicks || 0) + 1"> </td></tr>
+  <tr><td class="enduserbody">
+    <table width="100%" border="0" cellpadding="2"><tbody>
+      <tr><td class="listHeader"><img src="/commpilot/Graphics/onepx.gif" width="20" height="1" border="0"></td>
+        <td class="listHeader">Group ID</td><td class="listHeader"><img src="/commpilot/Graphics/onepx.gif" width="0" height="1"></td>
+        <td class="listHeader">Edit</td></tr>
+      <tr id="Row1" class="unselected"><td width="20"></td><td><a class="tableLink" href="#">Empire Records</a></td><td width="0"></td>
+        <td class="unselected"><a class="headerLink" href="#">Edit</a></td></tr>
+      <tr id="Row2" class="unselected"><td width="20"></td><td><a class="tableLink" href="#">Quick Stop</a></td><td width="0"></td>
+        <td class="unselected"><a class="headerLink" href="#">Edit</a></td></tr>
+    </tbody></table>
+    <table width="100%" border="0" cellpadding="0"><tbody><tr><td class="listHeader"><img src="/commpilot/Graphics/onepx.gif" width="1" height="2"></td></tr></tbody></table>
+    <table class="enduserbody" width="100%" border="0" cellpadding="3"><tbody><tr>
+      <td width="33%"></td><td width="33%" align="center">[ Page 1 of 1 ]</td><td width="33%"></td></tr></tbody></table>
+    <table class="enduserbody" width="100%" border="0" cellpadding="0"><tbody><tr>
+      <td><select name="findKey"><option>Group ID</option></select></td><td><input type="text" name="findValue"></td>
+      <td><a id="findButton" class="headerLink" href="#">Find</a></td></tr></tbody></table>
+  </td></tr>
+  <tr id="buttonbarbottom"><td class="buttonbar"> <input type="button" name="ok" value="OK"> </td></tr>
+  </tbody></table></form>`);
+
+test('the shared page frame: actions beside the title, one flat card, compact rows, a footer pager', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await open(browser, listPage);
+    await page.locator('table.cp-frame').waitFor({ state: 'attached' });
+    const ok = page.locator('td.screenName .cp-frame-actions input[name="ok"]');
+    assert.equal(await ok.count(), 1, 'the top bar’s OK moved beside the title');
+    assert.equal(await page.evaluate(() => document.forms.mainForm.contains(document.querySelector('.cp-frame-actions input'))), true, 'and stays in the form');
+    await ok.click();
+    assert.equal(await page.evaluate(() => window.okClicks), 1, 'CommPilot’s own handler still runs');
+    const frame = await page.evaluate(() => {
+      const shown = el => el && getComputedStyle(el).display !== 'none';
+      const body = document.querySelector('td.cp-frame-body');
+      const results = document.querySelector('table.cp-frame-results');
+      const pager = document.querySelector('table.cp-frame-pager');
+      const edit = document.querySelector('#Row1 a.headerLink');
+      const find = document.getElementById('findButton');
+      return {
+        bars: [shown(document.getElementById('buttonbartop')), shown(document.getElementById('buttonbarbottom'))],
+        spacers: [...document.querySelectorAll('table.cp-frame > tbody > tr')].filter(tr => shown(tr) && !tr.textContent.trim() && !tr.querySelector('input, table')).length,
+        sticky: getComputedStyle(document.querySelector('td.screenName')).position,
+        rowHeight: document.getElementById('Row1').getBoundingClientRect().height,
+        editBorder: getComputedStyle(edit).borderTopWidth, editDisplay: getComputedStyle(edit).display,
+        findDisplay: getComputedStyle(find).display, findBorder: getComputedStyle(find).borderTopWidth,
+        rule: shown(document.querySelector('table.cp-frame-rule')),
+        pagerText: pager.textContent.replace(/\s+/g, ' ').trim(),
+        bleed: [results.getBoundingClientRect().width, pager.getBoundingClientRect().width, body.clientWidth],
+        innerCard: [getComputedStyle(pager).borderLeftWidth, getComputedStyle(pager).backgroundColor],
+        findLine: [document.querySelector('table.cp-findline').getBoundingClientRect().width, body.getBoundingClientRect().width],
+        frameWidth: [document.querySelector('table.cp-frame').getBoundingClientRect().width, document.forms.mainForm.getBoundingClientRect().width],
+      };
+    });
+    assert.deepEqual(frame.bars, [false, false], 'both native action bars hide once their buttons moved');
+    assert.equal(frame.spacers, 0, 'spacer rows add no height');
+    assert.equal(frame.sticky, 'sticky', 'the title row with the actions stays in reach while scrolling');
+    assert.ok(frame.rowHeight <= 34, `result rows are compact (${frame.rowHeight}px)`);
+    assert.deepEqual([frame.editBorder, frame.editDisplay], ['0px', 'inline'], 'a row’s Edit is a plain link, not a header pill');
+    assert.deepEqual([frame.findDisplay, frame.findBorder], ['inline-flex', '1px'], 'Find outside the rows is a compact button');
+    assert.equal(frame.rule, false, 'the empty band under the results is gone');
+    assert.equal(frame.pagerText, 'Page 1 of 1');
+    assert.ok(Math.abs(frame.bleed[0] - frame.bleed[2]) < 2 && Math.abs(frame.bleed[1] - frame.bleed[2]) < 2, 'results and pager run edge to edge in the card');
+    assert.deepEqual(frame.innerCard, ['0px', 'rgba(0, 0, 0, 0)'], 'no card inside the card');
+    assert.ok(frame.findLine[0] < frame.findLine[1] / 2, 'the Find line packs together');
+    assert.ok(Math.abs(frame.frameWidth[0] - frame.frameWidth[1]) < 1, 'the frame uses the full width');
+  } finally { await browser.close(); }
+});
+
+test('the shared page frame keeps a bar with text in it, and turns blank rows and fieldsets into light sections', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await open(browser, shell(`<form name="mainForm"><table width="100%"><tbody>
+      <tr><td class="screenName">Profile</td></tr>
+      <tr id="buttonbartop"><td class="buttonbar"><input type="submit" name="apply" value="Apply"> Changes apply at midnight</td></tr>
+      <tr><td class="enduserbody"><table class="enduserbody"><tbody><tr><td width="20"><img src="/commpilot/Graphics/onepx.gif" width="20" height="1"></td>
+        <td width="100%"><table><tbody>
+          <tr><td colspan="2">&nbsp;</td></tr>
+          <tr><td>Group Name:</td><td><input type="text" name="groupName"></td></tr>
+          <tr><td colspan="2">&nbsp;</td></tr>
+        </tbody></table>
+        <fieldset><legend>User Limits</legend><table><tbody><tr><td>Limited To:</td><td><input type="text" name="limit"></td></tr></tbody></table></fieldset>
+      </td></tr></tbody></table></td></tr>
+      <tr id="buttonbarbottom"><td class="buttonbar"><input type="submit" name="apply" value="Apply"></td></tr>
+      </tbody></table></form>`));
+    await page.locator('table.cp-frame').waitFor({ state: 'attached' });
+    const state = await page.evaluate(() => ({
+      moved: document.querySelectorAll('.cp-frame-actions input').length,
+      bars: [...document.querySelectorAll('#buttonbartop, #buttonbarbottom')].map(tr => getComputedStyle(tr).display !== 'none'),
+      barBackground: getComputedStyle(document.querySelector('#buttonbartop td')).backgroundColor,
+      gaps: [...document.querySelectorAll('tr.cp-frame-gap')].map(tr => Math.round(tr.getBoundingClientRect().height)),
+      indent: document.querySelector('td[width="20"]').getBoundingClientRect().width,
+      fieldset: ['borderLeftWidth', 'borderTopWidth', 'backgroundColor'].map(k => getComputedStyle(document.querySelector('fieldset'))[k]),
+    }));
+    assert.equal(state.moved, 0, 'a bar with text is not taken apart');
+    assert.deepEqual(state.bars, [true, true]);
+    assert.equal(state.barBackground, 'rgba(0, 0, 0, 0)', 'it is a plain row of controls, not a band');
+    assert.equal(state.gaps.length, 2, 'the &nbsp; rows become gaps');
+    assert.ok(state.gaps.every(h => h <= 8), `gaps are small (${state.gaps})`);
+    assert.equal(state.indent, 0, 'CommPilot’s 20px indent column gives way to the card’s inset');
+    assert.deepEqual(state.fieldset, ['0px', '1px', 'rgba(0, 0, 0, 0)'], 'a fieldset is a labelled divider, not a box');
   } finally { await browser.close(); }
 });
