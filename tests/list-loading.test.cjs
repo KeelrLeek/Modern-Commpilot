@@ -95,9 +95,9 @@ test('a search shows it is working, then paints its results once in their final 
     await tab.waitForTimeout(400);
     const waiting = await tab.evaluate(() => ({
       busy: document.documentElement.dataset.cpNav,
-      bar: getComputedStyle(document.querySelector('td.cp-frame-body'), '::before').opacity,
+      bar: Number(getComputedStyle(document.querySelector('td.cp-frame-body'), '::before').opacity) > 0.5,   // it fades in
     }));
-    assert.deepEqual(waiting, { busy: 'busy', bar: '1' }, 'the page shows it is waiting for CommPilot');
+    assert.deepEqual(waiting, { busy: 'busy', bar: true }, 'the page shows it is waiting for CommPilot');
 
     await tab.waitForFunction(() => window.firstFrame);
     const first = await tab.evaluate(() => window.firstFrame);
