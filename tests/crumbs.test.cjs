@@ -154,6 +154,10 @@ test('the user-id pill copies the id, and the extension chip joined to it copies
     assert.equal(loaded.chip, 'EXT 1002');
     assert.equal(loaded.disabled, false);
 
+    await chip.hover();
+    await page.waitForTimeout(300);
+    assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#crumbs :is(.cp-ext-chip, .cp-copy-id)')]
+      .map(el => getComputedStyle(el).transform)), ['none', 'none'], 'no lift on hover');
     await chip.click();
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), '1002');
     await page.waitForFunction(() => document.querySelector('.cp-tip:not([hidden])')?.textContent === 'Copied 1002');
