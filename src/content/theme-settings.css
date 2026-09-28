@@ -1,4 +1,5 @@
-/* Appearance stays beside CommPilot's native Help and Home links. */
+/* The Settings button stays beside CommPilot's native Help and Home links; its popup holds the palette and the
+   extension's other settings (theme-settings.js). */
 body[id="initBody.menuTemplate"] #cp-appearance-toggle {
   display: inline-flex;
   align-items: center;
@@ -15,12 +16,12 @@ body[id="initBody.menuTemplate"] #cp-appearance-toggle {
 }
 body[id="initBody.menuTemplate"] #cp-appearance-toggle::before {
   content: "";
-  width: 14px;
-  height: 14px;
-  border: 2px solid currentColor;
-  border-radius: 50%;
-  background: conic-gradient(#097b8b 0 25%, #b9e568 25% 50%, #ad543e 50% 75%, #88c0d0 75%);
-  box-shadow: inset 0 0 0 2px var(--d-raised, var(--cp-card));
+  width: 15px;
+  height: 15px;
+  background: currentColor;
+  -webkit-mask: var(--cp-settings-gear) center / contain no-repeat;
+  mask: var(--cp-settings-gear) center / contain no-repeat;
+  --cp-settings-gear: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E");
 }
 body[id="initBody.menuTemplate"] #cp-appearance-toggle:hover,
 body[id="initBody.menuTemplate"] #cp-appearance-toggle[aria-expanded="true"] {
@@ -36,7 +37,9 @@ body[id="initBody.menuTemplate"] #cp-appearance-panel {
   box-sizing: border-box;
   position: fixed;
   z-index: 2147483646;
-  width: min(300px, calc(100vw - 16px));
+  width: min(340px, calc(100vw - 16px));
+  max-height: calc(100vh - 80px);
+  overflow: auto;
   padding: 16px;
   border: 1px solid var(--d-line, var(--cp-line));
   border-radius: 16px;
@@ -110,3 +113,31 @@ body[id="initBody.menuTemplate"] .cp-appearance-sr-only {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
 }
+
+/* Settings sections: a small caps heading, then rows of a label with its explanation and a control. */
+body[id="initBody.menuTemplate"] .cp-settings-section { display: grid; gap: 8px; margin: 0 0 14px; }
+body[id="initBody.menuTemplate"] .cp-settings-section + .cp-settings-section { padding-top: 14px; border-top: 1px solid var(--d-line, var(--cp-line)); }
+body[id="initBody.menuTemplate"] .cp-settings-section h3 {
+  margin: 0; color: var(--d-muted, var(--cp-muted)); font: 700 10.5px/1.3 Inter, "Segoe UI", sans-serif;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+body[id="initBody.menuTemplate"] #cp-appearance-panel .cp-settings-section fieldset { margin: 0; }
+body[id="initBody.menuTemplate"] .cp-settings-row { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+body[id="initBody.menuTemplate"] .cp-settings-text { display: grid; gap: 1px; flex: 1; min-width: 0; }
+body[id="initBody.menuTemplate"] .cp-settings-text strong { font-size: 13px; font-weight: 650; }
+body[id="initBody.menuTemplate"] .cp-settings-text span { color: var(--d-muted, var(--cp-muted)); font-size: 11.5px; line-height: 1.4; }
+body[id="initBody.menuTemplate"] input.cp-settings-switch {
+  appearance: none; flex: none; position: relative; width: 34px; height: 20px; margin: 0; border-radius: 10px;
+  border: 1px solid var(--d-line, var(--cp-line)); background: var(--d-raised, var(--cp-card-high)); cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+body[id="initBody.menuTemplate"] input.cp-settings-switch::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--d-muted, var(--cp-muted)); transition: transform .15s ease, background-color .15s ease;
+}
+body[id="initBody.menuTemplate"] input.cp-settings-switch:checked { border-color: var(--d-accent, var(--cp-accent)); background: var(--d-accent, var(--cp-accent)); }
+body[id="initBody.menuTemplate"] input.cp-settings-switch:checked::after { transform: translateX(14px); background: var(--d-surface, #fff); }
+body[id="initBody.menuTemplate"] #cp-appearance-panel .cp-settings-switch:focus-visible {
+  outline: 2px solid var(--d-ring, var(--cp-accent)); outline-offset: 2px;
+}
+body[id="initBody.menuTemplate"] #cp-appearance-panel .cp-appearance-status:empty { display: none; }

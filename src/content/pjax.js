@@ -3104,6 +3104,8 @@
         signal: ac ? ac.signal : null,
         onPage: function (pageRows) { streamed += pageRows.length; if (state.countN) state.countN.textContent = "Loading… " + streamed; }
       });
+      cpProgressStart();
+      _searchP.then(cpProgressDone, cpProgressDone);
       state._searchPromise = _searchP;   // so a reload can wait for in-flight fetches to settle before navigating
       _searchP.then(function (data) {
         if (!document.contains(state.wrap)) return;   // superseded by a newer nav
@@ -4244,6 +4246,52 @@
       } catch (e) { fallback(); }
     }
 
+    // The loading bar. pjax.js swaps pages in place, so the browser shows no progress of its own: a thin accent
+    // bar along the top of the window does, from the click until the page is on screen. It jumps a little at
+    // once, creeps toward the end while CommPilot works (a slow page keeps visibly moving), then fills and
+    // fades. <html data-cp-nav="busy"> is set for the same span (page-baseline.css eases the page back).
+    var cpProgress = { el: null, value: 0, timer: 0, fade: 0 };
+    function cpProgressStart() {
+      var p = cpProgress;
+      if (!document.body) return;
+      if (!p.el || !p.el.isConnected) {
+        p.el = document.createElement("div");
+        p.el.id = "cp-progress";
+        p.el.setAttribute("aria-hidden", "true");
+        document.body.appendChild(p.el);
+      }
+      clearTimeout(p.fade);
+      if (p.timer) return;   // this navigation (queued, drained or retried) is already showing
+      p.el.classList.remove("cp-progress-done");
+      p.el.classList.add("cp-progress-on");
+      p.value = 0.12;
+      p.el.style.transform = "scaleX(" + p.value + ")";
+      p.timer = setInterval(function () {
+        p.value += (0.92 - p.value) * 0.06;   // approaches 92% and waits there for the page
+        p.el.style.transform = "scaleX(" + p.value.toFixed(3) + ")";
+      }, 200);
+    }
+    function cpProgressDone() {
+      var p = cpProgress;
+      if (!p.timer || !p.el) return;
+      clearInterval(p.timer);
+      p.timer = 0;
+      p.el.style.transform = "scaleX(1)";
+      p.el.classList.add("cp-progress-done");
+      p.fade = setTimeout(function () {
+        p.el.classList.remove("cp-progress-on", "cp-progress-done");
+        p.el.style.transform = "scaleX(0)";
+      }, 600);
+    }
+    function cpNavBusy() {
+      try { document.documentElement.setAttribute("data-cp-nav", "busy"); } catch (e) {}
+      cpProgressStart();
+    }
+    function cpNavBusyEnd() {
+      try { document.documentElement.removeAttribute("data-cp-nav"); } catch (e) {}
+      cpProgressDone();
+    }
+
     cpHook = function (url, params, _retry) {
       try {
         // A deliberate sign-out should leave the native login page visible
@@ -4296,6 +4344,7 @@
           return;
         }
         if (isPjaxUrl(url)) {
+          cpNavBusy();
           // Preserve the workspace scroll position on the history entry we
           // are leaving. The window itself remains fixed in the new shell.
           if (!cpPopReplaying) {
@@ -4317,7 +4366,7 @@
               cpDbg("[pjax] board nav ready", url, ready, boardNavSeq, cpSeq);
               if (cpSeq !== boardNavSeq) return;
               if (ready) cpHook(url, params, _retry);
-              else cpUploadNotice("CommPilot could not finish loading this menu. Reload this page before opening an option.");
+              else { cpNavBusyEnd(); cpUploadNotice("CommPilot could not finish loading this menu. Reload this page before opening an option."); }
             });
             return;
           }
@@ -4369,6 +4418,7 @@
               if (cpInflightPosts === 0) { cpHook(url, params, _retry); return; }
               if (++drainTicks > 250) {
                 console.warn('[pjax] prior CommPilot request did not finish; navigation was not sent with a stale token');
+                cpNavBusyEnd();
                 cpUploadNotice('A previous CommPilot request is still running. Please try again.');
                 return;
               }
@@ -4415,9 +4465,9 @@
           cpDbg("[pjax]", cpLoader === cpFollowFrame ? "iframe-loading" : "fetching", url);
           // The page shows it is waiting for CommPilot (page-baseline.css) until this fetch settles, unless a
           // newer navigation has taken over.
-          try { document.documentElement.setAttribute("data-cp-nav", "busy"); } catch (e) {}
+          cpNavBusy();
           var cpNavIdle = function () {
-            if (mySeq === cpSeq) try { document.documentElement.removeAttribute("data-cp-nav"); } catch (e) {}
+            if (mySeq === cpSeq) cpNavBusyEnd();
           };
           var cpThisNav = cpNavPending = cpLoader(url, params, firstTok, 0)
             .then(function (res) {
@@ -5794,7 +5844,8 @@
     }
 
     function cpSummarizeLeaves(bodyEl, reserveOnly) {
-      if (!bodyEl) return;
+      // Menu previews can be switched off in the Settings popup (theme-settings.js: html[data-cp-peek="off"]).
+      if (!bodyEl || document.documentElement.getAttribute("data-cp-peek") === "off") return;
       var board = bodyEl.closest(".cp-console");
       if (!board) return;
       var folder = bodyEl.closest(".cp-console-section");

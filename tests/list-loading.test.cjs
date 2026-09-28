@@ -95,7 +95,9 @@ test('a search shows it is working, then paints its results once in their final 
     await tab.waitForTimeout(400);
     const waiting = await tab.evaluate(() => ({
       busy: document.documentElement.dataset.cpNav,
-      bar: Number(getComputedStyle(document.querySelector('td.cp-frame-body'), '::before').opacity) > 0.5,   // it fades in
+      // the loading bar along the top of the window: showing (it fades in) and on its way
+      bar: (bar => !!bar && Number(getComputedStyle(bar).opacity) > 0.5 &&
+        new DOMMatrix(getComputedStyle(bar).transform).a > 0.1)(document.getElementById('cp-progress')),
     }));
     assert.deepEqual(waiting, { busy: 'busy', bar: true }, 'the page shows it is waiting for CommPilot');
 
@@ -107,6 +109,8 @@ test('a search shows it is working, then paints its results once in their final 
     assert.ok(first.scroll <= 0, 'and the page does not scroll');
     assert.match(first.pager, /^Loading more results/);
     assert.equal(await tab.evaluate(() => document.documentElement.dataset.cpNav), undefined, 'the wait is over');
+    await tab.waitForFunction(() => !document.getElementById('cp-progress').classList.contains('cp-progress-on'),
+      null, { timeout: 2000 });   // the bar filled and faded
 
     const layout = () => tab.evaluate(() => ({
       columns: [...document.querySelectorAll('td.listHeader')].filter(td => getComputedStyle(td).display !== 'none')

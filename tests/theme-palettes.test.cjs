@@ -62,8 +62,8 @@ test('palette follows stored setting through changes and PJAX shell replacement'
     await page.waitForFunction(() => [...document.querySelectorAll('a.leftnavfolder')]
       .every(link => link.dataset.cpNavIcon &&
         getComputedStyle(link, '::before').backgroundImage.includes('/assets/icons/palette-')));
-    await page.getByRole('button', { name: 'Appearance' }).click();
-    await page.getByRole('dialog', { name: 'Appearance settings' }).waitFor();
+    await page.getByRole('button', { name: 'Settings' }).click();
+    await page.getByRole('dialog', { name: 'Settings' }).waitFor();
     await page.getByText('Graphite', { exact: true }).click();
     assert.equal((await snapshot()).background, 'rgb(21, 25, 29)');
     assert.equal(await page.locator('#cp-appearance-panel input[value="graphite"]').isChecked(), true);
@@ -78,7 +78,7 @@ test('palette follows stored setting through changes and PJAX shell replacement'
           .map(label => `<a class="leftnavfolder" href="#">${label}</a>`).join('');
       document.dispatchEvent(new Event('cp:morphed'));
     });
-    await page.getByRole('button', { name: 'Appearance' }).waitFor();
+    await page.getByRole('button', { name: 'Settings' }).waitFor();
     await page.waitForFunction(() => [...document.querySelectorAll('a.leftnavfolder')]
       .every(link => link.dataset.cpNavIcon &&
         getComputedStyle(link, '::before').backgroundImage.includes('/assets/icons/palette-')));
@@ -231,8 +231,8 @@ test('extension popup changes the active CommPilot page and keeps the choice in 
         `${palette} icons must load with CommPilot's CSP: ${JSON.stringify(iconLoads)}`);
     }
     await assertIconsLoad('Atlas');
-    await page.getByRole('button', { name: 'Appearance' }).click();
-    await page.getByRole('dialog', { name: 'Appearance settings' }).getByText('Graphite', { exact: true }).click();
+    await page.getByRole('button', { name: 'Settings' }).click();
+    await page.getByRole('dialog', { name: 'Settings' }).getByText('Graphite', { exact: true }).click();
     await page.waitForFunction(() => document.documentElement.dataset.cpDirection === 'graphite');
     await assertIconsLoad('Graphite');
     const popup = await context.newPage();
@@ -254,6 +254,21 @@ test('extension popup changes the active CommPilot page and keeps the choice in 
     await popup.waitForFunction(() => new Promise(resolve => chrome.storage.local.get('cpThemePalette', value =>
       resolve(value.cpThemePalette === 'nord'))));
     await popup.locator('input[value="nord"]:checked').waitFor();
+
+    // Settings: the extension's switches are saved in extension storage and reach every CommPilot tab, where
+    // pjax.js reads them from <html>.
+    await page.bringToFront();
+    await page.keyboard.press('Escape');   // still open from the palette pick above
+    await page.getByRole('button', { name: 'Settings' }).click();
+    const settings = page.getByRole('dialog', { name: 'Settings' });
+    const previews = settings.getByRole('switch', { name: /Menu previews/ });
+    assert.equal(await previews.isChecked(), true);
+    await previews.click();
+    await second.waitForFunction(() => document.documentElement.getAttribute('data-cp-peek') === 'off');
+    assert.deepEqual(await popup.evaluate(() => new Promise(resolve => chrome.storage.local.get('cpSettings', v => resolve(v.cpSettings)))),
+      { peek: false });
+    await previews.click();
+    await second.waitForFunction(() => !document.documentElement.hasAttribute('data-cp-peek'));
   } finally {
     await context?.close();
     fs.rmSync(profile, { recursive: true, force: true });

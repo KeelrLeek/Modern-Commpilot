@@ -221,23 +221,24 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] {
 @keyframes cp-frame-stuck { to { box-shadow: 0 1px 0 var(--d-line); } }
 @keyframes cp-spin { to { transform: rotate(360deg); } }
 
-/* Waiting for CommPilot (pjax.js marks <html data-cp-nav="busy"> while it fetches a page): after a moment the
-   page's card eases back and a thin bar runs along its top edge, so a Search or a click visibly registered.
-   Quick responses never show it. */
-html[data-cp-direction] body[id="initBody.menuTemplate"] td.enduserbody.cp-frame-body { position: relative; }
+/* Waiting for CommPilot. From the click until the page is on screen, a thin accent bar runs along the top of
+   the window (pjax.js #cp-progress: it creeps forward while CommPilot works, then fills and fades), and while
+   pjax.js marks <html data-cp-nav="busy"> the page's card eases back after a moment. */
+body > #cp-progress {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 2147483647; height: 3px; pointer-events: none;
+  transform: scaleX(0); transform-origin: 0 50%; opacity: 0;
+  background: var(--d-accent, #1f7ae0);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--d-accent, #1f7ae0) 55%, transparent);
+  transition: transform .2s ease-out, opacity .2s ease;
+}
+body > #cp-progress.cp-progress-on { opacity: 1; }
+body > #cp-progress.cp-progress-done { opacity: 0; transition: transform .2s ease-out, opacity .3s ease .2s; }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.enduserbody.cp-frame-body > * { transition: opacity .18s ease; }
 html[data-cp-direction][data-cp-nav="busy"] body[id="initBody.menuTemplate"] td.enduserbody.cp-frame-body > * {
   opacity: .55; transition-delay: .15s;
 }
-html[data-cp-direction] body[id="initBody.menuTemplate"] td.enduserbody.cp-frame-body::before {
-  content: ""; position: absolute; inset: 0 0 auto; height: 2px; z-index: 2; opacity: 0; pointer-events: none;
-  background: linear-gradient(90deg, transparent, var(--d-accent), transparent) 0 0 / 40% 100% no-repeat;
-}
-html[data-cp-direction][data-cp-nav="busy"] body[id="initBody.menuTemplate"] td.enduserbody.cp-frame-body::before {
-  opacity: 1; transition: opacity .15s ease .15s; animation: cp-bar 1.1s ease-in-out infinite;
-}
-@keyframes cp-bar { from { background-position: -40% 0; } to { background-position: 140% 0; } }
 @media (prefers-reduced-motion: reduce) {
-  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-pager-spinner,
-  html[data-cp-direction][data-cp-nav="busy"] body[id="initBody.menuTemplate"] td.enduserbody.cp-frame-body::before { animation: none; }
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-pager-spinner { animation: none; }
+  body > #cp-progress { transition: opacity .2s ease; }
 }
+
