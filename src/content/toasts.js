@@ -104,6 +104,7 @@
       act.addEventListener('click', () => { action.click(); dismiss(item); });
       words.appendChild(act);
       item.classList.add('cp-toast-stays');
+      item.cpAction = action;   // its page replaced, the toast goes too (scan)
     }
     const close = make('button', 'cp-toast-close');
     close.type = 'button';
@@ -120,24 +121,42 @@
     list.appendChild(item);
   }
 
-  function scan() {
+  // roots: what was added since the last look (or, at the start, the whole page). A list can run to many thousands
+  // of rows, so a change looks only at what it added.
+  function scan(roots) {
+    // A toast that stays for its button goes once that button's page has been replaced.
+    for (const item of host?.querySelectorAll('.cp-toast-stays') || []) if (item.cpAction && !item.cpAction.isConnected) dismiss(item);
     if (!active()) return;
     const cell = content();
     if (!cell) return;
-    for (const el of cell.querySelectorAll(SOURCES)) {
+    const within = roots ? [...new Set(roots.filter(root => root.isConnected)
+      .map(root => root.contains(cell) ? cell : cell.contains(root) ? root : null).filter(Boolean))] : [cell];
+    const found = within.flatMap(root => [...(root !== cell && root.matches(SOURCES) ? [root] : []), ...root.querySelectorAll(SOURCES)]);
+    for (const el of found) {
       if (el.dataset.cpToast || el.closest(KEEP)) continue;
       // A message, not a field or a list CommPilot happens to colour.
       if (clean(el.textContent).length < 4 || el.querySelector('input:not([type="hidden"]), select, textarea, table')) continue;
+      // "Too many results" on a list's search: the page offers to load them all instead (pjax.js cpSweep).
+      if (/Error\s*4027/i.test(el.textContent) && cell.querySelector('#searchTable')) { el.dataset.cpToast = 'sweep'; continue; }
       el.dataset.cpToast = '1';
       toast(parse(el));
     }
   }
 
   let queued = false;
-  const soon = () => {
-    if (queued) return;
+  const added = new Set();
+  const soon = records => {
+    let removed = false;
+    // A list's rows taken out and put back in the same batch are a sort (lists.js), nothing new to show.
+    const out = new Set();
+    for (const record of records) {
+      for (const node of record.removedNodes) if (node.localName === 'tr') out.add(node);
+      for (const node of record.addedNodes) if (node.nodeType === 1 && !out.has(node)) added.add(node);
+      if (record.removedNodes.length) removed = true;
+    }
+    if (queued || (!added.size && !removed)) return;
     queued = true;
-    requestAnimationFrame(() => { queued = false; scan(); });
+    requestAnimationFrame(() => { queued = false; const roots = [...added]; added.clear(); scan(roots); });
   };
   const start = () => {
     scan();

@@ -294,12 +294,12 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body tr:has
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body tr:has(> td > a.navMenuItem) + tr:hover > td {
   background:var(--d-raised);
 }
-html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body td:is([width="50%"],[width="100%"])[valign="TOP"] > table:has(> tbody > tr > td.menuCategory) {
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body td:is([width="50%"],[width="100%"])[valign="TOP"]:has(> table > tbody > tr:first-child > td.menuCategory) > table {
   box-shadow:none;
 }
 /* CommPilot uses a 100% cell when a folder has Basic only. Keep that one
    column at the same width as Basic beside Advanced in a two-column folder. */
-html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body td[width="100%"][valign="TOP"] > table:has(> tbody > tr > td.menuCategory) {
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body td[width="100%"][valign="TOP"]:has(> table > tbody > tr:first-child > td.menuCategory) > table {
   width:calc(50% - 10px) !important;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-loading {
@@ -335,7 +335,7 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-tail { flex
   html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head { top:-14px; padding:10px 2px 11px; }
 }
 @media(max-width:840px){
-  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body td[width="100%"][valign="TOP"] > table:has(> tbody > tr > td.menuCategory) {
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body td[width="100%"][valign="TOP"]:has(> table > tbody > tr:first-child > td.menuCategory) > table {
     width:100% !important;
   }
 }

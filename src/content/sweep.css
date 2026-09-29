@@ -1,0 +1,102 @@
+/* Loading a search CommPilot refuses as too many (pjax.js cpSweep): the offer and the sweep in progress (what it
+   loaded is a toast, toasts.js). The alpha's view in the palette's colours: a card in place of the results, with a round
+   icon, a bar and a count, an alphabet tracker of the prefixes searched (the one being searched lifted, specials
+   dashed), the prefix path below it, and Cancel. Every colour is a palette token. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px; box-sizing: border-box;
+  min-height: 340px; margin: 14px 0 4px; padding: 34px 20px; text-align: center; color: var(--d-text);
+  font: 400 13px/1.45 "Inter", sans-serif;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep.cp-sweep-shown { display: none; }   /* holds the note toasts.js shows */
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-ico {
+  display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%;
+  background: color-mix(in srgb, var(--d-accent) 16%, transparent); color: var(--d-accent);
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-ico svg { width: 26px; height: 26px; }
+/* While it loads, a radar sweep circles the lens: a disc with a fading arc, turned by a CSS rotation, under the lens's
+   own opaque circle (::after), so only its edge shows. The browser runs the rotation off the page's main thread, so
+   it stays smooth while the page is busy with CommPilot's answers; no mask, so Firefox can do the same. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-run .cp-sweep-ico { position: relative; isolation: isolate; background: none; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-run .cp-sweep-ico::before,
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-run .cp-sweep-ico::after {
+  content: ""; position: absolute; z-index: -1; border-radius: 50%; pointer-events: none;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-run .cp-sweep-ico::before {
+  inset: -4px; background: conic-gradient(from 0deg, transparent 0 58%, color-mix(in srgb, var(--d-accent) 55%, transparent) 88%, var(--d-accent));
+  animation: cp-sweep-radar 1.2s linear infinite; will-change: transform;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-run .cp-sweep-ico::after {
+  inset: 0; background: color-mix(in srgb, var(--d-accent) 16%, var(--d-surface));
+}
+@keyframes cp-sweep-radar { to { transform: rotate(1turn); } }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-h { margin: 2px 0 0; color: var(--d-text); font: 700 16px/1.3 "Inter", sans-serif; letter-spacing: -.01em; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-s { max-width: 420px; margin: 0; color: var(--d-muted); font-size: 12.5px; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-s b { color: var(--d-text); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* The buttons: Load all is the page's primary button; Cancel is quiet. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep button:is(.cp-sweep-go, .cp-sweep-cancel) {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-sizing: border-box; min-height: 36px;
+  margin-top: 4px; padding: 0 18px; border: 1px solid var(--d-line) !important; border-radius: 10px;
+  background: var(--d-surface) !important; color: var(--d-text) !important; box-shadow: none; transform: none;
+  font: 650 13px/1 "Inter", sans-serif; cursor: pointer;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep button.cp-sweep-go {
+  min-height: 40px; padding: 0 22px; border-color: var(--d-action) !important; background: var(--d-action) !important; color: var(--d-action-text) !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep button:is(.cp-sweep-go, .cp-sweep-cancel):hover:not(:disabled) {
+  border-color: var(--d-accent) !important; box-shadow: none; transform: none;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep button.cp-sweep-go:hover:not(:disabled) { background: var(--d-action) !important; filter: brightness(1.07); }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep button.cp-sweep-cancel { color: var(--d-muted) !important; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep button.cp-sweep-cancel:hover:not(:disabled) { color: var(--d-text) !important; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep button:focus-visible { outline: 2px solid var(--d-ring); outline-offset: 2px; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep button svg { width: 16px; height: 16px; flex: none; }
+
+/* The search the sweep works through, as chips: field, how it matches, value. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-crit { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px; border: 1px solid var(--d-line); border-radius: 999px;
+  background: var(--d-raised); font-size: 12px;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-chip b { color: var(--d-accent); font-weight: 700; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-chip i { color: var(--d-muted); font-style: normal; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-chip span { color: var(--d-text); font-weight: 700; }
+
+/* The bar and the count. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-bar {
+  width: 300px; max-width: 76%; height: 8px; margin: 2px 0; overflow: hidden; border: 1px solid var(--d-line); border-radius: 6px;
+  background: var(--d-raised);
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-fill { width: 0; height: 100%; border-radius: 6px; background: var(--d-accent); transition: width .3s ease; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-n { color: var(--d-text); font: 700 15px/1.2 "Inter", sans-serif; font-variant-numeric: tabular-nums; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-n i { color: var(--d-muted); font-style: normal; font-weight: 600; }
+
+/* The alphabet tracker: done prefixes tinted, the one being searched lifted in the accent. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-trackwrap { display: flex; align-items: flex-start; justify-content: center; gap: 8px; max-width: 480px; margin: 2px auto 0; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-track { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; max-width: 380px; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-tk {
+  display: flex; align-items: center; justify-content: center; box-sizing: border-box; width: 18px; height: 20px;
+  border: 1px solid transparent; border-radius: 5px; background: var(--d-raised); color: var(--d-muted);
+  font: 700 10.5px/1 "Inter", sans-serif; transition: background-color .15s ease, color .15s ease, transform .15s ease;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-tk.cp-sweep-tk-two { width: auto; min-width: 25px; padding: 0 5px; font-size: 10px; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-tk.cp-sweep-tk-spec { border: 1px dashed var(--d-line); background: transparent; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-tk.done { background: color-mix(in srgb, var(--d-accent) 16%, transparent); color: var(--d-accent); border-style: solid; border-color: transparent; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-tk.cur {
+  border-color: var(--d-action); background: var(--d-action); color: var(--d-action-text); transform: scale(1.2);
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-pin {
+  display: inline-flex; align-items: center; flex: none; height: 20px; padding: 0 9px; border-radius: 5px;
+  background: var(--d-action); color: var(--d-action-text); font: 700 11px/1 "Inter", sans-serif;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-sub { min-height: 20px; color: var(--d-muted); font-size: 12.5px; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] :is(.cp-sweep-pp, .cp-sweep-pill) {
+  display: inline-block; padding: 1px 8px; border-radius: 5px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-pp { border: 1px solid var(--d-line); background: var(--d-raised); color: var(--d-text); }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-pill { background: var(--d-action); color: var(--d-action-text); }
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-cp-direction] body[id="initBody.menuTemplate"] :is(.cp-sweep-fill, .cp-sweep-tk) { transition: none; }
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-sweep-run .cp-sweep-ico::before { animation: none; }   /* a still arc */
+}

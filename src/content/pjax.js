@@ -946,14 +946,15 @@
     // opts.signal.aborted short-circuits the loop (a newer search supersedes this one). Rejects on a failed
     // search/auth so the caller can FALL BACK to the legacy paginated table (never strand the user).
     // Every caller (bulk tools, exports) spends the single-use token itself. The search's first POST starts
-    // synchronously, so a navigation sent right after it waits for its token; with a list fill running (see
-    // cpListFill below) the fill stops first and lets its request land, and a reserved in-flight count keeps
-    // any navigation behind this search meanwhile.
+    // synchronously, so a navigation sent right after it waits for its token; with a list fill or a sweep running
+    // (see cpListFill and cpSweep below) it stops first and lets its request land, and a reserved in-flight count
+    // keeps any navigation behind this search meanwhile.
     function cpListSearch(criteria, opts) {
-      if (!cpListFill) return cpListSearchRun(criteria, opts);
+      if (!cpListFill && !cpSweep) return cpListSearchRun(criteria, opts);
       cpInflightPosts++;
       var held = true, release = function () { if (held) { held = false; cpInflightPosts = Math.max(0, cpInflightPosts - 1); } };
-      return cpListFillStop().then(function () {
+      // A list fill or a sweep yields to it (a bulk tool's search); the request either has in flight lands first.
+      return Promise.all([cpListFillStop(), cpSweepStop()]).then(function () {
         try { return cpListSearchRun(criteria, opts); } finally { release(); }
       }, function (e) { release(); throw e; });
     }
@@ -1192,6 +1193,451 @@
       document.addEventListener("cp:reskin", cpListFillStart);
       if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", cpListFillStart, { once: true });
       else cpListFillStart();
+    }
+
+    // --- Sweep: every row of a search CommPilot refuses as too many (the alpha's "Load all", on the native list) ---
+    // CommPilot answers a search that matches more than about a thousand records with "[Error 4027] Please narrow
+    // your search, there are N matching records" and no rows. The page then offers to load them all: the search is
+    // repeated with one more "starts with" criterion on a name field, one prefix at a time (a, b, … and, under a
+    // prefix that is still too many, aa, ab, … plus the prefix itself as an exact value), each answer's pages walked
+    // like the list fill, and every row kept once. A search that is a single "starts with" (Last Name starts with
+    // M) lengthens its own prefix instead (Ma, Mb, …). Requests go one at a time, threading the single-use token:
+    // the sweep sends only while no other token-bearing POST is in flight, and navigation, Reload, an upload or
+    // another list search stop it (a request in flight still lands and refreshes the token). A failed search is
+    // tried once more; two failing in a row end the sweep. Rows a name sweep cannot reach (no name) can be looked
+    // for by the list's ID field afterwards. At the end the rows become one native result table (CommPilot's own
+    // header and rows, each wired to its own redirectPost), so lists.js pages and sorts them like any list, and a
+    // last search with the page's own criteria puts CommPilot's list state back. The view while it works is the
+    // alpha's: a bar and a count, an alphabet tracker of the prefixes done, the prefix being searched, and Cancel.
+    var cpSweep = null;
+    var CP_SWP_DIGITS = "0123456789".split("");
+    var CP_SWP_BASE = "0123456789abcdefghijklmnopqrstuvwxyz".split("");
+    // Punctuation a name or an ID can start with; not % or _ (wildcards to the server: a prefix of them never
+    // narrows) and not quotes, braces or backslashes.
+    var CP_SWP_SPECIALS = " '-.,&()@#$!^*+=<>?/:;~".split("");
+    var CP_SWP_TOP = CP_SWP_BASE.concat(CP_SWP_SPECIALS.slice(1));   // a value does not start with a space
+    var CP_SWP_ALL = CP_SWP_BASE.concat(CP_SWP_SPECIALS);
+    var CP_SWP_DEPTH = 6;
+    var CP_SWP_PREFER = ["UserFirstName", "UserLastName", "UserID", "GroupName", "GroupId"];
+    var CP_SWP_SVG = {
+      funnel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 5h17l-6.5 7.8V19l-4 1.5v-7.7Z"/></svg>',
+      search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>',
+      x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M17 7 7 17M7 7l10 10"/></svg>'
+    };
+    function cpSweepEsc(v) {
+      return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function cpSweepChar(c) { return c === " " ? "␣" : c; }
+    function cpSweepNum(n) { return n == null ? "?" : Number(n).toLocaleString(); }
+    function cpSweepMinutes(secs) {
+      if (secs < 45) return "under a minute";
+      var m = Math.round(secs / 60);
+      return m <= 1 ? "about a minute" : "about " + m + " minutes";
+    }
+    // Stopped by something else wanting the token (navigation, Reload, an upload, another list search): the page
+    // is going or busy, so the sweep leaves no trace. Cancel (the card's button) shows what it had loaded.
+    function cpSweepStop() {
+      var s = cpSweep;
+      if (!s) return Promise.resolve();
+      s.aborted = true;
+      return (s.busy || Promise.resolve()).then(function () {}, function () {});
+    }
+    function cpSweepCancel() {
+      if (cpSweep) cpSweep.cancelled = true;
+      return cpSweepStop();
+    }
+    window.cpSweepStop = cpSweepStop;
+
+    // What to sweep: the page's own criteria (the rows of its search form that have a value) and the field whose
+    // prefixes split the list. Names first, where the list has them (they spread best); then an ID field, which
+    // every record has, for what a name sweep leaves behind. Department and other pick-list fields cannot be
+    // searched by prefix.
+    function cpSweepPlan(form) {
+      var keySel = form.querySelector('select[name="findKey0"]');
+      if (!keySel) return null;
+      var fields = [].map.call(keySel.options, function (o) {
+        return { value: o.value, label: (o.textContent || "").replace(/\s+/g, " ").trim() };
+      }).filter(function (f) { return f.value && !/^Exact|Trunk/i.test(f.value); });
+      var label = function (key) { var f = [].filter.call(keySel.options, function (o) { return o.value === key; })[0]; return f ? (f.textContent || "").replace(/\s+/g, " ").trim() : key; };
+      var rowNum = parseInt((form.querySelector('[name="rowNum"]') || {}).value, 10) || 0;
+      var crit = [];
+      for (var i = 0; i <= rowNum; i++) {
+        var k = form.querySelector('[name="findKey' + i + '"]'), o = form.querySelector('[name="findOp' + i + '"]');
+        var v = form.querySelector('[name="findValue' + i + '"]');
+        if (!k || !v || !String(v.value || "").trim()) continue;
+        var opEl = o && o.options ? o.options[o.selectedIndex] : null;
+        var valEl = v.options ? v.options[v.selectedIndex] : null;
+        crit.push({ key: k.value, op: o ? o.value : "STARTS_WITH", value: v.value, field: label(k.value),
+          opLabel: opEl ? (opEl.textContent || "").trim() : "starts with", shown: valEl ? (valEl.textContent || "").trim() : v.value });
+      }
+      var usable = function (key) { return fields.some(function (f) { return f.value === key; }); };
+      var plan = { total: null, crit: crit, original: crit.map(function (c) { return { key: c.key, op: c.op, value: c.value }; }) };
+      if (crit.length === 1 && crit[0].op === "STARTS_WITH" && usable(crit[0].key)) {
+        plan.part = crit[0].key;
+        plan.seed = String(crit[0].value).toLowerCase();
+        plan.base = [];
+      } else {
+        var used = crit.map(function (c) { return c.key; });
+        var free = fields.filter(function (f) { return used.indexOf(f.value) === -1; });
+        var pick = CP_SWP_PREFER.filter(function (k) { return free.some(function (f) { return f.value === k; }); })[0] ||
+          (free.filter(function (f) { return /name/i.test(f.value); })[0] || free[0] || {}).value;
+        if (!pick) return null;
+        plan.part = pick;
+        plan.seed = null;
+        plan.base = plan.original;
+      }
+      plan.partLabel = label(plan.part);
+      var ids = fields.filter(function (f) { return /id$/i.test(f.value) && f.value !== plan.part && plan.base.every(function (c) { return c.key !== f.value; }); });
+      if (ids.length) { plan.idField = ids[0].value; plan.idLabel = ids[0].label; }
+      return plan;
+    }
+
+    // One search, sent when nothing else is in flight; its answer's rows are collected as its pages arrive.
+    function cpSweepIdle(s) {
+      return new Promise(function (resolve, reject) {
+        (function idle() {
+          if (s.aborted) { reject(new Error("stopped")); return; }
+          if (cpInflightPosts === 0 && !cpNavPending) { resolve(); return; }
+          setTimeout(idle, 50);
+        })();
+      });
+    }
+    function cpSweepWait(s, ms) {
+      return new Promise(function (resolve, reject) {
+        setTimeout(function () { if (s.aborted) reject(new Error("stopped")); else resolve(); }, ms);
+      });
+    }
+    function cpSweepSearch(s, criteria) {
+      return cpSweepIdle(s).then(function () {
+        s.searches++;
+        s.busy = cpListSearchRun(criteria, { signal: s, onDoc: function (doc) { cpSweepCollect(s, doc); } });
+        return s.busy;
+      }).then(function (res) { s.busy = null; s.fails = 0; return res; }, function (e) { s.busy = null; throw e; });
+    }
+    function cpSweepTry(s, criteria) {
+      return cpSweepSearch(s, criteria).catch(function (e) {
+        if (s.aborted) throw e;
+        return cpSweepWait(s, 1500).then(function () { return cpSweepSearch(s, criteria); }).catch(function (e2) {
+          if (s.aborted) throw e2;
+          if (++s.fails >= 2) throw new Error("failed");
+          s.missed.push(criteria[criteria.length - 1].value);
+          return null;
+        });
+      });
+    }
+    function cpSweepCollect(s, doc) {
+      var rows = doc.querySelectorAll('tr[id^="Row"]');
+      if (!rows.length) return;
+      if (!s.head) {
+        var t = rows[0].closest("table"), h = t && t.querySelector("tr:has(> td.listHeader)");
+        if (h) { s.head = document.importNode(h, true); s.head.querySelectorAll("script").forEach(function (sc) { sc.remove(); }); }
+      }
+      rows.forEach(function (src) {
+        var drill = cpRowDrill(src);
+        var key = drill ? drill.url + " " + JSON.stringify(drill.params)
+          : [].map.call(src.querySelectorAll("td"), function (td) { return (td.textContent || "").trim(); }).join("|");
+        if (s.seen[key]) return;
+        s.seen[key] = 1;
+        var tr = document.importNode(src, true);
+        tr.querySelectorAll("script").forEach(function (sc) { sc.remove(); });
+        var first = tr.querySelector("a.tableLink") || tr;
+        s.rows.push({ tr: tr, drill: drill, sort: (first.textContent || "").replace(/\s+/g, " ").trim() });
+      });
+      cpSweepProgress(s);
+    }
+
+    // A prefix: its rows, or (still too many) the prefix itself as an exact value and then each longer prefix.
+    function cpSweepKids(s, prefix) {
+      if (s.idPass && /^\d+$/.test(prefix)) return CP_SWP_DIGITS;
+      return prefix.slice(-1) === " " ? CP_SWP_BASE : CP_SWP_ALL;
+    }
+    function cpSweepBucket(s, prefix, depth, parentCount) {
+      if (s.aborted) return Promise.reject(new Error("stopped"));
+      if (s.total != null && s.rows.length >= s.total) return Promise.resolve();   // everything is in
+      s.prefix = prefix;
+      cpSweepStatus(s);
+      return cpSweepTry(s, s.base.concat([{ key: s.part, op: "STARTS_WITH", value: prefix }])).then(function (res) {
+        if (!res || !res.tooMany) return;
+        var n = res.matchCount;
+        // A longer prefix that matches as many as its parent does not narrow the list: it would recurse forever.
+        if (depth >= CP_SWP_DEPTH || (parentCount != null && n != null && n >= parentCount && prefix.slice(-1) !== " ")) {
+          s.missed.push(prefix);
+          return;
+        }
+        var seq = cpSweepTry(s, s.base.concat([{ key: s.part, op: "EQUAL_TO", value: prefix }]));
+        cpSweepKids(s, prefix).forEach(function (ch) {
+          seq = seq.then(function () { return cpSweepBucket(s, prefix + ch, depth + 1, n); });
+        });
+        return seq;
+      });
+    }
+    function cpSweepRun(s) {
+      var seq = Promise.resolve();
+      if (s.seed != null) seq = cpSweepTry(s, [{ key: s.part, op: "EQUAL_TO", value: s.seed }]);
+      s.tops.forEach(function (p, i) {
+        seq = seq.then(function () { s.top = i; return cpSweepBucket(s, p, p.length, null); });
+      });
+      return seq;
+    }
+
+    // The view. The card takes the place of the (missing) results under the search; the sweep's progress and
+    // status write into it; at the end it gives way to the rows.
+    function cpSweepCard(state, html) {
+      var card = state.card;
+      card.className = "cp-sweep cp-sweep-" + state.phase;
+      card.innerHTML = html;
+      return card;
+    }
+    // The sweep is a long load: the logo's heartbeat line (the loading bar, cpProgress) runs with it, by the rows
+    // loaded, and its dot pings when they are shown. A page loading meanwhile keeps the line for itself.
+    function cpSweepBar(frac) {
+      if (cpProgress.timer) return;
+      clearTimeout(cpProgress.fade);
+      document.documentElement.setAttribute("data-cp-progress", "on");
+      cpProgressShow(Math.max(0.02, Math.min(0.98, frac)));
+    }
+    function cpSweepBarEnd(done) {
+      var root = document.documentElement;
+      if (cpProgress.timer || root.getAttribute("data-cp-progress") !== "on") return;
+      if (!done) { root.removeAttribute("data-cp-progress"); return; }
+      cpProgressShow(1);
+      root.setAttribute("data-cp-progress", "done");
+      cpProgress.fade = setTimeout(function () { root.removeAttribute("data-cp-progress"); }, 1200);
+    }
+    function cpSweepOfferCard(state) {
+      var t = state.plan.total;
+      // About a request per 20 rows, one per prefix, and splits under the busy ones; CommPilot answers a big
+      // list's search in a few tenths of a second.
+      var eta = t != null ? cpSweepMinutes((Math.ceil(t / 20) + 70 + Math.ceil(t / 1000) * 36) * 0.4) : null;
+      state.phase = "offer";
+      var card = cpSweepCard(state,
+        '<div class="cp-sweep-ico">' + CP_SWP_SVG.funnel + '</div>' +
+        '<h3 class="cp-sweep-h">Too many results for one search</h3>' +
+        '<p class="cp-sweep-s">' + (t != null ? 'There are <b>' + cpSweepNum(t) + '</b> matching records. ' : 'There are too many matching records. ') +
+          'CommPilot lists them only a few at a time: narrow the search above, or load them all' + (eta ? ', ' + eta : '') + '.</p>' +
+        '<button type="button" class="cp-sweep-go">' + CP_SWP_SVG.search + '<span>Load all' + (t != null ? ' ' + cpSweepNum(t) : '') + '</span></button>');
+      card.querySelector(".cp-sweep-go").addEventListener("click", function () { cpSweepStart(state, false); });
+    }
+    function cpSweepRunCard(state, s) {
+      state.phase = "run";
+      var chips = s.tops.map(function (p) {
+        var spec = CP_SWP_SPECIALS.indexOf(p.slice(-1)) !== -1;
+        return '<span class="cp-sweep-tk' + (spec ? ' cp-sweep-tk-spec' : '') + (p.length > 1 ? ' cp-sweep-tk-two' : '') + '">' + cpSweepEsc(p.split("").map(cpSweepChar).join("")) + '</span>';
+      }).join("");
+      var crit = s.idPass ? [] : state.plan.crit;
+      var target = s.idPass ? (s.total != null ? s.total - s.startRows : null) : s.total;
+      var card = cpSweepCard(state,
+        '<div class="cp-sweep-ico">' + CP_SWP_SVG.search + '</div>' +
+        '<h3 class="cp-sweep-h">' + (s.idPass ? 'Looking for the other ' + (target != null ? cpSweepNum(target) + ' ' : '') + 'by ' + cpSweepEsc(s.partLabel)
+          : 'Loading all ' + (target != null ? cpSweepNum(target) + ' ' : '') + 'results…') + '</h3>' +
+        (crit.length ? '<div class="cp-sweep-crit">' + crit.map(function (c) {
+          return '<span class="cp-sweep-chip"><b>' + cpSweepEsc(c.field) + '</b><i>' + cpSweepEsc(String(c.opLabel).toLowerCase()) + '</i><span>' + cpSweepEsc(c.shown) + '</span></span>';
+        }).join("") + '</div>' : '') +
+        '<div class="cp-sweep-bar" role="progressbar" aria-label="Loaded" aria-valuemin="0" aria-valuemax="100"><div class="cp-sweep-fill"></div></div>' +
+        '<div class="cp-sweep-n"></div>' +
+        '<div class="cp-sweep-trackwrap">' + (s.seed != null ? '<span class="cp-sweep-pin">' + cpSweepEsc(s.seed.split("").map(cpSweepChar).join("")) + ' ›</span>' : '') +
+          '<div class="cp-sweep-track">' + chips + '</div></div>' +
+        '<div class="cp-sweep-sub" aria-live="off"></div>' +
+        '<p class="cp-sweep-s cp-sweep-eta"></p>' +
+        '<button type="button" class="cp-sweep-cancel">' + CP_SWP_SVG.x + '<span>Cancel</span></button>');
+      card.querySelector(".cp-sweep-cancel").addEventListener("click", function () { cpSweepCancel(); });
+      cpSweepProgress(s);
+      cpSweepStatus(s);
+    }
+    function cpSweepProgress(s) {
+      var card = s.state.card;
+      if (s.state.phase !== "run" || !card.isConnected) return;
+      var got = s.rows.length - s.startRows, target = s.idPass ? (s.total != null ? s.total - s.startRows : null) : s.total;
+      var n = card.querySelector(".cp-sweep-n"), fill = card.querySelector(".cp-sweep-fill"), bar = card.querySelector(".cp-sweep-bar");
+      if (n) n.innerHTML = cpSweepNum(got) + (target != null ? ' <i>of ' + cpSweepNum(target) + (s.idPass ? ' found' : '') + '</i>' : ' <i>found</i>');
+      var pct = target ? Math.min(100, Math.round(got / target * 1000) / 10) : 0;
+      if (fill) fill.style.setProperty("width", pct + "%");   // CSSOM: the page's policy blocks style attributes
+      if (target) cpSweepBar(got / target);
+      if (bar) bar.setAttribute("aria-valuenow", String(Math.round(pct)));
+      var eta = card.querySelector(".cp-sweep-eta");
+      if (eta) {
+        var secs = (Date.now() - s.began) / 1000, left = null;
+        if (target != null && got > 40 && secs > 4) left = (target - got) / (got / secs);
+        eta.textContent = (left != null && left > 0 ? cpSweepMinutes(left).replace(/^about /, "About ").replace(/^under/, "Under") + " left. " : "") +
+          "Keep this tab open; opening another page stops the load.";
+      }
+    }
+    function cpSweepStatus(s) {
+      var card = s.state.card;
+      if (s.state.phase !== "run" || !card.isConnected) return;
+      card.querySelectorAll(".cp-sweep-tk").forEach(function (tk, i) {
+        tk.classList.toggle("done", i < s.top);
+        tk.classList.toggle("cur", i === s.top);
+      });
+      var sub = card.querySelector(".cp-sweep-sub"), top = s.tops[s.top];
+      if (sub && top != null) {
+        var shown = function (p) { return cpSweepEsc(p.split("").map(cpSweepChar).join("")); };
+        sub.innerHTML = 'Searching ' + cpSweepEsc(s.partLabel) + ' <span class="cp-sweep-pp">' + shown(top) + '</span>' +
+          (s.prefix && s.prefix !== top ? ' › <span class="cp-sweep-pill">' + shown(s.prefix) + '</span>' : '');
+      }
+    }
+
+    // The rows as one native result table, and a toast saying what was loaded.
+    function cpSweepShow(state, s, status) {
+      if (!state.card.isConnected) return;
+      var old = state.cell.querySelector(".cp-sweep-table");
+      if (old) {   // the list shown before (a second pass): it goes with the pager lists.js put after it
+        var pager = old.nextElementSibling;
+        if (pager && pager.classList.contains("cp-pager")) pager.remove();
+        old.remove();
+      }
+      var total = s.total, got = s.rows.length, gap = total != null ? total - got : 0;
+      var took = Math.round((Date.now() - state.began) / 1000);
+      took = took < 60 ? took + " s" : Math.floor(took / 60) + " min " + (took % 60) + " s";
+      // What was loaded, as one of pjax.js's notices: toasts.js shows it at the bottom of the window like any other,
+      // a note that goes by itself, or a warning whose button (the next step) keeps it until used.
+      var kind = "info", title, body, act = null;
+      if (status === "stopped") {
+        kind = "warning"; title = "Loading stopped"; body = cpSweepNum(got) + " of " + cpSweepNum(total) + " loaded.";
+      } else if (status === "failed") {
+        kind = "error"; title = "CommPilot stopped answering";
+        body = cpSweepNum(got) + " of " + cpSweepNum(total) + " loaded. If this keeps happening, sign in again.";
+      } else if (gap > 0) {
+        kind = "warning"; title = "Some results are missing";
+        body = cpSweepNum(got) + " of " + cpSweepNum(total) + " loaded. " + cpSweepNum(gap) + " could not be reached by " + s.partLabel + ".";
+      } else {
+        title = "All results loaded";
+        body = cpSweepNum(got) + " loaded in " + took + ", " + cpSweepNum(state.searches) + " searches.";
+      }
+      if (status !== "done") act = { text: "Load all again", run: function () {
+        state.rows = []; state.seen = {}; state.head = null; state.began = 0; state.searches = 0;
+        cpSweepStart(state, false);
+      } };
+      else if (gap > 0 && state.plan.idField && !s.idPass) act = { text: "Find the other " + cpSweepNum(gap) + " by " + state.plan.idLabel,
+        run: function () { cpSweepStart(state, true); } };
+      var note = document.createElement("div");
+      note.className = "cp-alert cp-alert-" + kind;
+      note.innerHTML = '<div class="cp-alert-content"><div class="cp-alert-title"></div><div class="cp-alert-body"></div></div>';
+      note.querySelector(".cp-alert-title").textContent = title;
+      note.querySelector(".cp-alert-body").textContent = body;
+      if (act) {
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "cp-alert-act";
+        button.textContent = act.text;
+        button.addEventListener("click", function () { if (state.card.isConnected) act.run(); });
+        note.append(button);
+      }
+      state.phase = "shown";
+      state.card.className = "cp-sweep cp-sweep-shown";
+      state.card.textContent = "";
+      state.card.append(note);
+      if (!s.head || !got) return;
+      // CommPilot's own order: its first column, as it sorts a list.
+      var collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+      var rows = s.rows.slice().sort(function (a, b) { return collator.compare(a.sort, b.sort); });
+      var table = document.createElement("table");
+      table.className = "cp-sweep-table";
+      table.setAttribute("width", "100%");
+      table.setAttribute("border", "0");
+      table.setAttribute("cellpadding", "2");
+      table.setAttribute("cellspacing", "0");
+      var body = document.createElement("tbody");
+      body.append(s.head.cloneNode(true));
+      // Only CommPilot's first page goes in the page. With a palette, lists.js pages the list and the other rows
+      // wait for it outside the page, in a <template> (thousands of rows in the page, even hidden, slow everything
+      // on it); without one, they go in the page too, hidden until lists.js fits the list to the window.
+      var paged = !!document.documentElement.getAttribute("data-cp-direction") && document.body.id === "initBody.menuTemplate";
+      var held = paged ? document.createElement("template") : null;
+      if (held) held.className = "cp-rows-held";
+      rows.forEach(function (r, i) {
+        var tr = r.tr, oldId = tr.id;
+        tr.id = "Row" + (i + 1);
+        tr.querySelectorAll("[id]").forEach(function (el) {
+          if (el.id.indexOf(oldId + "Col") === 0) el.id = tr.id + el.id.slice(oldId.length);
+        });
+        tr.classList.toggle("cp-row-off", i >= 20 && !held);
+        if (r.drill && !tr.hasAttribute("data-cp-drill")) {
+          tr.setAttribute("data-cp-drill", "1");
+          tr.querySelectorAll("a").forEach(function (a) {
+            a.addEventListener("click", function () { window.redirectPost(r.drill.url, r.drill.params); });
+          });
+        }
+        (i >= 20 && held ? held.content : body).append(tr);
+      });
+      table.append(body);
+      if (held) table.append(held);
+      table.setAttribute("data-cp-rows", String(rows.length));
+      state.card.after(table);
+      document.dispatchEvent(new CustomEvent("cp:list-fill"));   // lists.js pages and sorts it like any list
+      // The first page drops in, row by row.
+      if (!matchMedia("(prefers-reduced-motion: reduce)").matches) requestAnimationFrame(function () {
+        [].filter.call(body.querySelectorAll(':scope > tr[id^="Row"]'), function (tr) { return !tr.classList.contains("cp-row-off"); })
+          .slice(0, 24).forEach(function (tr, i) {
+            try { tr.animate([{ opacity: 0, transform: "translateY(-6px)" }, { opacity: 1, transform: "none" }],
+              { duration: 260, delay: 30 + i * 22, easing: "cubic-bezier(.22, .7, .3, 1)", fill: "backwards" }); } catch (e) {}
+          });
+      });
+    }
+
+    // Start (or, idPass, continue by the ID field for what the name sweep left behind).
+    function cpSweepStart(state, idPass) {
+      if (cpSweep && !cpSweep.restore) return;   // (a restoring search still in flight is waited for)
+      var plan = state.plan;
+      var s = {
+        state: state, aborted: false, busy: null, fails: 0, missed: [], searches: 0, began: Date.now(), top: 0, prefix: "",
+        total: plan.total, idPass: idPass,
+        head: state.head || null, rows: state.rows || [], seen: state.seen || {},
+        part: idPass ? plan.idField : plan.part, partLabel: idPass ? plan.idLabel : plan.partLabel,
+        base: idPass ? plan.original : plan.base, seed: idPass ? null : plan.seed
+      };
+      s.startRows = s.rows.length;
+      s.tops = s.seed != null ? cpSweepKids(s, s.seed).map(function (ch) { return s.seed + ch; }) : CP_SWP_TOP.slice();
+      if (!state.began) state.began = s.began;
+      state.searches = state.searches || 0;
+      cpSweep = s;
+      cpSweepRunCard(state, s);
+      var finish = function (status) {
+        if (cpSweep === s) cpSweep = null;
+        state.head = s.head; state.rows = s.rows; state.seen = s.seen;
+        state.searches += s.searches;
+        cpSweepBarEnd(status === "done");
+        cpSweepShow(state, s, status);
+      };
+      cpSweepRun(s).then(function () { return "done"; }, function (e) { return s.aborted ? "stopped" : "failed"; })
+        .then(function (status) {
+          // Something else stopped it (navigation, Reload, an upload): leave everything as it is.
+          if ((status === "stopped" && !s.cancelled) || !state.card.isConnected) { if (cpSweep === s) cpSweep = null; return; }
+          finish(status);
+          // Put CommPilot's own list state back to the page's search (its answer is the same "too many").
+          if (status !== "failed") {
+            var r = { restore: true, aborted: false, busy: null, fails: 0, missed: [], searches: 0, rows: [], seen: {}, state: state };
+            cpSweep = r;
+            cpSweepSearch(r, plan.original).then(function () {}, function () {}).then(function () { if (cpSweep === r) cpSweep = null; });
+          }
+        });
+    }
+
+    // The offer, on a list page whose search CommPilot answered with "too many".
+    function cpSweepOffer() {
+      if (window !== window.top) return;
+      if (cpSweep && !cpSweep.state.card.isConnected) cpSweepStop();
+      var cell = document.querySelector('td[width="82%"]');
+      if (!cell || cell.querySelector(".cp-sweep")) return;
+      var search = cell.querySelector("#searchTable"), form = document.querySelector('form[name="mainForm"]');
+      if (!search || !form) return;
+      var err = [].filter.call(cell.querySelectorAll("td.error"), function (td) {
+        return /Error\s*4027|narrow\s+your\s+search/i.test(td.textContent || "");
+      })[0];
+      if (!err) return;
+      var plan = cpSweepPlan(form);
+      if (!plan) return;
+      var m = /there\s+are\s+([\d,]+)\s+matching/i.exec(err.textContent || "");
+      plan.total = m ? +m[1].replace(/,/g, "") : null;
+      err.setAttribute("data-cp-toast", "sweep");   // the card says it (toasts.js leaves it alone; toasts.css hides it)
+      var card = document.createElement("section");
+      (search.closest(".cp-searchbar-wrap") || search).after(card);
+      cpSweepOfferCard({ card: card, cell: cell, plan: plan });
+    }
+    if (window === window.top) {
+      document.addEventListener("cp:reskin", cpSweepOffer);
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", cpSweepOffer, { once: true });
+      else cpSweepOffer();
     }
 
     // Redesigned search grid is now the DEFAULT on every host (0.2.193). localStorage is per-origin, so an
@@ -4430,6 +4876,7 @@
           try { if (cpGridState && cpGridState._searchAbort) cpGridState._searchAbort.abort(); } catch (e) {}
           try { if (cpGridState && cpGridState._sweepAbort) cpGridState._sweepAbort.abort(); } catch (e) {}
           try { cpListFillStop(); } catch (e) {}
+          try { cpSweepStop(); } catch (e) {}
           var drainSeq = ++cpTokenDrainSeq;
           // Aborting a grid sweep stops its NEXT page request, but a POST that
           // already reached CommPilot can still consume the single-use token.
@@ -5056,6 +5503,7 @@
       if (cpAggActive) { cpSectionAborted = true; cpAggEnd(); }
       try { if (cpGridState && cpGridState._searchAbort) cpGridState._searchAbort.abort(); } catch (e) {}
       try { if (cpGridState && cpGridState._sweepAbort) cpGridState._sweepAbort.abort(); } catch (e) {}
+      try { cpSweepStop(); } catch (e) {}
       var uploadSeq = ++cpSeq; // discard a late navigation response instead of overwriting the upload result
       var body = new FormData(form);
       if (submitter && submitter.name) body.append(submitter.name, submitter.value || '');
@@ -5365,6 +5813,7 @@
       if (_gs && _gs._searchAbort) { try { _gs._searchAbort.abort(); } catch (e2) {} }
       if (_gs && _gs._sweepAbort) { try { _gs._sweepAbort.abort(); } catch (e2) {} }
       try { cpListFillStop(); } catch (e2) {}
+      try { cpSweepStop(); } catch (e2) {}
       // THE FIX for the "rapid 2 broad searches + reload → logout" bug: when the search GRID is active we are on
       // a real, GET-loadable list URL (Reseller/Groups), so a NATIVE reload lands on the same authenticated page
       // with NO formtokenserial POST at all — completely sidestepping the single-use-token race that bounced the

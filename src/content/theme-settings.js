@@ -209,6 +209,13 @@
 
   // What is new in each version (About, in the Settings window). Plain text; the newest version first.
   const NEWS = {
+    "0.3.76": [
+      "Too many results? A search CommPilot refuses as too broad now offers Load all, which searches a few letters at a time until every match is in.",
+      "While it loads you see the search it is working through, a bar and count, and each letter as it is searched. Cancel keeps what was loaded so far.",
+      "The loaded list pages and sorts like any other list, and stays quick with thousands of users.",
+      "A message at the bottom says what was loaded; if some could not be reached by name, its button finds them by User ID.",
+      "Long lists turn pages and sort much faster.",
+    ],
     "0.3.75": [
       "A new CommPilot logo, the same on every CommPilot site. It shows the version and which site you are on, and takes you Home.",
       "The logo’s heartbeat is the loading bar: it runs along while a page or search loads and pulses when it lands.",

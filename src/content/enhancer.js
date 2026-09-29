@@ -937,31 +937,43 @@
   }
 
   function onMutations(records) {
+    // A list's rows taken out and put back in the same batch are a sort (lists.js): they were on the page already,
+    // and a swept list moves thousands of them at once, so they are not scanned again.
+    const first = new Map();
+    for (const record of records) {
+      for (const node of record.removedNodes) if (!first.has(node)) first.set(node, "removed");
+      for (const node of record.addedNodes) if (!first.has(node)) first.set(node, "added");
+    }
+    const moved = node => node.localName === "tr" && first.get(node) === "removed" && node.isConnected;
+    const looked = new Set();   // what depends on where a change is, once per element (a sort's rows share one tbody)
     for (const record of records) {
       const target = record.target.nodeType === Node.ELEMENT_NODE
         ? record.target : record.target.parentElement;
       if (!target || target.closest(".bw-search-popover")) continue;
-      const menu = target.closest(MENU_SELECTOR);
-      if (menu) {
-        if (menuInfo.has(menu)) pendingMenus.add(menu);
-        else if (record.type === "childList") pendingRoots.add(menu);
+      if (record.type !== "childList" || !looked.has(target)) {
+        if (record.type === "childList") looked.add(target);
+        const menu = target.closest(MENU_SELECTOR);
+        if (menu) {
+          if (menuInfo.has(menu)) pendingMenus.add(menu);
+          else if (record.type === "childList") pendingRoots.add(menu);
+        }
+        const select = target.closest("select");
+        if (select && select === openSelect) pendingOptionRefresh = true;
+        const anchor = target.closest("a.navMenuitem, a.navMenuItem");
+        if (anchor) pendingRoots.add(anchor);
+        const header = target.closest("td.headerBar");
+        if (header && !target.closest(".bw-copy-controls, .cp-copy-id, .cp-ext-chip")) pendingRoots.add(header);
       }
-      const select = target.closest("select");
-      if (select && select === openSelect) pendingOptionRefresh = true;
-      const anchor = target.closest("a.navMenuitem, a.navMenuItem");
-      if (anchor) pendingRoots.add(anchor);
-      const header = target.closest("td.headerBar");
-      if (header && !target.closest(".bw-copy-controls, .cp-copy-id, .cp-ext-chip")) pendingRoots.add(header);
       if (record.type === "childList") {
         for (const removed of record.removedNodes) {
-          if (removed.nodeType === Node.ELEMENT_NODE &&
+          if (removed.nodeType === Node.ELEMENT_NODE && !moved(removed) &&
               (removed.matches("select, .bw-select-shell, " + MENU_SELECTOR) ||
                removed.querySelector("select, .bw-select-shell, " + MENU_SELECTOR))) {
             pendingCleanup = true;
           }
         }
         for (const added of record.addedNodes) {
-          if (added.nodeType === Node.ELEMENT_NODE &&
+          if (added.nodeType === Node.ELEMENT_NODE && !moved(added) &&
               !added.closest(".bw-search-popover, .bw-menu-search")) {
             pendingRoots.add(added);
           }

@@ -19,7 +19,30 @@
     return clean(text);
   };
   const ROWS = ':scope > tbody > tr[id^="Row"]';
+  const num = n => n.toLocaleString();   // 2,600 (a swept list runs to thousands)
   const pagers = new WeakMap();   // results table -> { el, start }
+  // A list of thousands (pjax.js's Load all) comes with only its first page in the page; the other rows wait
+  // outside it, in a <template class="cp-rows-held"> inside the table, as the alpha's grid kept its rows as data.
+  // They are taken from there once, and from then on the page holds only the rows on screen: a page turn swaps
+  // them, a sort reorders the list here. Thousands of rows in the page, even hidden, slow everything on it.
+  const held = new WeakMap();     // results table -> all its rows, in the order shown
+  const rowsOf = table => held.get(table) || [...table.querySelectorAll(ROWS)];
+  const rowBody = table => table.querySelector(':scope > tbody > tr:has(> td.listHeader)')?.parentNode || table.tBodies[0];
+  function takeHeld(table) {
+    const box = table.querySelector(':scope > template.cp-rows-held');
+    if (!box) return;
+    held.set(table, [...table.querySelectorAll(ROWS), ...[...box.content.children].filter(tr => tr.localName === 'tr')]);
+    box.remove();
+  }
+  // A held list this page does not page (not its only list) shows every row after all, in order.
+  function releaseHeld(table) {
+    const rows = held.get(table);
+    if (!rows) return;
+    held.delete(table);
+    const every = document.createDocumentFragment();
+    for (const tr of rows) every.appendChild(tr);
+    rowBody(table).appendChild(every);
+  }
   const DEFAULT_PAGE = 20;        // CommPilot's own page size, for lists that are not the page's main content
 
   function resultTables(cell) {
@@ -39,7 +62,7 @@
   const rowLink = tr => tr.querySelector('a.tableLink') || tr.querySelector('a.headerLink');
 
   function wireRows(table) {
-    for (const tr of table.querySelectorAll(ROWS)) {
+    for (const tr of rowsOf(table)) {
       if (tr.dataset.cpRowWired) continue;
       tr.dataset.cpRowWired = '1';
       if (rowLink(tr) && targets(tr) === 1) { tr.classList.add('cp-row-link'); tr.tabIndex = 0; }
@@ -68,7 +91,7 @@
     const cells = [...head.children];
     const index = cells.findIndex(td => textOf(td) === 'Edit');
     if (index < 0) return;
-    const rows = [...table.querySelectorAll(ROWS)];
+    const rows = rowsOf(table);
     const ok = rows.every(tr => {
       if (tr.children.length !== cells.length) return false;
       const cell = tr.children[index];
@@ -121,17 +144,37 @@
     if (!cell) return null;
     return { index: [...cell.parentElement.children].indexOf(cell), dir: /uparrow/.test(arrow.getAttribute('src')) ? 1 : -1 };
   }
+  const sortKeys = new WeakMap();   // held list -> column -> row -> its text (a held list's rows do not change)
   function sortRows(table, sort) {
-    const rows = [...table.querySelectorAll(ROWS)];
+    const all = held.get(table);
+    const rows = all || [...table.querySelectorAll(ROWS)];
     if (!rows.length) return;
-    const after = rows[rows.length - 1].nextSibling;
+    let known = null;
+    if (all) {
+      const columns = sortKeys.get(table) || new Map();
+      sortKeys.set(table, columns);
+      known = columns.get(sort.index) || new Map();
+      columns.set(sort.index, known);
+    }
     const key = tr => {
+      if (known?.has(tr)) return known.get(tr);
       const td = tr.children[sort.index];
-      return td ? textOf(td) || (td.querySelector('img') ? '✓' : '') : '';
+      const k = td ? textOf(td) || (td.querySelector('img') ? '✓' : '') : '';
+      known?.set(tr, k);
+      return k;
     };
-    rows.map((tr, i) => ({ tr, i, k: key(tr) }))
-      .sort((a, b) => (a.k === '') - (b.k === '') || sort.dir * collator.compare(a.k, b.k) || a.i - b.i)
-      .forEach(({ tr }) => tr.parentNode.insertBefore(tr, after));
+    const sorted = rows.map((tr, i) => ({ tr, i, k: key(tr) }))
+      .sort((a, b) => (a.k === '') - (b.k === '') || sort.dir * collator.compare(a.k, b.k) || a.i - b.i);
+    if (all) { sorted.forEach(({ tr }, i) => { all[i] = tr; }); return; }   // render() puts the page's rows in
+    const body = rows[rows.length - 1].parentNode, after = rows[rows.length - 1].nextSibling;
+    // Rows already in place stay; the rest go back in one move (a swept list runs to thousands). They come out
+    // from the end first: Firefox takes a row from the middle of thousands slowly, the last one at once.
+    const from = sorted.findIndex(({ tr }, i) => tr !== rows[i]);
+    if (from < 0) return;
+    for (let i = rows.length - 1; i >= from; i--) rows[i].remove();
+    const moving = document.createDocumentFragment();
+    for (const { tr } of sorted.slice(from)) moving.appendChild(tr);
+    body.insertBefore(moving, after);
   }
   function showSort(table, sort) {
     const head = table.querySelector(':scope > tbody > tr:has(> td.listHeader)');
@@ -189,8 +232,7 @@
   // Rows that fit between the first row's top and the window's bottom, leaving room for everything that follows
   // the list (pager, card edge, a Find line, the page's bottom gutter), so the page does not scroll. A list
   // further down a long form keeps CommPilot's 20.
-  function fit(cell, table) {
-    const shown = [...table.querySelectorAll(ROWS)].filter(tr => !tr.classList.contains('cp-row-off'));
+  function fit(cell, shown) {
     if (!shown.length) return DEFAULT_PAGE;
     const box = cell.getBoundingClientRect();
     const at = y => y - box.top + cell.scrollTop;
@@ -205,8 +247,15 @@
   }
 
   // A full page of rows leaves less than a row of space under the list. Spread it over the rows (under a pixel
-  // or two each) so the card reaches the bottom of the window with the pager right under the last row.
-  function fillRows(cell, table, count) {
+  // or two each) so the card reaches the bottom of the window with the pager right under the last row. It goes on
+  // the rows on screen (their cells inherit it), not on the table: there it would restyle every row of the list,
+  // thousands for a swept one, on each page turn.
+  function clearFill(state) {
+    for (const tr of state.filled || []) tr.style.removeProperty('--cp-row-fill');
+    state.filled = [];
+  }
+  function fillRows(cell, state, shown) {
+    const count = shown.length;
     const box = cell.getBoundingClientRect();
     const end = Math.max(...[...cell.children].map(el => {
       const r = el.getBoundingClientRect();
@@ -214,8 +263,10 @@
     }));
     const spare = box.bottom - (parseFloat(getComputedStyle(cell).paddingBottom) || 0) - end;
     if (spare <= 0 || count < 8) return;
-    table.style.setProperty('--cp-row-fill', `${Math.min(4, spare / count / 2).toFixed(2)}px`);
-    if (cell.scrollHeight > cell.clientHeight) table.style.removeProperty('--cp-row-fill');   // never into a scroll
+    const fill = `${Math.min(4, spare / count / 2).toFixed(2)}px`;
+    for (const tr of shown) tr.style.setProperty('--cp-row-fill', fill);
+    state.filled = shown;
+    if (cell.scrollHeight > cell.clientHeight) clearFill(state);   // never into a scroll
   }
 
   function page(cell, table) {
@@ -238,7 +289,7 @@
       state.el.addEventListener('click', event => {
         const go = event.target.closest('[data-go]')?.dataset.go;
         if (!go || !state.perPage) return;
-        const total = table.querySelectorAll(ROWS).length;
+        const total = rowsOf(table).length;
         const lastStart = Math.max(0, Math.floor((total - 1) / state.perPage) * state.perPage);
         state.start = go === 'first' ? 0 : go === 'last' ? lastStart :
           Math.min(lastStart, Math.max(0, state.start + (go === 'next' ? 1 : -1) * state.perPage));
@@ -258,15 +309,32 @@
   function render(cell, table) {
     const state = pagers.get(table);
     if (!state) return;
-    const rows = [...table.querySelectorAll(ROWS)];
-    const show = (from, count) => rows.forEach((tr, i) => {
-      tr.classList.toggle('cp-row-off', i < from || i >= from + count);
-      tr.classList.toggle('cp-row-end', i === Math.min(rows.length, from + count) - 1);
-    });
+    const all = held.get(table);
+    const rows = all || [...table.querySelectorAll(ROWS)];
+    // Only the rows that change place are touched: the page's rows and the ones it replaces. The first time, and
+    // when rows came or went, every row is set. A held list swaps the page's rows in and the others out.
+    const show = (from, count) => {
+      const next = rows.slice(from, from + count);
+      if (all) {
+        const keep = new Set(next);
+        for (const tr of state.shown || table.querySelectorAll(ROWS)) if (!keep.has(tr)) tr.remove();
+        const page = document.createDocumentFragment();
+        for (const tr of next) { tr.style.removeProperty('--cp-row-fill'); page.appendChild(tr); }
+        rowBody(table).appendChild(page);
+      } else if (state.shown && state.rowCount === rows.length) {
+        for (const tr of state.shown) if (!next.includes(tr)) tr.classList.add('cp-row-off');
+      } else {
+        rows.forEach((tr, i) => tr.classList.toggle('cp-row-off', i < from || i >= from + count));
+      }
+      table.querySelectorAll(':scope > tbody > tr.cp-row-end').forEach(tr => tr.classList.remove('cp-row-end'));
+      next.forEach((tr, i) => { tr.classList.remove('cp-row-off'); tr.classList.toggle('cp-row-end', i === next.length - 1); });
+      state.shown = next;
+      state.rowCount = rows.length;
+    };
     // Measure with a full page of CommPilot's size showing, then show what fits.
-    table.style.removeProperty('--cp-row-fill');
+    clearFill(state);
     if (!state.perPage) show(0, DEFAULT_PAGE);
-    let perPage = fit(cell, table);
+    let perPage = fit(cell, state.shown);
     let pages = Math.max(1, Math.ceil(rows.length / perPage));
     let current = Math.min(pages - 1, Math.floor(state.start / perPage));
     show(current * perPage, perPage);
@@ -284,16 +352,16 @@
     state.start = current * perPage;
     freezeColumns(table, state);
     // Only a page that is full: the last, shorter page keeps its natural rows.
-    if (pages > 1 && current < pages - 1 && perPage !== DEFAULT_PAGE) fillRows(cell, table, perPage);
+    if (pages > 1 && current < pages - 1 && perPage !== DEFAULT_PAGE) fillRows(cell, state, rows.slice(state.start, state.start + perPage));
     // While pjax.js fetches the rest, the pager says so and nothing else changes; the totals appear once.
     const loading = table.dataset.cpFill === 'loading';
     state.el.classList.toggle('cp-pager-loading', loading);
     const last = Math.min(rows.length, state.start + perPage);
     state.el.querySelector('.cp-pager-text').textContent = loading ? 'Loading more results' :
-      rows.length === 1 ? '1 result' : pages === 1 ? `${rows.length} results` : `${state.start + 1}–${last} of ${rows.length}`;
+      rows.length === 1 ? '1 result' : pages === 1 ? `${num(rows.length)} results` : `${num(state.start + 1)}–${num(last)} of ${num(rows.length)}`;
     const nav = state.el.querySelector('.cp-pager-nav');
     nav.hidden = pages === 1 && !loading;
-    nav.querySelector('.cp-pager-page').textContent = loading ? `Page ${current + 1}` : `Page ${current + 1} of ${pages}`;
+    nav.querySelector('.cp-pager-page').textContent = loading ? `Page ${num(current + 1)}` : `Page ${num(current + 1)} of ${num(pages)}`;
     for (const go of ['first', 'prev']) nav.querySelector(`[data-go="${go}"]`).disabled = current === 0;
     nav.querySelector('[data-go="next"]').disabled = current >= pages - 1;
     nav.querySelector('[data-go="last"]').disabled = current >= pages - 1 || loading;   // the end is not known yet
@@ -327,7 +395,11 @@
     if (!cell || cell.querySelector(':scope > .cp-console')) return;
     const tables = resultTables(cell);
     for (const table of tables) {
-      try { wireRows(table); editColumn(table); } catch (error) { console.warn('[CommPilot lists] rows', error); }
+      try {
+        takeHeld(table);
+        if (tables.length !== 1) releaseHeld(table);
+        wireRows(table); editColumn(table);
+      } catch (error) { console.warn('[CommPilot lists] rows', error); }
     }
     // Only a page's one list is paged to the window; pages with several lists keep CommPilot's paging.
     if (tables.length === 1) {
