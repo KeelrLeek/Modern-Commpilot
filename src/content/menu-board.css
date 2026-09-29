@@ -15,7 +15,7 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console {
   width:100%;
   overflow-y:auto;
   overscroll-behavior:contain;
-  padding:20px 24px 36px;
+  padding:20px var(--pb-gutter, 24px) 36px;   /* the pages' gutter (page-baseline.css), so both line up at every width */
   scrollbar-gutter:stable;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-section {
@@ -63,13 +63,15 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head-inner 
   gap:11px;
   width:100%;
 }
+/* The folder's sidebar icon (native-theme.js sets --cp-head-icon from the name), in the palette's accent. */
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head-ico {
   display:inline-block;
-  width:9px;
-  height:9px;
-  flex:0 0 9px;
-  border-radius:50%;
+  width:21px;
+  height:21px;
+  flex:0 0 21px;
   background:var(--d-accent);
+  -webkit-mask:var(--cp-head-icon) center/contain no-repeat;
+  mask:var(--cp-head-icon) center/contain no-repeat;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-head-name {
   color:var(--d-text);
@@ -283,12 +285,13 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-leaf-failflash { co
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body .screenName,
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body > script { display:none !important; }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body > table { width:100%; }
-html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body tr:has(a.navMenuItem) > td,
-html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body tr:has(a.navMenuItem) + tr > td {
+/* An option's title and description rows (the rows that hold its link, not the layout row around both columns). */
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body tr:has(> td > a.navMenuItem) > td,
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body tr:has(> td > a.navMenuItem) + tr > td {
   cursor:pointer;
 }
-html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body tr:has(a.navMenuItem):has(+ tr:hover) > td,
-html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body tr:has(a.navMenuItem) + tr:hover > td {
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body tr:has(> td > a.navMenuItem):has(+ tr:hover) > td,
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body tr:has(> td > a.navMenuItem) + tr:hover > td {
   background:var(--d-raised);
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-console-body td:is([width="50%"],[width="100%"])[valign="TOP"] > table:has(> tbody > tr > td.menuCategory) {

@@ -8,6 +8,7 @@ trisign-local-tauri-migration/
 Thumbs.db
 .DS_Store
 node_modules/
+__pycache__/
 tests/*.png
 dev-preview/*.log
 native/*.exe

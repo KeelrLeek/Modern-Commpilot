@@ -160,7 +160,7 @@ body[id="initBody.menuTemplate"] a.leftnavfolder:hover {
 body[id="initBody.menuTemplate"] a.leftnavfolderopen {
   background: linear-gradient(95deg, #1b435a, #203b59);
   border-color: #377380;
-  box-shadow: inset 3px 0 var(--cp-accent), 0 6px 16px #06111f40;
+  box-shadow: 0 6px 16px #06111f40;
   color: #fff;
   font-weight: 650;
 }

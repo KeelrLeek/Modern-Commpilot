@@ -4251,41 +4251,59 @@
       } catch (e) { fallback(); }
     }
 
-    // The loading bar. pjax.js swaps pages in place, so the browser shows no progress of its own: a thin accent
-    // bar along the top of the window does, from the click until the page is on screen. It jumps a little at
-    // once, creeps toward the end while CommPilot works (a slow page keeps visibly moving), then fills and
-    // fades. <html data-cp-nav="busy"> is set for the same span (page-baseline.css eases the page back).
+    // The loading bar. pjax.js swaps pages in place, so the browser shows no progress of its own; this does, from
+    // the click until the page is on screen. It jumps a little at once, creeps toward the end while CommPilot
+    // works (a slow page keeps visibly moving), then fills. The progress is published on <html>: --cp-progress
+    // (0 to 1) and data-cp-progress ("on", then "done" for a moment as the page lands). The CommPilot logo's
+    // heartbeat trace draws it (brand.js, theme-palettes.css): the line runs along the trace and the end dot
+    // pings when the page lands. Only where the top bar has no logo does a thin accent bar run along the top of
+    // the window instead. <html data-cp-nav="busy"> marks a navigation (page-baseline.css eases the page back).
     var cpProgress = { el: null, value: 0, timer: 0, fade: 0 };
+    function cpProgressShow(value) {
+      var p = cpProgress;
+      p.value = value;
+      try { document.documentElement.style.setProperty("--cp-progress", value.toFixed(3)); } catch (e) {}
+      if (p.el) p.el.style.transform = "scaleX(" + value.toFixed(3) + ")";
+    }
     function cpProgressStart() {
       var p = cpProgress;
       if (!document.body) return;
-      if (!p.el || !p.el.isConnected) {
+      clearTimeout(p.fade);
+      if (p.timer) return;   // this navigation (queued, drained or retried) is already showing
+      if (document.querySelector(".cp-brand")) {
+        if (p.el) { try { p.el.remove(); } catch (e) {} p.el = null; }
+      } else if (!p.el || !p.el.isConnected) {
         p.el = document.createElement("div");
         p.el.id = "cp-progress";
         p.el.setAttribute("aria-hidden", "true");
         document.body.appendChild(p.el);
       }
-      clearTimeout(p.fade);
-      if (p.timer) return;   // this navigation (queued, drained or retried) is already showing
-      p.el.classList.remove("cp-progress-done");
-      p.el.classList.add("cp-progress-on");
-      p.value = 0.12;
-      p.el.style.transform = "scaleX(" + p.value + ")";
+      if (p.el) {
+        p.el.classList.remove("cp-progress-done");
+        p.el.classList.add("cp-progress-on");
+      }
+      document.documentElement.setAttribute("data-cp-progress", "on");
+      cpProgressShow(0.12);
       p.timer = setInterval(function () {
-        p.value += (0.92 - p.value) * 0.06;   // approaches 92% and waits there for the page
-        p.el.style.transform = "scaleX(" + p.value.toFixed(3) + ")";
+        cpProgressShow(p.value + (0.92 - p.value) * 0.06);   // approaches 92% and waits there for the page
       }, 200);
     }
     function cpProgressDone() {
       var p = cpProgress;
-      if (!p.timer || !p.el) return;
+      if (!p.timer) return;
       clearInterval(p.timer);
       p.timer = 0;
-      p.el.style.transform = "scaleX(1)";
-      p.el.classList.add("cp-progress-done");
-      p.fade = setTimeout(function () {
-        p.el.classList.remove("cp-progress-on", "cp-progress-done");
-        p.el.style.transform = "scaleX(0)";
+      cpProgressShow(1);
+      document.documentElement.setAttribute("data-cp-progress", "done");
+      if (p.el) p.el.classList.add("cp-progress-done");
+      p.fade = setTimeout(function () {   // the bar has filled and faded
+        if (p.el) {
+          p.el.classList.remove("cp-progress-on", "cp-progress-done");
+          p.el.style.transform = "scaleX(0)";
+        }
+        p.fade = setTimeout(function () {   // the logo's line has reached its dot and the dot has pinged
+          document.documentElement.removeAttribute("data-cp-progress");
+        }, 600);
       }, 600);
     }
     function cpNavBusy() {
@@ -4504,7 +4522,9 @@
                     _sb.innerHTML =
                       '<div class="cp-alert-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>' +
                       '<div class="cp-alert-content"><div class="cp-alert-title">Session expired</div>' +
-                      '<div class="cp-alert-body">The server is rejecting requests — the sandbox has most likely timed out your session. Sign in again to continue where you left off.</div></div>' +
+                      '<div class="cp-alert-body">The server is rejecting requests — ' +
+                      (/^apps-sbx\./i.test(location.hostname) ? "the sandbox" : "CommPilot") +
+                      ' has most likely timed out your session. Sign in again to continue where you left off.</div></div>' +
                       '<button type="button" class="cp-alert-act">Sign in</button>';
                     _sb.querySelector(".cp-alert-act").addEventListener("click", function () { location.assign("/commpilot/Login/"); });
                     _bc.insertBefore(_sb, _bc.firstChild);
@@ -6845,9 +6865,15 @@
         if (event.target.closest("a, button, input, select, textarea, label, [role='button']")) return;
         var row = event.target.closest("tr");
         if (!row || !row.closest(".cp-console-body")) return;
-        var titleRow = row.querySelector("a.navMenuItem") ? row : row.previousElementSibling;
+        // An option's own link: in this row, not in a table nested in it. CommPilot's Basic and Advanced columns sit
+        // side by side in one layout row; the empty space under the shorter one is in that row and must open nothing.
+        var ownLink = function (tr) {
+          var a = tr && tr.querySelector("a.navMenuItem");
+          return a && a.closest("tr") === tr ? a : null;
+        };
+        var titleRow = ownLink(row) ? row : row.previousElementSibling;
         if (!titleRow || (titleRow !== row && titleRow.nextElementSibling !== row)) return;
-        var link = titleRow.querySelector("a.navMenuItem");
+        var link = ownLink(titleRow);
         if (!link || !link.closest(".cp-console-body")) return;
         event.preventDefault();
         link.click();
@@ -6866,7 +6892,8 @@
         var headInner = document.createElement("div");
         headInner.className = "cp-console-head-inner";
         var headIco = document.createElement("span");
-        headIco.className = "cp-console-head-ico";   // per-folder glyph; mask set by skin.js
+        headIco.className = "cp-console-head-ico";   // the folder's sidebar icon; native-theme.js maps the name
+        headIco.setAttribute("data-cp-name", f.name.replace(/\s+/g, " ").toLowerCase());
         var headName = document.createElement("span");
         headName.className = "cp-console-head-name";
         headName.textContent = f.name;

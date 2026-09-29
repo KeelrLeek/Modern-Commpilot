@@ -112,60 +112,120 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar:has(.heade
   color:var(--d-text); font-weight:650; vertical-align:middle;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar:has(.headerBarWelcome) a.headerLink::before { width:13px; height:13px; flex-basis:13px; }
+/* The sidebar (mockup picks: A · Quiet list, a Menu header with a fold button, the icon rail on small windows).
+   Slim rows with bare icons; the open folder is a soft highlight with its icon in the palette's accent. No borders,
+   shadows, side bars or nudges. theme-settings.js builds the Menu header (in CommPilot's "Options:" cell) and
+   marks <html data-cp-rail> when the menu is folded to its icons, by the fold button or on a window under 1100px. */
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headandfoot[width="18%"] {
-  width:224px; min-width:224px; padding:23px 12px 28px; border-right:1px solid var(--d-line);
-  background:var(--d-side); box-shadow:2px 0 16px #0000000d;
+  width:224px; min-width:224px; padding:18px 12px 24px; border-right:1px solid var(--d-line);
+  background:var(--d-side); box-shadow:none;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .navOptions {
-  padding:4px 12px 16px; color:var(--d-side-text); opacity:.72; letter-spacing:.09em;
+  padding:0 0 10px; color:var(--d-side-text); font-size:0; letter-spacing:0;   /* "Options:" gives way to the Menu header */
 }
-html[data-cp-direction] body[id="initBody.menuTemplate"] form[name="leftNavForm"] table { border-spacing:0; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-side-menu {
+  display:flex; align-items:center; justify-content:flex-start; gap:0; min-height:28px; padding:0 2px 0 10px;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-side-menu-label {
+  flex:1 1 auto; min-width:0; max-width:200px; overflow:hidden; white-space:nowrap;
+  color:var(--d-side-text); font:600 12px/1.2 "Inter", sans-serif; letter-spacing:0; text-transform:none; opacity:.75;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] form[name="leftNavForm"] button.cp-side-toggle {
+  display:grid; place-items:center; flex:none; box-sizing:border-box; width:28px; height:28px; min-width:0; min-height:0; margin:0; padding:0;
+  border:1px solid #ffffff24 !important; border-radius:8px; background:transparent !important; color:var(--d-side-text) !important;
+  box-shadow:none; transform:none; cursor:pointer;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] form[name="leftNavForm"] button.cp-side-toggle:hover:not(:disabled) {
+  border-color:#ffffff3d !important; background:#ffffff0d !important; color:#fff !important; box-shadow:none; transform:none;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] form[name="leftNavForm"] button.cp-side-toggle:focus-visible {
+  outline:2px solid var(--d-ring); outline-offset:2px;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-side-toggle svg { width:15px; height:15px; transition:transform .16s ease; }
+/* The menu is exactly the sidebar's width: a long name wraps (or, folded, is clipped in its row) and never widens it. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] form[name="leftNavForm"] table { width:100%; table-layout:fixed; border-spacing:0; }
 /* Native CommPilot sometimes wraps this table in <b>, so space its cells rather than relying on a direct-child table selector. */
 html[data-cp-direction] body[id="initBody.menuTemplate"] form[name="leftNavForm"] td.leftnavfolder,
 html[data-cp-direction] body[id="initBody.menuTemplate"] form[name="leftNavForm"] td.leftnavfolderopen {
-  padding:4px 0; font-size:0; line-height:0;
+  padding:1px 0; font-size:0; line-height:0;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] a.leftnavfolder,
 html[data-cp-direction] body[id="initBody.menuTemplate"] a.leftnavfolderopen {
-  position:relative; min-height:44px; padding:8px 12px; border-radius:13px; color:var(--d-side-text);
-  font-size:13px; font-weight:550; gap:11px;
-  transition:background-color .16s ease,border-color .16s ease,box-shadow .16s ease,transform .16s ease;
+  position:relative; min-height:36px; padding:6px 10px 6px 12px; border:1px solid transparent; border-radius:8px; background:transparent;
+  box-shadow:none; color:var(--d-side-text); font-size:13.5px; font-weight:520; gap:11px; overflow:hidden;
+  transition:background-color .14s ease,color .14s ease;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] a.leftnavfolder:hover {
-  background:color-mix(in srgb,var(--d-side-hover) 40%,var(--d-side));
-  border-color:color-mix(in srgb,var(--d-line) 55%,transparent); color:#fff;
-  transform:translateX(2px);
+  background:#ffffff0d; border-color:transparent; color:#fff; transform:none;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] a.leftnavfolderopen {
-  background:var(--d-side-active); color:var(--d-side-active-text);
-  border-color:color-mix(in srgb,var(--d-accent) 28%,var(--d-side-active));
-  box-shadow:0 7px 18px #0000001c,inset 0 1px #ffffff12; font-weight:680;
-}
-html[data-cp-direction] body[id="initBody.menuTemplate"] a.leftnavfolderopen::after {
-  content:""; position:absolute; left:4px; top:11px; bottom:11px; width:3px;
-  border-radius:99px; background:var(--d-accent);
+  background:#ffffff17; border-color:transparent; box-shadow:none; color:#fff; font-weight:650;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] a[data-cp-nav-icon]::before {
-  box-sizing:border-box; display:block; flex:0 0 28px; width:28px; height:28px;
-  border:1px solid transparent; border-radius:9px;
-  background:var(--cp-palette-icon) center/17px no-repeat;
-  opacity:1;
-}
-html[data-cp-direction] body[id="initBody.menuTemplate"] a.leftnavfolder:hover[data-cp-nav-icon]::before {
-  border-color:#ffffff1c; background:var(--cp-palette-icon) center/17px no-repeat,#ffffff0c;
+  box-sizing:border-box; display:block; flex:0 0 18px; width:18px; height:18px; border:0; border-radius:0;
+  background:var(--d-side-text); opacity:.72;
+  -webkit-mask:var(--cp-palette-icon) center/18px no-repeat; mask:var(--cp-palette-icon) center/18px no-repeat;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] a.leftnavfolderopen[data-cp-nav-icon]::before {
-  background:var(--cp-palette-icon) center/17px no-repeat,var(--d-active-icon);
-  border-color:color-mix(in srgb,var(--d-accent) 32%,transparent); filter:none; opacity:1;
+  background:var(--d-ring); filter:none; opacity:1;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] a.leftnavfolder:focus-visible,
 html[data-cp-direction] body[id="initBody.menuTemplate"] a.leftnavfolderopen:focus-visible {
-  outline:2px solid var(--d-accent); outline-offset:2px;
+  outline:2px solid var(--d-ring); outline-offset:2px;
 }
 @media(prefers-reduced-motion:reduce){
   html[data-cp-direction] body[id="initBody.menuTemplate"] a.leftnavfolder,
   html[data-cp-direction] body[id="initBody.menuTemplate"] a.leftnavfolderopen { transition:none; }
 }
+/* Folded to icons: names show beside them on hover or focus (#cp-side-tip); the fold button turns to expand. On a
+   window under 1100px the rail is always on (data-cp-rail-forced) and the button goes. Each fold is animated
+   (theme-settings.js marks <html data-cp-rail-anim> for its span, so a page never opens with one): the column
+   narrows or widens, the names fade and are clipped as it goes, the icons keep their place, and the Menu label
+   gives way to the fold button in the middle. One column runs down the left edge: the icons, the rail's fold
+   button and the breadcrumb's leading icon are all centred 34px in, open or folded. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] > table[height="100%"] > tbody > tr > td.headandfoot[width="18%"] { overflow-x:hidden !important; }
+html[data-cp-direction][data-cp-rail] body[id="initBody.menuTemplate"] > table[height="100%"] > tbody > tr > td.headandfoot[width="18%"] {
+  flex-basis:68px !important; width:68px !important; min-width:0 !important; padding:14px 10px 20px !important;
+}
+html[data-cp-direction][data-cp-rail] body[id="initBody.menuTemplate"] a.leftnavfolder,
+html[data-cp-direction][data-cp-rail] body[id="initBody.menuTemplate"] a.leftnavfolderopen {
+  min-height:44px; padding:9px 0 9px 14px; color:transparent; white-space:nowrap;
+}
+html[data-cp-direction][data-cp-rail] body[id="initBody.menuTemplate"] .cp-side-menu { padding:0 0 0 10px; }
+html[data-cp-direction][data-cp-rail] body[id="initBody.menuTemplate"] .cp-side-menu-label { flex-grow:0; max-width:0; opacity:0; }
+html[data-cp-direction][data-cp-rail-anim] body[id="initBody.menuTemplate"] > table[height="100%"] > tbody > tr > td.headandfoot[width="18%"] {
+  transition:flex-basis .24s cubic-bezier(.2, .7, .3, 1), width .24s cubic-bezier(.2, .7, .3, 1), padding .24s cubic-bezier(.2, .7, .3, 1) !important;
+}
+html[data-cp-direction][data-cp-rail-anim] body[id="initBody.menuTemplate"] :is(a.leftnavfolder, a.leftnavfolderopen) {
+  white-space:nowrap;   /* the names are clipped as the column moves, not re-wrapped */
+  transition:background-color .14s ease, color .16s ease .1s, padding .24s cubic-bezier(.2, .7, .3, 1), min-height .24s cubic-bezier(.2, .7, .3, 1);
+}
+html[data-cp-direction][data-cp-rail-anim][data-cp-rail] body[id="initBody.menuTemplate"] :is(a.leftnavfolder, a.leftnavfolderopen) {
+  transition-delay:0s, 0s, 0s, 0s; transition-duration:.14s, .1s, .24s, .24s;   /* folding: the names go first */
+}
+html[data-cp-direction][data-cp-rail-anim] body[id="initBody.menuTemplate"] .cp-side-menu { transition:padding .24s cubic-bezier(.2, .7, .3, 1); }
+html[data-cp-direction][data-cp-rail-anim] body[id="initBody.menuTemplate"] .cp-side-menu-label {
+  transition:flex-grow .24s cubic-bezier(.2, .7, .3, 1), max-width .24s cubic-bezier(.2, .7, .3, 1), opacity .16s ease;
+}
+@media(prefers-reduced-motion:reduce){
+  html[data-cp-direction][data-cp-rail-anim] body[id="initBody.menuTemplate"] :is(td.headandfoot[width="18%"], a.leftnavfolder, a.leftnavfolderopen, .cp-side-menu, .cp-side-menu-label) {
+    transition:none !important;
+  }
+}
+html[data-cp-direction][data-cp-rail] body[id="initBody.menuTemplate"] .cp-side-toggle svg { transform:rotate(180deg); }
+html[data-cp-direction][data-cp-rail-forced] body[id="initBody.menuTemplate"] .cp-side-menu { display:none; }
+html[data-cp-direction][data-cp-rail] body[id="initBody.menuTemplate"] #cp-native-help-toggle {
+  display:grid; place-items:center; width:44px; height:36px; min-height:0; margin:18px auto 0; padding:0; font-size:0;
+}
+html[data-cp-direction][data-cp-rail] body[id="initBody.menuTemplate"] #cp-native-help-toggle::after {
+  content:"?"; font:700 14px/1 "Inter", sans-serif;
+}
+#cp-side-tip {
+  position:fixed; z-index:2147483300; transform:translateY(-50%); padding:6px 10px; border:1px solid var(--d-line);
+  border-radius:8px; background:var(--d-surface); color:var(--d-text); box-shadow:0 8px 22px #0000004d;
+  font:600 12.5px/1.2 "Inter", sans-serif; white-space:nowrap; pointer-events:none;
+}
+#cp-side-tip[hidden] { display:none; }
 html[data-cp-direction] body[id="initBody.menuTemplate"] #cp-native-help-toggle {
   margin:22px 6px; border:1px solid #ffffff42; border-radius:11px; background:transparent; color:var(--d-side-text); box-shadow:none;
 }
@@ -262,11 +322,6 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] .bw-search-result:hover
 html[data-cp-direction] body[id="initBody.menuTemplate"] .bw-search-input,
 html[data-cp-direction] body[id="initBody.menuTemplate"] .bw-menu-search-input { background:var(--d-input) !important; color:var(--d-text) !important; }
 html[data-cp-direction] body[id="initBody.menuTemplate"] .bw-search-summary { color:var(--d-muted) !important; }
-@media(max-width:1100px){
-  html[data-cp-direction] body[id="initBody.menuTemplate"] td.headandfoot[width="18%"] { width:105px; min-width:105px; padding:12px 4px; }
-  html[data-cp-direction] body[id="initBody.menuTemplate"] td[width="82%"][valign="top"] { padding:15px 8px 38px; }
-  html[data-cp-direction] body[id="initBody.menuTemplate"] a[data-cp-nav-icon]::before { display:block; width:25px; height:25px; flex-basis:25px; background-size:15px; }
-}
 @media(min-width:1500px){
   html[data-cp-direction] body[id="initBody.menuTemplate"] > table[height="100%"] { table-layout:fixed; }
   html[data-cp-direction] body[id="initBody.menuTemplate"] td.headandfoot[width="18%"] {
@@ -322,12 +377,6 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] > table[height="100%"] 
   overflow:auto !important;
   overscroll-behavior:contain;
   scrollbar-gutter:stable;
-}
-@media(max-width:1100px){
-  html[data-cp-direction] body[id="initBody.menuTemplate"] > table[height="100%"] > tbody > tr > td.headandfoot[width="18%"] {
-    flex-basis:105px !important;
-    width:105px !important;
-  }
 }
 
 /* On/Off service labels (enhancer.js). Each pair keeps at least 4.5:1 contrast on every surface of its palette;
@@ -448,3 +497,172 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] > .cp-tip::before {
 @media (prefers-reduced-motion: reduce) {
   html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc .cp-ext-spin { animation-duration: 2.4s; }
 }
+
+/* ---- The top bar (mockup pick B · Account menu) ---------------------------------------------------------------
+   CommPilot's header is one table whose two rows share columns, so on a smaller or 4:3 window the right-hand column
+   is squeezed and its buttons wrap. Here each row sizes itself: the logo, then Help / Home / Settings and the account
+   button (theme-settings.js; Sign out is in its menu) on the first row, the breadcrumb alone on the second. The
+   welcome cell stays in the page for CommPilot's scripts and logout-confirm.js, out of sight. Header buttons share one
+   shape: 34px tall, 10px corners, 8px apart. On a window under 1280px they show only their icons (names on hover). */
+html[data-cp-direction] body[id="initBody.menuTemplate"] table:has(> tbody > tr > td.headerBar) {
+  display: block; width: 100%; contain: inline-size;   /* the window's width, not its content's */
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] table:has(> tbody > tr > td.headerBar) > tbody { display: block; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] table:has(> tbody > tr > td.headerBar) > tbody > tr {
+  display: flex; align-items: stretch; background: var(--d-header);
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] table:has(> tbody > tr > td.headerBar) > tbody > tr:not(:has(> td.headerBar :is(a, span, button, img[src$="/conf/clientLogo.gif"]))),
+html[data-cp-direction] body[id="initBody.menuTemplate"] table:has(> tbody > tr > td.headerBar) > tbody > tr > td.headerBar:not(:has(a, span, button, img[src$="/conf/clientLogo.gif"])),
+html[data-cp-direction] body[id="initBody.menuTemplate"]:has(#cp-account) table:has(> tbody > tr > td.headerBar) > tbody > tr > td.headerBar:has(.headerBarWelcome) {
+  display: none;   /* the welcome cell only once the account button (with Sign out) is there */
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] table:has(> tbody > tr > td.headerBar) > tbody > tr > td.headerBar {
+  display: flex; align-items: center; box-sizing: border-box;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar:has(> img[src$="/conf/clientLogo.gif"]) { flex: 1 1 auto; min-width: 0; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar:has(a.headerLink):not(:has(.headerBarWelcome)) {
+  flex: none; justify-content: flex-end; gap: 0; white-space: nowrap;   /* buttons space themselves: CommPilot's &nbsp; between them is no gap */
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar:has(a.headerAuthLevelLink, span.headerAuthLevel) {
+  flex: 1 1 auto; min-width: 0; overflow: hidden;
+  padding-left: 19px;   /* the trail's leading icon (26px, 2px in) centred on the sidebar's icon column, 34px in */
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar:not(:has(.headerBarWelcome)) :is(a.headerLink, #cp-appearance-toggle, #cp-account) {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; box-sizing: border-box; height: 34px; min-height: 0;
+  margin: 0 0 0 8px; padding: 0 12px; border: 1px solid var(--d-line); border-radius: 10px; background: var(--d-raised); color: var(--d-text);
+  font: 600 12.5px/1 "Inter", sans-serif; letter-spacing: 0; box-shadow: none; transform: none; vertical-align: middle;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar:not(:has(.headerBarWelcome)) :is(a.headerLink, #cp-appearance-toggle, #cp-account):hover {
+  border-color: var(--d-accent); transform: none;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar:not(:has(.headerBarWelcome)) :is(a.headerLink, #cp-appearance-toggle)::before {
+  flex: 0 0 15px; width: 15px; height: 15px; margin: 0;
+}
+@media (max-width: 1280px) {
+  html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar:not(:has(.headerBarWelcome)) :is(a.headerLink, #cp-appearance-toggle) {
+    width: 34px; padding: 0; gap: 0; font-size: 0;   /* the icon alone; the name shows on hover (title) */
+  }
+}
+
+/* The breadcrumb keeps one line: when it does not fit, crumbs.js folds the levels after the first, earliest first,
+   into a "…" pill that lists them, and then lets the page pill shorten. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc { flex-wrap: nowrap; white-space: nowrap; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc > * { flex-shrink: 0; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(a.headerAuthLevelLink, span.headerAuthLevel.cp-bc-static) {
+  max-width: 260px; overflow: hidden; text-overflow: ellipsis;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc .cp-bc-folded { display: none !important; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc.cp-bc-squeeze > button.cp-page-pill { flex-shrink: 1; min-width: 90px; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-page-pill > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-bc-more {
+  display: inline-flex; align-items: center; box-sizing: border-box; min-height: 0 !important; margin: 0 !important; padding: 3px 10px !important;
+  border: 1px solid var(--d-line) !important; border-radius: 7px !important; background: var(--d-surface) !important;
+  color: var(--d-muted) !important; box-shadow: none !important; transform: none !important;
+  font: 700 11.5px/1.5 "Inter", sans-serif !important; letter-spacing: .07em; cursor: pointer;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-bc-more:is(:hover, [aria-expanded="true"]) {
+  border-color: var(--d-accent) !important; color: var(--d-text) !important;
+}
+
+/* The account menu and the breadcrumb's "…" list (both fixed under their buttons). */
+:is(#cp-account-menu, #cp-bc-more-menu) {
+  position: fixed; z-index: 2147483300; box-sizing: border-box; min-width: 220px; padding: 6px; border: 1px solid var(--d-line);
+  border-radius: 12px; background: var(--d-surface); color: var(--d-text); box-shadow: 0 16px 40px #0000004d;
+  font: 400 13px/1.4 "Inter", sans-serif;
+}
+:is(#cp-account-menu, #cp-bc-more-menu)[hidden] { display: none; }
+#cp-account-menu .cp-account-who { display: flex; align-items: center; gap: 10px; padding: 8px 10px 10px; border-bottom: 1px solid var(--d-line); margin-bottom: 6px; }
+#cp-account-menu .cp-account-who strong { display: block; font-weight: 650; }
+#cp-account-menu .cp-account-who span span { color: var(--d-muted); font-size: 12px; }
+#cp-account-menu .cp-account-who svg { width: 18px; height: 18px; flex: none; color: var(--d-muted); }
+:is(#cp-account-menu, #cp-bc-more-menu) button {
+  display: flex; align-items: center; gap: 9px; width: 100%; box-sizing: border-box; min-height: 34px; margin: 0; padding: 7px 10px;
+  border: 0 !important; border-radius: 8px; background: transparent !important; color: var(--d-text) !important; box-shadow: none;
+  font: 550 13px/1.2 "Inter", sans-serif; text-align: left; transform: none; cursor: pointer;
+}
+:is(#cp-account-menu, #cp-bc-more-menu) button:is(:hover, :focus-visible) { background: var(--d-raised) !important; outline: none; transform: none; }
+#cp-account-menu button svg { width: 15px; height: 15px; flex: none; color: var(--d-muted); }
+/* The account button is drawn like Help / Home / Settings: its icon (15px), its name, and a small chevron for the menu. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar:not(:has(.headerBarWelcome)) button#cp-account { padding: 0 10px 0 12px; cursor: pointer; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar #cp-account .cp-account-icon { width: 15px; height: 15px; flex: none; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar #cp-account .cp-account-more { width: 12px; height: 12px; flex: none; margin-left: -1px; color: var(--d-muted); }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar #cp-account[aria-expanded="true"] { border-color: var(--d-accent); }
+@media (max-width: 1280px) {
+  html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar:not(:has(.headerBarWelcome)) button#cp-account { width: 34px; padding: 0; }
+  html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar #cp-account :is(.cp-account-name, .cp-account-more) { display: none; }
+}
+
+/* ---- The logo (brand.js · Pulse, "Horizon tag") ----------------------------------------------------------------
+   The same on every CommPilot site: the site's own logo cell (Cisco's logo and "CommPilot", or nothing on the main
+   site; any cell of the row without a link or text) is hidden, the buttons' cell takes the row, and the logo sits at its left with the buttons on the right.
+   The trace hangs from the logo, which is centred in the row: its svgs reach the row's bottom edge through
+   --cp-top-row (the row's height, 70px; page-baseline.css sets 52px on short screens). Colours are palette tokens. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] table:has(> tbody > tr > td.headerBar) > tbody > tr:has(> td.headerBar > .cp-brand) > td:not(:has(a, span, button)) {
+  display: none;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar:has(a.headerLink):not(:has(.headerBarWelcome)):has(> .cp-brand) {
+  flex: 1 1 auto; min-width: 0;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar > a.cp-brand {
+  position: relative; display: inline-flex; align-items: baseline; flex: none; margin: 0 auto 0 0; padding: 0 8px 0 0;
+  color: var(--d-text); text-decoration: none; white-space: nowrap; cursor: pointer; outline: none;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-name {
+  font: 850 21px/22px "Inter", sans-serif; letter-spacing: -.045em; color: var(--d-text); transition: color .15s ease;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand:hover .cp-brand-name { color: color-mix(in srgb, var(--d-text) 78%, var(--d-accent)); }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand:focus-visible .cp-brand-name { outline: 2px solid var(--d-ring); outline-offset: 3px; border-radius: 4px; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-tag { display: inline-flex; align-items: baseline; gap: 8px; margin-left: 14px; line-height: 1; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-meta {
+  color: var(--d-muted); font: 600 11px/1 "Inter", sans-serif; letter-spacing: .01em; font-variant-numeric: tabular-nums;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand > svg { position: absolute; overflow: visible; color: var(--d-accent); pointer-events: none; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand > svg.cp-brand-edge {
+  left: -27px; bottom: calc(50% - var(--cp-top-row, 70px) / 2 - .5px); width: calc(100% + 27px); height: 24px; overflow: hidden;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand > svg.cp-brand-dot {
+  right: -10px; bottom: calc(50% - var(--cp-top-row, 70px) / 2 - 9.5px); width: 20px; height: 20px;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-s0 { stop-color: var(--d-accent); stop-opacity: .12; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-s1 { stop-color: var(--d-accent); stop-opacity: .6; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-s2 { stop-color: var(--d-accent); stop-opacity: 1; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-edge path { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* Motion. A dim copy of the trace always lies underneath. When the logo first appears the bright trace sweeps in
+   and the dot lights (.cp-brand-intro, once). The trace is also the loading bar (pjax.js): while CommPilot works
+   (<html data-cp-progress="on">, --cp-progress creeping from .12 toward .92) the bright trace gives way to a line
+   that runs along it from the left, and the dot dims; when the page lands ("done", 1) the line reaches the dot,
+   which lights and pings. Idle, nothing moves. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-base { opacity: .3; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-edge :is(.cp-brand-trace, .cp-brand-load) { stroke-dasharray: 1 2; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-trace { stroke-dashoffset: 0; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-load { visibility: hidden; stroke-dashoffset: 1; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-light { fill: currentColor; transform-box: fill-box; transform-origin: center; transition: opacity .3s ease; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-ping { fill: none; stroke: currentColor; stroke-width: 1.3; opacity: 0; transform-box: fill-box; transform-origin: center; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-intro .cp-brand-trace { animation: cp-brand-sweep 1s cubic-bezier(.45, 0, .25, 1) both; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-intro .cp-brand-light { animation: cp-brand-lamp .32s .9s both; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-intro .cp-brand-ping { animation: cp-brand-ping .9s .94s ease-out both; }
+html[data-cp-direction][data-cp-progress] body[id="initBody.menuTemplate"] .cp-brand-trace { visibility: hidden; }
+html[data-cp-direction][data-cp-progress] body[id="initBody.menuTemplate"] .cp-brand-load {
+  visibility: visible; stroke-dashoffset: calc((1 - var(--cp-progress, 0)) * 1px);   /* a length: Firefox refuses a unitless calc() here */
+  transition: stroke-dashoffset .2s ease-out;
+}
+html[data-cp-direction][data-cp-progress="on"] body[id="initBody.menuTemplate"] .cp-brand-light { opacity: .5; animation: none; }
+html[data-cp-direction][data-cp-progress="done"] body[id="initBody.menuTemplate"] .cp-brand-load { transition-duration: .25s; }
+html[data-cp-direction][data-cp-progress="done"] body[id="initBody.menuTemplate"] .cp-brand-light { animation: cp-brand-lamp .32s .15s both; }
+html[data-cp-direction][data-cp-progress="done"] body[id="initBody.menuTemplate"] .cp-brand-ping { animation: cp-brand-ping .9s .2s ease-out both; }
+/* After an update, a thin ring round the dot until Settings (About) is opened once. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-halo { fill: none; stroke: currentColor; stroke-width: 1.2; opacity: 0; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand.cp-brand-new .cp-brand-halo { opacity: .85; }
+@keyframes cp-brand-sweep { from { stroke-dashoffset: 1.001; } }
+@keyframes cp-brand-lamp { from { opacity: .3; transform: scale(.5); } 70% { transform: scale(1.2); } to { opacity: 1; transform: scale(1); } }
+@keyframes cp-brand-ping { 0% { opacity: 0; } 6% { opacity: .75; transform: scale(1.1); } 99% { opacity: 0; transform: scale(3); } 100% { opacity: 0; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand :is(.cp-brand-trace, .cp-brand-load, .cp-brand-light, .cp-brand-ping) { animation: none; transition: none; }
+}
+@media (max-width: 760px) {
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .cp-brand-meta { display: none; }   /* a phone-narrow window: the site's name stays */
+}
+
+/* The old "Copy User ID / Copy Extension" toolbar belongs to CommPilot without the theme; with it, the user-id pill
+   and the EXT chip do the job, so a stray copy of the toolbar (carried in by a page swap) never shows. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .bw-copy-controls[data-bw-owned="1"] { display: none !important; }

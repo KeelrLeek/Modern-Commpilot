@@ -1,16 +1,26 @@
 {
   "manifest_version": 3,
   "name": "BroadWorks Enhancer PJAX Preview",
-  "version": "0.3.73",
+  "version": "0.3.75",
   "description": "CommPilot 2.0 interface, PJAX navigation, admin helpers, and encrypted saved sign-ins.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7iMWxpf4bcL+C5nyMpg/k/tD5G2Dh79tRwrxwFYirETH1UWzw07JeNyB0XPwyExF/41G5abCSe7hpx7l6PP5uAZvyPfi1LdmMXJiJ8qI+13R0vb41i4ZFWtCEqkHH0Ki1Y+FXoI8EaDm5AgUJ8QTiQ1U7M07yFBnsyX/AdOXjqYjcF+TI4blBzM8J2BLnpvpyV+sMkIi6Q+jMVSsCFdxxzQkCYVGz3teS4dQpUnTfy5a+Hwy82wpGBg1MaFeFLI08nH887D1O0XBMkhfyo70QiGmi9re+IuIYSW9X9hOAzo9XZHZSr+1dIfV0mzS52aOyRnt8/0EytcE1K6JWNYJCQIDAQAB",
+  "icons": {
+    "16": "assets/icons/app/pulse-16.png",
+    "32": "assets/icons/app/pulse-32.png",
+    "48": "assets/icons/app/pulse-48.png",
+    "128": "assets/icons/app/pulse-128.png"
+  },
   "permissions": [
     "storage",
     "declarativeNetRequest"
   ],
   "action": {
     "default_title": "CommPilot settings",
-    "default_popup": "src/popup/popup.html"
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "assets/icons/app/pulse-16.png",
+      "32": "assets/icons/app/pulse-32.png"
+    }
   },
   "host_permissions": [
     "https://apps.avpaas.io/*",
@@ -33,7 +43,7 @@
   },
   "background": {
     "service_worker": "src/bg/credential-bridge.js",
-    "scripts": ["src/bg/credential-bridge.js"]
+    "scripts": ["src/bg/icon.js", "src/bg/credential-bridge.js"]
   },
   "content_scripts": [
     {
@@ -78,7 +88,7 @@
         "https://phone1.tripbx.com/commpilot/*",
         "https://phone2.tripbx.com/commpilot/*"
       ],
-      "js": ["src/content/fonts.js", "src/content/theme-settings.js"],
+      "js": ["src/content/fonts.js", "src/content/theme-settings.js", "src/content/brand.js"],
       "run_at": "document_start",
       "all_frames": true
     },
@@ -139,7 +149,8 @@
         "src/content/forms.css",
         "src/content/theme-settings.css",
         "src/content/logout-confirm.css",
-        "src/content/number-bulk.css"
+        "src/content/number-bulk.css",
+        "src/content/toasts.css"
       ],
       "js": [
         "src/content/enhancer.js",
@@ -147,7 +158,8 @@
         "src/content/theme-icons.js",
         "src/content/forms.js",
         "src/content/lists.js",
-        "src/content/crumbs.js"
+        "src/content/crumbs.js",
+        "src/content/toasts.js"
       ],
       "run_at": "document_idle",
       "all_frames": true
@@ -181,8 +193,7 @@
     {
       "resources": [
         "assets/help/help-content.json",
-        "assets/fonts/InterVariable.woff2",
-        "assets/fonts/GeistVariable.woff2",
+        "assets/fonts/*.woff2",
         "assets/login/comm-pilot-women-transparent.png",
         "assets/icons/*.svg"
       ],

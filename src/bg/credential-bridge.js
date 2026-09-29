@@ -1,3 +1,6 @@
+// Chrome runs this file as the service worker; Firefox's event page lists icon.js itself.
+if (typeof importScripts === "function") importScripts("/src/bg/icon.js");
+
 // Saved passwords are AES-GCM ciphertext in extension storage. A non-extractable
 // Web Crypto key is kept in the extension's IndexedDB so automatic sign-in can
 // work after a browser restart without an external program or vault password.

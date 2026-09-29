@@ -28,7 +28,9 @@ test('native Logout confirms once, posts through PJAX, and opens Login directly'
       if (url.pathname === '/commpilot/Common/folder_contents.jsp') {
         return route.fulfill({ status: 200, contentType: 'text/html', body:
           `<!doctype html><html><title>Profile</title><body id="initBody.menuTemplate">
-            <table><tr><td class="headerBar"><span class="headerBarWelcome">Welcome Test User</span>
+            <table><tr><td class="headerBar"><img src="/conf/clientLogo.gif"></td>
+              <td class="headerBar"><a class="headerLink">Help</a><a class="headerLink">Home</a></td></tr>
+              <tr><td class="headerBar"><span class="headerAuthLevel">Profile</span></td><td class="headerBar"><span class="headerBarWelcome">Welcome Test User</span>
               <a class="headerLink" id="native-logout" onclick="redirectPost('/commpilot/servlet/Logout', {});return false;">[Logout]</a></td></tr></table>
             <table height="100%"><tr><td class="headandfoot" width="18%">
               <form name="leftNavForm"><a class="leftnavfolder">Profile</a></form>
@@ -65,7 +67,12 @@ test('native Logout confirms once, posts through PJAX, and opens Login directly'
     });
     await page.waitForFunction(() => document.body.id === 'initBody.menuTemplate');
     await page.waitForFunction(() => String(window.redirectPost).includes('cpDclSpin'));
-    const trigger = page.locator('#native-logout');
+    // Sign out lives in the top bar's account menu; it presses CommPilot's own Logout link (hidden in the page).
+    assert.equal(await page.locator('#native-logout').isVisible(), false);
+    const trigger = { click: async () => {
+      await page.locator('#cp-account').click();
+      await page.getByRole('menuitem', { name: 'Sign out' }).click();
+    } };
     await trigger.click();
     await page.getByRole('dialog', { name: 'Sign out of CommPilot?' }).waitFor();
     await page.getByRole('button', { name: 'Stay here' }).click();

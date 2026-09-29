@@ -505,7 +505,17 @@
     const movable = top && [...top.childNodes].every(n => n.nodeType === 3 ? !clean(n.textContent) :
       n.nodeType === 8 || n.tagName === 'SCRIPT' || n.tagName === 'BR' ||
       (n.tagName === 'INPUT' && ['hidden', 'submit', 'button', 'reset'].includes(n.type)) || n.tagName === 'BUTTON');
+    // The header is built like the menu board's section headers (mockup pick D): the open folder's icon (the one
+    // it has in the sidebar; native-theme.js maps the name to it), the title, the page's actions and an accent
+    // underline.
     const head = make('div', 'cp-frame-head');
+    const folder = clean(document.querySelector('form[name="leftNavForm"] a.leftnavfolderopen')?.textContent).toLowerCase();
+    if (folder) {
+      const icon = make('span', 'cp-frame-ico');
+      icon.setAttribute('data-cp-name', folder);
+      icon.setAttribute('aria-hidden', 'true');
+      head.appendChild(icon);
+    }
     const name = make('span', 'cp-frame-title');
     name.append(...title.childNodes);
     head.appendChild(name);
@@ -518,6 +528,8 @@
     }
     title.appendChild(head);
     title.closest('tr').classList.add('cp-frame-titlerow');
+    const tip = frame.querySelector(':scope > tbody > tr > td.tip');
+    if (tip && clean(tip.textContent)) describe(tip, name);
     // Blank rows inside the content (an &nbsp; line or spacer images) separate groups of fields: keep them as a
     // small, even gap instead of a full text line.
     const spacerOnly = tr => [...tr.querySelectorAll('img')].every(img => /onepx\.gif$/i.test(img.getAttribute('src') || ''));
@@ -538,6 +550,44 @@
         table.classList.add('cp-frame-pager');
     }
   }
+
+  // A page's description sits behind an info button beside the title (mockup pick), so the content starts right
+  // under the header; the button opens it in a small card below the title.
+  // Just the "i", drawn on the chip's 21px inner box and centred in it (dot 5.75–7.75, stem 8.75–15.25).
+  const INFO = '<svg viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+    'aria-hidden="true"><path d="M10.5 9.75v4.5M10.5 6.75h.01"/></svg>';
+  function describe(tip, name) {
+    const about = make('div', 'cp-frame-about');
+    about.id = 'cp-frame-about';
+    about.setAttribute('role', 'note');
+    about.hidden = true;
+    about.append(...tip.childNodes);
+    const info = make('button', 'cp-frame-info');
+    info.type = 'button';
+    info.title = 'About this page';
+    info.setAttribute('aria-label', 'About this page');
+    info.setAttribute('aria-controls', about.id);
+    info.setAttribute('aria-expanded', 'false');
+    info.innerHTML = INFO;
+    info.addEventListener('click', () => {
+      about.hidden = !about.hidden;
+      info.setAttribute('aria-expanded', String(!about.hidden));
+    });
+    name.append(info, about);
+    tip.closest('tr').classList.add('cp-frame-moved');
+  }
+  // The description card closes on Escape (back to its button) and on a click anywhere else.
+  function closeAbout(refocus) {
+    const about = document.querySelector('.cp-frame-about:not([hidden])');
+    if (!about) return false;
+    about.hidden = true;
+    const info = about.parentElement.querySelector('.cp-frame-info');
+    info?.setAttribute('aria-expanded', 'false');
+    if (refocus) info?.focus();
+    return true;
+  }
+  document.addEventListener('click', event => { if (!event.target.closest?.('.cp-frame-about, .cp-frame-info')) closeAbout(false); });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && closeAbout(true)) event.preventDefault(); });
 
   function apply() {
     if (!active()) return;

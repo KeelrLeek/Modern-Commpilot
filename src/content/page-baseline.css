@@ -30,13 +30,65 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] {
   & td.tip { padding: 0 0 12px; color: var(--d-muted); font: 400 13px/1.5 "Inter", sans-serif; }
   & table.cp-frame > tbody > tr.cp-frame-spacer,
   & table.cp-frame > tbody > tr.cp-frame-moved { display: none; }
-  /* The title row stays at the top while the page scrolls, so OK / Apply / Cancel are always in reach. */
+  /* The header is a menu board section header (mockup pick D; menu-board.css .cp-console-head, .cp-console-head-ico,
+     -name, .cp-console-count), measure for measure, so a page looks like the board it was opened from: the same
+     place 20px under the header bar, height, icon, title type, chip and underline, and the same 18px to the content.
+     It stays at the top while the page scrolls, so OK / Apply / Cancel are always in reach. */
   & tr.cp-frame-titlerow > td.screenName {
-    position: sticky; top: 0; z-index: 6; padding: 6px 0 8px; background: var(--d-main);
+    position: sticky; top: 0; z-index: 6; padding: 0 0 18px; background: var(--d-main);
   }
-  & .cp-frame-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
-  & .cp-frame-title { min-width: 0; }
+  & .cp-frame-head {
+    position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 11px; box-sizing: border-box;
+    min-height: 54px; margin-top: calc(20px - var(--pb-gutter)); padding: 11px 2px 12px; border-bottom: 1px solid var(--d-line);
+  }
+  & .cp-frame-head::after {
+    content: ""; position: absolute; left: 0; bottom: -1px; width: 124px; height: 2px; border-radius: 2px; background: var(--d-accent);
+  }
+  & .cp-frame-ico {
+    flex: none; width: 21px; height: 21px; background: var(--d-accent);
+    -webkit-mask: var(--cp-head-icon) center/contain no-repeat; mask: var(--cp-head-icon) center/contain no-repeat;
+  }
+  & .cp-frame-title {
+    display: flex; align-items: center; gap: 12px; flex: 1 1 auto; min-width: 0;
+    font-size: 19px; font-weight: 690; line-height: 1.25; letter-spacing: -.03em;
+  }
   & .cp-frame-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; letter-spacing: 0; }
+  /* The description (forms.js): an info button beside the title, the board's count chip in size and look, opens it
+     in a card under the header. */
+  & .cp-frame-title button.cp-frame-info {
+    display: grid; place-items: center; box-sizing: border-box; flex: none;
+    width: 23px; height: 23px; min-width: 0; min-height: 0; margin: 0; padding: 0; line-height: 0;   /* the theme's buttons are 32px tall */
+    border: 1px solid var(--d-line) !important; border-radius: 8px; background: var(--d-surface) !important;
+    color: var(--d-muted) !important; box-shadow: none; transform: none; cursor: pointer;
+  }
+  & .cp-frame-title button.cp-frame-info:is(:hover:not(:disabled), [aria-expanded="true"]) {
+    border-color: var(--d-accent) !important; background: var(--d-surface) !important; color: var(--d-accent) !important;
+    box-shadow: none; transform: none;
+  }
+  & .cp-frame-title button.cp-frame-info:focus-visible { outline: 2px solid var(--d-ring); outline-offset: 2px; }
+  & .cp-frame-info svg { display: block; width: 21px; height: 21px; }   /* fills the chip inside its 1px outline */
+  & .cp-frame-about {
+    position: absolute; top: calc(100% + 8px); left: 0; z-index: 7;   /* under the header's underline */ width: max-content; max-width: min(640px, 80vw);
+    padding: 12px 14px; border: 1px solid var(--d-line); border-radius: 10px; background: var(--d-surface);
+    box-shadow: 0 14px 34px #00000038; color: var(--d-muted); font: 400 13px/1.55 "Inter", sans-serif; letter-spacing: 0;
+    white-space: normal;
+  }
+  & .cp-frame-about[hidden] { display: none; }
+  /* The page's buttons keep CommPilot's order, but Delete stands apart on the left in the palette's red so it isn't
+     pressed by mistake, and Cancel is a quiet text button (mockup pick). */
+  & .cp-frame-actions :is(input[name="delete"], input[value="Delete"]) {
+    order: -1; margin-right: 10px; border-color: color-mix(in srgb, var(--d-off) 55%, var(--d-line)) !important;
+    background: transparent !important; color: var(--d-off) !important; box-shadow: none;
+  }
+  & .cp-frame-actions :is(input[name="delete"], input[value="Delete"]):hover:not(:disabled) {
+    border-color: var(--d-off) !important; background: color-mix(in srgb, var(--d-off) 12%, transparent) !important;
+  }
+  & .cp-frame-actions :is(input[name="cancel"], input[value="Cancel"]) {
+    border-color: transparent !important; background: transparent !important; color: var(--d-muted) !important; box-shadow: none;
+  }
+  & .cp-frame-actions :is(input[name="cancel"], input[value="Cancel"]):hover:not(:disabled) {
+    border-color: transparent !important; background: var(--d-raised) !important; color: var(--d-text) !important;
+  }
 
   /* ---- Inside the page content (the cell's children other than the menu board) --------------------------- */
   & td[width="82%"] > :not(.cp-console) {
@@ -189,10 +241,10 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] {
     }
 
     /* Fields and buttons: one control height. */
-    & :is(input:not([type="hidden"], [type="checkbox"], [type="radio"], [type="image"]), select, textarea, button):not(.bw-select-trigger, .cp-switch, .cp-seg-opt, .cp-ev-day, .cp-searchbar-add, .cp-pager-btn) {
+    & :is(input:not([type="hidden"], [type="checkbox"], [type="radio"], [type="image"]), select, textarea, button):not(.bw-select-trigger, .cp-switch, .cp-seg-opt, .cp-ev-day, .cp-searchbar-add, .cp-pager-btn, .cp-frame-info) {
       min-height: var(--pb-control); padding-block: 3px; border-radius: var(--pb-radius-control);
     }
-    & :is(input[type="button"], input[type="submit"], input[type="reset"], button):not(.bw-select-trigger, .cp-switch, .cp-seg-opt, .cp-ev-day, .cp-searchbar-add, .cp-pager-btn) {
+    & :is(input[type="button"], input[type="submit"], input[type="reset"], button):not(.bw-select-trigger, .cp-switch, .cp-seg-opt, .cp-ev-day, .cp-searchbar-add, .cp-pager-btn, .cp-frame-info) {
       padding-inline: 12px;
     }
     & :is(.error, .warning, .informational) { border-radius: var(--pb-radius-control); }
@@ -204,7 +256,7 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] {
   html[data-cp-direction] body[id="initBody.menuTemplate"] {
     --pb-cell-y: 4px; --pb-control: 28px;
     & td.headerBar:has(> img[src$="/conf/clientLogo.gif"]),
-    & td.headerBar:has(a.headerLink):not(:has(.headerBarWelcome)) { height: 52px; padding-block: 6px; }
+    & td.headerBar:has(a.headerLink):not(:has(.headerBarWelcome)) { height: 52px; padding-block: 6px; --cp-top-row: 52px; }
     & td.headerBar:has(a.headerAuthLevelLink),
     & td.headerBar:has(.headerBarWelcome) { height: 40px; padding-block: 4px; }
     & td.headandfoot[width="18%"] { padding-top: 14px; }
@@ -213,17 +265,11 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] {
   }
 }
 
-/* A stuck title row gets a divider once the page has scrolled. */
-@supports (animation-timeline: scroll()) {
-  html[data-cp-direction] body[id="initBody.menuTemplate"] tr.cp-frame-titlerow > td.screenName {
-    animation: cp-frame-stuck linear both; animation-timeline: scroll(nearest block); animation-range: 0 32px;
-  }
-}
-@keyframes cp-frame-stuck { to { box-shadow: 0 1px 0 var(--d-line); } }
 @keyframes cp-spin { to { transform: rotate(360deg); } }
 
-/* Waiting for CommPilot. From the click until the page is on screen, a thin accent bar runs along the top of
-   the window (pjax.js #cp-progress: it creeps forward while CommPilot works, then fills and fades), and while
+/* Waiting for CommPilot. From the click until the page is on screen the CommPilot logo's trace is the loading bar
+   (theme-palettes.css, driven by pjax.js); only where the top bar has no logo does pjax.js add #cp-progress, a thin
+   accent bar along the top of the window (it creeps forward while CommPilot works, then fills and fades). While
    pjax.js marks <html data-cp-nav="busy"> the page's card eases back after a moment. */
 body > #cp-progress {
   position: fixed; top: 0; left: 0; right: 0; z-index: 2147483647; height: 3px; pointer-events: none;

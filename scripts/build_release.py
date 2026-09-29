@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
+import subprocess
 from fnmatch import fnmatchcase
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -25,9 +27,24 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def verify_manifest_files(manifest: dict, names: set[str]) -> None:
-    """Check the paths the browser needs, including web-accessible assets."""
-    required = {manifest["action"]["default_popup"]}
+def make_favicons() -> set[str]:
+    """Draw a favicon pair for every palette theme-palettes.css names and return their paths."""
+    try:
+        subprocess.run(["node", str(SOURCE / "scripts" / "make-icons.cjs"), "--favicons"], cwd=SOURCE, check=True)
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise SystemExit(f"Could not draw the palette favicons (node scripts/make-icons.cjs): {error}")
+    css = (SOURCE / "src" / "content" / "theme-palettes.css").read_text(encoding="utf-8")
+    palettes = set(re.findall(r'data-cp-direction="([^"]*)"', re.sub(r"/\*.*?\*/", "", css, flags=re.S)))
+    if not palettes:
+        raise SystemExit("theme-palettes.css names no palettes.")
+    return {f"assets/icons/pulse-{name}{sandbox}.svg" for name in palettes for sandbox in ("", "-sbx")}
+
+
+def verify_manifest_files(manifest: dict, names: set[str], favicons: set[str]) -> None:
+    """Check the paths the browser needs, including web-accessible assets and the page's favicons."""
+    required = {manifest["action"]["default_popup"]} | favicons
+    for icons in (manifest.get("icons", {}), manifest["action"].get("default_icon", {})):
+        required.update(icons.values() if isinstance(icons, dict) else [icons])
     for script in manifest.get("content_scripts", []):
         required.update(script.get("css", []))
         required.update(script.get("js", []))
@@ -63,15 +80,19 @@ def main() -> None:
     project_versioned = PROJECT_RELEASE / versioned.name
     current = PROJECT_RELEASE / "BroadWorks-Enhancer-PJAX-Preview.zip"
 
-    files = {SOURCE / "manifest.json", SOURCE / "README.md"}
+    # A palette added to theme-palettes.css gets its favicons here, with no other step.
+    favicons = make_favicons()
+    files ={SOURCE / "manifest.json", SOURCE / "README.md"}
     files.update(path for path in (SOURCE / "src").rglob("*") if path.is_file())
     files.update((SOURCE / "assets" / "icons").rglob("*.svg"))
+    files.update((SOURCE / "assets" / "icons" / "app").glob("*.png"))
+    files.update(SOURCE / name for name in favicons)
     files.update((SOURCE / "assets" / "login").glob("*.png"))
-    files.update({
-        SOURCE / "assets" / "help" / "help-content.json",
-        SOURCE / "assets" / "fonts" / "InterVariable.woff2",
-        SOURCE / "assets" / "fonts" / "GeistVariable.woff2",
-    })
+    files.add(SOURCE / "assets" / "help" / "help-content.json")
+    # Every font Settings offers (fonts.js names each file), with its licence.
+    fonts_js = (SOURCE / "src" / "content" / "fonts.js").read_text(encoding="utf-8")
+    files.update(SOURCE / "assets" / "fonts" / name for name in re.findall(r'file: "([\w.-]+\.woff2)"', fonts_js))
+    files.update((SOURCE / "assets" / "fonts" / "licenses").glob("*.txt"))
     if any(not path.is_file() for path in files):
         raise SystemExit("A release file is missing from source/.")
 
@@ -87,7 +108,7 @@ def main() -> None:
         if packed_manifest["version"] != version:
             raise SystemExit("Release ZIP version does not match the source manifest.")
         names = set(archive.namelist())
-        verify_manifest_files(packed_manifest, names)
+        verify_manifest_files(packed_manifest, names, favicons)
     temporary.replace(versioned)
 
     project_temporary = project_versioned.with_suffix(".zip.tmp")
@@ -113,7 +134,7 @@ def main() -> None:
     verify_manifest_files(unpacked_manifest, {
         path.relative_to(UNPACKED).as_posix()
         for path in UNPACKED.rglob("*") if path.is_file()
-    })
+    }, favicons)
     current_temporary = current.with_suffix(".zip.tmp")
     shutil.copyfile(versioned, current_temporary)
     try:

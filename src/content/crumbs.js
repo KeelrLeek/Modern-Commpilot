@@ -3,7 +3,9 @@
    level) is the accent pill and pops in when it changes. CommPilot's own links are MOVED into the trail, so they
    keep their native clicks, and everything stays in the same header cell and document order that pjax.js and
    enhancer.js read. The header is rebuilt by pjax.js on every page; the trail follows it. An element marked
-   .cp-bc-attach (enhancer.js's extension chip) rides on the entity pill, right after it with no arrow. */
+   .cp-bc-attach (enhancer.js's extension chip) rides on the entity pill, right after it with no arrow.
+   The trail keeps one line (mockup pick B): when it does not fit its cell, the levels after the first fold, earliest
+   first, into a "…" pill whose list opens them, and then the page pill shortens. */
 (() => {
   if (window !== window.top) return;
 
@@ -31,6 +33,7 @@
     if (built && built.length === items.length && built.every((el, i) => el === items[i])) {
       attach(items, attached);
       mark(bar, items);
+      fit(bar, cell);
       return;
     }
     building = true;
@@ -59,8 +62,101 @@
       bar.replaceChildren(...parts);
       attach(items, attached);
       mark(bar, items);
+      fit(bar, cell);
     } finally { building = false; }
   }
+
+  // One line. Unfolding, measuring and folding happen in one go, before the next paint. The "…" pill and its arrow
+  // are made once per trail and only shown or hidden after that, so the trail's own watcher is not set off again.
+  function fit(bar, cell) {
+    const wasBuilding = building;
+    building = true;
+    try {
+      for (const el of bar.querySelectorAll(':scope > .cp-bc-folded')) el.classList.remove('cp-bc-folded');
+      bar.classList.remove('cp-bc-squeeze');
+      let more = bar.querySelector(':scope > button.cp-bc-more');
+      const over = () => cell.scrollWidth > cell.clientWidth + 1;
+      const levels = [...bar.querySelectorAll(':scope > a.headerAuthLevelLink.cp-bc-seg:not(.cp-bc-hidden)')];
+      if (!over() || levels.length < 2) {
+        if (more) { more.classList.add('cp-bc-folded'); more.previousElementSibling?.classList.add('cp-bc-folded'); }
+        return;
+      }
+      if (!more || more.previousElementSibling?.previousElementSibling !== levels[0]) {
+        more?.previousElementSibling?.remove();
+        more?.remove();
+        more = document.createElement('button');
+        more.type = 'button';
+        more.className = 'cp-bc-more';
+        more.textContent = '…';
+        more.setAttribute('aria-haspopup', 'menu');
+        more.setAttribute('aria-expanded', 'false');
+        more.setAttribute('aria-label', 'Show the hidden levels');
+        more.title = 'Show the hidden levels';
+        const arrow = document.createElement('span');
+        arrow.className = 'cp-bc-sep';
+        arrow.setAttribute('aria-hidden', 'true');
+        arrow.innerHTML = ARROW;
+        levels[0].after(arrow, more);
+      }
+      for (let i = 1; i < levels.length && over(); i++) {
+        levels[i].classList.add('cp-bc-folded');
+        levels[i].previousElementSibling?.classList.add('cp-bc-folded');   // its arrow
+      }
+      if (over()) bar.classList.add('cp-bc-squeeze');
+    } finally { building = wasBuilding; }
+  }
+
+  // The "…" list: the folded levels, each pressing CommPilot's own link.
+  let menu = null;
+  function openMore(button) {
+    const bar = button.closest('.cp-bc');
+    const folded = [...bar.querySelectorAll(':scope > a.headerAuthLevelLink.cp-bc-folded')];
+    if (!menu?.isConnected) {
+      menu = document.createElement('div');
+      menu.id = 'cp-bc-more-menu';
+      menu.setAttribute('role', 'menu');
+      document.body.appendChild(menu);
+    }
+    menu.replaceChildren(...folded.map(link => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.setAttribute('role', 'menuitem');
+      item.textContent = clean(link.textContent);
+      item.addEventListener('click', () => { closeMore(false); link.click(); });
+      return item;
+    }));
+    const r = button.getBoundingClientRect();
+    menu.style.setProperty('top', `${Math.round(r.bottom + 8)}px`);
+    menu.style.setProperty('left', `${Math.round(r.left)}px`);
+    menu.hidden = false;
+    button.setAttribute('aria-expanded', 'true');
+    menu.querySelector('button')?.focus();
+  }
+  function closeMore(refocus) {
+    if (!menu || menu.hidden) return false;
+    menu.hidden = true;
+    const button = document.querySelector('td.headerBar button.cp-bc-more');
+    button?.setAttribute('aria-expanded', 'false');
+    if (refocus) button?.focus();
+    return true;
+  }
+  document.addEventListener('click', event => {
+    const more = event.target.closest?.('td.headerBar button.cp-bc-more');
+    if (more) { if (menu && !menu.hidden) closeMore(false); else openMore(more); }
+    else if (!event.target.closest?.('#cp-bc-more-menu')) closeMore(false);
+  });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && closeMore(true)) event.preventDefault(); });
+  let fitQueued = false;
+  window.addEventListener('resize', () => {
+    closeMore(false);
+    if (fitQueued) return;
+    fitQueued = true;
+    requestAnimationFrame(() => {
+      fitQueued = false;
+      const cell = trailCell(), bar = cell?.querySelector(':scope > .cp-bc');
+      if (active() && bar) fit(bar, cell);
+    });
+  }, { passive: true });
 
   function attach(items, attached) {
     let at = items.find(el => el.matches('span.headerAuthLevel'));

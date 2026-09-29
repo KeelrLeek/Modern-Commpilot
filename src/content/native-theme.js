@@ -19,6 +19,16 @@
     "routing policies": "call-control"
   };
 
+  // The menu board's section headers and each page's header show the same icon as their folder in the sidebar.
+  // pjax.js (board) and forms.js (page) mark them with the folder's name; this sheet turns the name into the icon.
+  const iconUrl = icon => `url("${chrome.runtime.getURL(`assets/icons/palette-${icon}.svg`)}")`;
+  const boardIcons = document.createElement("style");
+  boardIcons.id = "cp-board-icons";
+  boardIcons.textContent = [`:is(.cp-console-head-ico, .cp-frame-ico) { --cp-head-icon: ${iconUrl("unknown")}; }`,
+    ...Object.entries(iconByFolder).map(([name, icon]) =>
+      `:is(.cp-console-head-ico, .cp-frame-ico)[data-cp-name="${name}"] { --cp-head-icon: ${iconUrl(icon)}; }`)].join("\n");
+  (document.head || document.documentElement).appendChild(boardIcons);
+
   function decorate() {
     if (document.body?.id !== "initBody.menuTemplate") return;
     const links = document.querySelectorAll(

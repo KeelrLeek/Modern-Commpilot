@@ -79,7 +79,8 @@ test('packed preview retains PJAX and enhancer features on a CommPilot POST page
     assert.equal(await page.locator('[name="formtokenserial"]').first().inputValue(), 'token-2');
     assert.equal(await page.locator('#feature .bw-on-off-status').count(), 1);
     assert.equal(await page.locator('.cp-topbar, .cp-console, .cp-breadcrumb, .cp-srch-grid').count(), 0);
-    assert.equal(await page.evaluate(() => getComputedStyle(document.body).fontFamily), 'Arial, sans-serif');
+    // No v1 skin: the page is in the Settings font (Inter unless changed), not v1's Nunito.
+    assert.match(await page.evaluate(() => getComputedStyle(document.body).fontFamily), /^"?Inter"?, "Segoe UI"/);
     assert.deepEqual(errors, []);
     await page.reload();
     await page.getByText('New User content').waitFor({ timeout: 15000 });

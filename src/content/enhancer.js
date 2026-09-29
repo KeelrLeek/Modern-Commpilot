@@ -294,7 +294,18 @@
     }
   }
 
+  // The copy controls live in the page the user sees, never in the frames pjax.js loads pages in (it copies a
+  // frame's header into the page). With the theme on, the old toolbar has no place anywhere: a copy carried in by a
+  // page swap goes. On CommPilot's own shell the theme is always coming (theme-settings.js), so the toolbar is only
+  // built if it still has not arrived a moment later.
+  let themeWait = 0;
   function syncCopyControls() {
+    if (window !== window.top) return;
+    if (themed()) document.querySelectorAll(".bw-copy-controls[data-bw-owned='1']").forEach(el => el.remove());
+    else if (document.body?.id === "initBody.menuTemplate" && themeWait !== -1) {
+      if (!themeWait) themeWait = setTimeout(() => { themeWait = -1; syncCopyControls(); }, 1500);
+      return;
+    }
     const context = userBreadcrumb();
     if (!context) return;
     adoptListedExtension(context);

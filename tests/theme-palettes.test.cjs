@@ -61,7 +61,7 @@ test('palette follows stored setting through changes and PJAX shell replacement'
     assert.match(initial.shellTop, /^\d+px$/);
     await page.waitForFunction(() => [...document.querySelectorAll('a.leftnavfolder')]
       .every(link => link.dataset.cpNavIcon &&
-        getComputedStyle(link, '::before').backgroundImage.includes('/assets/icons/palette-')));
+        getComputedStyle(link, '::before').maskImage.includes('/assets/icons/palette-')));
     await page.getByRole('button', { name: 'Settings' }).click();
     await page.getByRole('dialog', { name: 'Settings' }).waitFor();
     await page.getByText('Graphite', { exact: true }).click();
@@ -81,7 +81,7 @@ test('palette follows stored setting through changes and PJAX shell replacement'
     await page.getByRole('button', { name: 'Settings' }).waitFor();
     await page.waitForFunction(() => [...document.querySelectorAll('a.leftnavfolder')]
       .every(link => link.dataset.cpNavIcon &&
-        getComputedStyle(link, '::before').backgroundImage.includes('/assets/icons/palette-')));
+        getComputedStyle(link, '::before').maskImage.includes('/assets/icons/palette-')));
     await page.evaluate(() => window.__choosePalette('graphite'));
     assert.equal((await snapshot()).background, 'rgb(21, 25, 29)');
     await page.evaluate(() => window.__choosePalette('terra'));
@@ -98,7 +98,7 @@ test('palette follows stored setting through changes and PJAX shell replacement'
     }));
     assert.equal(nordShell.direction, 'nord');
     assert.equal(nordShell.canvas, '#2e3440');
-    assert.equal(nordShell.sidebarRadius, '13px');
+    assert.equal(nordShell.sidebarRadius, '8px');
     assert.equal(nordShell.mainBackgroundImage, 'none');
     assert.match(nordShell.helpIcon, /assets\/icons\/palette-help\.svg/);
     await page.evaluate(() => window.__choosePalette('midnight'));
@@ -157,7 +157,7 @@ test('native sidebar separates selected and hovered rows in every palette', asyn
             overflow: document.documentElement.scrollWidth > innerWidth + 2
           };
         });
-        assert.ok(state.gap >= 8, `${palette} ${width}px sidebar gap was ${state.gap}px`);
+        assert.ok(state.gap >= 0, `${palette} ${width}px sidebar rows overlap (${state.gap}px)`);
         assert.notEqual(state.activeBackground, state.hoverBackground, `${palette} active and hover should be distinct`);
         assert.deepEqual(state.clipped, [], `${palette} ${width}px clipped sidebar labels`);
         assert.equal(state.overflow, false, `${palette} ${width}px page overflow`);
@@ -207,18 +207,19 @@ test('extension popup changes the active CommPilot page and keeps the choice in 
     await page.waitForFunction(() => document.documentElement.dataset.cpDirection === 'atlas');
     async function assertIconsLoad(palette) {
       await page.waitForFunction(() => {
+        const icon = el => { const s = getComputedStyle(el, '::before'); return s.maskImage !== 'none' ? s.maskImage : s.backgroundImage; };
         const targets = [
           ...document.querySelectorAll('a.leftnavfolder, td.headerBar a.headerLink'),
           document.querySelector('.headerBarWelcome')
         ];
         return targets.length === 5 && targets.every(target =>
-          getComputedStyle(target, '::before').backgroundImage.includes('chrome-extension://'));
+          icon(target).includes('chrome-extension://'));
       });
       const iconLoads = await page.evaluate(async () => {
+        const icon = el => { const s = getComputedStyle(el, '::before'); return s.maskImage !== 'none' ? s.maskImage : s.backgroundImage; };
         const sources = [...document.querySelectorAll('a.leftnavfolder, td.headerBar a.headerLink')]
-          .map(link => getComputedStyle(link, '::before').backgroundImage.match(/url\("?([^"\)]+)/)?.[1]);
-        sources.push(getComputedStyle(document.querySelector('.headerBarWelcome'), '::before')
-          .backgroundImage.match(/url\("?([^"\)]+)/)?.[1]);
+          .map(link => icon(link).match(/url\("?([^"\)]+)/)?.[1]);
+        sources.push(icon(document.querySelector('.headerBarWelcome')).match(/url\("?([^"\)]+)/)?.[1]);
         return Promise.all(sources.map(src => new Promise(resolve => {
           const image = new Image();
           image.onload = () => resolve({ src, loaded: image.naturalWidth > 0 });
@@ -274,7 +275,7 @@ test('extension popup changes the active CommPilot page and keeps the choice in 
     await previews.click();
     await second.waitForFunction(() => document.documentElement.getAttribute('data-cp-peek') === 'off');
     assert.deepEqual(await popup.evaluate(() => new Promise(resolve => chrome.storage.local.get('cpSettings', v => resolve(v.cpSettings)))),
-      { peek: false });
+      { peek: false, font: 'inter', side: 'full' });
     await previews.click();
     await second.waitForFunction(() => !document.documentElement.hasAttribute('data-cp-peek'));
   } finally {
