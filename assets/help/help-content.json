@@ -1,15 +1,14 @@
 {
   "_meta": {
-    "description": "Help content for Modern CommPilot Skin. Keyed by a stable identifier for each setting. 'byName' matches the link's name attribute (the redirect path); 'byText' matches left-nav folder labels that have no name attribute. Add new entries as more pages are covered.",
-    "version": 1
+    "description": "Help tips (native-help.js). 'byName': a menu option by its name attribute (its path, e.g. /User/CallForwardingAlways/); a page's title uses the same entry for its page. 'bySection': a sidebar or menu board section by level (Reseller, ServiceProvider, Group, User: the first part of the level's menu paths) and then its name. 'bySetting': a setting on a page, by the page's path and then the setting's label as shown. Settings > Debug view outlines what has no entry yet and copies stubs in this shape.",
+    "version": 2
   },
-
   "byName": {
-    "/Reseller/ServiceProviders/index.jsp?enterprise=false": {
+    "/Reseller/ServiceProviders/?enterprise=false": {
       "title": "Service Providers",
       "body": "A Service Provider is a top-level administrative container that groups and tenants live under. From here you add, modify, or remove service providers managed by this reseller. Service Providers are the non-enterprise model: groups under them are administered independently rather than sharing enterprise-wide settings. Use this when onboarding a new carrier customer that does not need shared enterprise dial plans or services."
     },
-    "/Reseller/ServiceProviders/index.jsp?enterprise=true": {
+    "/Reseller/ServiceProviders/?enterprise=true": {
       "title": "Enterprises",
       "body": "An Enterprise is a Service Provider configured in 'enterprise mode', enabling features shared across all of its groups — enterprise-wide dial plans, voice VPN, common phone lists, and centralized administration. Add, modify, or remove enterprises here. Choose the Enterprise model (over a plain Service Provider) when a single organization has multiple groups/sites that should share numbering and services."
     },
@@ -128,33 +127,1652 @@
     "/Reseller/MailParameters/": {
       "title": "Mail Parameters",
       "body": "Mail Parameters define the outbound email (SMTP) settings BroadWorks uses to send notifications — voicemail-to-email, Call Notify, fault alerts, and similar. This reseller-level screen configures the mail server, sender address, and related parameters so the platform's email features deliver correctly."
+    },
+    "/ServiceProvider/Members/": {
+      "title": "Groups",
+      "body": "Lists every group in this service provider or enterprise, the site or location level where users, devices, and group services live. From here you can add a group, search the list, and open any group to manage it. Groups can only use the services and resources authorized at this level."
+    },
+    "/ServiceProvider/Users/": {
+      "title": "Users",
+      "body": "Searches users across every group in this service provider or enterprise. Enter a name, user ID, phone number, or other detail to find a user and open their profile. Because each user belongs to a group, this is the quickest way to find someone when you do not know their group."
+    },
+    "/ServiceProvider/ServiceInstances/": {
+      "title": "Service Instances",
+      "body": "Lists the service instances, such as Auto Attendants, Hunt Groups, and Call Centers, set up in the groups under this service provider or enterprise. Use it to find an instance across all groups and open it for editing. Each instance still belongs to its own group and uses that group's numbers and resources."
+    },
+    "/ServiceProvider/Profile/": {
+      "title": "Profile",
+      "body": "Shows the basic details of this service provider or enterprise, such as its name, contact person, address, and support email. Admins at this level can review and update these details. Keeping them current helps other administrators and support staff identify the customer and reach the right contact."
+    },
+    "/ServiceProvider/Admins/": {
+      "title": "Administrators",
+      "body": "Lists the administrators who can manage this service provider or enterprise. Here you can add an administrator, change their details or password, or remove them. Administrators added at this level can typically work in every group beneath, while administrators for a single group are added within that group."
+    },
+    "/ServiceProvider/Schedules/": {
+      "title": "Schedules",
+      "body": "Defines time schedules and holiday schedules at the service provider or enterprise level. Groups and users beneath can select these schedules in time-based services such as Auto Attendant business hours, so shared calendars like public holidays only need to be kept up to date in one place."
+    },
+    "/ServiceProvider/DeviceActivationPolicy/": {
+      "title": "Activation Code Device Onboarding Policies",
+      "body": "Controls how phones in this service provider or enterprise are onboarded with an activation code instead of manual MAC address or credential entry. The policy defines whether activation codes are used and how they behave for its devices. Check it before a rollout so installers know whether each phone will need a code."
+    },
+    "/ServiceProvider/AlternateUserIDs/": {
+      "title": "Alternate User IDs",
+      "body": "Lists the alternate user IDs set up for users in this service provider or enterprise. An alternate user ID is an extra identity a user can sign in with alongside their main user ID. Use this page to search for an alternate ID and see which user it belongs to."
+    },
+    "/ServiceProvider/CallProcessingPolicy/": {
+      "title": "Call Processing Policies",
+      "body": "Sets call processing defaults for this service provider or enterprise, such as calling line ID rules, limits on simultaneous calls and call duration, and media options. Groups and users beneath follow these settings unless they are set to use their own policies. Change them here to affect every group that has not overridden them."
+    },
+    "/ServiceProvider/DialPlanPolicy/": {
+      "title": "Dial Plan Policy",
+      "body": "Defines the dial plan for this service provider or enterprise, including the public and private digit maps and access codes such as the code users dial for an outside line. Groups beneath can use these settings or switch to their own dial plan policy. Change it when the customer's dialing habits differ from the system default."
+    },
+    "/ServiceProvider/RoutingProfile/": {
+      "title": "Routing Profile",
+      "body": "Shows and sets the routing profile for this service provider or enterprise. A routing profile is defined at the system level and tells BroadWorks which network routing to apply to calls from this customer. Change it only when your network team asks, because it affects how this customer's calls are routed."
+    },
+    "/ServiceProvider/DialableCallerID/": {
+      "title": "Dialable Caller ID",
+      "body": "Configures Dialable Caller ID for this service provider or enterprise. The service adds prefix digits to the calling number of incoming calls, so users can return a call from their call log without editing the number. Here you define the matching criteria and prefix digits used for users beneath who have the service."
+    },
+    "/ServiceProvider/StirShaken/": {
+      "title": "STIR-SHAKEN",
+      "body": "Controls STIR/SHAKEN caller ID authentication for this service provider or enterprise. STIR/SHAKEN signs outgoing calls and checks incoming ones, so the network can show whether a calling number has been verified. Settings here control how signing and verification apply to calls for the groups beneath."
+    },
+    "/ServiceProvider/Carriers/": {
+      "title": "Carriers",
+      "body": "Sets the preferred carriers for this service provider or enterprise for intra-LATA, inter-LATA, and international calls. Carriers are defined at the system level and chosen here from that list. Groups and users with the Preferred Carrier service can use these choices or pick their own."
+    },
+    "/ServiceProvider/GroupPagingTargetsCapacity/": {
+      "title": "Group Paging Targets Capacity",
+      "body": "Sets the limit on how many paging targets Group Paging instances can have in this service provider or enterprise. Each group can set its own capacity, but not above the value set here. Raise it when a customer needs larger paging groups than the current limit allows."
+    },
+    "/ServiceProvider/Endpoints/": {
+      "title": "Identity/Device Endpoints",
+      "body": "Lists the endpoints across this service provider or enterprise, showing which users and service instances use which identity/device profiles and line/ports. Use it to find where a device or line/port is in use, for example before replacing or removing a phone."
+    },
+    "/ServiceProvider/DeviceInventory/": {
+      "title": "Identity/Device Profiles",
+      "body": "Manages identity/device profiles, the records for phones and other devices, at the service provider or enterprise level. Profiles created here can be used by any group beneath, unlike group-level profiles, which only their own group can use. Use this page to add, search, or modify devices and their settings."
+    },
+    "/ServiceProvider/Domains/": {
+      "title": "Domains",
+      "body": "Lists the domains assigned to this service provider or enterprise, including its default domain. A domain is the part of a user ID or line/port after the @ sign. Groups beneath can only use domains from this list, which is filled from the system's domains."
+    },
+    "/ServiceProvider/NetworkClassesOfService/": {
+      "title": "Network Classes of Service",
+      "body": "Shows the Network Classes of Service (NCOS) assigned to this service provider or enterprise, including the default. An NCOS decides which calls are allowed and how they are routed in the network. Groups and users beneath can only be given classes from this list, which is set on Assign Network Classes of Service."
+    },
+    "/ServiceProvider/DnManagement/": {
+      "title": "Numbers",
+      "body": "Lists the phone numbers held by this service provider or enterprise and shows which are assigned to groups and which are still free. Numbers pass from here to groups, where they are given to users and services. Adding new numbers at this level is normally done by a system or reseller administrator."
+    },
+    "/ServiceProvider/NumberRanges/": {
+      "title": "Enterprise Trunk Number Ranges",
+      "body": "Lists the number ranges set up for Enterprise Trunks in this enterprise. Calls to a number within a range can be routed to an enterprise trunk without that number being assigned to a trunk user, which suits PBX sites with large number blocks. The ranges come from numbers the enterprise already holds."
+    },
+    "/ServiceProvider/NumberPrefixes/": {
+      "title": "Enterprise Trunk Number Prefixes",
+      "body": "Lists the number prefixes set up for Enterprise Trunks in this enterprise. Calls to any number that starts with one of these prefixes can be routed to an enterprise trunk, which suits PBX sites handling large number blocks. It works alongside Enterprise Trunk Number Ranges, which match numbers between a start and end number instead."
+    },
+    "/ServiceProvider/OfficeZones/": {
+      "title": "Office Zones",
+      "body": "Defines office zones for this service provider or enterprise. An office zone groups one or more zones, set up at the system level, to describe where a group's users are allowed to work from. Office zones are used by Zone Calling Restrictions to limit what users can do when they are outside that area."
+    },
+    "/ServiceProvider/RoutePointExternalSystems/": {
+      "title": "Route Point External Systems",
+      "body": "Lists the external systems available to Route Point service instances in this service provider or enterprise. A Route Point hands calls to an outside application, such as a third-party contact center, for distribution, and the external system identifies that application. Systems appear here once a higher-level administrator has assigned them."
+    },
+    "/Operator/ServiceProviders/AuthorizeServices/": {
+      "title": "Services",
+      "body": "Authorizes which group and user services this service provider or enterprise may use, and sets how many of each can be assigned. Only services authorized here can be passed down to groups and then to users. Changes are normally made by a system or reseller administrator when the customer's service offering changes."
+    },
+    "/ServiceProvider/ServicePacks/": {
+      "title": "Service Packs",
+      "body": "Creates and manages service packs for this service provider or enterprise. A service pack bundles several user services under one name so they can be assigned to a user in one step. Packs can only contain services authorized here, and each pack has its own limit on how many can be assigned."
+    },
+    "/ServiceProvider/ServicePackUtilization/": {
+      "title": "Service Pack Usage",
+      "body": "Shows how service packs are used across this service provider or enterprise, including which groups have users assigned to each pack. Use it to check how close a pack is to its limit before adding users, or to find which groups rely on a pack before changing or retiring it."
+    },
+    "/ServiceProvider/SACCapacity/": {
+      "title": "Session Admission Control Capacity",
+      "body": "Sets how many concurrent sessions, meaning calls in progress, this service provider or enterprise may have under Session Admission Control. The value here acts as a ceiling for the limits set in the groups beneath. When a limit is reached, new calls are blocked until others end."
+    },
+    "/ServiceProvider/SystemDefinedCriteria/": {
+      "title": "System Defined Communication Barring Criteria",
+      "body": "Lists the outgoing Communication Barring criteria defined at the system level that this service provider or enterprise can use. Each criterion describes a type of outgoing call, such as international or premium-rate calls. Use them in Communication Barring profiles, alongside your own digit pattern criteria, to decide which calls are allowed or blocked."
+    },
+    "/ServiceProvider/SystemDefinedIncomingCriteria/": {
+      "title": "System Defined Communication Barring Incoming Criteria",
+      "body": "Lists the incoming Communication Barring criteria defined at the system level that this service provider or enterprise can use. Each criterion describes a type of incoming call. Use them in Communication Barring profiles to control which incoming calls the users beneath can receive, alongside the outgoing criteria on the neighboring page."
+    },
+    "/ServiceProvider/TrunkingCallCapacity/": {
+      "title": "Trunking Call Capacity",
+      "body": "Sets the maximum number of simultaneous trunking calls for this service provider or enterprise, along with any bursting capacity above that. The capacity is shared out to the groups beneath for their trunk groups, and group allocations cannot exceed the totals set here."
+    },
+    "/ServiceProvider/XsiPolicyProfile/Group/": {
+      "title": "Xsi Policy Profile",
+      "body": "Sets which Xsi policy profile applies to groups in this service provider or enterprise. Xsi is the interface that clients and integrations use to control calls and services, and a policy profile limits what they can do through it. The profiles to choose from are defined at the system level."
+    },
+    "/Operator/ServiceProviders/AssignDomains/": {
+      "title": "Assign Domains",
+      "body": "Assigns domains from the system's list to this service provider or enterprise. Only assigned domains can be used for its groups, users, and line/ports, so add a domain here before trying to use it further down. This page is normally managed by a system or reseller administrator."
+    },
+    "/ServiceProvider/AssignNetworkClassesOfService/": {
+      "title": "Assign Network Classes of Service",
+      "body": "Assigns Network Classes of Service (NCOS) from the system's list to this service provider or enterprise and sets which one is the default. Only assigned classes can be given to its groups and users. This is normally done by a system or reseller administrator when setting up a customer."
+    },
+    "/ServiceProvider/AssignRoutePointExternalSystems/": {
+      "title": "Assign Route Point External Systems",
+      "body": "Assigns route point external systems from the system's list to this service provider or enterprise. Once assigned, a system can be selected by Route Point service instances in its groups. This is normally done by a system or reseller administrator when a customer starts using an outside call distribution application."
+    },
+    "/ServiceProvider/AssignXsiPolicyProfile/ServiceProvider/": {
+      "title": "Assign Xsi Policy Profile",
+      "body": "Assigns an Xsi policy profile from the system's list to this service provider or enterprise. An Xsi policy profile limits what clients and integrations can do through Xsi, the interface they use to control calls and services. This is normally managed by a system or reseller administrator when setting up a customer."
+    },
+    "/ServiceProvider/IMRNsManagement/": {
+      "title": "IMRNs",
+      "body": "Manages the IMRNs (IP Multimedia Routing Numbers) available to this service provider or enterprise. IMRNs are temporary routing numbers used to bring calls from mobile phones into BroadWorks, mainly for BroadWorks Mobility. They come from a pool assigned by a higher-level administrator and are used automatically, not given to individual users."
+    },
+    "/ServiceProvider/MSDNManagement/": {
+      "title": "Mobile Subscriber Directory Numbers",
+      "body": "Lists the mobile subscriber directory numbers (MSDNs) held by this service provider or enterprise for BroadWorks Mobility. These are the numbers of users' mobile phones, and they are passed down to groups and assigned to mobility users there. They are managed separately from the ordinary numbers on the Numbers page."
+    },
+    "/ServiceProvider/ExternalCustomRingback/": {
+      "title": "External Custom Ringback",
+      "body": "Configures External Custom Ringback for this service provider or enterprise. The service plays callers a custom ringback, such as music or a message, from an external media server instead of the standard ringing tone. Settings here tell BroadWorks whether and how to use that server for calls to the groups and users beneath."
+    },
+    "/ServiceProvider/ICSA/": {
+      "title": "In-Call Service Activation",
+      "body": "Sets up In-Call Service Activation for this service provider or enterprise. It lets users start services such as call transfer during a call by dialing a digit sequence, which helps on phones without a transfer key. The activation digits set here apply to users beneath who have the service."
+    },
+    "/ServiceProvider/IntegratedIMP/": {
+      "title": "Integrated IM&P",
+      "body": "Sets up Integrated IM&P (instant messaging and presence) for this service provider or enterprise. It links users' BroadWorks accounts to the messaging and presence service used by their clients, so they can chat and see each other's status. Settings here, such as the domain used for IM&P addresses, apply to the groups and users beneath."
+    },
+    "/ServiceProvider/VM/": {
+      "title": "Voice Messaging",
+      "body": "Sets voice messaging options for this service provider or enterprise, such as the email addresses that message deliveries and notifications are sent from. You can keep the system defaults or enter addresses that match the customer's own domain. The settings apply to Voice Messaging users in the groups beneath."
+    },
+    "/ServiceProvider/VP/": {
+      "title": "Voice Portal",
+      "body": "Sets Voice Portal options for this service provider or enterprise. The Voice Portal is the phone menu users call to check voice messages and change greetings and call settings. For an enterprise, this is where you choose whether the portal works across all groups or only within each group."
+    },
+    "/ServiceProvider/AdviceOfCharge/": {
+      "title": "Advice Of Charge",
+      "body": "Sets up Advice of Charge for this service provider or enterprise. The service shows users call charge information on their phones, during or at the end of a call, based on charging data from the network. Settings here apply to users beneath who have the service assigned."
+    },
+    "/ServiceProvider/BroadWorksMobility/": {
+      "title": "BroadWorks Mobility",
+      "body": "Sets BroadWorks Mobility options for this service provider or enterprise. BroadWorks Mobility ties a user's mobile phone to their BroadWorks identity, so calls and services work the same on the mobile as on the desk phone. Here you choose whether to follow the system's settings or use your own for the groups and users beneath."
+    },
+    "/ServiceProvider/MWIMobile/": {
+      "title": "MWI Delivery to Mobile Endpoint",
+      "body": "Configures MWI Delivery to Mobile Endpoint for this service provider or enterprise. It sends message waiting indications, which tell users they have new voice mail, to their mobile phones. Settings here, such as whether the service is enabled, apply to users beneath who have the service."
+    },
+    "/ServiceProvider/NumberPortabilityQuery/": {
+      "title": "Number Portability Query",
+      "body": "Configures number portability queries for this service provider or enterprise. When enabled, BroadWorks checks whether a dialed number has been ported to another carrier before routing the call, so it reaches the right network. Settings here apply to calls from the groups beneath."
+    },
+    "/ServiceProvider/SACWhiteList/": {
+      "title": "Session Admission Control Allow List",
+      "body": "Lists the numbers or digit patterns that are exempt from Session Admission Control in this service provider or enterprise. Calls to these destinations can still go through when a session limit has been reached. Use it for essential numbers, such as emergency or support lines, that must never be blocked by a capacity limit."
+    },
+    "/ServiceProvider/ThirdPartyEmergency/": {
+      "title": "Third-Party Emergency Calling",
+      "body": "Sets up Third-Party Emergency Calling for this service provider or enterprise. It sends emergency calls to an outside emergency calling provider, which routes them to the right emergency center with the caller's location. Settings here, such as whether the service is enabled, apply to the groups and users beneath."
+    },
+    "/ServiceProvider/ZoneCallingRestrictions/": {
+      "title": "Zone Calling Restrictions",
+      "body": "Sets up Zone Calling Restrictions for this service provider or enterprise. The service uses office zones to restrict what users can do when their device is outside their permitted area, such as making calls or registering. Use it together with Office Zones, which define the permitted areas."
+    },
+    "/ServiceProvider/CommBarring/DigitPatternCriteria/": {
+      "title": "Digit Pattern Criteria",
+      "body": "Defines digit pattern criteria for Communication Barring in this service provider or enterprise. Each criterion is a named list of digit patterns, such as number prefixes, that describes a type of call. Use these criteria in Communication Barring profiles to allow or block calls that match."
+    },
+    "/ServiceProvider/CommBarring/Profiles/": {
+      "title": "Profiles",
+      "body": "Creates and manages Communication Barring profiles for this service provider or enterprise. A profile combines criteria with actions, such as allow or block, to decide which calls users can make or receive. Profiles defined here are assigned to groups beneath, which then apply them to their users."
+    },
+    "/ServiceProvider/MeetMeConference/": {
+      "title": "Meet-Me Conference Ports",
+      "body": "Shows the Meet-Me Conferencing ports allocated to this service provider or enterprise. Each port lets one participant join a conference, so the total limits how many people can be in conferences at the same time. Ports given to the groups beneath come out of this total."
+    },
+    "/ServiceProvider/BWAnywhereNumberLookup/": {
+      "title": "BroadWorks Anywhere Number Lookup",
+      "body": "Searches the BroadWorks Anywhere locations of users in this service provider or enterprise for a phone number. BroadWorks Anywhere lets calls to a user's business number also ring other phones, such as a mobile or home phone. Use this page to find which user has a given outside number set up as a location."
+    },
+    "/Common/DeviceProfileAuthPasswordRules/?UserLevel=ServiceProvider": {
+      "title": "Device Profile Authentication Password Rules",
+      "body": "Sets the rules for device profile authentication passwords in this service provider or enterprise, such as minimum length and required characters. These passwords let phones sign in to the Device Management System to download their configuration files. The rules apply when these passwords are set or changed for devices beneath."
+    },
+    "/ServiceProvider/EmergencyCallNotification/": {
+      "title": "Emergency Call Notification",
+      "body": "Sets up email notification of emergency calls for this service provider or enterprise. When a user places an emergency call, BroadWorks can send an email to the address set here, for example to alert reception or on-site security. Use it where someone on site needs to know quickly that an emergency call was made."
+    },
+    "/ServiceProvider/FAC/": {
+      "title": "Feature Access Codes",
+      "body": "Shows and changes the feature access codes used in this service provider or enterprise, the star codes users dial to control services such as call forwarding. You can change a code or add an alternate code to match what users are used to. Codes set here apply to the groups beneath unless a group sets its own."
+    },
+    "/Common/Password_Rules/?UserLevel=ServiceProvider": {
+      "title": "Password Rules",
+      "body": "Sets the web portal password rules for administrators and users in this service provider or enterprise, such as minimum length, required characters, and expiry. You can keep the system's rules or define your own. The rules apply whenever passwords are created or changed for accounts beneath this level."
+    },
+    "/Common/PasscodeRules/?UserLevel=ServiceProvider": {
+      "title": "Passcode Rules",
+      "body": "Sets the passcode rules for this service provider or enterprise, such as minimum length, disallowed digit patterns, and lockout after failed attempts. Passcodes are the numeric codes users enter on the phone to reach the Voice Portal and their voice messages. The rules apply to users in the groups beneath."
+    },
+    "/Common/SipAuthPasswordRules/?UserLevel=ServiceProvider": {
+      "title": "SIP Authentication Password Rules",
+      "body": "Sets the rules for SIP authentication passwords in this service provider or enterprise, such as minimum length and required characters. SIP authentication passwords are what phones and soft clients use to register with BroadWorks. The rules apply when these passwords are set or changed for users and trunk groups beneath."
+    },
+    "/ServiceProvider/AnswerConfirmation/": {
+      "title": "Answer Confirmation",
+      "body": "Sets up the announcement used for answer confirmation in this service provider or enterprise. When answer confirmation is required, a user answering on another phone, such as a mobile reached through BroadWorks Anywhere, must press a key to accept the call, which stops a voice mail system from answering it. Here you choose the default or a custom announcement."
+    },
+    "/ServiceProvider/DefaultConfig/": {
+      "title": "Device Configuration",
+      "body": "Lists the device types whose configuration files can be customized for this service provider or enterprise. You can review the files a device type uses and upload your own versions for this customer. Changes affect devices of that type in the groups beneath, unless a group or device has its own customization."
+    },
+    "/ServiceProvider/DMEventQueues/": {
+      "title": "Device Management Event Queues",
+      "body": "Shows the Device Management events queued for this service provider or enterprise, such as requests to rebuild device configuration files or reset phones. Use it to check whether changes have been processed, and to see pending, in-progress, or completed events after a bulk update."
+    },
+    "/ServiceProvider/ServicePackMigration/": {
+      "title": "Service Pack Migration",
+      "body": "Moves users from one set of services or service packs to another in bulk, across groups in this service provider or enterprise. You create a migration task, choose the groups and users it covers, and schedule when it runs. Use it when changing service offerings, such as retiring an old service pack."
+    },
+    "/ServiceProvider/VPBranding/": {
+      "title": "Voice Portal Branding",
+      "body": "Uploads custom greetings for the Voice Portal in this service provider or enterprise, such as the main greeting users hear when they reach it. Branding set here applies to the groups beneath unless a group uploads its own. Use it to give a customer's Voice Portal its own announcements instead of the system defaults."
+    },
+    "/Operator/System/System_Preferences/?sp=true": {
+      "title": "Web Portal Branding",
+      "body": "Customizes how the CommPilot web portal looks for this service provider or enterprise, such as the logo and other branding its administrators and users see. Branding set here is used in place of the system branding for this customer's portal pages. It is normally managed by a system or reseller administrator."
+    },
+    "/Group/Members/": {
+      "title": "Users",
+      "body": "Lists every user in the group and lets you search for a user, open one to manage, or add a new user. Opening a user takes you to the User level, where you manage that user's profile, phone number, device, and calling services."
+    },
+    "/Group/Profile/": {
+      "title": "Profile",
+      "body": "Shows the group's basic details and lets you update them, such as its name, contact details, address, time zone, default domain, and calling line ID name and number. The group calling line ID can be presented on users' outgoing calls, depending on the group's Call Processing Policies."
+    },
+    "/Group/Admins/": {
+      "title": "Administrators",
+      "body": "Lists the administrators who can log in to CommPilot and manage this group, and lets you add, edit, or remove them. A group administrator only has access to this group, and what each one can change is set by that administrator's own policies."
+    },
+    "/Group/AnnouncementRepository/Audio/": {
+      "title": "Announcement Repository",
+      "body": "Stores the audio and video announcement files uploaded for this group, such as greetings and hold music. Files kept here can be selected in group services like Auto Attendant and Music/Video on Hold, so one upload can be reused across services."
+    },
+    "/Group/Departments/": {
+      "title": "Departments",
+      "body": "Creates and manages departments within the group, used to organize users and group services into sections such as Sales or Support. Departments can be nested, and a department administrator can be limited to managing only the users in their own department."
+    },
+    "/Group/Schedules/": {
+      "title": "Schedules",
+      "body": "Defines the group's time schedules and holiday schedules, such as business hours or public holidays. Group schedules can then be selected by services in the group, for example Auto Attendant business hours and holiday menus, or the criteria of users' selective call features."
+    },
+    "/Group/DeviceActivationPolicy/": {
+      "title": "Activation Code Device Onboarding Policies",
+      "body": "Controls how phones in this group can be onboarded using an activation code rather than manual MAC address or credential entry. Use it when rolling out devices that support activation codes, so a technician can claim and provision each phone by entering a short code on it."
+    },
+    "/Group/AlternateUserIDs/": {
+      "title": "Alternate User IDs",
+      "body": "Lists the alternate user IDs defined for users in this group. An alternate user ID is an extra identifier for an existing user, kept alongside the primary user ID, and this page helps you see which user an alternate ID belongs to."
+    },
+    "/Group/CallProcessingPolicy/": {
+      "title": "Call Processing Policies",
+      "body": "Sets call handling rules for the group, such as which calling line ID is presented on outgoing calls, limits on simultaneous calls and call duration, and media policy. The group can follow the service provider's settings or use its own, and users can in turn have their own policies."
+    },
+    "/Group/CommBarringAuthCodes/": {
+      "title": "Communication Barring Authorization Codes",
+      "body": "Lists the authorization codes that let callers in this group get past a Communication Barring restriction. When a barring rule requires authorization, the caller is prompted for a code, and a valid code from this list lets the call through."
+    },
+    "/Group/DialPlanPolicy/": {
+      "title": "Dial Plan Policy",
+      "body": "Defines how dialed digits are interpreted for the group, including access codes for reaching an outside line, whether an access code is required for public calls, and the public and private digit maps. It applies to every user in the group unless a user has custom dial plan settings."
+    },
+    "/Group/Policies/": {
+      "title": "Group Web Policies",
+      "body": "Sets the web access policies for this group, which control what users can view or change for themselves in CommPilot, such as their profile, authentication settings, and the group directory. Permissions for individual administrators are set separately under Administrators."
+    },
+    "/Group/RoutingProfile/": {
+      "title": "Routing Profile",
+      "body": "Selects the routing profile used for this group's calls. Routing profiles let calls from different groups be routed differently in the network, and they are created at system level, so you choose from the existing ones here."
+    },
+    "/Group/VirtualOnNet/": {
+      "title": "Virtual On-Net Enterprise Extensions",
+      "body": "Defines virtual on-net users: people outside BroadWorks, such as users on another PBX, who are given a name and extension so enterprise users can reach them by short dialing. Calls to them are treated as on-net calls, even though they are routed to an external number."
+    },
+    "/Group/DialableCallerID/": {
+      "title": "Dialable Caller ID",
+      "body": "Converts the calling number shown on incoming calls into a format users can dial back directly, by adding prefix digits according to the matching criteria set here. It works together with the Dialable Caller ID option in Call Processing Policies."
+    },
+    "/Group/StirShaken/": {
+      "title": "STIR-SHAKEN",
+      "body": "Sets how STIR/SHAKEN caller ID authentication applies to this group, including whether outgoing calls are signed with an attestation and how verification results on incoming calls are handled. Use it when the group needs settings different from those at the higher levels."
+    },
+    "/Group/CallRecordingPlatform/": {
+      "title": "Call Recording Platform",
+      "body": "Selects which call recording platform this group's calls are recorded on, from the platforms set up at system level. It applies to users in the group who are assigned a Call Recording service."
+    },
+    "/Group/GroupPagingTargetsCapacity/": {
+      "title": "Group Paging Targets Capacity",
+      "body": "Shows the maximum number of target users that can be added to each Group Paging group in this group. The value is set within the limit allowed by the service provider, so a paging group that needs more targets may need a higher-level change."
+    },
+    "/Group/Endpoints/": {
+      "title": "Identity/Device Endpoints",
+      "body": "Lists every line/port on the group's identity/device profiles and the user or service each one is assigned to. Use it to see which devices are in use, or to find which device a given user or service is assigned to."
+    },
+    "/Group/DeviceInventory/": {
+      "title": "Identity/Device Profiles",
+      "body": "Lists the identity/device profiles, such as phones and gateways, created in this group and lets you add, search for, or modify them. A profile holds the device type, MAC address, and authentication details, and its line/ports are then assigned to users or group services."
+    },
+    "/Group/Domains/": {
+      "title": "Domains",
+      "body": "Lists the domains assigned to this group, which are used in user IDs, line/ports, and other addresses. Domains come from the service provider's list and are added to the group with Assign Domains, while the group's default domain is set on its Profile."
+    },
+    "/Group/NetworkClassesOfService/": {
+      "title": "Network Classes of Service",
+      "body": "Lists the network classes of service available to this group and shows which one is the default. A network class of service is defined at system level and sets network-level calling rules, such as call restrictions and routing, for the calls it applies to."
+    },
+    "/Group/GroupDnManagement/": {
+      "title": "Numbers",
+      "body": "Lists the phone numbers assigned to this group and shows which user or service each one is assigned to, and which are still free. Numbers reach the group from the service provider through Assign Numbers, and are then given to users or group services."
+    },
+    "/Group/NumberRangesUsage/": {
+      "title": "Enterprise Trunk Number Ranges",
+      "body": "Shows the number ranges assigned to this group for enterprise trunks and whether each range is in use. A range lets calls to a block of numbers be routed through an enterprise trunk without a user for each number; ranges are added with Assign Enterprise Trunk Number Ranges."
+    },
+    "/Group/NumberPrefixesUsage/": {
+      "title": "Enterprise Trunk Number Prefixes",
+      "body": "Shows the number prefixes assigned to this group for enterprise trunks and whether each one is in use. A prefix lets calls to numbers that start with it be routed through an enterprise trunk; prefixes are added with Assign Enterprise Trunk Number Prefixes."
+    },
+    "/Group/OfficeZones/": {
+      "title": "Office Zones",
+      "body": "Lists the office zones available to this group and which one is the default. An office zone is a set of network zones, defined at system level, that Location-Based Calling Restrictions uses to control which calls a user can make depending on where they are connected."
+    },
+    "/Group/RoutePointExternalSystems/": {
+      "title": "Route Point External Systems",
+      "body": "Lists the route point external systems available to this group. These are external applications, defined at system level, that can be linked to the group's Route Point services; they are added to the group with Assign Route Point External Systems."
+    },
+    "/ServiceProvider/Members/AuthorizeServices/": {
+      "title": "Services",
+      "body": "Shows which user services, group services, and service packs are authorized for this group, and in what quantity. A service has to be authorized here before it can be assigned to users or to the group, and a service provider administrator can change these authorizations."
+    },
+    "/Group/TrunkingCallCapacity/": {
+      "title": "Trunking Call Capacity",
+      "body": "Sets how many trunking calls this group can carry at once, within the capacity granted by the service provider. The limit is shared by all trunk groups in the group, and each trunk group's own capacity is set on that trunk group."
+    },
+    "/Group/SACCapacity/": {
+      "title": "Session Admission Control Capacity",
+      "body": "Sets the maximum number of concurrent sessions allowed for the group under Session Admission Control, with separate limits possible for originating and terminating calls. It helps keep the group from overloading its access network, for example a site's link with limited bandwidth."
+    },
+    "/Group/XsiPolicyProfile/": {
+      "title": "Xsi Policy Profile",
+      "body": "Shows the Xsi policy profile that applies to this group. Xsi policy profiles are defined at system level and set limits for applications that connect through the Xsi (Xtended Services Interface); the assignment is changed with Assign Xsi Policy Profile."
+    },
+    "/ServiceProvider/Members/AssignDomains/": {
+      "title": "Assign Domains",
+      "body": "Adds domains from the service provider's list to this group, or removes them, so they can be used in the group's user IDs and line/ports. Use it before creating users or devices whose addresses need a domain the group does not have yet."
+    },
+    "/Group/AssignNetworkClassesOfService/": {
+      "title": "Assign Network Classes of Service",
+      "body": "Assigns network classes of service from the service provider's list to this group, or removes them. Classes assigned here become available to the group and appear on the Network Classes of Service page."
+    },
+    "/Group/DnManagement/": {
+      "title": "Assign Numbers",
+      "body": "Moves phone numbers from the service provider's pool into this group, or returns unused ones. Numbers must be assigned to the group before they can be given to users or group services, and on some systems they also need to be activated."
+    },
+    "/Group/NumberRangesAssign/": {
+      "title": "Assign Enterprise Trunk Number Ranges",
+      "body": "Assigns number ranges from the service provider to this group for use with enterprise trunks, or removes them. Once assigned, a range can be linked to an enterprise trunk so calls to numbers in it are routed through that trunk."
+    },
+    "/Group/NumberPrefixesAssign/": {
+      "title": "Assign Enterprise Trunk Number Prefixes",
+      "body": "Assigns number prefixes from the service provider to this group for use with enterprise trunks, or removes them. Once assigned, a prefix can be linked to an enterprise trunk so calls to numbers starting with it are routed through that trunk."
+    },
+    "/Group/AssignOfficeZones/": {
+      "title": "Assign Office Zones",
+      "body": "Assigns office zones from the service provider's list to this group, or removes them. Office zones are used by Location-Based Calling Restrictions to decide which calls a user can make based on where they are connected."
+    },
+    "/Group/AssignRoutePointExternalSystems/": {
+      "title": "Assign Route Point External Systems",
+      "body": "Assigns route point external systems from the service provider's list to this group, or removes them. A system must be assigned here before the group's Route Point services can be linked to it."
+    },
+    "/Group/DnActivation/": {
+      "title": "Activate Numbers",
+      "body": "Activates or deactivates the phone numbers assigned to this group. On systems that use number activation, a number can be provisioned in advance and only goes live once it is activated, which helps when numbers are being ported in."
+    },
+    "/Group/Services/": {
+      "title": "Assign Group Services",
+      "body": "Assigns group services, such as Auto Attendant, Hunt Group, Call Park, or Music/Video on Hold, to this group from those authorized by the service provider. A group service must be assigned here before it can be set up under the Services menu."
+    },
+    "/Group/AssignXsiPolicyProfile/Group/": {
+      "title": "Assign Xsi Policy Profile",
+      "body": "Chooses which Xsi policy profile applies to this group, from the profiles available to it. Use it when applications that connect to the group through the Xsi interface need different limits from the default profile."
+    },
+    "/Group/UserServices/": {
+      "title": "New User Services Template",
+      "body": "Chooses the user services and service packs that are assigned automatically to every new user created in this group. It saves assigning the same services one user at a time; existing users are not changed, so use Existing User Services for them."
+    },
+    "/Group/ExistingUserServices/": {
+      "title": "Existing User Services",
+      "body": "Assigns or unassigns user services and service packs across the group's existing users in one step. Use it for bulk changes, such as giving every user a new service; users created later get their services from the New User Services Template instead."
+    },
+    "/Group/IMRNsManagement/": {
+      "title": "IMRNs",
+      "body": "Lists the IMRNs (IP Multimedia Routing Numbers) assigned to this group. IMRNs are routing numbers used to route calls from the mobile network into BroadWorks, and they are normally only needed when mobility services are deployed."
+    },
+    "/Group/MSDNManagement/": {
+      "title": "Mobile Subscriber Directory Numbers",
+      "body": "Lists the mobile subscriber directory numbers assigned to this group. These are the mobile phone numbers used with BroadWorks Mobility, where each one can be assigned to a user as their mobile identity."
+    },
+    "/Group/Auto_Attendant/": {
+      "title": "Auto Attendant",
+      "body": "Lists the group's auto attendants and is where a new auto attendant is created. An auto attendant answers calls with a greeting and a menu so callers can reach users by pressing keys or dialing by name or extension, with separate business hours and after hours menus."
+    },
+    "/Group/CallPark/": {
+      "title": "Call Park",
+      "body": "Sets up Call Park for the group, which lets a user put a call on hold so another user can retrieve it from a different phone. Here you create call park groups, choose which users belong to each, and set group-wide options such as the recall timer."
+    },
+    "/Group/CPU/": {
+      "title": "Call Pickup",
+      "body": "Creates and manages call pickup groups, whose members can answer a call ringing on another member's phone by dialing a feature access code. A user can belong to only one call pickup group at a time."
+    },
+    "/Group/ExchangeIntegration/": {
+      "title": "Exchange Integration",
+      "body": "Holds the group's settings for connecting BroadWorks to a Microsoft Exchange server. It is used so that users' voice messages can be integrated with their Exchange mailboxes, and it only affects users whose voice messaging is set up to use it."
+    },
+    "/Group/Hunt_Group/": {
+      "title": "Hunt Group",
+      "body": "Lists the group's hunt groups and is where a new hunt group is created. A hunt group has its own number and extension and distributes incoming calls to a list of agents using a policy such as circular, regular, simultaneous, uniform, or weighted."
+    },
+    "/Group/IntegratedIMP/": {
+      "title": "Integrated IM&P",
+      "body": "Shows the group-level settings for Integrated IM&P, the service that provides instant messaging and presence to users of BroadWorks clients. The service also has to be assigned to each user who needs it."
+    },
+    "/Group/MusicOnHold/": {
+      "title": "Music/Video on Hold",
+      "body": "Sets the music or video callers hear or see when a call in this group is placed on hold or parked, using the system default or a custom file. Departments can have their own settings, and users with the user-level service can override the group choice."
+    },
+    "/Group/Voice_XML/": {
+      "title": "VoiceXML",
+      "body": "Lists the group's VoiceXML instances and is where a new one is created. A VoiceXML instance has its own number and passes calls to a VoiceXML application, for example to run a custom voice menu that the standard group services do not cover."
+    },
+    "/Group/PreAlertingAnnouncement/": {
+      "title": "Pre-alerting Announcement",
+      "body": "Sets an announcement that callers hear before an incoming call to the group is presented, such as a notice that calls may be recorded. Use it when the same message should play for calls to the group as a whole rather than setting it user by user."
+    },
+    "/Group/Voice_Mail_Retrieval/General/": {
+      "title": "Voice Messaging",
+      "body": "Holds the group-wide settings for voice messaging, such as whether it is enabled for the group and which mail server stores and delivers messages. Each user's own mailbox options, like greetings and forwarding messages to email, are set on the user's Voice Management page."
+    },
+    "/Group/VoicePortal/": {
+      "title": "Voice Portal",
+      "body": "Configures the group's voice portal, the number users call to check voicemail, record greetings, and change settings by phone. Here you set its phone number, extension, name, and related options, which apply to all users in the group."
+    },
+    "/Group/AdviceOfCharge/": {
+      "title": "Advice Of Charge",
+      "body": "Holds the group-level settings for Advice of Charge, which sends call charging information to users' phones during or at the end of a call. It applies to users in the group who are assigned the Advice of Charge service."
+    },
+    "/Group/BroadWorksAnywhere/": {
+      "title": "BroadWorks Anywhere",
+      "body": "BroadWorks Anywhere lets users make and receive business calls from any phone, such as a mobile or home line, as if they were at their desk. At the group level you create and manage BroadWorks Anywhere portals, numbers users dial to place calls with their BroadWorks services. Each user's own locations are set on the user's pages."
+    },
+    "/Group/BroadWorksMobility/": {
+      "title": "BroadWorks Mobility",
+      "body": "BroadWorks Mobility links users' mobile phones to BroadWorks so calls on the mobile network get the same business services as a desk phone. At the group level this page holds Mobility settings that apply across the group. Each user's mobile number and ringing options are configured on that user's Mobility page."
+    },
+    "/Group/Call_Capacity/": {
+      "title": "Call Capacity",
+      "body": "Call Capacity limits how many calls a set of users in the group can have active at the same time. You create call capacity groups, add users to them, and set the maximum number of active, incoming, and outgoing calls for each. It is useful when a site's connection can only carry a limited number of calls."
+    },
+    "/Group/CustomRingback/": {
+      "title": "Custom Ringback Group",
+      "body": "Custom Ringback Group replaces the standard ringing that callers hear with a custom audio or video file when they call users in the group. On this page you choose or upload the ringback media for the group. Users with the Custom Ringback User service can set their own ringback on their user pages."
+    },
+    "/Group/EmergencyZones/": {
+      "title": "Emergency Zones",
+      "body": "Emergency Zones defines the IP address ranges where the group's devices are expected to be, so emergency calls come from a known location. You enter the home zone's IP ranges and choose whether devices outside it are blocked from registering or only from making emergency calls. An email notification can also be turned on."
+    },
+    "/Group/EnterpriseTrunk/": {
+      "title": "Enterprise Trunk",
+      "body": "An Enterprise Trunk groups several trunk groups into one routing target, so calls can be spread across them and rerouted if one is unavailable. At the group level you build enterprise trunks from the group's own trunk groups and choose how calls are distributed among them. Create the trunk groups first on the Trunk Group page."
+    },
+    "/Group/FindMeFollowMe/": {
+      "title": "Find-me/Follow-me",
+      "body": "Find-me/Follow-me is a group service with its own number that tries to reach someone by ringing a series of alerting groups, one after another. Each alerting group can ring several phone numbers or users at once. This page is where you create and manage the group's Find-me/Follow-me instances."
+    },
+    "/Group/FlexibleSeatingHost/": {
+      "title": "Flexible Seating Host",
+      "body": "Flexible Seating Host is used for shared desks: the host holds the shared phone, and users with the Flexible Seating Guest service can sign in to it and use it as their own. This page is where you create the group's hosts. It works much like Hoteling, but the host is a group service rather than a user."
+    },
+    "/Group/GroupNightForwarding/": {
+      "title": "Group Night Forwarding",
+      "body": "Group Night Forwarding forwards incoming calls for the group's users outside business hours or on holidays. You can turn it on manually or have it follow the business hours and holiday schedules you select. Use it when a whole site closes at night, instead of changing each user's forwarding one by one."
+    },
+    "/Group/GroupPaging/": {
+      "title": "Group Paging",
+      "body": "Group Paging lets a caller make a one-way announcement to a set of phones at once by dialing the paging group's number or extension. On this page you create paging groups and choose which users can send pages and which users' phones receive them. Unlike Instant Group Call, listeners cannot talk back."
+    },
+    "/Group/InstantGroupCall/": {
+      "title": "Instant Group Call",
+      "body": "Instant Group Call is a group service with its own number that calls a preset list of destinations at the same time and joins everyone who answers into one call. On this page you create instances and set their destination lists. Unlike Group Paging, the call is two-way, so everyone who answers can speak."
+    },
+    "/Group/MWIMobile/": {
+      "title": "MWI Delivery to Mobile Endpoint",
+      "body": "MWI Delivery to Mobile Endpoint sends message waiting notifications to a user's mobile phone, so they know a new voice message is waiting while away from the desk. At the group level this page holds the group's settings for the service. Users must have the service assigned to receive these notifications."
+    },
+    "/Group/PolycomPhoneServices/": {
+      "title": "Polycom Phone Services",
+      "body": "Polycom Phone Services connects supported Polycom phones to BroadWorks directories, so users can browse contacts from the phone's directory. At the group level you choose which group directory content, such as a Custom Contact Directory, is offered to the phones. Each user's own directory options are set on their Polycom Phone Services page."
+    },
+    "/Group/PreferredCarrierGroup/": {
+      "title": "Preferred Carrier Group",
+      "body": "Preferred Carrier Group sets the long-distance carriers used for the group's calls: intraLATA, interLATA, and international. You can use the service provider's carriers or pick specific ones for the group. Users with the Preferred Carrier User service can have their own carriers set on their user pages."
+    },
+    "/Group/RoutePoint/": {
+      "title": "Route Point",
+      "body": "A Route Point is a group service that queues incoming calls while an external application, such as a contact center system, decides where to send them. On this page you create and configure Route Point instances, including their numbers, queue, and announcement settings. It is used when call routing is controlled outside BroadWorks rather than by a Call Center."
+    },
+    "/Group/SeriesComplete/": {
+      "title": "Series Completion",
+      "body": "Series Completion links users in an ordered list so that a call to a busy member moves on to the next member in the series. On this page you create series completion groups and set their members and order. Unlike a Hunt Group, it has no number of its own; it only handles calls made to its members."
+    },
+    "/Group/SACGroup/": {
+      "title": "Session Admission Control Group",
+      "body": "Session Admission Control Group limits how many calls a set of devices can have at the same time, usually to protect a site's network bandwidth. You create SAC groups, add the devices that share the limit, and set the maximum number of sessions, with separate originating and terminating limits. Call Capacity is the similar limit for users rather than devices."
+    },
+    "/Group/ExternalVoiceMail/": {
+      "title": "Third-Party Voice Mail Support",
+      "body": "Third-Party Voice Mail Support sends calls to a voice mail system outside BroadWorks when a user is busy or doesn't answer. At the group level you enter the external voice mail server's number and set the group's redirect defaults. Users with the service can use this group server or have their own server number."
+    },
+    "/Group/TrunkGroup/": {
+      "title": "Trunk Group",
+      "body": "A Trunk Group connects a customer's PBX or other SIP equipment to BroadWorks so its users can make and receive calls through the trunk. At the group level you create trunk groups, choose the access device, set the maximum number of active calls, and assign a pilot user. Trunk groups can be combined into an Enterprise Trunk for routing."
+    },
+    "/Group/AccountCodes/General/": {
+      "title": "Administration",
+      "body": "Administration holds the group's Account/Authorization Codes settings: which of the two code types the group uses, how many digits a code has, and which users it applies to. Account codes tag outgoing calls for billing or tracking, while authorization codes must be valid before a call is allowed. The codes themselves are added under Codes Management."
+    },
+    "/Group/AccountCodes/CodesMgmt/": {
+      "title": "Codes Management",
+      "body": "Codes Management is where you add, edit, and delete the group's individual account or authorization codes, each with an optional description. Users enter one of these codes when placing a call that requires it. The code type and length are set on the Administration page in this section."
+    },
+    "/Group/Call_Center/": {
+      "title": "Call Centers",
+      "body": "Call Centers lists the group's call center instances, each with its own number, queue, and agents. This is where you create a call center, choose its type (Basic, Standard, or Premium), and open it to manage agents, routing, and announcements. The options shown depend on the call center type and the services assigned to the group."
+    },
+    "/Group/Call_Center/DefaultProperties/?userType=routepointandcc": {
+      "title": "Agent Default Settings",
+      "body": "Agent Default Settings holds the group's default settings for call center and route point agents. Agents use these values unless their own call center settings are changed, which saves setting the same options for each agent. Check here first when many agents in the group behave the same unexpected way."
+    },
+    "/Group/Call_Center/ThresholdsProfiles/": {
+      "title": "Agent Threshold Profiles",
+      "body": "Agent Threshold Profiles set time limits for agent activity, such as time on a call, in wrap-up, or unavailable, after which the agent's status is flagged as a warning. Each agent is assigned one profile, and supervisors see the alerts in their call center client. Use it to spot agents who may need help."
+    },
+    "/Group/Call_Center/UnavailableCodes/": {
+      "title": "Agent Unavailable Codes",
+      "body": "Agent Unavailable Codes are reason codes that call center agents pick when they set themselves to Unavailable, such as lunch or training. Here you turn the feature on, create and manage the codes, and choose default codes used automatically in certain cases, such as after bounced calls. The codes appear in call center reports."
+    },
+    "/Group/CallCenterMonitoring/": {
+      "title": "Call Center Monitoring",
+      "body": "Call Center Monitoring holds group-wide settings for how supervisors monitor the group's call centers. Changes here apply to every call center in the group. Which supervisors can monitor which agents is set separately in each call center's supervisor settings."
+    },
+    "/Group/Call_Center/DispositionCodes/": {
+      "title": "Call Disposition Codes",
+      "body": "Call Disposition Codes let agents tag a call with its outcome or purpose, such as a sale or a complaint. Codes created here at the group level can be used by the group's call centers, and each call center can also have codes of its own. The codes are included in call center reports."
+    },
+    "/Group/Call_Center/RoutingPriority/": {
+      "title": "Routing Priority Settings",
+      "body": "Routing Priority Settings decide which call an agent is offered first when the agent belongs to more than one of the group's call centers. You can offer the call that has waited longest, or rank the call centers so calls from higher-priority ones are offered first. It affects every agent who is in several call centers."
+    },
+    "/Group/Call_Center/ExternalReporting/": {
+      "title": "External Reporting Settings",
+      "body": "External Reporting Settings control whether the group's call center activity is sent to an external reporting server, for reports produced outside BroadWorks. You choose the reporting server the group uses. Use it when the customer relies on a separate reporting or workforce management system."
+    },
+    "/Group/ReportBranding/": {
+      "title": "Report Branding",
+      "body": "Report Branding sets the logo or header shown on the group's call center reports. You can keep the default branding or upload a custom image for this group. It changes only how reports look, not the data they contain."
+    },
+    "/Group/ReportTemplates/": {
+      "title": "Report Templates",
+      "body": "Report Templates lists the call center report templates available to the group, each defining what a report shows, such as agent activity or queue statistics. Here you review the templates and manage any the group adds. Scheduled and on-demand call center reports are built from these templates."
+    },
+    "/Group/CCScheduledReports/": {
+      "title": "Scheduled Reports",
+      "body": "Scheduled Reports lets you set up call center reports that run automatically on a schedule and are emailed to chosen recipients. Each schedule picks a report template, the call centers or agents to include, the time range, and how often it runs. Use it for regular reports so supervisors don't need to run them by hand."
+    },
+    "/Group/Calling_Plan/CodesMgmt/": {
+      "title": "Codes Management",
+      "body": "Codes Management holds the authorization codes used by the Outgoing Calling Plan. When a call type or number is set to require an authorization code, the caller must enter one of these codes before the call goes through. These codes are separate from those in the Acct/Auth Codes section."
+    },
+    "/Group/Calling_Plan/DigitStrings/": {
+      "title": "Digit Strings",
+      "body": "Digit Strings is where you define the number patterns used by the Outgoing Digit Plan, such as a specific area code or prefix. After a string is added here, the Outgoing Digit Plan can allow, block, or otherwise restrict calls that match it. Use it when a call type is too broad and you need to control specific numbers."
+    },
+    "/Group/Calling_Plan/PinholeDigitStrings/": {
+      "title": "Pinhole Digit Strings",
+      "body": "Pinhole Digit Strings are number patterns that can be let through even when the Outgoing Calling Plan blocks their call type, such as a single toll number. You define the strings here and then set how each is handled on the Outgoing Pinhole Digit Plan page. They act as exceptions to the calling plan."
+    },
+    "/Group/Calling_Plan/TransferNumbers/": {
+      "title": "Transfer Numbers",
+      "body": "Transfer Numbers are destinations, such as an operator or receptionist, that the Outgoing Calling Plan can send restricted calls to instead of simply blocking them. You set the group's transfer numbers here. Each call type or digit string in the outgoing plans can then be set to transfer to one of them."
+    },
+    "/Group/Calling_Plan/Incoming/": {
+      "title": "Incoming Calling Plan",
+      "body": "Incoming Calling Plan controls which types of incoming calls the group's users can receive, such as calls from outside the group or collect calls. The settings here are the group default and apply to every user who doesn't have a custom plan. A user's plan can be changed on that user's own Incoming Calling Plan page."
+    },
+    "/Group/Calling_Plan/Outgoing/?isEnh=true": {
+      "title": "Outgoing Calling Plan",
+      "body": "Outgoing Calling Plan controls which types of outgoing calls the group's users can make, such as local, toll, international, or premium-rate calls. For each call type you can allow it, block it, require an authorization code, or transfer it to a set number. These are group defaults that apply to users without a custom plan."
+    },
+    "/Group/Calling_Plan/OutgoingDigitPlan/?isEnh=true": {
+      "title": "Outgoing Digit Plan",
+      "body": "Outgoing Digit Plan applies calling plan rules to specific number patterns rather than broad call types. For each string defined under Digit Strings, you choose whether calls to it are allowed, blocked, need an authorization code, or go to a transfer number. These group settings apply to users without a custom digit plan."
+    },
+    "/Group/Calling_Plan/OutgoingPinholeDigitPlan/": {
+      "title": "Outgoing Pinhole Digit Plan",
+      "body": "Outgoing Pinhole Digit Plan sets how calls to each pinhole digit string are handled, letting chosen numbers through even when the Outgoing Calling Plan blocks their call type. For each string you can ignore it, allow the call, or apply options such as requiring an authorization code. Define the strings first under Pinhole Digit Strings."
+    },
+    "/Group/CommBarring/Profiles/": {
+      "title": "Profiles",
+      "body": "Communication Barring profiles are sets of rules that allow, block, or redirect calls based on call type or number, and are an alternative to calling plans. At the group level this page shows the profiles available to the group and which one it uses by default. The profiles themselves are created at the service provider level."
+    },
+    "/Group/MeetMeConferencePorts/": {
+      "title": "Meet-Me Conference Ports",
+      "body": "Meet-Me Conference Ports shows the conference ports allocated to the group for Meet-Me Conferencing, where each port lets one participant take part in a conference. The ports come from the service provider's allocation and are shared by the group's bridges. Check it when participants cannot join because the group has run out of ports."
+    },
+    "/Group/ConferenceBridges/": {
+      "title": "Meet-Me Conference Bridges",
+      "body": "Meet-Me Conference Bridges lists the group's conference bridges, each a group service with its own number that participants dial to join a meeting. Here you create bridges, set how many of the group's conference ports each can use, and choose which users can host conferences on it. Hosts then schedule their own conferences."
+    },
+    "/Group/BWAnywhereNumberLookup/": {
+      "title": "BroadWorks Anywhere Number Lookup",
+      "body": "BroadWorks Anywhere Number Lookup finds which user in the group has a given phone number set up as a BroadWorks Anywhere location. Enter the number to see whose location it is. It is useful for tracing where an unfamiliar mobile or home number is configured."
+    },
+    "/Group/PhoneList/": {
+      "title": "Common Phone List",
+      "body": "Common Phone List is a shared list of names and external phone numbers that every user in the group can see and dial from. You add entries one by one or import them from a file. It suits contacts everyone at the site calls, such as suppliers, while each user keeps a Personal Phone List of their own."
+    },
+    "/Group/CustomContactDir/": {
+      "title": "Custom Contact Directories",
+      "body": "Custom Contact Directories let you build named directories that contain a chosen subset of the group's users and group services, rather than the whole Group Directory. Each directory can then be made available to phones or clients, for example through Polycom Phone Services. Use them when a site needs a shorter or departmental list."
+    },
+    "/Group/EmergencyCallNotification/": {
+      "title": "Emergency Call Notification",
+      "body": "Emergency Call Notification sends an email when someone in the group dials an emergency number. On this page you turn the notification on and enter the email address that should receive it. It helps site staff learn quickly that an emergency call has been made so they can respond."
+    },
+    "/Group/Feature_Codes17/": {
+      "title": "Feature Access Codes",
+      "body": "Feature Access Codes are the star codes users dial from their phones to use services, for example to turn call forwarding on or off. This page shows the codes available to the group and lets you change them or add alternate codes if the group needs to differ from the defaults. Changes affect every user in the group."
+    },
+    "/Group/CompanyDir/": {
+      "title": "Group Directory",
+      "body": "Group Directory lists everyone in the group, including users and group services such as Hunt Groups and Auto Attendants, with their phone numbers and extensions. You can search the list and open a printable version. It is a quick way to see who has which number or extension."
+    },
+    "/Group/InventoryReport/": {
+      "title": "Inventory Report",
+      "body": "Inventory Report builds a report of what is provisioned in the group, such as users, phone numbers, devices, and assigned services. You choose what to include and enter an email address, and the report is sent there. It is useful for audits or for checking a site's setup before or after changes."
+    },
+    "/Common/Password_Rules/?UserLevel=Group": {
+      "title": "Password Rules",
+      "body": "Password Rules covers the requirements for web portal passwords in the group, such as minimum length, required character types, expiry, and lockout after failed attempts. Depending on your access, these rules may be set by the service provider and only viewable here. Voice portal passcodes are controlled separately under Passcode Rules."
+    },
+    "/Common/PasscodeRules/?UserLevel=Group": {
+      "title": "Passcode Rules",
+      "body": "Passcode Rules sets the requirements for the numeric passcodes users enter to reach the voice portal and voice mail by phone, such as length, blocked patterns like repeated digits, and expiry. The group can follow the higher-level rules or use its own. Web portal passwords are controlled separately under Password Rules."
+    },
+    "/Group/DefaultConfig/": {
+      "title": "Device Configuration",
+      "body": "Device Configuration manages the group-level configuration files that Device Management uses to set up phones of each device type. You can view or upload custom files for a device type, and rebuild files or reset phones so changes take effect. Files set here apply to the group's devices of that type unless a device has its own file."
+    },
+    "/Group/DMEventQueues/": {
+      "title": "Device Management Event Queues",
+      "body": "Device Management Event Queues shows device management tasks for the group, such as configuration file rebuilds and phone resets, and whether each is pending, in progress, or finished. Check it when phones don't pick up a change, to confirm that the rebuild or reset you started has completed."
+    },
+    "/Group/ExtensionMgmt/": {
+      "title": "Extension Dialing",
+      "body": "Extension Dialing sets the length of extensions in the group, with a minimum, maximum, and default number of digits. Users dial these extensions to reach each other without the full phone number. Set it before adding users where possible, since new extensions must fit within these lengths."
+    },
+    "/Intercept/?id=group": {
+      "title": "Intercept Group",
+      "body": "Intercept Group stops calls to and from the whole group and plays an announcement instead, for example when service is suspended or a site has moved. You can intercept incoming calls, outgoing calls, or both, and can tell callers a new number. It affects every user in the group, unlike Intercept User, which covers one user."
+    },
+    "/Group/VPBranding/": {
+      "title": "Voice Portal Branding",
+      "body": "Voice Portal Branding replaces the standard greetings on the group's voice portal with your own recordings. You can upload custom audio for the voice portal greeting and the voice messaging greeting, or keep the defaults. It suits customers who want their company name in the prompts callers and users hear."
+    },
+    "/User/Profile/": {
+      "title": "Profile",
+      "body": "Holds the user's basic details: first and last name, the calling line ID name presented on the user's calls, department, language, time zone and contact details such as email. The time zone matters for schedule-based services, since the user's schedules are applied in that time zone."
+    },
+    "/User/Addresses/": {
+      "title": "Addresses",
+      "body": "Sets the user's phone number and extension, and links the user to a phone by choosing an identity/device profile and line/port. Only numbers already assigned to the group can be selected, so a new number has to be added at group level before it can be given to the user."
+    },
+    "/User/AnnouncementRepository/Audio/": {
+      "title": "Announcement Repository",
+      "body": "Stores the audio and video announcement files uploaded for this user or virtual user, such as custom greetings, ringback or Auto Attendant menu prompts. Files kept here can be selected on any of the user's service pages that play a custom announcement, instead of uploading the same file again for each service."
+    },
+    "/User/Password/": {
+      "title": "Passwords",
+      "body": "Changes the password the user signs in to the web portal with, and the passcode used for the voice portal and voice mail by phone. New values must meet the password and passcode rules set for the group or service provider, and resetting them here is the usual fix when a user is locked out."
+    },
+    "/User/Schedules/": {
+      "title": "Schedules",
+      "body": "Lists the time and holiday schedules defined for this user alone, such as business hours or a vacation period. Criteria-based services like Call Forwarding Selective, Selective Acceptance and Selective Rejection can then act only during a chosen schedule, and group-level schedules are also available to them."
+    },
+    "/User/DirectRoute/": {
+      "title": "Direct Route",
+      "body": "Configures Direct Route for this user, which ties the user to one or more trunk group identities so calls between BroadWorks and a connected PBX can be routed by that identity. It applies only to trunking setups, so leave it unchanged unless the customer's PBX integration requires it."
+    },
+    "/User/RouteList/": {
+      "title": "Route List",
+      "body": "Assigns ranges of the group's phone numbers to this user so calls to any number in those ranges are delivered to the user, typically a trunk user serving a PBX. Settings here also control whether calls from the PBX may present a number from those ranges as the calling identity."
+    },
+    "/User/AlternateUserIDs/": {
+      "title": "Alternate User IDs",
+      "body": "Adds extra user IDs for this user besides the primary one, so the user can sign in to the web portal and supported clients with a different ID. Each alternate ID must be unique across the system, just like the primary user ID, and signs in to the same user account."
+    },
+    "/User/Services/": {
+      "title": "Assign Services",
+      "body": "Assigns or removes individual user services and service packs for this user or virtual user. A service only appears in the user's menus once it is assigned here, and only services and packs authorized for the group, with licenses available, can be selected."
+    },
+    "/User/AssignCallCenters/": {
+      "title": "Assign Call Centers",
+      "body": "Shows which call centers this user belongs to as an agent and whether the user is joined to each one. A joined agent is offered queued calls only while the agent's ACD state is Available, and agents usually change that state from their phone or desktop client."
+    },
+    "/User/AgentSupervisors/": {
+      "title": "Assign Route Point Supervisors",
+      "body": "Sets which supervisors oversee this user's work as a Route Point agent. Route Point is the call queuing service used with an external routing application, so this page matters only for customers using it; supervisors for regular Call Center queues are set on each call center."
+    },
+    "/User/AssignXsiPolicyProfile/": {
+      "title": "Assign Xsi Policy Profile",
+      "body": "Assigns the Xsi policy profile that governs what this user's applications can do through Xsi, the BroadWorks interface that desktop clients and integrations use to monitor and control calls. Profiles are defined at a higher level, so change the assignment only when a client or integration needs different access."
+    },
+    "/User/OCICAppPolicies/": {
+      "title": "Call Application Policies",
+      "body": "Controls which call control applications connected through the BroadWorks Open Client Interface may monitor or control this user's calls. It matters only when the customer uses such an application, for example a CTI or attendant console integration, and otherwise has no effect on the user's calls."
+    },
+    "/User/CallPolicies/": {
+      "title": "Call Policies",
+      "body": "Sets which calling line ID the recipient sees when the user's calls are redirected, for example by forwarding: the original caller's ID or the user's own. Showing the user's ID tells the recipient the call came through the user, while the original ID shows who is really calling."
+    },
+    "/User/CallProcessingPolicy/": {
+      "title": "Call Processing Policies",
+      "body": "Overrides the group's call processing settings for this user only, such as the calling line ID presented on outgoing calls and limits like the maximum number of simultaneous calls. Leave it on the group setting unless one user must behave differently, since values set here take precedence over the group's."
+    },
+    "/User/CommBarringAuthCodes/": {
+      "title": "Communication Barring Authorization Codes",
+      "body": "Manages the authorization codes this user can enter to place calls that the Communication Barring profile marks as needing authorization, such as international calls. The user is only asked for a code when a barring rule's action requires authorization; calls that a rule simply blocks cannot be released with a code."
+    },
+    "/User/DevicePolicies/": {
+      "title": "Device Policies",
+      "body": "Controls how the user's phones work with BroadWorks, including the line mode and whether device feature synchronization keeps settings like Do Not Disturb and forwarding in step between the phone and BroadWorks. Synchronization only works with phones that support it, so confirm the phone model before turning it on."
+    },
+    "/User/Privacy/": {
+      "title": "Privacy",
+      "body": "Hides the user from the group directory and from Auto Attendant dialing by name or extension, and can limit which users may monitor the user's phone status. With phone status privacy on, only the users listed here can watch the user's line through services such as Busy Lamp Field."
+    },
+    "/User/OfficeZone/": {
+      "title": "Office Zone",
+      "body": "Assigns the user to an office zone, the set of network locations that BroadWorks treats as the user's office. It works with Location-Based Calling Restrictions, which can limit the calls the user places from a device outside that zone."
+    },
+    "/User/ACR/": {
+      "title": "Anonymous Rejection - Off",
+      "body": "Rejects calls from callers who have blocked their caller ID, playing them an announcement that the user does not accept anonymous calls. The call never rings the user, so a caller who wants to get through has to unblock their number and call again."
+    },
+    "/User/CLIO/": {
+      "title": "Calling Line ID Blocking Override - Off",
+      "body": "Lets the user see the caller's number and name even when the caller has blocked their caller ID. It is intended for users with a genuine need to identify every caller, such as emergency or security staff, and it affects only calls the user receives."
+    },
+    "/User/CallingNameDelivery/": {
+      "title": "Calling Name Delivery - On",
+      "body": "Shows the caller's name on the user's phone for incoming calls, when a name is available. Delivery for external and internal callers can be switched on separately on this page, and callers who block their identity are still withheld."
+    },
+    "/User/CNAM/": {
+      "title": "Calling Name Retrieval - Off",
+      "body": "Looks up the caller's name in an external calling name database for incoming calls, so the user sees a name even when the call arrives with only a number. It only works where the system has been set up with a name retrieval service, and blocked callers are not revealed."
+    },
+    "/User/CallingNumberDelivery/": {
+      "title": "Calling Number Delivery - On",
+      "body": "Shows the caller's phone number on the user's phone for incoming calls. Delivery for external and internal callers can be switched on separately on this page, and callers who block their identity are still withheld from the user."
+    },
+    "/User/CF/Always/": {
+      "title": "Call Forwarding Always - Off",
+      "body": "Sends every incoming call to another number without ringing the user's phone. While it is on, Busy, No Answer and Not Reachable forwarding do not come into play, and an optional ring reminder plays a short ring on the phone so the user knows a call was forwarded."
+    },
+    "/User/CF/AlwaysSecondary/": {
+      "title": "Call Forwarding Always Secondary - Off",
+      "body": "A second, independent Call Forwarding Always with its own destination, so all incoming calls can be sent to an alternate number without changing the main Call Forwarding Always settings. While on, it forwards calls without ringing the user's phone, so check both services when calls go somewhere unexpected."
+    },
+    "/User/CF/Busy/": {
+      "title": "Call Forwarding Busy - Off",
+      "body": "Forwards incoming calls to another number when the user is already on a call and cannot take another, for example when Call Waiting is off. It is often pointed at a colleague or mobile, and when it is on it takes precedence over sending busy calls to voice mail."
+    },
+    "/User/CF/No_Answer/": {
+      "title": "Call Forwarding No Answer - Off",
+      "body": "Forwards incoming calls to another number when the user does not answer within the number of rings set on this page. When it is on, it takes precedence over sending unanswered calls to voice mail, so turn it off if missed calls should go to the user's mailbox."
+    },
+    "/User/CF/Not_Reachable/": {
+      "title": "Call Forwarding Not Reachable - Off",
+      "body": "Forwards incoming calls to another number when the user's phone cannot be reached, for example when it is unregistered or has lost its network connection. It keeps calls flowing during an outage at the customer's site, typically by sending them to a mobile or another office."
+    },
+    "/User/Icn/": {
+      "title": "Call Notify - Off",
+      "body": "Sends a notification to an email address the user chooses when an incoming call matches criteria the user sets, such as specific callers or a time schedule. The call itself is handled as usual; Call Notify only adds the alert."
+    },
+    "/User/COLR/": {
+      "title": "Connected Line Identification Restriction - Off",
+      "body": "Stops the user's identity from being presented back to the caller when the user answers a call. The caller's phone then cannot show who actually picked up, which matters when calls reach the user through forwarding, pickup or a hunt group."
+    },
+    "/User/DND/": {
+      "title": "Do Not Disturb - Off",
+      "body": "Sends all incoming calls to the user's busy treatment instead of ringing the phone, which normally means voice mail if the user has it, otherwise a busy signal. An optional ring reminder plays a short ring on the phone when a call is diverted, so the user knows calls are arriving."
+    },
+    "/User/ExternalCLIDDelivery/": {
+      "title": "External Calling Line ID Delivery - On",
+      "body": "Controls whether the user sees the caller's name and number on calls from outside the group or enterprise. Callers who block their identity stay withheld either way, and calls from inside the group or enterprise are controlled by Internal Calling Line ID Delivery."
+    },
+    "/User/InternalCLIDDelivery/": {
+      "title": "Internal Calling Line ID Delivery - On",
+      "body": "Controls whether the user sees the caller's name and number on calls from other users in the same group or enterprise. Calls from outside are controlled separately by External Calling Line ID Delivery, so the two can be set differently."
+    },
+    "/User/SilentAlerting/": {
+      "title": "Silent Alerting - Off",
+      "body": "Presents incoming calls to the user's phone without an audible ring, so the user can see a call arrive and choose to answer it without disturbing others. It relies on the phone honoring the silent alert signal from BroadWorks, so check that the phone model supports it."
+    },
+    "/User/AutomaticHoldRetrieve/": {
+      "title": "Automatic Hold/Retrieve - Off",
+      "body": "Makes this user act as a hold position: a call transferred to its number is automatically put on hold, and anyone who dials the number picks up the waiting call. A recall timer set on the page sends a held call back if nobody retrieves it in time."
+    },
+    "/User/AlternateNumbers/": {
+      "title": "Alternate Numbers",
+      "body": "Gives the user extra phone numbers or extensions that all ring the same user, each of which can have its own distinctive ring so the user can tell which number was called. The numbers must be assigned to the group before they can be added here."
+    },
+    "/User/SCF/": {
+      "title": "Call Forwarding Selective - Off",
+      "body": "Forwards incoming calls that match criteria the user sets, such as specific callers, a time schedule or holidays, to a chosen number. Calls that don't match are handled as usual, and a matching call is forwarded by this service even when Call Forwarding Always is also on."
+    },
+    "/User/CallMeNow/": {
+      "title": "Call Me Now - Off",
+      "body": "Lets someone request a call with the user, typically through a web page or application: BroadWorks first calls the requester's number and then connects them to the user. Settings on the page control whether the requester must confirm before being connected, and criteria that limit which requests are accepted."
+    },
+    "/User/CommPilot_Express/": {
+      "title": "CommPilot Express - Off",
+      "body": "Lets the user switch between preset profiles (Available In Office, Available Out Of Office, Busy and Unavailable), each with its own rules for incoming calls, such as forwarding, voice mail and email notification. Choosing a profile applies all of its call handling at once instead of changing each service separately."
+    },
+    "/User/CustomRingback/": {
+      "title": "Custom Ringback User - Off",
+      "body": "Plays a chosen audio or video file to callers in place of the normal ringing tone while they wait for the user to answer. Different files can be used for different criteria, such as specific callers or a time schedule, and calls that match no criteria hear normal ringback."
+    },
+    "/User/ExternalCustomRingback/": {
+      "title": "External Custom Ringback - Off",
+      "body": "Plays ringback to the user's callers from an external ringback server instead of the normal ringing tone, for example music supplied by a third-party service. It depends on such a server being set up for the system, and the page controls whether and how the user's calls use it."
+    },
+    "/User/PersonalAssistant/": {
+      "title": "Personal Assistant - Off",
+      "body": "Lets the user set an away status, such as Out of Office, Meeting or Vacation, with an optional end time. While it is set, callers hear an announcement about the user's absence and can be offered a transfer to an attendant number or to voice mail."
+    },
+    "/User/PreAlertingAnnouncement/": {
+      "title": "Pre-alerting Announcement - Off",
+      "body": "Plays an announcement to callers before the user's phone starts ringing, such as a notice that calls may be recorded. The page sets the audio or video file to play and the criteria that decide which incoming calls hear it."
+    },
+    "/User/PRCW/": {
+      "title": "Priority Alert - Off",
+      "body": "Gives incoming calls that match criteria the user sets, such as specific callers or a time schedule, a distinctive ring so the user can recognize important calls. Other calls ring normally, and the distinctive ring only sounds on phones that support it."
+    },
+    "/User/SCA/": {
+      "title": "Selective Acceptance - Off",
+      "body": "Lets through only incoming calls that match criteria the user sets, such as specific numbers or a time schedule. Callers who don't match hear an announcement that the user is not accepting calls, which suits users who should only be reachable by a known list of people."
+    },
+    "/User/SCR/": {
+      "title": "Selective Rejection - Off",
+      "body": "Rejects incoming calls that match criteria the user sets, such as specific numbers, anonymous callers or a time schedule, and plays those callers an announcement that the user is not accepting calls. Calls that don't match reach the user as usual."
+    },
+    "/User/SeqRing/": {
+      "title": "Sequential Ring - Off",
+      "body": "Rings a list of the user's other numbers one after another, such as a mobile and then a home phone, so a call can find the user. Each number has its own ring count, criteria decide which calls use the service, and if nobody answers the call follows the user's no-answer handling, such as voice mail."
+    },
+    "/User/SimRing/Family/": {
+      "title": "Simultaneous Ring Family - Off",
+      "body": "Rings a list of other numbers, such as other household members' phones, at the same time as the user's own phone, and the first phone answered takes the call. It works like Simultaneous Ring Personal but is assigned as a separate service, so check which one the user actually has."
+    },
+    "/User/SimRing/": {
+      "title": "Simultaneous Ring Personal - Off",
+      "body": "Rings the user's phone and a list of other numbers, such as a mobile, at the same time and connects the call to whichever answers first. Answer confirmation can be required on the other numbers, so a call is not lost to a mobile's voice mail."
+    },
+    "/User/TerminatingAlternateTrunkIdentity/": {
+      "title": "Terminating Alternate Trunk Identity",
+      "body": "Sets an alternate identity that BroadWorks sends to the PBX when delivering incoming calls for this user over a trunk group, in place of the user's usual identity. It applies only to trunking setups where the PBX needs a specific identity to route the call to the right place."
+    },
+    "/User/AutomaticCallback/": {
+      "title": "Automatic Callback - Off",
+      "body": "Lets the user ask to be called back when a number they dialed was busy. BroadWorks watches that line and, once it is free, rings the user and then connects the call to the other party, which saves the user from redialing a colleague who is on the phone."
+    },
+    "/User/Classmark/": {
+      "title": "Classmark",
+      "body": "Assigns this user one of the classmarks defined by the system operator, a tag that BroadWorks carries on the user's calls so other network elements can give them different treatment. Change it only when the carrier's or the customer's setup specifically calls for a classmark on this user."
+    },
+    "/User/CallReturn/": {
+      "title": "Call Return",
+      "body": "Lets the user call back the last person who called them by dialing a feature access code, whether or not that call was answered. BroadWorks keeps track of the last caller's number for the user, so it works from any of the user's phones."
+    },
+    "/User/CPC/": {
+      "title": "Calling Party Category",
+      "body": "Sets the calling party category sent with the user's outgoing calls, which tells the network what type of line is calling, such as an ordinary line or a payphone. Carriers can use it for routing, billing or call restrictions, so change it only when the line really is a special type."
+    },
+    "/User/LegacyAutomaticCallback/": {
+      "title": "Legacy Automatic Callback - On",
+      "body": "The callback-on-busy feature in the form used with legacy telephone networks: the user can ask to be called back when a busy number they dialed becomes free, and BroadWorks then connects the call. It is a separate service from Automatic Callback, so check which one the user has before troubleshooting."
+    },
+    "/User/LNR/": {
+      "title": "Last Number Redial",
+      "body": "Lets the user redial the last number they called from their line by dialing a feature access code. BroadWorks remembers that number on the network side, so it works even on phones that have no redial key of their own."
+    },
+    "/User/CIDB/": {
+      "title": "Line ID Blocking - Off",
+      "body": "Hides the user's number and name from the people the user calls, on every outgoing call. It is a standing setting, and a separate per-call service can let the user show or hide their identity on individual calls when needed."
+    },
+    "/User/ResourcePriority/": {
+      "title": "Resource Priority",
+      "body": "Sets the resource priority value BroadWorks signals on the user's outgoing calls, which networks that support it use to give those calls priority handling, for example for government or emergency staff. Change it only when the customer is entitled to priority service on the carrier's network."
+    },
+    "/User/SC8/": {
+      "title": "Speed Dial 8",
+      "body": "Lets the user store up to eight frequently called numbers on single-digit speed codes and call each one by dialing its short code from their phone. Entries can be set on this page or by the user from the phone with a feature access code."
+    },
+    "/User/SC100/": {
+      "title": "Speed Dial 100",
+      "body": "Lets the user store up to 100 frequently called numbers on two-digit speed codes and call each one by dialing its code. Each entry can have a description, which makes a long list easier to manage, and it suits users with many regular contacts."
+    },
+    "/User/NumberPortabilityAnnouncement/": {
+      "title": "Number Portability Announcement - Off",
+      "body": "Plays the user a short announcement before connecting a call to a number that has been ported to another network, so the user knows the number is now served by a different operator. The call then continues as normal after the announcement."
+    },
+    "/User/Phone_List/Personal/": {
+      "title": "Personal Phone List",
+      "body": "Holds the user's own list of names and numbers, which the user can browse and call from supported phones and clients. Entries here are private to the user, unlike the group and enterprise common phone lists that everyone in the group or enterprise shares."
+    },
+    "/User/PreferredCarrierUser/": {
+      "title": "Preferred Carrier User",
+      "body": "Chooses the long distance carriers used for the user's intra-LATA, inter-LATA and international calls, overriding the group's preferred carrier setting. Leave it on the group setting unless this user must use a different carrier from the rest of the group."
+    },
+    "/User/TSD/": {
+      "title": "Two-Stage Dialing - On",
+      "body": "Lets the user call in from another phone, such as a mobile, reach BroadWorks and then dial a second number so the call is placed as if from the user's business line. The outgoing call then follows the user's own calling restrictions and services rather than the mobile's."
+    },
+    "/User/BargeinExempt/": {
+      "title": "Barge-in Exempt - On",
+      "body": "Protects the user's active calls from being joined by other users, such as through Directed Call Pickup with Barge-in. It is useful for staff who handle confidential calls, and it does not stop others from picking up calls still ringing on the user's phone."
+    },
+    "/User/CW/": {
+      "title": "Call Waiting - On",
+      "body": "Lets the user receive a second call while already on one: the user hears a tone and can answer the new call, putting the first on hold. With it off, a second caller gets the user's busy treatment, such as Call Forwarding Busy or voice mail."
+    },
+    "/User/CustomerOriginatedTrace/": {
+      "title": "Customer Originated Trace",
+      "body": "Lets the user flag a harassing or malicious call right after it ends by dialing a feature access code. BroadWorks then records the details of that last incoming call for the service operator to follow up, without revealing the caller's identity to the user."
+    },
+    "/User/DirectedCallPickup/": {
+      "title": "Directed Call Pickup",
+      "body": "Lets the user answer a call ringing on another user's phone by dialing a feature access code followed by that user's extension or number. Unlike Call Pickup, it works without both users belonging to the same pickup group."
+    },
+    "/User/DiversionInhibitor/": {
+      "title": "Diversion Inhibitor",
+      "body": "Marks calls from the user, or calls the user redirects, so the destination does not forward them on, for example to its own voice mail. This helps when a call must reach a person, such as a forwarded call that should not end up in a mobile's voice mailbox."
+    },
+    "/User/DPUBI/": {
+      "title": "Directed Call Pickup with Barge-in",
+      "body": "Lets the user answer a call ringing at another user's phone by dialing a feature access code plus that user's extension. If the call has already been answered, the user can barge in and join it as a three-way call. The page sets whether a warning tone plays when the user barges in."
+    },
+    "/User/FlashCH/": {
+      "title": "Flash Call Hold",
+      "body": "Lets the user put an active call on hold from a phone that signals with hook flash, such as an analog line on an adapter, and later return to the held call. It is mainly useful on devices that have no hold button of their own."
+    },
+    "/User/CallTransfer/": {
+      "title": "Call Transfer",
+      "body": "Lets the user transfer an active call to another number, either blind without speaking first or after consulting the recipient. The page also sets Call Transfer Recall, which returns an unanswered blind transfer to the user after a number of rings, and whether a transfer to a busy line can camp on and wait."
+    },
+    "/User/ICSA/": {
+      "title": "In-Call Service Activation - Off",
+      "body": "Lets the user reach mid-call services such as transfer or conference by pressing a digit sequence on the keypad instead of using hook flash. It is useful when the user answers on a device that cannot flash, such as a mobile or other phone reached through BroadWorks Anywhere or Remote Office."
+    },
+    "/User/ThreeWayCall/": {
+      "title": "Three-Way Call",
+      "body": "Lets the user add one more party to an active call, forming a three-way conference: the first call is put on hold, the second party is dialed, and the calls are joined. For conferences with more than three people in total, the user needs N-Way Call instead."
+    },
+    "/User/MOHUser/": {
+      "title": "Music/Video On Hold - On",
+      "body": "Plays music or video to callers the user places on hold, instead of silence. The source normally comes from the group's Music On Hold settings, and this page lets the user's calls opt out or, where the group allows it, use the user's own audio or video file."
+    },
+    "/User/PreferredAnswerEndpoint/": {
+      "title": "Preferred Answer Endpoint",
+      "body": "Sets which of the user's devices, such as the primary phone or a shared call appearance, is preferred for answering calls when the answer is triggered remotely, for example from a desktop or receptionist client. It is useful when the user has several registered endpoints and wants those calls to connect on one specific device."
+    },
+    "/User/NWayCall/": {
+      "title": "N-Way Call",
+      "body": "Lets the user build an ad hoc conference from their phone, adding several other parties to the same call one at a time. Assign it to users who regularly pull more than one colleague or outside caller into a call; Three-Way Call covers only a single extra party."
+    },
+    "/User/CallRecording/": {
+      "title": "Call Recording - Off",
+      "body": "Sends the user's calls to the recording platform the provider has connected to BroadWorks. The page sets when calls are recorded, from Never through Always to On Demand, where the user chooses during the call to keep a recording, and whether the parties hear an announcement or tone that recording is in progress."
+    },
+    "/User/CommunicationBarring/": {
+      "title": "Communication Barring User-Control",
+      "body": "Lets the user switch between Communication Barring profiles that an administrator has made available, for example to lock the phone against outgoing calls when away from the desk. The user changes profile with a personal PIN, and this page shows the available profiles and which one is currently active."
+    },
+    "/User/AdviceOfCharge/": {
+      "title": "Advice of Charge",
+      "body": "Sends charge information for the user's calls to their device, either during the call or at its end, depending on the setting on this page. It is only useful when the phone or client can display charges and the provider supplies the charging data."
+    },
+    "/User/BroadWorksAnywhere/": {
+      "title": "BroadWorks Anywhere",
+      "body": "Lets the user make and receive business calls on other phones, such as a mobile or home line, as if using their desk phone. Each added location can ring alongside the user's main device, and Require Answer Confirmation stops a call from being taken by that phone's own voice mail."
+    },
+    "/User/BroadWorksMobility/": {
+      "title": "BroadWorks Mobility - Off",
+      "body": "Ties a mobile number on the provider's mobile network to the user's BroadWorks profile, so business calls can ring the mobile and calls made from it use the user's business services. The page sets which phones ring, such as the fixed phone, the mobile or both."
+    },
+    "/User/Call_Center/": {
+      "title": "Call Centers",
+      "body": "Shows the call centers the user belongs to as an agent and whether the user has joined each one to take its calls. The page also sets the user's ACD state, such as Available or Unavailable, which decides whether call center calls are offered to the user."
+    },
+    "/User/ChargeNumber/": {
+      "title": "Charge Number",
+      "body": "Assigns a separate charge number to the user, which is used for billing instead of the user's own number and can be sent toward the network on the user's calls. It is typically used when calls from several users or a virtual user should be billed against one main number."
+    },
+    "/User/Executive/": {
+      "title": "Executive",
+      "body": "Lets the user work with one or more assistants who can answer, screen and place calls on the user's behalf. The page lists the assigned assistants and sets call filtering, which decides which incoming calls go to the assistants, and screening, which alerts the user to calls the assistants are handling."
+    },
+    "/User/ExecutiveAssistant/": {
+      "title": "Executive-Assistant",
+      "body": "Lets the user act as an assistant to one or more executives, answering and placing calls on an executive's behalf. The page shows which executives the user supports and whether the user has opted in to each, and it can divert the executives' calls to another number when the assistant is away."
+    },
+    "/User/FlexibleSeatingGuest/": {
+      "title": "Flexible Seating Guest - Off",
+      "body": "Lets the user sign in to a shared phone set up as a flexible seating host, so that phone takes on the user's number and settings while the user sits there. The page turns the service on, shows the host in use and can limit how long an association lasts."
+    },
+    "/User/GroupNightForwarding/": {
+      "title": "Group Night Forwarding - Off",
+      "body": "Sends calls for the user to the group's night destination when the group has night forwarding switched on or its after-hours or holiday schedule applies. The group administrator sets the destination and schedules, and this page decides whether the user follows the group setting or keeps receiving calls as normal."
+    },
+    "/User/HotelingGuest/": {
+      "title": "Hoteling Guest - Off",
+      "body": "Lets the user link their profile to a hoteling host phone, so the user's number and services follow them to that desk for the length of the association. The page turns the service on, selects the host and sets whether the association ends after a time limit."
+    },
+    "/User/HotelingHost/": {
+      "title": "Hoteling Host - Off",
+      "body": "Makes this user's phone available as a shared hotel desk that guests can temporarily take over with their own profile. The page turns hosting on, can enforce a time limit on guest associations, and sets whether guests can come from this group only or from the whole enterprise."
+    },
+    "/User/MEED/": {
+      "title": "Mobile Extension to Extension Dialing",
+      "body": "Lets the user reach colleagues by dialing their extension from a mobile phone, the same way they would from a desk phone. It applies to the user's mobile calls that BroadWorks handles, such as through BroadWorks Mobility, so short extension numbers are recognized instead of being treated as ordinary mobile dialing."
+    },
+    "/User/PBXIntegration/": {
+      "title": "PBX Integration",
+      "body": "Lets this user profile represent a customer's PBX, so calls to the user's numbers are delivered to the PBX, which then routes them to its own extensions. It is an alternative to connecting the PBX through a trunk group."
+    },
+    "/User/PTT/": {
+      "title": "Push to Talk",
+      "body": "Lets the user make intercom-style calls that the other phone answers automatically on speaker, for quick announcements or two-way talk. The page sets whether incoming push-to-talk calls are auto-answered, whether connections are one-way or two-way, and which users are allowed or blocked from reaching this user."
+    },
+    "/User/PhysicalLocation/": {
+      "title": "Physical Location - Off",
+      "body": "Lets BroadWorks take account of the user's physical location, as reported by the network or device, for services that depend on where the user is calling from. Turn it on only when the provider uses location information, for example for location-based calling restrictions."
+    },
+    "/User/RemoteOffice/": {
+      "title": "Remote Office - Off",
+      "body": "Lets the user treat another phone, such as a home or hotel line, as their business phone. When it is on, incoming calls ring the remote number instead of the user's main device, and calls placed from a desktop client can go out through that phone with the user's business identity."
+    },
+    "/User/SCAP/": {
+      "title": "Shared Call Appearance",
+      "body": "Lets the user's line appear on additional devices, such as a second desk phone or a softphone, which ring alongside the primary phone. The page lists these extra endpoints and sets options such as whether other appearances can bridge into an active call and whether a call can be retrieved from another appearance."
+    },
+    "/User/VideoAddOn/": {
+      "title": "Video Add-On - Off",
+      "body": "Lets the user pair an audio-only phone with a separate video-capable endpoint, so calls can carry video to that endpoint while audio stays on the phone. The page turns the service on and identifies the video endpoint."
+    },
+    "/User/ZoneCallingRestrictions/": {
+      "title": "Zone Calling Restrictions",
+      "body": "Limits where the user can use their service by comparing the device's IP address with the user's home zone, a set of address ranges defined by the provider. Calls from a device outside the home zone can be blocked or handled differently, and the page sets which zone is home."
+    },
+    "/User/Calling_Plan/Incoming/": {
+      "title": "Incoming Calling Plan",
+      "body": "Controls which incoming calls reach the user, such as calls from outside the group or collect calls. The page either follows the group's default incoming calling plan or applies custom settings to this user only."
+    },
+    "/User/Calling_Plan/Outgoing/?isEnh=true": {
+      "title": "Outgoing Calling Plan",
+      "body": "Controls which call types the user can dial, such as local, toll, international or premium numbers, and whether a blocked call is refused, needs an authorization code or is transferred. The page uses the group's default plan or custom settings for this user, with separate settings for calls the user forwards or transfers."
+    },
+    "/User/Calling_Plan/OutgoingAuthCodes/?isEnh=true": {
+      "title": "Outgoing Authorization Codes",
+      "body": "Lists the authorization codes accepted when the user's outgoing calling plan requires a code for a call type, such as international calls. The codes can come from the group or be set for this user only, and the code entered is recorded against the call."
+    },
+    "/User/Calling_Plan/OutgoingDigitPlan/?isEnh=true": {
+      "title": "Outgoing Digit Plan",
+      "body": "Applies outgoing call rules to specific digit patterns defined by the group, rather than to broad call types. For each pattern the page sets whether the user may originate, forward or transfer calls to matching numbers, following the group's default or custom settings for this user."
+    },
+    "/User/Calling_Plan/OutgoingPinholeDigitPlan/?isEnh=true": {
+      "title": "Outgoing Pinhole Digit Plan",
+      "body": "Makes exceptions to the user's outgoing restrictions for specific digit patterns, so chosen numbers stay reachable even when their call type is blocked. For example, a user barred from toll calls can still be allowed one approved number, and the page follows the group's default or uses custom settings."
+    },
+    "/User/Calling_Plan/TransferNumbers/?isEnh=true": {
+      "title": "Transfer Numbers",
+      "body": "Sets the first, second and third transfer numbers that blocked calls are sent to when a calling plan rule says to transfer rather than simply disallow. A common use is routing restricted calls to an operator or reception desk."
+    },
+    "/User/BusyLampField/": {
+      "title": "Busy Lamp Field",
+      "body": "Lets the user's phone or client show whether monitored colleagues are idle, ringing or on a call. The page holds the list of users to monitor and the list URI that the device subscribes to, so the phone must also be set up with that URI."
+    },
+    "/User/OfficeCommunicatorTab/": {
+      "title": "Office Communicator Tab",
+      "body": "Licenses the BroadWorks tab for Microsoft Office Communicator, which lets the user see and control their BroadWorks calls and settings from within that client. It has no effect unless the user runs Office Communicator with the tab installed."
+    },
+    "/User/BroadWorksAgent/": {
+      "title": "BroadWorks Agent",
+      "body": "Licenses the BroadWorks call center agent client, a desktop application for handling call center calls and changing the agent's ACD state. Assign it to users who work as agents in a call center; which call centers they belong to is set separately."
+    },
+    "/User/BroadWorksSupervisor/": {
+      "title": "BroadWorks Supervisor",
+      "body": "Licenses the BroadWorks call center supervisor client, which lets the user monitor agents and queues and follow their activity. Assign it to users who supervise call center agents; the agents each supervisor can see are set in the call center's own settings."
+    },
+    "/User/ClientLicense4/": {
+      "title": "BroadWorks Receptionist - Enterprise",
+      "body": "Licenses the Enterprise edition of the Receptionist client, a desktop console for attendants who handle calls for many colleagues. The receptionist sees monitored users' call status and can answer, transfer and hold calls for them, and this page sets which users are monitored."
+    },
+    "/User/ReceptionistSmallBusiness/": {
+      "title": "BroadWorks Receptionist - Small Business",
+      "body": "Licenses the Small Business edition of the Receptionist client, a desktop console for a front desk that answers and routes calls for colleagues. The receptionist sees whether monitored users are busy before transferring a call, and this page sets which users are monitored."
+    },
+    "/User/ReceptionistOffice/": {
+      "title": "BroadWorks Receptionist - Office",
+      "body": "Licenses the Office edition of the Receptionist client, a desktop console for someone who answers and passes on calls for a small team. The receptionist can see whether monitored colleagues are on the phone before transferring, and this page sets which users are monitored."
+    },
+    "/User/PolycomPhoneServices/": {
+      "title": "Polycom Phone Services",
+      "body": "Connects the user's Polycom phone directory to BroadWorks, so the phone can show the group or enterprise directory. The page sets whether the directory is integrated and whether the user's personal phone list and a group custom contact directory are included."
+    },
+    "/User/VM/Aliases/": {
+      "title": "Aliases",
+      "body": "Lists additional phone numbers that also lead to this voice mailbox, so messages left or sent to those numbers arrive in the same mailbox. It is useful when callers still use an older or secondary number to reach the user."
+    },
+    "/User/VM/DistList/?list=0": {
+      "title": "Distribution Lists",
+      "body": "Holds the user's voice messaging distribution lists, which let the user send one voice message to several people at once from the voice portal. Each list has a number and a description, and its members are the phone numbers or extensions that receive the message."
+    },
+    "/User/VM/Greetings/": {
+      "title": "Greetings",
+      "body": "Sets what callers hear when they reach the user's voice mailbox, including the busy and no-answer greetings and the recorded personal name. It also sets how many rings pass before an unanswered call goes to voice mail."
+    },
+    "/User/IntegratedIMP/": {
+      "title": "Integrated IM&P - Off",
+      "body": "Turns on the provider's integrated instant messaging and presence service for the user, so supported BroadWorks clients can show presence and exchange chat messages under the user's business identity. It only has an effect where the provider has an IM&P server connected to BroadWorks."
+    },
+    "/User/ShortMessageService/": {
+      "title": "Short Message Service",
+      "body": "Allows the user to send and receive text messages through BroadWorks on their business identity, for use with supported clients or mobile services. It depends on the provider having text messaging set up, so assigning the service on its own may not enable texting."
+    },
+    "/User/VM/General/": {
+      "title": "Voice Management - Off",
+      "body": "Sets up the user's voice mailbox: whether voice messaging is on, whether new messages stay in the mailbox or are forwarded to an email address, and which calls go to voice mail, such as busy or unanswered calls. It also covers email notification of new messages and the message waiting light on the phone."
+    },
+    "/User/VoicePortal/": {
+      "title": "Voice Portal",
+      "body": "Sets up access to the voice portal, the phone menu used to check messages, record greetings and change some call settings. Access is protected by the voice portal passcode, and the settings here apply to this user or virtual user only."
+    },
+    "/User/FaxMessaging/": {
+      "title": "Fax Messaging - Off",
+      "body": "Gives the user a fax number whose incoming faxes are received by BroadWorks and delivered as messages, for example by email, according to the mailbox settings. Turn it on for users who need to receive faxes without a fax machine; the page sets the fax number and extension."
+    },
+    "/User/MWIMobile/": {
+      "title": "MWI Delivery to Mobile Endpoint - Off",
+      "body": "Sends a new voice message notification for the user's BroadWorks mailbox to their mobile phone, so the mobile shows when messages are waiting. It is used together with BroadWorks Mobility, and the provider sets up how the notification is delivered."
+    },
+    "/User/VM/OutgoingMWI/": {
+      "title": "Outgoing MWI",
+      "body": "Sends message waiting indication for this mailbox to other phone numbers, typically phones on a PBX or legacy system reached through an SMDI link, so they show when new messages arrive. The page turns it on and lists the numbers that receive the indication."
+    },
+    "/User/ThirdPartyMWI/": {
+      "title": "Third-Party MWI Control",
+      "body": "Lets an outside voice mail system turn the user's message waiting light on and off through BroadWorks, for users whose messages are kept on that system rather than on BroadWorks. It is normally paired with Third-Party Voice Mail Support."
+    },
+    "/User/ExternalVoiceMail/": {
+      "title": "Third-Party Voice Mail Support - Off",
+      "body": "Sends the user's calls to an external voice mail system instead of BroadWorks voice messaging, always, when busy or when unanswered after a set number of rings. The page sets those conditions and which mailbox and voice mail server are used."
+    },
+    "/User/VoicePortalCalling/": {
+      "title": "Voice Portal Calling - On",
+      "body": "Lets the user place outgoing calls from within the voice portal, for example after dialing in from a hotel or mobile phone. The call is presented with the user's business number rather than the number of the phone they dialed in from."
+    },
+    "/User/Authentication/": {
+      "title": "Authentication",
+      "body": "Holds the SIP authentication user name and password the user's device must present when it registers or places calls. They must match what is configured on the phone, so changing them here without updating the device will stop it registering."
+    },
+    "/User/BasicCallLogs/": {
+      "title": "Basic Call Logs",
+      "body": "Shows the user's recent placed, received and missed calls, with the number, name and time of each. It is a quick way to check whether a call reached the user, but the list keeps only a limited number of entries of each type."
+    },
+    "/User/DeviceActivation/": {
+      "title": "Device Activation",
+      "body": "Manages activation codes for the user's devices, so a phone or client can be claimed and provisioned for this user by entering a short code instead of typing a MAC address or credentials. The code rules, such as length and expiry, come from the device onboarding policy."
+    },
+    "/User/EnhancedCallLogs/": {
+      "title": "Enhanced Call Logs",
+      "body": "Keeps a larger, more detailed history of the user's placed, received and missed calls than Basic Call Logs, and the history can be searched and filtered. It suits users, or administrators troubleshooting for them, who need to look further back in time."
+    },
+    "/User/Feature_Codes/": {
+      "title": "Feature Access Codes",
+      "body": "Lists the feature access codes available to the user, the short codes dialed from the phone to use services such as forwarding or Do Not Disturb. The codes shown depend on the services assigned and the group's code settings, so the page is a quick reference when helping a customer."
+    },
+    "/User/CompanyDir/": {
+      "title": "Group Directory",
+      "body": "Shows the directory of the user's group, listing colleagues with their phone numbers and extensions. The page is read-only and searchable, making it a quick way to look up a number while working in the user's profile."
+    },
+    "/User/MobileAppRegistrations/": {
+      "title": "Mobile App Registrations",
+      "body": "Shows the mobile client applications registered for this user, such as a softphone app on a smartphone or tablet. It helps confirm whether the user's mobile app has signed in, for example when calls are not reaching it."
+    },
+    "/Intercept/?id=user": {
+      "title": "Intercept User - Off",
+      "body": "Stops normal calling for the user without removing the profile, for example while a line is suspended or a number has moved. Incoming callers hear an announcement and can be told a new number or sent elsewhere, and outgoing calls can be blocked or limited."
+    },
+    "/User/Prepaid/": {
+      "title": "Prepaid - Off",
+      "body": "Puts the user's calls under prepaid charging, where an external charging system checks for available credit and can stop calls when the balance runs out. It only works where the provider has connected such a charging system to BroadWorks."
+    },
+    "/User/PushNotification/": {
+      "title": "Push Notification",
+      "body": "Lets BroadWorks wake the user's mobile client app with a push notification when a call arrives, so the app can ring even while it is in the background. It is used for mobile softphone clients that rely on push rather than staying connected."
+    },
+    "/User/PushNotificationRegistrations/": {
+      "title": "Push Notification Registrations",
+      "body": "Lists the mobile apps and devices that have registered with BroadWorks to receive push notifications for this user, with details of each registration. It is useful when checking why a user's mobile app is not ringing for incoming calls."
+    },
+    "/User/Registrations/": {
+      "title": "Registrations",
+      "body": "Shows the devices currently registered for the user, with each device's contact address, expiry time and line port. It is the first place to check when a user's phone is not ringing or cannot make calls, since a missing registration means BroadWorks cannot reach that device."
+    },
+    "/User/SecurityClassification/": {
+      "title": "Security Classification - On",
+      "body": "Assigns the user a security classification level, mostly used in government or defense settings. During a call BroadWorks works out the classification that all parties share and can announce it, so participants know the level of information they may discuss."
+    },
+    "/Group/Auto_Attendant/Modify/": {
+      "title": "Profile",
+      "body": "Sets this Auto Attendant's main details: its name, calling line ID, language and time zone, plus the business hours and holiday schedules and the scope for extension and name dialing. The schedules chosen here decide whether callers hear the business hours, after hours or holiday menu, so check them first when callers reach the wrong greeting."
+    },
+    "/Group/Auto_Attendant/Addresses/": {
+      "title": "Addresses",
+      "body": "Sets the phone number, extension and any alias addresses callers can use to reach this Auto Attendant. A phone number must already be assigned to the group before it can be chosen here, and an Auto Attendant with only an extension can still be reached internally."
+    },
+    "/Group/Auto_Attendant/Submenus/": {
+      "title": "Submenus",
+      "body": "Creates and edits this Auto Attendant's submenus, each with its own greeting and keypad actions. Callers reach a submenu when a key on one of the main menus or on another submenu is set to transfer to it, which lets you build layered choices such as separate sales and support options."
+    },
+    "/Group/Auto_Attendant/MenuBusinessHours/": {
+      "title": "Business Hours Menu",
+      "body": "Sets the greeting and keypad options callers get during business hours, such as transferring to an operator or extension, dialing by name or extension, or repeating the menu. Business hours come from the schedule chosen on the Profile page; at other times the After Hours Menu or Holiday Menu plays instead."
+    },
+    "/Group/Auto_Attendant/MenuAfterHours/": {
+      "title": "After Hours Menu",
+      "body": "Sets the greeting and keypad options callers get outside business hours, meaning any time not covered by the business hours schedule on the Profile page. Check that its keys do not send callers to phones nobody answers at night, and note that if no business hours schedule is chosen, this menu never plays."
+    },
+    "/Group/Auto_Attendant/MenuHoliday/": {
+      "title": "Holiday Menu",
+      "body": "Sets the greeting and keypad options callers get on the dates in the holiday schedule chosen on the Profile page. On those dates it takes priority over both the business hours and after hours menus, which makes it the place for an office-closed greeting."
+    },
+    "/Group/Hunt_Group/Modify/": {
+      "title": "Profile",
+      "body": "Sets this Hunt Group's name, calling line ID, time zone, members and group policy, plus the no-answer rules for moving on or forwarding the call. The policy decides who rings: Regular always starts at the top of the list, Circular starts after whoever took the last call, Simultaneous rings everyone and Uniform picks whoever has been idle longest."
+    },
+    "/Group/Hunt_Group/Addresses/": {
+      "title": "Addresses",
+      "body": "Sets the phone number, extension and any alias addresses that callers dial to reach this Hunt Group. Calls to any of these addresses are offered to the group's members according to the policy on the Profile page, and a phone number must be assigned to the group before it can be picked here."
+    },
+    "/User/PrivacyServiceInstance/": {
+      "title": "Privacy",
+      "body": "Sets privacy options for this Hunt Group or Call Center, such as leaving it out of the group and enterprise directory and stopping Auto Attendant callers from reaching it by name or extension dialing. These settings only hide it from those lookups; anyone who knows the number or extension can still call it directly."
+    },
+    "/User/DirectoryNumberHunting/": {
+      "title": "Directory Number Hunting",
+      "body": "Chooses which members of this Hunt Group or Call Center have calls to their own direct numbers hunt through the group, so a call to a busy or unanswered member can be taken by someone else. Options set whether the call rings that member first and whether the member's own busy and no-answer handling applies if nobody picks up."
+    },
+    "/User/SmdiMessageDesk/": {
+      "title": "SMDI Message Desk - Off",
+      "body": "Sets up SMDI Message Desk for this Hunt Group, which sends call details such as the calling number and the reason the call was redirected to an external voice mail system over an SMDI link. It is only needed when the customer's voice mail runs on a separate platform; the On or Off in the menu shows its current state."
+    },
+    "/Group/Call_Center/AddModify/": {
+      "title": "Profile",
+      "body": "Sets this Call Center's name, calling line ID, time zone, queue length and group policy, along with queue options such as letting callers press an escape digit to leave the queue. The group policy decides which available agent gets the next call, for example whoever has been idle longest under Uniform, or every agent at once under Simultaneous."
+    },
+    "/Group/Call_Center/Addresses/": {
+      "title": "Addresses",
+      "body": "Sets the phone number, extension and any alias addresses callers dial to reach this Call Center. Calls to any of these addresses enter the queue and are offered to agents according to the policy on the Profile page, and a phone number must be assigned to the group before it can be picked here."
+    },
+    "/Group/Call_Center/Agents/": {
+      "title": "Agents",
+      "body": "Assigns the users who take calls for this Call Center and shows whether each one has joined it. Only users with a Call Center service assigned to them can be added, and under the Regular and Circular policies the order of agents in this list sets the order in which they are offered calls."
+    },
+    "/User/CCStatistics/": {
+      "title": "Status & Statistics",
+      "body": "Shows the current status of this Call Center's queue and agents along with its call statistics, such as calls received, answered and abandoned. It is a quick first check when a customer reports long waits or missed calls, before you look at the routing policies or agent settings."
+    },
+    "/Group/Call_Center/Supervisors/": {
+      "title": "Supervisors",
+      "body": "Assigns the users who supervise this Call Center, which lets them follow its queue and agents from a supervisor client. Being a supervisor does not put someone in the call queue, so a supervisor only receives queued calls if they are also added on the Agents page."
+    },
+    "/Group/Call_Center/Thresholds/": {
+      "title": "Thresholds",
+      "body": "Sets warning levels for this Call Center's queue, such as the number of calls waiting, the longest current wait, the average speed of answer and the number of abandoned calls. When a value crosses its threshold, agent and supervisor clients can show an alert, and a notification email can also be sent to the address set here."
+    },
+    "/User/Announcements/Entrance/": {
+      "title": "Announcements",
+      "body": "Sets the audio callers hear while waiting in this Call Center's queue, such as the entrance message, comfort messages and music on hold. It also covers the whisper message, which plays only to the agent before the call connects so they know which Call Center the call came from."
+    },
+    "/Group/Call_Center/RoutingPolicies/DistinctiveRinging/": {
+      "title": "Distinctive Ringing",
+      "body": "Sets whether agents' phones use a distinctive ring pattern for calls delivered from this Call Center, so agents can tell queue calls apart from calls to their own numbers. The chosen ring pattern only makes a difference on phones that support distinctive ringing."
+    },
+    "/Group/Call_Center/RoutingPolicies/Bounced/": {
+      "title": "Bounced Calls",
+      "body": "Decides what happens when an agent is offered a call from this Call Center and does not answer within the set number of rings: the call is taken back and offered to another agent. It can also make the agent who missed the call unavailable, so the queue stops sending calls to someone who has stepped away."
+    },
+    "/Group/Call_Center/RoutingPolicies/Overflow/": {
+      "title": "Overflow",
+      "body": "Decides what happens to calls when this Call Center's queue is full, or when a call has waited longer than the time allowed. Calls can get busy treatment, be transferred to another number or keep hearing ringing until the caller hangs up, and an announcement can play before the overflow action."
+    },
+    "/Group/Call_Center/RoutingPolicies/Stranded/": {
+      "title": "Stranded Calls",
+      "body": "Decides what happens to calls waiting in this Call Center's queue when no agents are left to answer them, for example because every agent has signed out or left the Call Center. Options include keeping calls in the queue, giving them busy treatment or transferring them to another number, so they are not left waiting indefinitely."
+    },
+    "/Group/Call_Center/RoutingPolicies/StrandedUnavailable/": {
+      "title": "Stranded Calls - Unavailable",
+      "body": "Decides what happens to calls waiting in this Call Center's queue when all of its agents are set to Unavailable, so nobody is taking calls even though agents are still signed in. It is separate from Stranded Calls, which covers agents who have signed out, so review both pages together."
     }
   },
-
-  "byText": {
-    "Profile": {
-      "title": "Profile",
-      "body": "The Profile menu groups the core identity and administration options for this level — service providers/enterprises, groups, users, service instances, administrators, and the reseller's own profile. It's the default landing area for day-to-day provisioning."
+  "bySection": {
+    "Reseller": {
+      "Profile": {
+        "title": "Profile",
+        "body": "The Profile menu groups the core identity and administration options for this level — service providers/enterprises, groups, users, service instances, administrators, and the reseller's own profile. It's the default landing area for day-to-day provisioning."
+      },
+      "Resources": {
+        "title": "Resources",
+        "body": "The Resources menu manages the building blocks consumed by groups and users — numbers, identity/device profiles and endpoints, domains, device management tag sets, and number ranges. This is where you provision the inventory that services are later assigned from."
+      },
+      "Services": {
+        "title": "Services",
+        "body": "The Services menu is where calling features and service packs are configured and assigned at this level — the telephony capabilities (call forwarding, voicemail, etc.) that get authorized and applied to users and groups."
+      },
+      "Call Center": {
+        "title": "Call Center",
+        "body": "The Call Center menu manages BroadWorks Call Center (ACD) resources — queues, agents, supervisors, routing policies, and reporting. Use it to configure inbound contact-center behavior such as skill/priority routing and agent availability."
+      },
+      "Meet-Me Conferencing": {
+        "title": "Meet-Me Conferencing",
+        "body": "Meet-Me Conferencing manages dial-in audio conference bridges — conference ports, host/attendee access codes, and scheduling. Use it to provision the bridges that let multiple participants dial a common number to join a call."
+      },
+      "Utilities": {
+        "title": "Utilities",
+        "body": "The Utilities menu collects administrative and diagnostic tools at this level — bulk operations, inventory reports, and lookups that assist with managing the reseller's groups, users, and resources at scale."
+      }
     },
-    "Resources": {
-      "title": "Resources",
-      "body": "The Resources menu manages the building blocks consumed by groups and users — numbers, identity/device profiles and endpoints, domains, device management tag sets, and number ranges. This is where you provision the inventory that services are later assigned from."
+    "ServiceProvider": {
+      "Communication Barring": {
+        "title": "Communication Barring",
+        "body": "The Communication Barring menu holds the barring rules this service provider's groups can use. Digit Pattern Criteria group dialed-digit patterns under a name, and Profiles combine criteria and call types into rules that allow or block the calls users make, forward and receive."
+      },
+      "Meet-Me Conferencing": {
+        "title": "Meet-Me Conferencing",
+        "body": "The Meet-Me Conferencing menu manages conference capacity for this service provider. Meet-Me Conference Ports shows how many ports it has to share among its groups, and each port carries one conference participant at a time."
+      },
+      "Profile": {
+        "title": "Profile",
+        "body": "The Profile menu covers this service provider's identity and everything under it. It lists its groups, users and service instances, manages administrators and schedules, and sets provider-wide policies and options such as call processing, dial plan, alternate user IDs, device onboarding, routing profile and dialable caller ID."
+      },
+      "Resources": {
+        "title": "Resources",
+        "body": "The Resources menu manages what this service provider makes available to its groups — numbers, domains, services, identity/device profiles and endpoints, network classes of service, carriers, office zones and enterprise trunk number ranges and prefixes. Groups can only use what has been authorized or assigned here."
+      },
+      "Services": {
+        "title": "Services",
+        "body": "The Services menu sets provider-wide options for services used across its groups, such as voice messaging, Voice Portal, BroadWorks Mobility, In-Call Service Activation, advice of charge, number portability query and third-party emergency calling. Changes here generally reach every group under this service provider."
+      },
+      "Utilities": {
+        "title": "Utilities",
+        "body": "The Utilities menu holds provider-wide rules and tools — password, passcode, SIP and device authentication password rules, feature access codes, emergency call notification, device configuration and event queues, Voice Portal branding and service pack migration. Groups can follow many of these rules or set their own."
+      }
     },
-    "Services": {
-      "title": "Services",
-      "body": "The Services menu is where calling features and service packs are configured and assigned at this level — the telephony capabilities (call forwarding, voicemail, etc.) that get authorized and applied to users and groups."
+    "Group": {
+      "Acct/Auth Codes": {
+        "title": "Acct/Auth Codes",
+        "body": "The Acct/Auth Codes menu sets up codes users enter on outgoing calls. Administration chooses account codes, which tag calls for tracking, or authorization codes, which must be valid for the call to proceed, plus the code length and which users need one. Codes Management keeps the list of codes."
+      },
+      "Call Center": {
+        "title": "Call Center",
+        "body": "The Call Center menu manages the group's call centers and the settings they share. Beyond the call center list, it holds agent defaults, threshold profiles, unavailable and disposition codes, routing priority, call center monitoring, and reporting setup such as templates, branding, scheduled reports and external reporting."
+      },
+      "Calling Plan": {
+        "title": "Calling Plan",
+        "body": "The Calling Plan menu sets group-wide rules for the calls users can receive, make and transfer. Incoming and Outgoing Calling Plans allow or block call types, digit plans cover specific dialed strings, and authorization codes and transfer numbers handle calls that need a code or are redirected. Users follow these unless given their own."
+      },
+      "Communication Barring": {
+        "title": "Communication Barring",
+        "body": "The Communication Barring menu chooses which of the service provider's barring profiles this group may use and which one applies by default. The profile in force decides which calls the group's users can make, forward and receive."
+      },
+      "Meet-Me Conferencing": {
+        "title": "Meet-Me Conferencing",
+        "body": "The Meet-Me Conferencing menu sets up dial-in conferencing for this group. Meet-Me Conference Ports shows how many ports the group can use, and Meet-Me Conference Bridges creates the bridges participants dial into, each with its own number, port allowance and assigned conference hosts."
+      },
+      "Profile": {
+        "title": "Profile",
+        "body": "The Profile menu covers the group's identity and structure — its profile details, users, departments, administrators, schedules and announcement repository. It also holds group policies for call processing, dial plan, web portal access and device onboarding, plus alternate user IDs and communication barring authorization codes."
+      },
+      "Resources": {
+        "title": "Resources",
+        "body": "The Resources menu shows what this group has to work with — its numbers, domains, authorized services, identity/device profiles and endpoints, network classes of service, office zones, call recording platform and enterprise trunk number ranges. Numbers and services must reach the group from the service provider before users can be given them."
+      },
+      "Services": {
+        "title": "Services",
+        "body": "The Services menu sets up group-wide services — virtual users such as auto attendants, hunt groups and VoiceXML, plus shared features like call park, call pickup, music/video on hold, voice messaging, Voice Portal and Exchange integration. These are configured once for the group rather than per user."
+      },
+      "Utilities": {
+        "title": "Utilities",
+        "body": "The Utilities menu gathers group-wide tools — the group directory, common phone list, custom contact directories, inventory report, feature access codes, extension dialing length, password and passcode rules, emergency call notification and device configuration. Use it to review what the group holds and adjust rules shared by its users."
+      }
     },
-    "Call Center": {
-      "title": "Call Center",
-      "body": "The Call Center menu manages BroadWorks Call Center (ACD) resources — queues, agents, supervisors, routing policies, and reporting. Use it to configure inbound contact-center behavior such as skill/priority routing and agent availability."
+    "User": {
+      "Call Control": {
+        "title": "Call Control",
+        "body": "The Call Control menu holds services that shape how calls are handled once connected, such as call waiting, call transfer, three-way calling, flash hold, directed call pickup, barge-in exemption, music/video on hold and call recording. Where an entry shows On or Off, that is the service's current state."
+      },
+      "Calling Plans": {
+        "title": "Calling Plans",
+        "body": "The Calling Plans menu controls which calls this user, auto attendant, hunt group or call center can receive, make and transfer. Incoming and Outgoing Calling Plans allow or block call types, digit plans cover specific dialed strings, and authorization codes and transfer numbers handle calls that need a code or are redirected."
+      },
+      "Client Applications": {
+        "title": "Client Applications",
+        "body": "The Client Applications menu configures client software and phone applications linked to this user, such as BroadWorks Receptionist, Agent and Supervisor, Busy Lamp Field, Polycom Phone Services and the Office Communicator tab. Only clients whose services are assigned to the user appear here."
+      },
+      "Incoming Calls": {
+        "title": "Incoming Calls",
+        "body": "The Incoming Calls menu holds services that decide how calls to this user, auto attendant, hunt group or call center are handled — forwarding, Do Not Disturb, anonymous rejection, caller name and number delivery, alternate numbers, call notify and Call Me Now. Where an entry shows On or Off, that is its current state."
+      },
+      "Messaging": {
+        "title": "Messaging",
+        "body": "The Messaging menu covers voice mail and related services — voice management, greetings, aliases, distribution lists, fax messaging, Voice Portal access, message waiting indicators, SMS and third-party voice mail support. Where an entry shows On or Off, that is its current state for this user, hunt group or call center."
+      },
+      "Outgoing Calls": {
+        "title": "Outgoing Calls",
+        "body": "The Outgoing Calls menu holds services that affect the calls this user places, such as speed dial, last number redial, call return, automatic callback, line ID blocking, personal phone list and resource priority. Where an entry shows On or Off, that is the service's current state."
+      },
+      "Profile": {
+        "title": "Profile",
+        "body": "The Profile menu holds the core setup of this user, auto attendant, hunt group or call center — name and addresses, passwords, announcement repository, assigned services and call policies. Virtual users add their own entries here, such as auto attendant submenus and a call center's agents, supervisors, thresholds and announcements."
+      },
+      "Utilities": {
+        "title": "Utilities",
+        "body": "The Utilities menu gathers tools for this user's devices and records, such as call logs, feature access codes, the group directory, device activation, SIP authentication, registrations and push notification settings. It also lists services like Intercept User and Prepaid, where On or Off shows whether they are active."
+      },
+      "Menus": {
+        "title": "Menus",
+        "body": "The Menus section sets what callers hear and which keys they can press on this auto attendant. The Business Hours, After Hours and Holiday menus each have their own greeting and key options, and the auto attendant picks one using its business hours and holiday schedules."
+      },
+      "Routing Policies": {
+        "title": "Routing Policies",
+        "body": "The Routing Policies menu decides what this call center does with calls it cannot handle normally. Bounced Calls covers calls an agent does not answer, Overflow covers calls that wait too long or find the queue full, and the Stranded Calls pages cover calls left when no agents are signed in or all are unavailable."
+      }
+    }
+  },
+  "bySetting": {
+    "/Reseller/Profile/": {
+      "Reseller ID": {
+        "title": "Reseller ID",
+        "body": "The unique identifier for this reseller in BroadWorks, used to link its service providers and enterprises to it. It is an administrative key only and has no effect on how calls are routed or handled."
+      },
+      "Name": {
+        "title": "Name",
+        "body": "The reseller's descriptive name, shown to administrators in lists and search results. Changing it only affects how the reseller appears in the portal; it does not change the Reseller ID, its service providers or any calls."
+      }
     },
-    "Meet-Me Conferencing": {
-      "title": "Meet-Me Conferencing",
-      "body": "Meet-Me Conferencing manages dial-in audio conference bridges — conference ports, host/attendee access codes, and scheduling. Use it to provision the bridges that let multiple participants dial a common number to join a call."
+    "/User/CF/Always/": {
+      "Call Forwarding Always": {
+        "title": "Call Forwarding Always",
+        "body": "When On, every incoming call to this user is forwarded straight to the number or SIP-URI below, and the user's own phones do not ring. When Off, calls are delivered normally and the user's other forwarding and voice mail settings apply."
+      },
+      "Calls Forward to phone number / SIP-URI": {
+        "title": "Calls Forward to phone number / SIP-URI",
+        "body": "The destination that receives all of this user's calls while Call Forwarding Always is On, such as a home office or mobile number, an extension or a SIP-URI. It must be a destination the user's outgoing calling plan permits."
+      },
+      "Play Ring Reminder when a call is forwarded": {
+        "title": "Play Ring Reminder when a call is forwarded",
+        "body": "When checked, the user's primary phone gives a short ring burst each time a call is forwarded, as a reminder that Call Forwarding Always is on. The call is still forwarded; when unchecked, calls are forwarded silently."
+      }
     },
-    "Utilities": {
-      "title": "Utilities",
-      "body": "The Utilities menu collects administrative and diagnostic tools at this level — bulk operations, inventory reports, and lookups that assist with managing the reseller's groups, users, and resources at scale."
+    "/User/DND/": {
+      "Do Not Disturb": {
+        "title": "Do Not Disturb",
+        "body": "When On, incoming calls do not ring the user's phones and are sent straight to voice mail, or given the user's busy treatment if there is no voice mail. When Off, calls ring normally."
+      },
+      "Play Ring Reminder when a call is blocked": {
+        "title": "Play Ring Reminder when a call is blocked",
+        "body": "When checked, the user's primary phone gives a short ring burst each time Do Not Disturb sends a call away, as a reminder the service is on. The call is still not answered at the phone; when unchecked, calls are blocked silently."
+      }
+    },
+    "/User/ACR/": {
+      "Anonymous Call Rejection": {
+        "title": "Anonymous Call Rejection",
+        "body": "When On, calls from callers who deliberately hide their number are rejected and the caller is told the user does not accept calls from unidentified callers. Callers whose number is simply unavailable, and calls from within the group, still ring. When Off, anonymous calls ring normally."
+      }
+    },
+    "/User/CallingNameDelivery/": {
+      "Enable External Calling Name Delivery": {
+        "title": "Enable External Calling Name Delivery",
+        "body": "When On, the user's phone shows the caller's name on calls from outside the group or enterprise, when one is provided. When Off, external callers' names are not shown. This setting also controls seeing the answering party's name on external calls the user places."
+      },
+      "Enable Internal Calling Name Delivery": {
+        "title": "Enable Internal Calling Name Delivery",
+        "body": "When On, the user's phone shows the caller's name on calls from inside the group or enterprise. When Off, internal callers' names are not shown. This setting also controls seeing the answering party's name on internal calls the user places."
+      }
+    },
+    "/User/CallingNumberDelivery/": {
+      "Enable External Calling Number Delivery": {
+        "title": "Enable External Calling Number Delivery",
+        "body": "When On, the user's phone shows the caller's number on calls from outside the group or enterprise, unless the caller has blocked it. When Off, external callers' numbers are not shown. This setting also controls seeing the answering party's number on external calls the user places."
+      },
+      "Enable Internal Calling Number Delivery": {
+        "title": "Enable Internal Calling Number Delivery",
+        "body": "When On, the user's phone shows the number or extension of callers inside the group or enterprise. When Off, internal callers' numbers are not shown. This setting also controls seeing the answering party's number on internal calls the user places."
+      }
+    },
+    "/User/AutomaticHoldRetrieve/": {
+      "Automatic Hold/Retrieve": {
+        "title": "Automatic Hold/Retrieve",
+        "body": "When On, incoming calls to this user are held and retrieved automatically, giving an alternate way to hold and pick up calls without using feature access codes. When Off, calls to this user are handled normally."
+      },
+      "Automatically retrieve the call after": {
+        "title": "Automatically retrieve the call after",
+        "body": "The number of seconds a call can stay on automatic hold before BroadWorks retrieves it automatically. A shorter time brings held callers back sooner, so they are not left waiting unnoticed."
+      }
+    },
+    "/User/CallMeNow/": {
+      "Call Me Now": {
+        "title": "Call Me Now",
+        "body": "When On, a caller can use a Call Me Now web link to enter their own phone number; BroadWorks calls that number first and, once answered, places the call to this user. When Off, Call Me Now requests are not accepted."
+      },
+      "Answer Confirmation": {
+        "title": "Answer Confirmation",
+        "body": "Sets what the requesting party must do after answering the Call Me Now call, before BroadWorks calls this user. None connects at once, Any Key requires a key press, and Passcode requires a passcode, so a voice mailbox answering does not complete the call."
+      }
+    },
+    "/User/MWIMobile/": {
+      "MWI Delivery to Mobile Endpoint": {
+        "title": "MWI Delivery to Mobile Endpoint",
+        "body": "When On, BroadWorks notifies the user's mobile phone when a new voice mail, fax or video message arrives, by SMS or message waiting indication if the phone supports it. When Off, no mobile notification is sent."
+      },
+      "Mobile Phone Number": {
+        "title": "Mobile Phone Number",
+        "body": "The mobile phone number that receives new-message notifications while MWI Delivery to Mobile Endpoint is On. Enter the user's own mobile number; the phone needs SMS or message waiting indication support to show the alert."
+      },
+      "Send Missed Call Alert when no Voice Mail is deposited": {
+        "title": "Send Missed Call Alert when no Voice Mail is deposited",
+        "body": "When checked, the mobile phone also gets an alert when a call to the user is missed and the caller leaves no voice mail. When unchecked, notifications are sent only for new messages."
+      }
+    },
+    "/User/CF/AlwaysSecondary/": {
+      "Call Forwarding Always Secondary": {
+        "title": "Call Forwarding Always Secondary",
+        "body": "When On, all incoming calls to this user are forwarded to the secondary number or SIP-URI below instead of ringing the user's phones. It works like Call Forwarding Always but keeps its own destination. When Off, it does not forward calls."
+      },
+      "Calls Forward to phone number / SIP-URI": {
+        "title": "Calls Forward to phone number / SIP-URI",
+        "body": "The secondary destination that receives all of this user's calls while Call Forwarding Always Secondary is On. Enter a phone number, extension or SIP-URI; it must be a destination the user's outgoing calling plan permits."
+      },
+      "Play Ring Reminder when a call is forwarded": {
+        "title": "Play Ring Reminder when a call is forwarded",
+        "body": "When checked, the user's primary phone gives a short ring burst each time a call is forwarded to the secondary destination, as a reminder the service is on. The call is still forwarded; when unchecked, calls are forwarded silently."
+      }
+    },
+    "/User/CF/No_Answer/": {
+      "Call Forwarding No Answer": {
+        "title": "Call Forwarding No Answer",
+        "body": "When On, calls the user does not answer are forwarded to the number or SIP-URI below after the set number of rings, instead of going to voice mail. When Off, unanswered calls follow the user's other no-answer handling, such as voice mail."
+      },
+      "Calls Forward to phone number / SIP-URI": {
+        "title": "Calls Forward to phone number / SIP-URI",
+        "body": "The destination that receives calls the user does not answer while Call Forwarding No Answer is On, such as a co-worker, assistant or mobile number, or a SIP-URI. It must be a destination the user's outgoing calling plan permits."
+      },
+      "Number of rings before forwarding": {
+        "title": "Number of rings before forwarding",
+        "body": "How many times the user's phone rings before an unanswered call is forwarded. A lower number sends callers on sooner; a higher number gives the user more time to pick up before the call leaves their phone."
+      }
+    },
+    "/User/TSD/": {
+      "Two-Stage Dialing": {
+        "title": "Two-Stage Dialing",
+        "body": "When On, calls the user places from an associated mobile phone or landline to their own BroadWorks number are answered with a prompt for more digits. The digits entered are then dialed as if from the user's BroadWorks phone. When Off, no prompt is played."
+      },
+      "Allow activation with any user address": {
+        "title": "Allow activation with any user address",
+        "body": "When checked, calling any of the user's own phone numbers, extensions or aliases from an associated phone triggers the prompt for more digits. When unchecked, dialing those addresses is not treated as a Two-Stage Dialing request."
+      }
+    },
+    "/User/CW/": {
+      "Call Waiting": {
+        "title": "Call Waiting",
+        "body": "When On, the user hears a call waiting tone when a second call arrives during a call and can switch to it. When Off, the second caller gets the user's busy treatment, such as voice mail or Call Forwarding Busy."
+      },
+      "Disable Calling Line ID Delivery on Call Waiting": {
+        "title": "Disable Calling Line ID Delivery on Call Waiting",
+        "body": "When checked, the user's phone does not show the waiting caller's name or number during a call waiting alert; only the tone is heard. When unchecked, the waiting caller's identity is shown if the phone supports it."
+      }
     }
   }
 }

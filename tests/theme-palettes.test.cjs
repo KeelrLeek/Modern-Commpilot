@@ -46,6 +46,7 @@ test('palette follows stored setting through changes and PJAX shell replacement'
     await page.addStyleTag({ path: path.join(root, 'src/content/native-theme.css') });
     await page.addStyleTag({ path: path.join(root, 'src/content/theme-palettes.css') });
     await page.addStyleTag({ path: path.join(root, 'src/content/theme-settings.css') });
+    await page.addScriptTag({ path: path.join(root, 'src/content/themes.js') });
     await page.addScriptTag({ path: path.join(root, 'src/content/theme-settings.js') });
     await page.addScriptTag({ path: path.join(root, 'src/content/theme-icons.js') });
     await page.addScriptTag({ path: path.join(root, 'src/content/native-theme.js') });
@@ -63,10 +64,35 @@ test('palette follows stored setting through changes and PJAX shell replacement'
       .every(link => link.dataset.cpNavIcon &&
         getComputedStyle(link, '::before').maskImage.includes('/assets/icons/palette-')));
     await page.getByRole('button', { name: 'Settings' }).click();
-    await page.getByRole('dialog', { name: 'Settings' }).waitFor();
-    await page.getByText('Graphite', { exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Settings' });
+    await dialog.waitFor();
+    // Twelve themes by their names, each tile in its own side's colours with its mark (an extension file).
+    const list = await page.evaluate(() => [...document.querySelectorAll('#cp-appearance-panel .cp-theme-option')].map(option => {
+      const tile = option.querySelector('.cp-theme-tile');
+      return { name: option.querySelector('.cp-theme-name').textContent, palette: tile.dataset.cpPalette,
+        ground: getComputedStyle(tile).backgroundColor, mark: getComputedStyle(tile).backgroundImage };
+    }));
+    assert.deepEqual(list.map(t => t.name), ['DMG', 'Duke', 'FLUDD', 'Flowey', 'Gerudo', 'Kill Screen', 'Mode 7', 'Shovel Knight',
+      'Snowdin', 'Solaire', 'Tokyo-to', 'Vampire Killer']);
+    assert.equal(list.find(t => t.name === 'FLUDD').palette, 'atlas', 'Atlas is the light side, the switch is on Light');
+    assert.equal(list.find(t => t.name === 'Duke').ground, 'rgb(251, 252, 251)', "a tile has its own side's top bar colour");
+    assert.ok(list.every(t => /chrome-extension:\/\/test\/assets\/icons\/theme-[a-z-]+\.svg/.test(t.mark)), JSON.stringify(list.map(t => t.mark)));
+    assert.equal(await dialog.getByRole('radio', { name: 'Light' }).isChecked(), true);
+    // Pointing at a theme shows it behind the window without saving it; moving away puts the chosen one back.
+    await page.locator('#cp-appearance-panel .cp-theme-option', { hasText: 'Mode 7' }).hover();
+    await page.waitForFunction(() => document.documentElement.dataset.cpDirection === 'snes-light');
+    await page.locator('#cp-appearance-panel .cp-theme-head').hover();
+    await page.waitForFunction(() => document.documentElement.dataset.cpDirection === 'atlas');
+    // Dark keeps the theme and changes its side; a theme picked then comes on the dark side.
+    await dialog.getByText('Dark', { exact: true }).click();
+    assert.equal((await snapshot()).palette, 'atlas-dark');
+    assert.equal(await page.evaluate(() => document.querySelector('.cp-theme-tile[data-theme="graphite"]').dataset.cpPalette), 'graphite');
+    await page.getByText('Duke', { exact: true }).click();
     assert.equal((await snapshot()).background, 'rgb(21, 25, 29)');
+    assert.equal((await snapshot()).palette, 'graphite');
     assert.equal(await page.locator('#cp-appearance-panel input[value="graphite"]').isChecked(), true);
+    assert.match(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--cp-theme-mark')),
+      /assets\/icons\/theme-graphite\.svg/, "the top bar's mark follows the theme");
     await page.keyboard.press('Escape');
     assert.equal(await page.locator('#cp-appearance-panel').isHidden(), true);
     await page.evaluate(() => {
@@ -94,13 +120,13 @@ test('palette follows stored setting through changes and PJAX shell replacement'
       canvas: getComputedStyle(document.body).getPropertyValue('--d-canvas').trim(),
       sidebarRadius: getComputedStyle(document.querySelector('a.leftnavfolder')).borderRadius,
       mainBackgroundImage: getComputedStyle(document.querySelector('td[width="82%"][valign="top"]')).backgroundImage,
-      helpIcon: getComputedStyle(document.querySelector('td.headerBar a.headerLink'), '::before').backgroundImage
+      helpIcon: getComputedStyle(document.querySelector('td.headerBar a.headerLink'), '::before').maskImage
     }));
     assert.equal(nordShell.direction, 'nord');
     assert.equal(nordShell.canvas, '#2e3440');
     assert.equal(nordShell.sidebarRadius, '8px');
     assert.equal(nordShell.mainBackgroundImage, 'none');
-    assert.match(nordShell.helpIcon, /assets\/icons\/palette-help\.svg/);
+    assert.match(nordShell.helpIcon, /assets\/icons\/palette-(dark-)?help\.svg/);   // a mask, drawn in the text colour
     await page.evaluate(() => window.__choosePalette('midnight'));
     assert.equal((await snapshot()).palette, 'nord', 'saved Midnight selections migrate to Nord');
 
@@ -233,12 +259,17 @@ test('extension popup changes the active CommPilot page and keeps the choice in 
     }
     await assertIconsLoad('Atlas');
     await page.getByRole('button', { name: 'Settings' }).click();
-    await page.getByRole('dialog', { name: 'Settings' }).getByText('Graphite', { exact: true }).click();
+    await page.getByRole('dialog', { name: 'Settings' }).getByText('Dark', { exact: true }).click();
+    await page.getByRole('dialog', { name: 'Settings' }).getByText('Duke', { exact: true }).click();
     await page.waitForFunction(() => document.documentElement.dataset.cpDirection === 'graphite');
     await assertIconsLoad('Graphite');
     const popup = await context.newPage();
     await popup.goto('chrome-extension://gahgpfcnalnjfnlchhlhknidgnpllojg/src/popup/popup.html');
     await popup.locator('input[value="graphite"]:checked').waitFor();
+    assert.equal(await popup.locator('.option-name').count(), 12);
+    assert.equal(await popup.evaluate(() => document.documentElement.dataset.cpPalette), 'graphite', 'the popup wears the theme');
+    await popup.locator('.mode label', { hasText: 'Light' }).click();
+    await page.waitForFunction(() => document.documentElement.dataset.cpDirection === 'graphite-light');
     await popup.locator('label[for="palette-atlas"]').click();
     await page.waitForFunction(() => document.documentElement.dataset.cpDirection === 'atlas');
     assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(237, 242, 247)');
@@ -275,9 +306,16 @@ test('extension popup changes the active CommPilot page and keeps the choice in 
     await previews.click();
     await second.waitForFunction(() => document.documentElement.getAttribute('data-cp-peek') === 'off');
     assert.deepEqual(await popup.evaluate(() => new Promise(resolve => chrome.storage.local.get('cpSettings', v => resolve(v.cpSettings)))),
-      { peek: false, font: 'inter', side: 'full' });
+      { peek: false, font: 'inter', side: 'full', debug: false });
     await previews.click();
     await second.waitForFunction(() => !document.documentElement.hasAttribute('data-cp-peek'));
+    // The debug view: off by default, and on in every tab once switched on.
+    const debug = settings.getByRole('switch', { name: /Debug view/ });
+    assert.equal(await debug.isChecked(), false);
+    await debug.click();
+    await second.waitForFunction(() => document.documentElement.hasAttribute('data-cp-debug'));
+    await debug.click();
+    await second.waitForFunction(() => !document.documentElement.hasAttribute('data-cp-debug'));
   } finally {
     await context?.close();
     fs.rmSync(profile, { recursive: true, force: true });
@@ -312,6 +350,7 @@ test('2.0 theme restyles sort arrows, On/Off labels, and the copy buttons in eve
     await page.goto('https://apps-sbx.avpaas.io/commpilot/Group/Groups/');
     for (const file of ['enhancer.css', 'native-theme.css', 'theme-palettes.css', 'theme-settings.css'])
       await page.addStyleTag({ path: path.join(root, 'src/content', file) });
+    await page.addScriptTag({ path: path.join(root, 'src/content/themes.js') });
     await page.addScriptTag({ path: path.join(root, 'src/content/theme-settings.js') });
     await page.addScriptTag({ path: path.join(root, 'src/content/theme-icons.js') });
     await page.waitForFunction(() => document.querySelector('.cp-sort-ico'));
@@ -354,6 +393,7 @@ test('a page reopened by the browser Reload button (body initBody) gets the 2.0 
       window.chrome.runtime = { getURL: p => `chrome-extension://test/${p}` };
     });
     // The extension injects theme-settings.js at document_start, before CommPilot's body is parsed.
+    await page.addInitScript({ path: path.join(root, 'src/content/themes.js') });
     await page.addInitScript({ path: path.join(root, 'src/content/theme-settings.js') });
     const pages = {
       '/commpilot/Reseller/Groups/': `<!doctype html><html><body id="initBody">

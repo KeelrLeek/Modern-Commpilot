@@ -7193,6 +7193,46 @@
         if (cons) cons.addEventListener("scroll", onScroll, true);
       }, 0);
     }
+    // A sidebar folder's target, read the way CommPilot wires it: an onclick, or the wiring script beside the link
+    // (redirectPost(folder_contents, {folder: 'G0', menuId: '1'})). Stamped on the link (data-cp-folder / -menuid)
+    // so the folder-click takeover can replay the navigation itself.
+    function cpFolderTarget(a) {
+      var known = a.getAttribute("data-cp-folder");
+      if (known) return { folder: known, menuId: a.getAttribute("data-cp-menuid") || "8" };
+      var folder = "", menuId = "8";
+      var onclick = a.getAttribute("onclick") || "";
+      // Folder ids are level-scoped, NOT just reseller R0..R5: the Service Provider level uses
+      // S0,S1,S2,S5,S3 (S-prefixed, non-contiguous) with menuId 2, and Group/User levels use their
+      // own letter prefixes. Match any single-letter+digits id so the console enumerates folders at
+      // every level (menuId is parsed dynamically below). Reseller R-ids still match unchanged.
+      var fm = /folder\s*:\s*['"]([A-Z]\d+)['"]/i.exec(onclick);
+      if (fm) folder = fm[1];
+      var mm = /menuId\s*:\s*['"](\d+)['"]/i.exec(onclick);
+      if (mm) menuId = mm[1];
+      if (!folder) {
+        var el = a;
+        for (var hop = 0; hop < 4 && el; hop++) {
+          var scripts = el.querySelectorAll("script");
+          for (var si = 0; si < scripts.length; si++) {
+            var txt = scripts[si].textContent || "";
+            // Read menuId FIRST — the folder + menuId live in the SAME redirectPost({folder:'S1',menuId:'2'})
+            // call, so breaking on the folder match before reading menuId left menuId at its "8" default.
+            // That made SP folders (which need menuId:2) post folder_contents{Sn,menuId:8} → server SHELL.
+            var mm2 = /menuId['"\s:,]+(\d+)/.exec(txt);
+            if (mm2) menuId = mm2[1];
+            var fm2 = /folder['"\s:,]+([A-Z]\d+)/.exec(txt);
+            if (fm2) { folder = fm2[1]; break; }
+          }
+          if (folder) break;
+          el = el.parentNode;
+        }
+      }
+      if (!folder) return null;
+      a.setAttribute("data-cp-folder", folder);
+      a.setAttribute("data-cp-menuid", menuId);   // used by the folder-click takeover (below) to replay the nav safely
+      return { folder: folder, menuId: menuId };
+    }
+
     function cpBuildConsole() {
       if (document.querySelector(".cp-console")) return;
       var contentCell = document.querySelector('td[width="82%"]');
@@ -7205,38 +7245,9 @@
       navAnchors.forEach(function (a) {
         var name = (a.textContent || "").trim().split(/\n/)[0].trim();
         if (!name) return;
-        var folder = "", menuId = "8";
-        var onclick = a.getAttribute("onclick") || "";
-        // Folder ids are level-scoped, NOT just reseller R0..R5: the Service Provider level uses
-        // S0,S1,S2,S5,S3 (S-prefixed, non-contiguous) with menuId 2, and Group/User levels use their
-        // own letter prefixes. Match any single-letter+digits id so the console enumerates folders at
-        // every level (menuId is parsed dynamically below). Reseller R-ids still match unchanged.
-        var fm = /folder\s*:\s*['"]([A-Z]\d+)['"]/i.exec(onclick);
-        if (fm) folder = fm[1];
-        var mm = /menuId\s*:\s*['"](\d+)['"]/i.exec(onclick);
-        if (mm) menuId = mm[1];
-        if (!folder) {
-          var el = a;
-          for (var hop = 0; hop < 4 && el; hop++) {
-            var scripts = el.querySelectorAll("script");
-            for (var si = 0; si < scripts.length; si++) {
-              var txt = scripts[si].textContent || "";
-              // Read menuId FIRST — the folder + menuId live in the SAME redirectPost({folder:'S1',menuId:'2'})
-              // call, so breaking on the folder match before reading menuId left menuId at its "8" default.
-              // That made SP folders (which need menuId:2) post folder_contents{Sn,menuId:8} → server SHELL.
-              var mm2 = /menuId['"\s:,]+(\d+)/.exec(txt);
-              if (mm2) menuId = mm2[1];
-              var fm2 = /folder['"\s:,]+([A-Z]\d+)/.exec(txt);
-              if (fm2) { folder = fm2[1]; break; }
-            }
-            if (folder) break;
-            el = el.parentNode;
-          }
-        }
-        if (!folder) return;
-        a.setAttribute("data-cp-folder", folder);
-        a.setAttribute("data-cp-menuid", menuId);   // used by the folder-click takeover (below) to replay the nav safely
-        folders.push({ name: name, folder: folder, menuId: menuId });
+        var target = cpFolderTarget(a);
+        if (!target) return;
+        folders.push({ name: name, folder: target.folder, menuId: target.menuId });
       });
       if (folders.length === 0) return;
       // LEVEL GATE: build the aggregated one-scroll console where we can retrieve every folder's content.
@@ -7541,6 +7552,9 @@
     // anchor flush instead of letting it jump down. Re-set each reveal sequence; gated on "still near
     // the top" at re-pin time so a user who has scrolled away isn't yanked back.
     var cpJumpAnchorSec = null;
+    // A section picked in the sidebar while the board is still filling in: it stays at the top while sections
+    // above it appear (instead of being pushed down, or the reveal re-pinning its own anchor), until you scroll.
+    var cpUserPin = null;
     // True while the reveal sequence is running. The chain makes programmatic re-pin scrolls; if the
     // console's scroll handler runs on those it lets the scroll-spy briefly open the accordion of the
     // section that flickered to the top, and cpFitConsoleTail can nudge the scroll — the "Call Center
@@ -7626,7 +7640,14 @@
           // to the console top — an ABSOLUTE, idempotent scroll (sets the exact position, no per-section
           // delta to accumulate so nothing drifts), the same alignment the sidebar click uses. After
           // reskin, so heights are final.
-          if (aboveAnchor && anchorSec && document.contains(anchorSec)) {
+          if (cpUserPin && document.contains(cpUserPin) && cpUserPin !== sec &&
+              (sec.compareDocumentPosition(cpUserPin) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+            var upCons = document.querySelector(".cp-console");
+            if (upCons) {
+              upCons.scrollTop += (cpUserPin.getBoundingClientRect().top - upCons.getBoundingClientRect().top);
+              cpRevealAboveOffscreen(upCons);
+            }
+          } else if (aboveAnchor && anchorSec && document.contains(anchorSec) && !cpUserPin) {
             var rpCons = document.querySelector(".cp-console");
             if (rpCons) {
               rpCons.scrollTop += (anchorSec.getBoundingClientRect().top - rpCons.getBoundingClientRect().top);
@@ -7789,6 +7810,7 @@
         // reveal any above-section still held invisible (one that never got confirmed off-screen, e.g.
         // a residual clamp) so nothing is left hidden.
         cpRevealBusy = false;
+        cpUserPin = null;
         var cdone = document.querySelector(".cp-console");
         if (cdone) cdone.querySelectorAll(".cp-console-section").forEach(function (s) { if (s.style.visibility) s.style.visibility = ""; });
         cpFitConsoleTail();
@@ -7812,6 +7834,9 @@
       var cons = document.querySelector(".cp-console");
       if (!cons || cons.dataset.cpSpyWired === "1") return;
       cons.dataset.cpSpyWired = "1";
+      ["wheel", "touchstart", "keydown"].forEach(function (type) {
+        cons.addEventListener(type, function () { cpUserPin = null; }, { passive: true });
+      });
       cons.addEventListener("scroll", function () {
         if (cpRevealBusy) return;   // ignore the reveal's own re-pin scrolls (prevents the accordion-flash / scroll-nudge)
         if (cpSpyRaf) return;
@@ -8101,9 +8126,12 @@
 
     // Capture-phase sidebar folder click → scroll to section while console is showing
     document.addEventListener("click", function (e) {
-      var a = e.target.closest && e.target.closest('a.leftnavfolder, a.leftnavfolderopen');
+      var a = e.target.closest && e.target.closest('form[name="leftNavForm"] a.leftnavfolder, form[name="leftNavForm"] a.leftnavfolderopen');
       if (!a) return;
-      var fid = a.getAttribute('data-cp-folder');
+      // A sidebar swapped in by a level change has no stamps until a board is built for it, and CommPilot's own
+      // listeners on it are not always re-attached: read the folder from the link itself, so the click always goes.
+      var tgt = cpFolderTarget(a);
+      var fid = tgt && tgt.folder;
       if (!fid) return;
       // NEVER fall through to the anchor's own legacy listener. The per-render wiring scripts attach
       // listeners by uuid id (link_/anchor_<uuid>); after a console rebuild a stale re-execution has been
@@ -8127,6 +8155,18 @@
       if (!sec) { cpFolderNavTakeover(); return; }
       e.preventDefault();
       e.stopImmediatePropagation();
+      // While the board is still revealing its sections one at a time, the picked one may not be shown yet:
+      // a display:none section measures as nothing, so the scroll went nowhere (the folder lit up, the page
+      // stayed). Show it now, start its load, and pin it at the top while the sections above it fill in.
+      var filling = cpRevealBusy || sec.dataset.cpRevealed !== "1" || !!sec.style.visibility;
+      if (filling) {
+        cpUserPin = sec;
+        cpJumpAnchorSec = sec;
+        if (sec.dataset.cpRevealed !== "1") cpRevealSection(sec, false);
+        sec.style.display = "";
+        sec.style.visibility = "";
+        cpLoadAndRevealSection(sec, false, null, null);   // no-op if it is loaded or on its way
+      }
       // Suppress the scroll-spy for the smooth-scroll's duration so it doesn't flip the accordion
       // back to the lagging top-of-viewport folder mid-scroll (the sidebar "jump" on folder click).
       cpSpySuppressUntil = Date.now() + 700;
@@ -8138,7 +8178,8 @@
       var cons = document.querySelector('.cp-console');
       if (cons) {
         var target = cons.scrollTop + (sec.getBoundingClientRect().top - cons.getBoundingClientRect().top);
-        cons.scrollTo({ top: target, behavior: 'smooth' });
+        // Instant while filling in: the pin re-aligns as sections above appear, which a smooth scroll would fight.
+        cons.scrollTo({ top: target, behavior: filling ? 'auto' : 'smooth' });
       }
       cpHighlightFolder(fid);   // instant highlight; spy stays suppressed until the scroll settles
     }, true);

@@ -65,7 +65,8 @@ async function openApp(context, origin, width, height) {
 const bar = tab => tab.evaluate(() => {
   const r = el => el.getBoundingClientRect();
   const brand = document.querySelector('.cp-brand'), cell = brand.parentElement, row = r(cell);
-  const buttons = [...cell.querySelectorAll(':is(a.headerLink, #cp-appearance-toggle, #cp-account)')];
+  const buttons = [...cell.querySelectorAll(':is(a.headerLink, #cp-help-tips, #cp-appearance-toggle, #cp-account)')]
+    .filter(b => getComputedStyle(b).display !== 'none');
   const edge = r(brand.querySelector('.cp-brand-edge')), dot = r(brand.querySelector('.cp-brand-dot'));
   return {
     first: cell.firstElementChild === brand,

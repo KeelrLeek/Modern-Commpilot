@@ -38,27 +38,7 @@ html[data-cp-direction] .cp-searchbar-add:hover { color:var(--d-text); border-co
 html[data-cp-direction] .cp-searchbar-add:focus-visible { outline:2px solid var(--d-ring); outline-offset:2px; }
 html[data-cp-direction] .cp-searchbar-add[hidden] { display:none; }
 
-/* ---- Small settings forms: settings rows ------------------------------------------------------------ */
-html[data-cp-direction] table.cp-set-native { display:none !important; }
-/* The rows sit flat in the page card (page-baseline.css): no box of their own. */
-html[data-cp-direction] .cp-set { max-width:780px; margin:0; color:var(--d-text); font:13px/1.45 "Inter", sans-serif; }
-html[data-cp-direction] .cp-set-head {
-  padding:0 0 6px; color:var(--d-muted); font:700 11px/1.2 "Inter", sans-serif; letter-spacing:.06em; text-transform:uppercase;
-}
-html[data-cp-direction] .cp-set-row {
-  display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:center; gap:8px 18px;
-  padding:8px 0; border-top:1px solid var(--pb-hairline, var(--d-line));
-}
-html[data-cp-direction] .cp-set-row:first-of-type, html[data-cp-direction] .cp-set-head + .cp-set-row { border-top:0; }
-html[data-cp-direction] .cp-set-label { font-weight:600; }
-html[data-cp-direction] .cp-set-req { color:var(--d-off, #c0281a); margin-right:3px; }
-html[data-cp-direction] .cp-set-control { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; min-width:0; }
-html[data-cp-direction] .cp-set-control input[type="text"] { width:280px; max-width:100%; }
-html[data-cp-direction] .cp-set-static { color:var(--d-muted); }
-@media (max-width: 760px) {
-  html[data-cp-direction] .cp-set-row { grid-template-columns:1fr; }
-  html[data-cp-direction] .cp-set-control { justify-content:flex-start; }
-}
+/* ---- Segmented choices and switches (the schedule event editor) ----------------------------------- */
 /* Segmented choice (drives CommPilot's radio buttons). */
 html[data-cp-direction] .cp-seg { display:inline-flex; gap:2px; padding:2px; border:1px solid var(--d-line); border-radius:9px; background:var(--d-raised); }
 html[data-cp-direction] .cp-seg-opt {
@@ -151,3 +131,191 @@ html[data-cp-direction] .cp-ev-day[aria-pressed="true"] {
 html[data-cp-direction] .cp-ev-day:focus-visible { outline:2px solid var(--d-ring); outline-offset:2px; }
 html[data-cp-direction] .cp-ev-day:disabled { opacity:.5; cursor:not-allowed; }
 @media (max-width: 640px) { html[data-cp-direction] .cp-ev-row { grid-template-columns:1fr; gap:6px; } }
+
+/* ---- Settings forms: aligned rows (forms.js formLayout, mockup pick A) ------------------------------------
+   One field per row: the label in a fixed column, the field beside it, a hairline between rows; a CommPilot row of
+   two fields stays one line, so pairs (Last Name / First Name) stay side by side across two columns. CommPilot's
+   emptied tables stay in the form, hidden. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] {
+  & .fx-native { display: none !important; }
+  & .fx {
+    --fx-label-w: 200px; --fx-indent: 26px; --fx-gap: 18px;
+    padding-block: 4px; color: var(--d-text); font: 13px/1.45 "Inter", sans-serif; text-align: left;
+  }
+  & .fx [hidden] { display: none !important; }
+  & .fx-sec + .fx-sec { margin-top: 20px; }
+  & .fx-sec.fx-empty-sec { display: none; }
+  & .fx-sec-title {
+    display: flex; align-items: center; gap: 12px; margin: 0 0 4px; color: var(--d-muted);
+    font: 700 11px/1.2 "Inter", sans-serif; letter-spacing: .07em; text-transform: uppercase;
+  }
+  & .fx-sec-title::after { content: ""; flex: 1; height: 1px; background: var(--d-line); }
+  /* Two columns while each keeps about 460px; one below. */
+  & .fx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, max(460px, calc((100% - 48px) / 2))), 1fr)); column-gap: 48px; }
+  & .fx-line { display: contents; }
+  & .fx-line > :first-child { grid-column-start: 1; }
+  & .fx-item {
+    display: grid; grid-template-columns: var(--fx-label-w) minmax(0, 1fr); align-items: center; column-gap: 16px; row-gap: 3px;
+    min-width: 0; min-height: 34px; padding: 3px 0; border-bottom: 1px solid var(--pb-hairline, var(--d-line));
+  }
+  & .fx-item > .fx-label { grid-column: 1; }
+  & .fx-item > :is(.fx-ctl, .fx-hint, .fx-check-line) { grid-column: 2; }
+  & .fx-label { color: var(--d-muted); font-weight: 550; overflow-wrap: anywhere; }
+  & .fx-req { margin-left: 3px; color: var(--d-off); font-weight: 700; }
+  & .fx-hint { margin-top: -1px; color: var(--d-muted); font-size: 12px; line-height: 1.4; }
+  & .fx-note { grid-column: 1 / -1; display: block; min-height: 0; padding: 8px 0; color: var(--d-muted); }
+  & :is(.fx-raw, .fx-actionrow) { grid-column: 1 / -1; display: block; min-width: 0; min-height: 0; padding: 8px 0; }
+  & .fx-raw { overflow-x: auto; }
+  & .fx-raw > table { width: 100%; }
+  & .fx-actionrow { display: flex; align-items: center; gap: 10px; }
+  & .fx-value { color: var(--d-text); }
+  & :is(.fx-value, .fx-fact-v)[data-empty]::before { content: "—"; color: var(--d-muted); }
+  & .fx-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+  & .fx-ctl > br { display: none; }
+  & .fx-ctl-more { flex-basis: 100%; display: flex; }
+  & .fx-ctl-more :is(input, textarea) { margin-top: 3px; }
+  /* A group of only checkboxes and unlabelled choices has no label column. */
+  & .fx-sec:not(:has(.fx-field:not(.fx-nolabel), .fx-choice:not(.fx-nolabel), .fx-check > .fx-label)) { --fx-label-w: 0px; }
+  & .fx-sec:not(:has(.fx-field:not(.fx-nolabel), .fx-choice:not(.fx-nolabel), .fx-check > .fx-label)) .fx-item { column-gap: 0; }
+  /* Sub-options of the setting above (CommPilot indents them). */
+  & .fx-item[data-indent] > :is(.fx-ctl, .fx-check-line) { margin-left: var(--fx-indent); }
+
+  /* Field widths from what the field holds; nothing grows past its column (CommPilot sizes selects to their
+     longest option). */
+  & .fx-ctl :is(select, .bw-select-shell, input, textarea) { max-width: 100% !important; min-width: 0; }
+  & .fx-ctl .bw-select-shell .bw-select-trigger { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  & .fx-field .fx-ctl :is(input[type="text"], input[type="password"], input:not([type]), textarea) { box-sizing: border-box; width: 100%; max-width: var(--fx-w, 100%) !important; }
+  & .fx-field .fx-ctl .bw-select-shell { max-width: var(--fx-w, 100%) !important; }
+  & .fx-field[data-size="xs"] { --fx-w: 88px; }
+  & .fx-field[data-size="s"] { --fx-w: 180px; }
+  & .fx-field[data-size="m"] { --fx-w: 300px; }
+  & .fx-field[data-size="l"] { --fx-w: 420px; }
+  & .fx-field[data-size="xl"] { --fx-w: 640px; }
+  & .fx-ctl[data-multi] :is(input[type="text"], input[type="password"], input:not([type])) { flex: 0 1 var(--fx-in, 260px); width: var(--fx-in, 260px); }
+  /* A grid of boxes ("Specific phone numbers"). */
+  & .fx-boxgrid { display: grid; grid-template-columns: repeat(var(--fx-cols, 3), minmax(0, 200px)); gap: 6px 8px; }
+  & .fx-boxgrid input { width: 100% !important; box-sizing: border-box; }
+  & .fx-boxhead { color: var(--d-muted); font: 650 11px/1.2 "Inter", sans-serif; letter-spacing: .05em; text-transform: uppercase; }
+  /* A grid with column headings and no label of its own takes the whole row. */
+  & .fx-field[data-grid].fx-nolabel { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); }
+  & .fx-field[data-grid].fx-nolabel > .fx-label { display: none; }
+  & .fx-field[data-grid].fx-nolabel > .fx-ctl { grid-column: 1; }
+  & .fx-field[data-grid]:has(.fx-boxhead) .fx-boxgrid { grid-template-columns: repeat(var(--fx-cols, 3), minmax(0, 320px)); }
+
+  /* Checkboxes (as switches) and radios, in the palette's colours. */
+  & .fx :is(input[type="checkbox"], input[type="radio"]) { accent-color: var(--d-accent); width: 16px; height: 16px; margin: 0; flex: none; }
+  & .fx-check { min-height: 28px; border-bottom-color: transparent; }
+  & .fx-check-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; }
+  & .fx-check-label { display: flex; align-items: center; gap: 12px; min-width: 0; cursor: pointer; }
+  & .fx-check-after { flex: 0 1 auto; }
+  & .fx-check-after input[type="text"] { width: 72px; }
+  & .fx-check-text { color: var(--d-text); }
+  & .fx input[type="checkbox"].fx-switch {
+    appearance: none; -webkit-appearance: none; position: relative; width: 34px; height: 20px; border-radius: 99px;
+    background: var(--d-line); cursor: pointer; transition: background .15s;
+  }
+  & .fx input[type="checkbox"].fx-switch::after {
+    content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 2px #0000004d; transition: left .15s;
+  }
+  & .fx input[type="checkbox"].fx-switch:checked { background: var(--d-action); }
+  & .fx input[type="checkbox"].fx-switch:checked::after { left: 17px; }
+  & .fx input[type="checkbox"].fx-switch:disabled { opacity: .45; cursor: not-allowed; }
+  & .fx :is(input[type="checkbox"], input[type="radio"]):focus-visible { outline: 2px solid var(--d-ring); outline-offset: 2px; }
+  & .fx-choice { align-items: start; padding-block: 7px; }
+  & .fx-opts { flex-direction: column; align-items: flex-start; gap: 7px; }
+  & .fx-opt { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; }
+  /* Up to four short choices: one segmented control (the real radios sit behind their labels). */
+  & .fx-opts.fx-seg {
+    flex-direction: row; gap: 2px; width: max-content; max-width: 100%; padding: 2px; border: 1px solid var(--d-line); border-radius: 9px;
+    background: var(--d-raised);
+  }
+  & .fx-seg .fx-opt { position: relative; padding: 5px 13px; border-radius: 7px; color: var(--d-muted); font-weight: 600; font-size: 12.5px; }
+  & .fx-seg .fx-opt input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+  & .fx-seg .fx-opt:has(input:checked) { background: var(--d-surface); color: var(--d-text); box-shadow: 0 1px 2px #0000002e; }
+  & .fx-seg .fx-opt:has(input:disabled) { opacity: .5; cursor: not-allowed; }
+  & .fx-seg .fx-opt:has(input:focus-visible) { outline: 2px solid var(--d-ring); outline-offset: 1px; }
+
+  /* The page's read-only facts (Reseller ID, Group, User ID …) as one strip at the top. */
+  & .fx-facts {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1px; margin: 0 0 var(--fx-gap); overflow: hidden;
+    border: 1px solid var(--d-line); border-radius: 9px; background: color-mix(in srgb, var(--d-raised) 70%, var(--d-surface));
+  }
+  & .fx-fact {
+    display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 8px 14px 9px;
+    box-shadow: 1px 0 0 var(--pb-hairline, var(--d-line)), 0 1px 0 var(--pb-hairline, var(--d-line));
+  }
+  & .fx-fact-k { color: var(--d-muted); font: 650 10.5px/1.2 "Inter", sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+  & .fx-fact-v { overflow: hidden; color: var(--d-text); font-weight: 600; font-size: 13.5px; white-space: nowrap; text-overflow: ellipsis; }
+  & .fx-fact .fx-linkbtn { align-self: flex-start; max-width: 100%; margin-top: 4px; white-space: normal; }
+  /* CommPilot's in-page links as small buttons; "Change User ID (Also saves current screen data)" says it saves. */
+  & a.fx-linkbtn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 1px solid var(--d-line); border-radius: 6px;
+    background: var(--d-surface); color: var(--d-text); font: 600 11.5px/1.3 "Inter", sans-serif; text-decoration: none; white-space: nowrap; cursor: pointer;
+  }
+  & a.fx-linkbtn.fx-saves::after { content: "· saves first"; color: var(--d-muted); font-weight: 500; }
+  & a.fx-linkbtn:hover { border-color: var(--d-accent); color: var(--d-text); }
+  & a.fx-linkbtn:focus-visible { outline: 2px solid var(--d-ring); outline-offset: 2px; }
+  & .fx-ctl a.fx-linkbtn { margin-left: 4px; padding-block: 5px; }
+
+  /* Unsaved changes: a dot on each changed field, a count beside the page's buttons. */
+  & .fx-item.is-dirty > .fx-label::after, & .fx-check.is-dirty .fx-check-text::after, & .fx-fact.is-dirty .fx-fact-k::after {
+    content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 7px; border-radius: 50%; background: var(--d-accent); vertical-align: 1px;
+  }
+  & .fx-unsaved {
+    order: -2; padding: 4px 10px; border-radius: 99px; background: color-mix(in srgb, var(--d-accent) 16%, transparent);
+    color: var(--d-accent); font: 650 12px/1.3 "Inter", sans-serif; white-space: nowrap;
+  }
+  & .fx-unsaved[hidden] { display: none; }
+  /* Section chips under the title. */
+  & .fx-jump { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; padding-top: 2px; }
+  & .fx-jump[hidden], & .fx-jump-chip[hidden] { display: none; }
+  & button.fx-jump-chip {
+    min-height: 0; padding: 4px 11px; border: 1px solid var(--d-line) !important; border-radius: 99px; background: transparent !important;
+    color: var(--d-muted) !important; font: 600 12px/1.3 "Inter", sans-serif; box-shadow: none; transform: none; cursor: pointer;
+  }
+  & button.fx-jump-chip.is-on {
+    border-color: color-mix(in srgb, var(--d-accent) 60%, var(--d-line)) !important; background: color-mix(in srgb, var(--d-accent) 10%, transparent) !important;
+    color: var(--d-text) !important;
+  }
+  & button.fx-jump-chip:focus-visible { outline: 2px solid var(--d-ring); outline-offset: 2px; }
+  /* Add is not the page's main action: an outlined button, so Apply / OK stay the one green button. */
+  & .cp-frame-actions :is(input[name="add"], input[value^="Add"]) {
+    border-color: var(--d-line) !important; background: var(--d-surface) !important; color: var(--d-text) !important; box-shadow: none;
+  }
+  & .cp-frame-actions :is(input[name="add"], input[value^="Add"]):hover:not(:disabled) { border-color: var(--d-accent) !important; }
+  /* Empty lists: a quiet empty state with its own Add. */
+  & tr.fx-empty-row > td { padding: 0 !important; border: 0 !important; background: transparent !important; }
+  & .fx-empty { display: flex; align-items: center; gap: 14px; margin: 10px 0 4px; padding: 14px 16px; border: 1px dashed var(--d-line); border-radius: 10px; color: var(--d-muted); }
+  & .fx-empty svg { flex: none; width: 26px; height: 26px; color: var(--d-muted); opacity: .8; }
+  & .fx-empty-words { display: flex; flex: 1; flex-direction: column; gap: 2px; font-size: 12.5px; }
+  & .fx-empty-words b { color: var(--d-text); font-size: 13px; }
+  & button.fx-empty-add {
+    min-height: 30px; padding: 0 12px; border: 1px solid var(--d-line) !important; border-radius: 7px; background: var(--d-surface) !important;
+    color: var(--d-text) !important; font: 600 12.5px "Inter", sans-serif; box-shadow: none; transform: none; cursor: pointer;
+  }
+  & button.fx-empty-add:hover { border-color: var(--d-accent) !important; }
+  /* Tables of fields (Sequential Ring's locations, speed dial lists): sized to their content, quiet headers. */
+  & .fx-raw.fx-list > table:has(input:not([type="hidden"]), select) { width: auto !important; min-width: min(100%, 760px); }
+  & .fx-raw.fx-list > table:has(input:not([type="hidden"]), select) td { padding: 4px 18px 4px 0 !important; border: 0 !important; }
+  & .fx-raw.fx-list > table:has(input:not([type="hidden"]), select) td.listHeader {
+    padding: 0 18px 6px 0 !important; border-bottom: 1px solid var(--d-line) !important; background: transparent !important;
+    color: var(--d-muted); font: 650 11px/1.2 "Inter", sans-serif; letter-spacing: .05em; text-transform: uppercase;
+  }
+  & .fx-raw.fx-list > table:has(input:not([type="hidden"]), select) tr:nth-child(2) > td { padding-top: 10px !important; }
+  & .fx-raw.fx-list > table:has(input:not([type="hidden"]), select) td:first-child:not(.listHeader) {
+    width: 1px; color: var(--d-muted); font-variant-numeric: tabular-nums; font-weight: 650;
+  }
+  & .fx-raw.fx-list > table:has(input:not([type="hidden"]), select) input[type="text"] { width: 300px !important; max-width: 100%; }
+}
+@media (max-width: 1100px) {
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .fx { --fx-label-w: 160px; }
+}
+@media (max-width: 640px) {
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .fx-item { grid-template-columns: 1fr; }
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .fx-item > * { grid-column: 1 !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .fx input[type="checkbox"].fx-switch,
+  html[data-cp-direction] body[id="initBody.menuTemplate"] .fx input[type="checkbox"].fx-switch::after { transition: none; }
+}

@@ -188,7 +188,7 @@ test('On/Off text split across nested markup stays nested and recolors after rep
   await page.close();
 });
 
-test('Users search preserves native selects and submits only the original form controls', async () => {
+test('Users search gets the searchable dropdowns while its form keeps only CommPilot’s own controls', async () => {
   for (const pathname of ['/commpilot/Group/Members/', '/commpilot/Group/Members/index.jsp']) {
     const page = await context.newPage();
     let submission;
@@ -209,19 +209,37 @@ test('Users search preserves native selects and submits only the original form c
     }, usersSearchFixture);
     await page.locator('#users-status .bw-on-off-status[data-bw-state="on"]').waitFor();
 
-    assert.equal(await page.locator('#criteria > select').count(), 2, pathname);
-    assert.equal(await page.locator('.bw-select-shell, .bw-select-trigger, .bw-menu-search').count(), 0,
-      pathname);
+    await page.locator('#search-mode[data-bw-searchable="1"]').waitFor();
+    assert.equal(await page.locator('#criteria .bw-select-shell > select').count(), 2, pathname);
+    assert.equal(await page.locator('#criteria .bw-select-trigger[role="combobox"]').count(), 2, pathname);
+    assert.equal(await page.locator('.bw-menu-search').count(), 0, 'its menus keep no filter field');
     assert.deepEqual(await page.locator('#users-search').evaluate(form =>
       Array.from(form.elements, element => element.name || element.id)),
-    ['searchField', 'searchMode', 'searchValue', 'add-criterion', 'search']);
-    assert.equal(await page.locator('#search-field').getAttribute('data-bw-searchable'), null);
-    assert.equal(await page.locator('#search-mode').getAttribute('data-bw-searchable'), null);
+    ['searchField', 'searchMode', 'searchValue', 'add-criterion', 'search'], 'the dropdowns add nothing to the form');
 
+    // CommPilot's getChoice(): picking a field swaps the match list for a new one, in place, through its parent
+    // (`old.parentNode.replaceChild(new, old)`). The new list must survive and get the searchable dropdown too.
+    await page.evaluate(() => document.getElementById('search-field').addEventListener('change', event => {
+      const old = document.getElementById('search-mode');
+      const fresh = document.createElement('select');
+      fresh.id = 'search-mode'; fresh.name = 'searchMode';
+      fresh.innerHTML = event.target.value === 'lastName'
+        ? '<option value="startsWith">Starts With</option><option value="contains">Contains</option><option value="equalTo">Equal To</option>'
+        : '<option value="equalTo">Equal To</option>';
+      old.parentNode.replaceChild(fresh, old);
+    }));
+    await page.locator('#search-field').locator('xpath=..').locator('.bw-select-trigger').click();
+    await page.locator('.bw-search-result', { hasText: 'Last Name' }).click();
+    await page.waitForFunction(() => document.getElementById('search-mode')?.closest('.bw-select-shell') &&
+      document.getElementById('search-mode').dataset.bwSearchable === '1');
+    assert.equal(await page.locator('#criteria .bw-select-shell .bw-select-shell').count(), 0, 'no shell left inside another');
+    assert.equal(await page.locator('[name="searchMode"]').count(), 1, 'CommPilot’s new match list is still in the form');
+    await page.locator('#search-mode').locator('xpath=..').locator('.bw-select-trigger').click();
+    await page.locator('.bw-search-result', { hasText: 'Contains' }).click();
     await page.locator('#search-value').fill('QuickStop101');
     await page.locator('#submit-search').click();
     assert.equal(submission,
-      'searchField=userId&searchMode=startsWith&searchValue=QuickStop101&search=Search',
+      'searchField=lastName&searchMode=contains&searchValue=QuickStop101&search=Search',
       pathname);
     await page.close();
   }
@@ -572,7 +590,7 @@ test('dropdown overlay follows hidden, disabled, and resized controls', async ()
   const trigger = dropdownTrigger(page, 'keyboard');
   await select.evaluate(el => { el.disabled = true; });
   await page.waitForFunction(() => document.querySelector('#keyboard')
-    .parentElement.querySelector('.bw-select-trigger').disabled);
+    .parentElement.querySelector('.bw-select-trigger').getAttribute('aria-disabled') === 'true');
   assert.equal(await trigger.isDisabled(), true);
 
   await select.evaluate(el => { el.disabled = false; el.style.display = 'none'; });
@@ -672,5 +690,68 @@ test('Enter in a custom menu search does not submit its surrounding form', async
   await search.press('Enter');
   assert.equal(await page.evaluate(() => window.menuFormSubmissions), 0);
   assert.equal(await page.locator('#form-menu [role="option"]:visible').innerText(), 'Beta');
+  await page.close();
+});
+
+test('a dropdown with a “New …” option offers it as a button at the top of its list', async () => {
+  const page = await openPage();
+  await page.evaluate(() => {
+    const select = document.createElement('select');
+    select.id = 'device';
+    select.setAttribute('aria-label', 'Identity/Device Profile Name');
+    // As CommPilot lists them: devices by name (some named "New …"), then its own create option, whose value is a code.
+    select.innerHTML = ['SMD VVX 21 (Group)', 'New 1148 (Group)', 'New 1270 (Group)', 'ZT VVX 52132 (Group)']
+      .map(name => `<option value="${name}">${name}</option>`).join('') + '<option value="New Device">New Identity/Device Profile (Group)</option>';
+    select.addEventListener('change', () => { window.deviceChanges = (window.deviceChanges || 0) + 1; });
+    document.body.append(select);
+  });
+  await page.locator('#device[data-bw-searchable]').waitFor();
+  await page.locator('#device').locator('xpath=..').locator('.bw-select-trigger').click();
+  const create = page.locator('.bw-search-create-btn');
+  assert.deepEqual(await create.allInnerTexts(), ['+ New Identity/Device Profile'], 'only CommPilot’s create option, not devices named “New …”');
+  assert.equal(await create.getAttribute('title'), 'New Identity/Device Profile (Group)');
+  assert.equal(await page.locator('.bw-search-result', { hasText: 'New Identity/Device Profile' }).count(), 1, 'the option stays in the list');
+  await create.click();
+  assert.equal(await page.locator('#device').inputValue(), 'New Device');
+  assert.equal(await page.evaluate(() => window.deviceChanges), 1, 'CommPilot’s own change handler runs, as when the option is picked');
+  assert.equal(await page.locator('.bw-search-popover').isHidden(), true);
+  // A dropdown without such an option shows no button, nor does a list of names that start with "New".
+  await page.locator('#line').locator('xpath=..').locator('.bw-select-trigger').click();
+  assert.equal(await page.locator('.bw-search-create-btn').count(), 0);
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => {
+    const states = document.createElement('select');
+    states.id = 'state';
+    states.setAttribute('aria-label', 'State/Province');
+    states.innerHTML = ['Nevada', 'New Hampshire', 'New Jersey', 'New York'].map(n => `<option value="${n}">${n}</option>`).join('');
+    document.body.append(states);
+  });
+  await page.locator('#state[data-bw-searchable]').waitFor();
+  await page.locator('#state').locator('xpath=..').locator('.bw-select-trigger').click();
+  assert.equal(await page.locator('.bw-search-create-btn').count(), 0, 'New Jersey is a state, not a way to make one');
+  await page.close();
+});
+
+test('a long list opens on its current value, not at the top', async () => {
+  const page = await openPage();
+  await page.evaluate(() => {
+    const select = document.createElement('select');
+    select.id = 'dept';
+    select.setAttribute('aria-label', 'Department');
+    select.innerHTML = Array.from({ length: 172 }, (_, i) => `<option${i === 120 ? ' selected' : ''}>Department ${i + 1}</option>`).join('');
+    document.body.append(select);
+  });
+  await page.locator('#dept[data-bw-searchable]').waitFor();
+  await page.locator('#dept').locator('xpath=..').locator('.bw-select-trigger').click();
+  const current = page.locator('.bw-search-result[aria-selected="true"]');
+  await current.waitFor();
+  assert.equal(await current.innerText(), 'Department 121');
+  const inView = await page.evaluate(() => {
+    const box = document.querySelector('.bw-search-results').getBoundingClientRect();
+    const row = document.querySelector('.bw-search-result[aria-selected="true"]').getBoundingClientRect();
+    return row.top >= box.top && row.bottom <= box.bottom;
+  });
+  assert.equal(inView, true, 'the current value is in view when the list opens');
+  await page.keyboard.press('Escape');
   await page.close();
 });

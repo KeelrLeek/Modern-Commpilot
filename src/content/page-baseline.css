@@ -37,6 +37,12 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] {
   & tr.cp-frame-titlerow > td.screenName {
     position: sticky; top: 0; z-index: 6; padding: 0 0 18px; background: var(--d-main);
   }
+  /* The content cell scrolls itself and keeps its padding above the stuck header: fill that band in the page's
+     colour so the content scrolling under the header does not show through (the overflow clips it at rest). */
+  & tr.cp-frame-titlerow > td.screenName::before {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: calc(var(--pb-gutter) + 32px);
+    background: var(--d-main); pointer-events: none;
+  }
   & .cp-frame-head {
     position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 11px; box-sizing: border-box;
     min-height: 54px; margin-top: calc(20px - var(--pb-gutter)); padding: 11px 2px 12px; border-bottom: 1px solid var(--d-line);

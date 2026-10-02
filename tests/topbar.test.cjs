@@ -58,7 +58,8 @@ async function openApp(context, width, height) {
 
 const bar = tab => tab.evaluate(() => {
   const r = el => el.getBoundingClientRect();
-  const buttons = [...document.querySelectorAll('td.headerBar:not(:has(.headerBarWelcome)) :is(a.headerLink, #cp-appearance-toggle, #cp-account)')];
+  const buttons = [...document.querySelectorAll('td.headerBar:not(:has(.headerBarWelcome)) :is(a.headerLink, #cp-help-tips, #cp-appearance-toggle, #cp-account)')]
+    .filter(b => getComputedStyle(b).display !== 'none')   // CommPilot's own Help stays in the page, hidden (Help tips);
   const rows = [...document.querySelector('td.headerBar').closest('table').querySelectorAll(':scope > tbody > tr')]
     .filter(tr => getComputedStyle(tr).display !== 'none');
   const trail = document.querySelector('td.headerBar .cp-bc');
@@ -97,7 +98,7 @@ test('the top bar: two rows sized on their own, one shape for its buttons, an ac
     // A wide window: names on the buttons, the full trail, the welcome cell folded into the account button.
     const wide = await openApp(context, 1920, 1080);
     const w = await bar(wide);
-    assert.deepEqual(w.labels, ['Help', 'Home', 'Settings', 'account']);
+    assert.deepEqual(w.labels, ['Help tips', 'Home', 'Settings', 'account']);
     assert.deepEqual([w.heights, w.radii, w.gaps], [[34], ['10px'], [8]], 'one height, one shape, even spacing');
     assert.equal(w.inView, true);
     assert.deepEqual(w.iconOnly, [false, false, false]);
@@ -130,7 +131,7 @@ test('the top bar: two rows sized on their own, one shape for its buttons, an ac
     assert.equal(s.inView, true, 'nothing pushed off the edge');
     assert.deepEqual([s.heights, s.radii, s.gaps], [[34], ['10px'], [8]]);
     assert.deepEqual(s.iconOnly, [true, true, true]);
-    assert.deepEqual(s.titles, ['Help', 'Home', 'Settings · Atlas']);
+    assert.deepEqual(s.titles, ['Help tips', 'Home', 'Settings · FLUDD, light']);
     assert.equal(s.accountName, false);
     assert.deepEqual(s.account, [34, 34, true], 'the account button: its icon in the same 34px square as the others');
     assert.equal(s.trailFits && s.trailLines, true, 'the trail keeps one line');

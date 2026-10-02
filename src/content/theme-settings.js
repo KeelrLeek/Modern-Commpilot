@@ -1,23 +1,27 @@
-/* The Settings window (the header's Settings button): the CommPilot palette, the site's font and the extension's
+/* The Settings window (the header's Settings button): the CommPilot theme, the site's font and the extension's
    other settings, kept in sync across tabs and PJAX views. It opens centred over the page, like the sign-out
-   confirmation. Settings other than the palette live in chrome.storage.local "cpSettings" and are mirrored onto
+   confirmation. The theme is one palette (themes.js: twelve themes, each with a light and a dark side), saved as
+   "cpThemePalette" and set as <html data-cp-direction>. Settings other than the palette live in chrome.storage.local "cpSettings" and are mirrored onto
    <html> for the page and the other scripts (pjax.js runs in the page and cannot read extension storage):
-   data-cp-font (fonts.js applies it to every element), data-cp-peek="off", data-cp-side="rail".
+   data-cp-font (fonts.js applies it to every element), data-cp-peek="off", data-cp-side="rail", and data-cp-debug
+   (the debug view, native-help.js).
    It also runs the sidebar's Menu header: its button folds the menu to its icons (remembered as "side") and
    <html data-cp-rail> marks the rail whenever it shows, folded by hand or on a window under 1100px. And the top
    bar's account button (mockup pick B): who is signed in, with Sign out in its menu. The Settings window ends with
    About: the version, the site, what is new, and a button that copies build details for a bug report. */
 (() => {
   const key = "cpThemePalette";
-  const choices = new Set(["nord", "atlas", "graphite", "terra"]);
-  const paletteNames = { nord: "Nord", atlas: "Atlas", graphite: "Graphite", terra: "Terra" };
+  const themes = globalThis.cpThemes || [];   // themes.js, loaded just before this script
+  const themeOf = palette => globalThis.cpThemeOf?.(palette) || null;
+  const fallback = globalThis.cpThemeDefault || "atlas";
+  const themeLabel = palette => { const t = themeOf(palette); return t ? `${t.theme.name}, ${t.mode}` : palette; };
   const settingsKey = "cpSettings";
-  const defaults = { peek: true, font: "inter", side: "full" };
+  const defaults = { peek: true, font: "inter", side: "full", debug: false };
   const narrow = matchMedia("(max-width: 1100px)");
   const fonts = globalThis.cpFontChoices || [];   // fonts.js, loaded just before this script
   let settings = { ...defaults };
   let shellFrame = 0;
-  let currentPalette = "atlas";
+  let currentPalette = fallback;
   let panel, overlay;
 
   // CommPilot gives the page PJAX starts from <body id="initBody.menuTemplate">, but a content page opened
@@ -53,18 +57,28 @@
 
   function syncControls() {
     const button = document.getElementById("cp-appearance-toggle");
-    if (button) button.title = `Settings · ${paletteNames[currentPalette]}`;
+    if (button) button.title = `Settings · ${themeLabel(currentPalette)}`;
     if (!panel?.isConnected) return;
-    for (const option of panel.querySelectorAll('input[name="cp-palette"]')) {
-      option.checked = option.value === currentPalette;
+    const current = themeOf(currentPalette);
+    for (const option of panel.querySelectorAll('input[name="cp-theme"]')) option.checked = option.value === current?.theme.id;
+    for (const option of panel.querySelectorAll('input[name="cp-theme-mode"]')) option.checked = option.value === current?.mode;
+    // Each theme's tile shows the side the switch is on, in that side's own colours and mark.
+    for (const tile of panel.querySelectorAll(".cp-theme-tile")) {
+      const theme = themes.find(t => t.id === tile.dataset.theme);
+      const palette = theme?.[current?.mode || "light"];
+      if (!palette || tile.dataset.cpPalette === palette) continue;
+      tile.dataset.cpPalette = palette;
+      tile.style.setProperty("--cp-tile-mark", markUrl(palette));
     }
     panel.querySelector('input[name="peek"]').checked = settings.peek;
+    panel.querySelector('input[name="debug"]').checked = settings.debug;
     for (const option of panel.querySelectorAll('input[name="cp-font"]')) option.checked = option.value === settings.font;
   }
 
   function applySettings(value) {
     settings = { ...defaults, ...(value && typeof value === "object" ? value : {}) };
     settings.peek = settings.peek !== false;
+    settings.debug = settings.debug === true;
     if (!fonts.some(f => f.id === settings.font)) settings.font = defaults.font;
     if (settings.side !== "rail") settings.side = "full";
     withRoot(root => {
@@ -74,6 +88,7 @@
       applyRail();
       if (settings.peek) root.removeAttribute("data-cp-peek");
       else root.setAttribute("data-cp-peek", "off");
+      root.toggleAttribute("data-cp-debug", settings.debug);
       document.dispatchEvent(new Event("cp:settings-change"));
       syncControls();
     });
@@ -164,13 +179,37 @@
   document.addEventListener("focusin", event => { const link = sideLink(event.target); if (link) showTip(link); else hideTip(); });
   document.addEventListener("scroll", hideTip, { capture: true, passive: true });
 
+  // A side's mark: beside the site link (theme-palettes.css) and on its tile in the theme list. A file, not a data:
+  // image, which CommPilot's content policy would block.
+  function markUrl(palette) {
+    try { return `url("${chrome.runtime.getURL(`assets/icons/theme-${palette}.svg`)}")`; } catch (_) { return "none"; }
+  }
+  function show(palette) {
+    withRoot(root => {
+      root.dataset.cpDirection = palette;
+      root.style.setProperty("--cp-theme-mark", markUrl(palette));
+    });
+  }
   function apply(value) {
-    const palette = value === "midnight" ? "nord" : choices.has(value) ? value : "atlas";
+    const palette = themeOf(value)?.palette || fallback;
     currentPalette = palette;
-    withRoot(root => { root.dataset.cpDirection = palette; });
+    previewing = false;
+    show(palette);
     syncControls();
     document.dispatchEvent(new CustomEvent("cp:theme-change", { detail: { palette } }));
     scheduleShellMeasure();
+  }
+  // Pointing at a theme in Settings shows it on the page behind the window; moving away puts the chosen one back.
+  let previewing = false;
+  function preview(palette) {
+    if (!palette || palette === (previewing || currentPalette)) return;
+    previewing = palette;
+    show(palette);
+  }
+  function endPreview() {
+    if (!previewing) return;
+    previewing = false;
+    show(currentPalette);
   }
 
   function isOpen() { return Boolean(overlay?.isConnected && !overlay.hidden); }
@@ -184,11 +223,12 @@
     panel.querySelector(".cp-appearance-status").textContent = "";
     overlay.hidden = false;
     document.getElementById("cp-appearance-toggle")?.setAttribute("aria-expanded", "true");
-    (panel.querySelector('input[name="cp-palette"]:checked') || panel.querySelector(".cp-settings-close")).focus();
+    (panel.querySelector('input[name="cp-theme"]:checked') || panel.querySelector(".cp-settings-close")).focus();
   }
 
   function closePanel() {
     if (!isOpen()) return;
+    endPreview();
     overlay.hidden = true;
     const button = document.getElementById("cp-appearance-toggle");
     button?.setAttribute("aria-expanded", "false");
@@ -207,8 +247,25 @@
     '1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 ' +
     '0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
 
+  const SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">' +
+    '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+  const MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ' +
+    'aria-hidden="true"><path d="M20.5 14.1A8.5 8.5 0 0 1 9.9 3.5 8.5 8.5 0 1 0 20.5 14.1Z"/></svg>';
+
   // What is new in each version (About, in the Settings window). Plain text; the newest version first.
   const NEWS = {
+    "0.3.77": [
+      "Twelve themes, each light and dark, named for video games: DMG, Duke, FLUDD, Flowey, Gerudo, Kill Screen, Mode 7, Shovel Knight, Snowdin, Solaire, Tokyo-to and Vampire Killer. Atlas is now FLUDD, Graphite is Duke, Terra is Shovel Knight, and Nord is Snowdin, refined.",
+      "Settings shows every theme with its icon and a Light | Dark switch; point at a theme to see it on the page before you pick it. The toolbar popup has the same list.",
+      "Each theme’s icon sits beside the site link in the top bar.",
+      "Settings pages have one layout everywhere: each field on its own row with its label beside it, pairs like Last Name and First Name side by side, and sections titled.",
+      "A page’s IDs (Reseller, Group, User ID …) sit in a strip at the top, and Change User ID and its kind say that they save the page first.",
+      "Checkboxes are switches, short choices are one segmented button, and both take your theme’s colour.",
+      "Change a field and it gets a dot, with a count of unsaved changes beside OK and Apply. Pages with sections get chips under the title that jump to each one.",
+      "Add is an outlined button, so Apply stays the one green button; an empty list says what will show there and has its own Add.",
+      "A new sign-in page with the CommPilot logo: saved sign-ins first as Continue as, and sign-in messages as toasts.",
+      "Help tips moved to the top bar, in place of CommPilot’s Help, and cover every menu option. Settings › Debug view outlines anything still without one.",
+    ],
     "0.3.76": [
       "Too many results? A search CommPilot refuses as too broad now offers Load all, which searches a few letters at a time until every match is in.",
       "While it loads you see the search it is working through, a bar and count, and each letter as it is searched. Cancel keeps what was loaded so far.",
@@ -242,8 +299,8 @@
     const brand = globalThis.cpBrand || {};
     const font = fonts.find(f => f.id === settings.font);
     const text = [`CommPilot Enhancer ${brand.version || chrome.runtime.getManifest().version}`,
-      `Site: ${location.hostname} (${brand.envName || "?"})`, `Palette: ${paletteNames[currentPalette]}`,
-      `Font: ${font?.label || settings.font}`, `Menu previews: ${settings.peek ? "on" : "off"}`,
+      `Site: ${location.hostname} (${brand.envName || "?"})`, `Theme: ${themeLabel(currentPalette)} (${currentPalette})`,
+      `Font: ${font?.label || settings.font}`, `Menu previews: ${settings.peek ? "on" : "off"}`, `Debug view: ${settings.debug ? "on" : "off"}`,
       `Page: ${location.pathname}`, `Browser: ${navigator.userAgent}`].join("\n");
     const status = panel.querySelector(".cp-appearance-status");
     navigator.clipboard.writeText(text).then(
@@ -270,12 +327,14 @@
       '<button type="button" class="cp-settings-close" aria-label="Close settings">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">' +
       '<path d="M18 6 6 18M6 6l12 12"/></svg></button></header><div class="cp-settings-body">' +
-      '<section class="cp-settings-section" aria-label="Appearance"><h3>Appearance</h3>' +
-      '<fieldset><legend class="cp-appearance-sr-only">Color palette</legend>' +
-      Object.entries(paletteNames).map(([value, label]) =>
-        `<label class="cp-appearance-option"><input type="radio" name="cp-palette" value="${value}">` +
-        `<span class="cp-appearance-swatch cp-appearance-swatch-${value}" aria-hidden="true"></span>` +
-        `<span>${label}</span><span class="cp-appearance-check" aria-hidden="true">✓</span></label>`
+      '<section class="cp-settings-section" aria-label="Theme"><div class="cp-theme-head"><h3>Theme</h3>' +
+      '<div class="cp-theme-mode" role="radiogroup" aria-label="Light or dark">' +
+      `<label><input type="radio" name="cp-theme-mode" value="light">${SUN}Light</label>` +
+      `<label><input type="radio" name="cp-theme-mode" value="dark">${MOON}Dark</label></div></div>` +
+      '<fieldset class="cp-theme-grid"><legend class="cp-appearance-sr-only">Theme</legend>' +
+      themes.map(t => `<label class="cp-appearance-option cp-theme-option" data-theme="${t.id}"><input type="radio" name="cp-theme" value="${t.id}">` +
+        `<span class="cp-theme-tile" data-theme="${t.id}" aria-hidden="true"></span>` +
+        `<span class="cp-theme-name">${t.name}</span><span class="cp-appearance-check" aria-hidden="true">✓</span></label>`
       ).join("") + '</fieldset></section>' +
       '<section class="cp-settings-section" aria-label="Font"><h3>Font</h3>' +
       '<p class="cp-settings-lede">One font for the whole site: titles, menus, lists and forms.</p>' +
@@ -288,6 +347,10 @@
       '<section class="cp-settings-section" aria-label="Background loading"><h3>Background loading</h3>' +
       row(toggle("peek"), "Menu previews",
         "Show a few settings under menu options. Turn off if a large group&rsquo;s menus feel slow.") +
+      '</section>' +
+      '<section class="cp-settings-section" aria-label="Debug"><h3>Debug</h3>' +
+      row(toggle("debug"), "Debug view",
+        "Outline what has no help tip yet, and show a panel with this page&rsquo;s details, for building the extension.") +
       '</section>' + about() + '</div><footer class="cp-settings-foot"><span class="cp-appearance-status" role="status" aria-live="polite"></span>' +
       '<button type="button" class="cp-settings-done">Done</button></footer>';
     // Each font previews in its own face (set here, not in markup: CommPilot's content policy blocks inline styles).
@@ -298,6 +361,14 @@
     panel.querySelector(".cp-settings-close").addEventListener("click", closePanel);
     panel.querySelector(".cp-settings-done").addEventListener("click", closePanel);
     panel.querySelector(".cp-about-copy")?.addEventListener("click", copyBuildInfo);
+    // Preview on hover: the theme pointed at, on the side the switch is on.
+    const grid = panel.querySelector(".cp-theme-grid");
+    grid.addEventListener("pointerover", event => {
+      const option = event.target.closest?.(".cp-theme-option");
+      const theme = option && themes.find(t => t.id === option.dataset.theme);
+      if (theme) preview(theme[themeOf(currentPalette)?.mode || "light"]);
+    });
+    grid.addEventListener("pointerleave", endPreview);
     overlay.addEventListener("click", event => { if (event.target === overlay) closePanel(); });
     overlay.append(panel);
     document.body.append(overlay);
@@ -425,21 +496,32 @@
       if (font) saveSettings({ font: font.id }, `${font.label} is now the font across CommPilot.`);
       return;
     }
+    if (control.matches?.('#cp-appearance-panel input[name="debug"]')) {
+      saveSettings({ debug: control.checked }, control.checked ? "Debug view on: missing help tips are outlined." : "Debug view off.");
+      return;
+    }
     if (control.matches?.('#cp-appearance-panel input[name="peek"]')) {
       saveSettings({ peek: control.checked }, `Menu previews ${control.checked ? "on" : "off"}. Applies to the next menu you open.`);
       return;
     }
-    const option = event.target;
-    if (!option.matches?.('#cp-appearance-panel input[name="cp-palette"]') || !choices.has(option.value)) return;
+    // A theme keeps the side the switch is on; the switch keeps the theme and changes its side.
+    const current = themeOf(currentPalette);
+    let palette = null;
+    if (control.matches?.('#cp-appearance-panel input[name="cp-theme"]')) {
+      palette = themes.find(t => t.id === control.value)?.[current?.mode || "light"];
+    } else if (control.matches?.('#cp-appearance-panel input[name="cp-theme-mode"]')) {
+      palette = (current?.theme || themeOf(fallback).theme)[control.value];
+    }
+    if (!palette || !themeOf(palette)) return;
     const previous = currentPalette;
-    apply(option.value);
+    apply(palette);
     const status = panel.querySelector(".cp-appearance-status");
     status.textContent = "Saving…";
-    chrome.storage.local.set({ [key]: option.value }, () => {
+    chrome.storage.local.set({ [key]: palette }, () => {
       if (chrome.runtime?.lastError) {
         apply(previous);
         status.textContent = "Could not save. Try again.";
-      } else status.textContent = `${paletteNames[option.value]} saved across CommPilot tabs.`;
+      } else status.textContent = `${themeLabel(palette)}: saved across CommPilot tabs.`;
     });
   });
   document.addEventListener("keydown", event => { if (event.key === "Escape" && closeAccount(true)) event.preventDefault(); });

@@ -4,7 +4,8 @@
    content, then go away by themselves: a note after 5s, a warning after 8s, an error after 10s (toasts.css), held
    while the pointer or keyboard focus is on them, or at once with their ×. A notice with an action (Sign in) keeps
    its button and stays until used or closed. The message stays in the page, hidden, for CommPilot's and pjax.js's
-   own scripts. The add and edit windows (pjax.js .cp-modal) and the menu board's Retry notice keep theirs in place. */
+   own scripts. The add and edit windows (pjax.js .cp-modal) and the menu board's Retry notice keep theirs in place.
+   The Login page's messages come the same way from login.js (globalThis.cpToasts). */
 (() => {
   if (window !== window.top) return;
 
@@ -19,7 +20,8 @@
   };
   const CLOSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">' +
     '<path d="M17 7 7 17M7 7l10 10"/></svg>';
-  const clean = text => String(text || '').replace(/\s+/g, ' ').trim();
+  // CommPilot sometimes sends its line breaks as text ("…menu.<br>Summary: …"): they read as spaces.
+  const clean = text => String(text || '').replace(/<br\s*\/?>/gi, ' ').replace(/\s+/g, ' ').trim();
   const make = (tag, className, text) => {
     const el = document.createElement(tag);
     if (className) el.className = className;
@@ -119,7 +121,14 @@
       item.appendChild(timer);
     }
     list.appendChild(item);
+    return item;
   }
+
+  // The same toast for the extension's own words (login.js on the Login page): { severity, title, body }.
+  globalThis.cpToasts = {
+    show: message => toast({ code: '', text: [message.title, message.body].filter(Boolean).join(' '), ...message }),
+    dismiss,
+  };
 
   // roots: what was added since the last look (or, at the start, the whole page). A list can run to many thousands
   // of rows, so a change looks only at what it added.

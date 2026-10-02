@@ -176,28 +176,6 @@ body[id="initBody.menuTemplate"] a.leftnavfolderopen[data-cp-nav-icon]::before {
   filter: brightness(1.5);
   opacity: 1;
 }
-body[id="initBody.menuTemplate"] #cp-native-help-toggle {
-  margin: 20px 7px 0;
-  padding: 8px 12px;
-  min-height: 32px;
-  border: 1px solid #41617d;
-  border-radius: 8px;
-  background: #172d47;
-  color: #d8eaf7;
-  font: 600 12px "Inter", sans-serif;
-}
-body[id="initBody.menuTemplate"] #cp-native-help-toggle[aria-pressed="true"] {
-  border-color: var(--cp-accent);
-  background: #194a50;
-}
-body[id="initBody.menuTemplate"] #cp-native-help-tip {
-  border: 1px solid #4a7690;
-  border-radius: 12px;
-  background: #1a304a;
-  color: var(--cp-text);
-  box-shadow: 0 18px 50px #020912a8;
-  font: 13px/1.5 "Inter", sans-serif;
-}
 
 /* Content surface, hierarchy, and the native Basic/Advanced menu columns. */
 body[id="initBody.menuTemplate"] td[width="82%"][valign="top"] {

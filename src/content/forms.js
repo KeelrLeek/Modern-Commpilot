@@ -34,115 +34,588 @@
     wrap.appendChild(add);
   }
 
-  /* ---- Small settings forms: settings rows (mockup pick B) ------------------------------------------- */
-  // A settings form is CommPilot's end-user layout: rows of [label cell][control cell] inside
-  // td.enduserbody > table.enduserbody > … > td[width=100%] > table.
-  function readSettings(cell) {
-    const outers = cell.querySelectorAll('td.enduserbody > table.enduserbody');
-    if (outers.length !== 1) return null;
-    const form = cell.querySelector('form[name="mainForm"]');
-    if (!form || form.querySelector('input[type="password"], input[type="file"], fieldset')) return null;
-    const host = outers[0].querySelector(':scope > tbody > tr > td[width="100%"] > table');
-    if (!host || host.querySelector('table')) return null;
-    const rows = [];
-    for (const tr of host.querySelectorAll(':scope > tbody > tr')) {
-      const controls = tr.querySelectorAll('input:not([type="hidden"]), select, textarea');
-      const cells = [...tr.children].filter(td => td.tagName === 'TD');
-      if (!controls.length) {
-        const text = clean(tr.textContent);
-        if (!text) continue;                                   // spacer row
-        if (cells.length !== 2) return null;
-        rows.push({ kind: 'static', label: clean(cells[0].textContent).replace(/:$/, ''), value: clean(cells[1].textContent) });
-        continue;
-      }
-      if (cells.length !== 2) return null;
-      const [first, second] = cells;
-      const box = first.querySelector('input[type="checkbox"]');
-      if (box) {
-        if (first.querySelectorAll('input, select').length !== 1 || second.querySelector('input, select, textarea')) return null;
-        rows.push({ kind: 'check', label: clean(second.textContent), input: box });
-        continue;
-      }
-      if (first.querySelector('input, select, textarea')) return null;
-      let label = clean(first.textContent).replace(/:$/, '');
-      const required = /^\*/.test(label);
-      label = label.replace(/^\*\s*/, '');
-      if (!label) return null;
-      const radios = [...second.querySelectorAll('input[type="radio"]')];
-      if (radios.length) {
-        if (radios.length > 5 || radios.length !== second.querySelectorAll('input, select, textarea').length) return null;
-        const options = radios.map(r => ({ input: r, text: clean(r.nextSibling?.nodeType === 3 ? r.nextSibling.textContent : r.value) }));
-        if (options.some(o => !o.text)) return null;
-        rows.push({ kind: 'choice', label, required, options });
-        continue;
-      }
-      rows.push({ kind: 'field', label, required, cell: second });
+  /* ---- Settings forms: aligned rows (mockup pick A, 2026-10-02) ---------------------------------------- */
+  // CommPilot's forms are tables of [label][control] cells (two pairs to a row on big pages), fieldsets for sections,
+  // checkbox and radio rows, read-only rows and notes. formLayout reads them into items and lays every page out the
+  // same way: one field per row, the label in a fixed column, CommPilot's side-by-side pairs kept on one line, two
+  // columns on a wide screen. The real controls move into the layout and stay in the form, so OK / Apply, PJAX saves
+  // and CommPilot's own scripts behave as before. Its emptied tables stay behind, hidden, and the layout follows them:
+  // when CommPilot shows or hides a row (or a cell, or a fieldset's div), or puts new controls into a cell, the
+  // matching item does the same. Anything the reader does not understand moves across whole ("raw"), so no field is
+  // lost; a page with nothing readable (lists, searches, the board) keeps today's look.
+  const CONTROL = 'input:not([type="hidden"]), select, textarea';
+  const offInline = el => el?.style?.display === 'none';
+  const offUpTo = (el, stop) => { for (let n = el; n && n !== stop; n = n.parentElement) if (offInline(n)) return true; return false; };
+  // A cell's own words: without its controls, their option lists, the extension's select buttons and hidden parts.
+  function ownText(td) {
+    const copy = td.cloneNode(true);
+    copy.querySelectorAll('input, select, textarea, button, .bw-select-shell, script, style, [style*="display: none"], [style*="display:none"]')
+      .forEach(n => n.remove());
+    return clean(copy.textContent);
+  }
+  const controlsIn = el => [...el.querySelectorAll(CONTROL)];
+  const isList = table => !!table.querySelector(':scope > tbody > tr > td.listHeader');
+  const isLabel = text => /:\s*$/.test(text);
+  const labelOf = text => {
+    const label = clean(text).replace(/:\s*$/, '');
+    return { label: label.replace(/^\*\s*/, ''), required: /^\*/.test(label) };
+  };
+  // How wide a field wants to be, from what it holds.
+  function fieldSize(ctl) {
+    if (!ctl) return 'm';
+    if (ctl.tagName === 'SELECT') {
+      const longest = Math.max(0, ...[...ctl.options].map(o => clean(o.textContent).length));
+      return longest <= 6 ? 'xs' : longest <= 18 ? 's' : longest <= 34 ? 'm' : 'l';
     }
-    if (!rows.some(r => r.kind !== 'static') || rows.length > 10) return null;
-    return { host, rows, form };
+    if (ctl.tagName === 'TEXTAREA') return 'xl';
+    const n = Number(ctl.getAttribute('maxlength')) || Number(ctl.getAttribute('size')) || 30;
+    return n <= 6 ? 'xs' : n <= 16 ? 's' : n <= 34 ? 'm' : n <= 60 ? 'l' : 'xl';
+  }
+  const INPUT_WIDTH = { xs: '88px', s: '180px', m: '260px', l: '320px', xl: '360px' };
+
+  // A radio's words, however CommPilot wrote them: the radio inside its own <label>, or what follows it up to the next
+  // control (plain text, a <label for>, a <span>), or a <label for> elsewhere, or its value.
+  function radioOption(r) {
+    const wrap = r.closest('label');
+    if (wrap && wrap.querySelectorAll('input').length === 1) return { input: r, wrap, text: clean(wrap.textContent) };
+    const nodes = [];
+    for (let n = r.nextSibling; n; n = n.nextSibling) {
+      if (n.nodeType === 1 && (n.matches('input, select, textarea, br, table, div, p, fieldset') || n.querySelector('input, select, textarea'))) break;
+      nodes.push(n);
+    }
+    const words = clean(nodes.map(n => n.nodeType === 1 && n.matches('script, style') ? '' : n.textContent).join(' '));
+    const elsewhere = [...(r.labels || [])].find(l => !nodes.some(n => n === l || n.contains?.(l)));
+    return { input: r, nodes, text: words || clean(elsewhere?.textContent) || clean(r.value) };
   }
 
-  function settingsRows(cell) {
-    if (cell.querySelector('.cp-set')) return;
-    const found = readSettings(cell);
-    if (!found) return;
-    const { host, rows, form } = found;
-    const card = make('div', 'cp-set');
-    const title = clean(cell.querySelector('.screenName')?.textContent);
-    if (title) card.appendChild(make('div', 'cp-set-head', title));
-    const syncs = [];
-    for (const row of rows) {
-      const line = make('div', 'cp-set-row');
-      const label = make(row.kind === 'field' ? 'label' : 'div', 'cp-set-label');
-      if (row.required) label.appendChild(make('span', 'cp-set-req', '*'));
-      label.appendChild(document.createTextNode(row.label));
-      const control = make('div', 'cp-set-control');
-      if (row.kind === 'static') {
-        control.appendChild(make('span', 'cp-set-static', row.value));
-      } else if (row.kind === 'field') {
-        // The real input moves into the row, so typing, validation and saving are CommPilot's own.
-        [...row.cell.childNodes].forEach(node => control.appendChild(node));
-        const input = control.querySelector('input:not([type="hidden"]), select, textarea');
-        if (input?.id) label.htmlFor = input.id;
-      } else if (row.kind === 'choice') {
-        const group = make('div', 'cp-seg');
-        group.setAttribute('role', 'radiogroup');
-        group.setAttribute('aria-label', row.label);
-        for (const option of row.options) {
-          const button = make('button', 'cp-seg-opt', option.text);
-          button.type = 'button';
-          button.setAttribute('role', 'radio');
-          button.addEventListener('click', () => { if (!option.input.checked) option.input.click(); sync(); });
-          group.appendChild(button);
-          syncs.push(() => {
-            button.setAttribute('aria-checked', String(option.input.checked));
-            button.disabled = option.input.disabled;
-          });
-        }
-        control.appendChild(group);
-      } else if (row.kind === 'check') {
-        const toggle = make('button', 'cp-switch');
-        toggle.type = 'button';
-        toggle.setAttribute('role', 'switch');
-        toggle.setAttribute('aria-label', row.label);
-        toggle.addEventListener('click', () => { row.input.click(); sync(); });
-        control.appendChild(toggle);
-        syncs.push(() => {
-          toggle.setAttribute('aria-checked', String(row.input.checked));
-          toggle.disabled = row.input.disabled;
-        });
-      }
-      line.append(label, control);
-      card.appendChild(line);
+  // One table row → items. Returns null when the row is not a plain form row (the caller keeps it whole).
+  function readRow(tr, items) {
+    const cells = [...tr.children].filter(td => td.tagName === 'TD');
+    if (!cells.length || tr.querySelector('table')) return cells.length ? null : true;
+    const shown = cells.filter(td => !offInline(td));
+    // A row of label-less boxes (CommPilot's "Specific phone numbers" grid): one line of a grid.
+    const filled = shown.filter(td => controlsIn(td).length || ownText(td));
+    if (filled.length >= 2 && filled.every(td => controlsIn(td).length && !ownText(td) &&
+        controlsIn(td).every(c => !/^(checkbox|radio)$/.test(c.type)))) {
+      items.push({ type: 'inputs', cells: filled });
+      return true;
     }
-    function sync() { syncs.forEach(fn => fn()); }
-    // CommPilot's own scripts can check, clear, enable, or disable controls in reaction to each other.
-    form.addEventListener('change', sync);
-    form.addEventListener('click', () => setTimeout(sync, 0));
-    host.classList.add('cp-set-native');
-    host.parentNode.insertBefore(card, host);
-    sync();
+    if (!tr.querySelector(CONTROL)) {
+      const texted = cells.filter(td => ownText(td));
+      if (!texted.length) return true;                                                     // a spacer row
+      // A row of labels only ("Alternate User ID:" "Description:"): column headings, if boxes follow.
+      if (texted.length >= 2 && texted.every(td => isLabel(ownText(td)))) { items.push({ type: 'heads', cells: texted, row: tr }); return true; }
+      if (texted.length === 1 && !isLabel(ownText(texted[0]))) {
+        const prev = items[items.length - 1];
+        const under = cells.indexOf(texted[0]) > 0 && cells.slice(0, cells.indexOf(texted[0])).every(td => !ownText(td));
+        if (prev?.type === 'field' && !prev.grid && under && !texted[0].querySelector('a')) { (prev.hints ||= []).push(texted[0]); return true; }
+        const link = texted[0].querySelector('a');
+        if (link && clean(link.textContent) === ownText(texted[0])) items.push({ type: 'link', node: link, cell: texted[0] });
+        else items.push({ type: 'note', cell: texted[0] });
+        return true;
+      }
+    }
+    const mine = items.length;   // items from before this row
+    let pending = null;          // a label waiting for its control
+    for (let i = 0; i < cells.length; i++) {
+      const td = cells[i];
+      const ctls = controlsIn(td);
+      const text = ownText(td);
+      const prev = items[items.length - 1];
+      if (!ctls.length) {
+        const link = td.querySelector('a');
+        if (link && clean(link.textContent) === text) { items.push({ type: 'link', node: link, cell: td }); continue; }
+        if (!text) continue;
+        if (pending) { items.push({ type: 'fact', label: pending.label, cells: [td] }); pending = null; continue; }
+        const next = cells[i + 1];
+        if (next && !controlsIn(next).length && isLabel(text) && !offInline(td)) {
+          // A label, then plain text: a read-only fact (its value can run over a few cells).
+          const values = [];
+          let j = i + 1;
+          for (; j < cells.length && !controlsIn(cells[j]).length && !cells[j].querySelector('a') && !(values.length && isLabel(ownText(cells[j]))); j++)
+            values.push(cells[j]);
+          items.push({ type: 'fact', label: labelOf(text).label, cells: values });
+          i = j - 1;
+          continue;
+        }
+        if (isLabel(text) || (next && controlsIn(next).length)) { pending = labelOf(text); continue; }
+        // Text after a field in its row ("Activated" / "Not Activated"): its hint, which follows the cell.
+        if (prev?.type === 'field' && items.indexOf(prev) >= mine) { (prev.hints ||= []).push(td); continue; }
+        items.push({ type: 'note', cell: td });
+        continue;
+      }
+      const radios = ctls.filter(c => c.type === 'radio');
+      const boxes = ctls.filter(c => c.type === 'checkbox');
+      if (radios.length && radios.length === ctls.length) {
+        const options = radios.map(radioOption);
+        if (!pending && prev?.type === 'choice' && prev.name === radios[0].name) prev.options.push(...options);
+        else items.push({ type: 'choice', name: radios[0].name, label: pending?.label || '', required: pending?.required, options, cell: td });
+        pending = null;
+        continue;
+      }
+      if (boxes.length === 1 && ctls.length === 1) {
+        const next = cells[i + 1];
+        // Its words are in the next cell, sometimes with a field among them ("Enforce Association Limit [24] Hours").
+        const labelCell = !text && next && ownText(next) && !controlsIn(next).some(c => /^(checkbox|radio)$/.test(c.type)) ? next : null;
+        // [checkbox][Enforce Association Limit:][24][Hours]: the box switches the field after its words on.
+        const after = [];
+        if (labelCell && !controlsIn(labelCell).length && isLabel(ownText(labelCell)) && cells[i + 2] && controlsIn(cells[i + 2]).length) {
+          after.push(cells[i + 2]);
+          for (let j = i + 3; j < cells.length && !controlsIn(cells[j]).length && ownText(cells[j]) && !isLabel(ownText(cells[j])); j++) after.push(cells[j]);
+        }
+        items.push({ type: 'check', input: boxes[0], heading: pending?.label || '', cell: td, labelCell, after });
+        pending = null;
+        i += (labelCell ? 1 : 0) + after.length;
+        continue;
+      }
+      // A control cell: its label is the pending one, or "Label: [control]" inside the cell.
+      let label = pending;
+      if (!label && text && /:/.test(text)) label = labelOf(text.split(/:\s/)[0] + ':');
+      if (!label && prev?.type === 'field' && prev.line !== tr && cells.slice(0, i).every(c => !ownText(c)) && !prev.grid) {
+        (prev.more ||= []).push(td);   // a second line for the field above (Address line 2)
+        continue;
+      }
+      items.push({ type: 'field', label: label?.label || '', required: !!label?.required, cell: td, control: ctls[0],
+        size: fieldSize(ctls[0]), inlineLabel: !pending && !!label });
+      pending = null;
+    }
+    if (pending) items.push({ type: 'note', text: pending.label, asLabel: true });   // "Specific phone numbers:" over a grid
+    return true;
   }
+
+  // A content table → items; rows it cannot read stay whole, in place.
+  function readTable(table, items) {
+    if (isList(table)) { items.push({ type: 'raw', node: table, list: true }); return; }
+    // The pager line ("[ Page 1 of 3 ]") stays as served: lists.js and the bulk tools read it.
+    if (!table.querySelector(CONTROL) && /\[\s*Page\s+\d+\s+of\s+\d+\s*\]/.test(table.textContent)) { items.push({ type: 'raw', node: table }); return; }
+    // CommPilot's tabs (General Settings | Internal Calls Settings) keep their own strip.
+    if (table.querySelector(':scope > tbody > tr > :is(td.tab, td.tabActive)')) { items.push({ type: 'raw', node: table }); return; }
+    // Search criteria and pick lists keep CommPilot's markup: searchBar and pickLists turn them into their own widgets.
+    if (table.querySelector('#search0, [name^="findValue"], select[multiple]') &&
+        (table.querySelectorAll(':scope > tbody > tr').length === 1 || table.querySelector(':scope > tbody > tr#tr0'))) {
+      items.push({ type: 'raw', node: table });
+      return;
+    }
+    for (const tr of table.querySelectorAll(':scope > tbody > tr')) {
+      if (offInline(tr) && !tr.querySelector(CONTROL)) continue;
+      const fieldsets = tr.querySelectorAll(':scope > td > fieldset, :scope > td > div > fieldset');
+      if (fieldsets.length) { fieldsets.forEach(fs => readFieldset(fs, items, tr)); continue; }
+      const inner = tr.children.length === 1 && tr.querySelector(':scope > td > table');
+      if (inner && !inner.querySelector('table')) { readTable(inner, items); continue; }
+      if (tr.querySelector('#search0, select[multiple], [name^="findValue"]')) { items.push({ type: 'raw', node: tr, row: true }); continue; }
+      const before = items.length;
+      if (readRow(tr, items) === null) { items.length = before; items.push({ type: 'raw', node: tr, row: true }); }
+      // A leading 20px spacer cell indents the row: sub-options of the setting above.
+      const lead = tr.firstElementChild;
+      const indent = lead?.getAttribute('width') === '20' && !clean(lead.textContent) && !lead.querySelector(CONTROL);
+      for (const item of items.slice(before)) { item.line ||= tr; if (indent && item.type !== 'inputs') item.indent = true; }
+    }
+  }
+  function readFieldset(fs, items, tr) {
+    const section = { type: 'section', title: clean(fs.querySelector(':scope > legend')?.textContent), items: [], node: fs, row: tr };
+    for (const child of fs.children) {
+      if (child.tagName === 'TABLE') readTable(child, section.items);
+      else if (child.tagName === 'FIELDSET') readFieldset(child, section.items, tr);
+    }
+    section.items = gather(section.items);
+    items.push(section);
+  }
+  // Runs of label-less box rows become one field holding a grid, labelled by the note just above them.
+  function gather(items) {
+    const out = [];
+    for (const item of items) {
+      const prev = out[out.length - 1];
+      if (prev?.type === 'heads' && item.type !== 'inputs') {
+        // Headings with no boxes under them: read-only label / value pairs after all.
+        out.pop();
+        for (let k = 0; k < prev.cells.length; k += 2) out.push({ type: 'fact', label: labelOf(ownText(prev.cells[k])).label, cells: prev.cells.slice(k + 1, k + 2), line: prev.row });
+      }
+      if (item.type !== 'inputs') { out.push(item); continue; }
+      if (prev?.type === 'field' && prev.grid) { prev.grid.push(item.cells); continue; }
+      if (prev?.type === 'heads') { out.pop(); out.push({ type: 'field', label: '', grid: [item.cells], heads: prev.cells, size: 'xl', line: item.line }); continue; }
+      let label = '';
+      if (prev?.type === 'note' && (prev.asLabel || (prev.cell && isLabel(ownText(prev.cell))))) {
+        label = prev.asLabel ? prev.text : ownText(prev.cell).replace(/:\s*$/, '');
+        out.pop();
+      }
+      out.push({ type: 'field', label, grid: [item.cells], size: 'xl', line: item.line });
+    }
+    const last = out[out.length - 1];
+    if (last?.type === 'heads') { out.pop(); out.push({ type: 'note', cell: last.row }); }
+    return out;
+  }
+  function readForm(body) {
+    const items = [];
+    const walk = parent => {
+      for (const child of parent.children) {
+        if (child.tagName === 'TABLE' && child.classList.contains('enduserbody')) {
+          const main = child.querySelector(':scope > tbody > tr > td[width="100%"]');
+          if (main) walk(main); else readTable(child, items);
+        } else if (child.tagName === 'TABLE') readTable(child, items);
+        else if (child.tagName === 'FIELDSET') readFieldset(child, items, null);
+        else if (/^(DIV|SPAN|P)$/.test(child.tagName) && child.querySelector(CONTROL + ', table')) items.push({ type: 'raw', node: child });
+      }
+    };
+    walk(body);
+    return gather(items);
+  }
+
+  // Items → the layout. Every element remembers what it came from (`mirror`) so it can follow CommPilot's changes.
+  function buildForm(items) {
+    const root = make('div', 'fx');
+    const mirrors = [];    // { el, from: [elements whose inline display decides it] }
+    const fills = [];      // { cell, into, nodes }: a CommPilot cell whose controls moved, and where to
+    const facts = [];
+    let started = false, grid = null;
+    const follow = (el, ...from) => mirrors.push({ el, from: from.filter(Boolean) });
+    const fill = (cell, into) => { const nodes = [...cell.childNodes]; into.append(...nodes); fills.push({ cell, into, nodes }); };
+    const group = (title, item) => {
+      const section = make('section', 'fx-sec');
+      if (title) { section.dataset.title = title; section.appendChild(make('h3', 'fx-sec-title', title)); }
+      grid = make('div', 'fx-grid');
+      section.appendChild(grid);
+      root.appendChild(section);
+      if (item) follow(section, item.node, item.node.parentElement?.tagName === 'DIV' ? item.node.parentElement : null, item.row);
+      return section;
+    };
+    const place = (item, el) => {
+      if (!grid) group('');
+      if (item.indent) el.dataset.indent = '';
+      follow(el, item.line, item.cell);
+      // Fields CommPilot put side by side stay on one line.
+      const last = grid.lastElementChild;
+      if (item.line && last?.classList.contains('fx-line') && last.cpLine === item.line) last.appendChild(el);
+      else if (item.line && item.type !== 'raw' && item.type !== 'note') {
+        const line = make('div', 'fx-line');
+        line.cpLine = item.line;
+        line.appendChild(el);
+        grid.appendChild(line);
+      } else grid.appendChild(el);
+    };
+    const add = item => {
+      if (item.type === 'section') {
+        group(item.title, item);
+        item.items.forEach(add);
+        grid = null;   // what follows a fieldset starts a fresh, untitled group
+        return;
+      }
+      if (!['fact', 'link', 'note'].includes(item.type)) started = true;
+      if (item.type === 'link' && item.line && grid) {
+        // A link in a field's row (Configure Identity/Device Profile) sits beside that field.
+        const last = grid.lastElementChild;
+        const field = last?.classList.contains('fx-line') && last.cpLine === item.line && [...last.children].reverse().find(c => c.classList.contains('fx-field'));
+        if (field) { linkButton(item.node); field.querySelector(':scope > .fx-ctl').appendChild(item.node); return; }
+      }
+      if (item.type === 'fact' && !started) { facts.push(item); return; }
+      if (item.type === 'link' && !started && facts.length && saves(item.node)) {
+        // "Change User ID (Also saves current screen data)" joins its fact in the strip.
+        const fact = facts.find(f => new RegExp('\\b' + f.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(item.node.textContent));
+        if (fact) { linkButton(item.node); fact.action = item.node; return; }
+      }
+      const el = render(item, fill, follow);
+      if (el) place(item, el);
+    };
+    items.forEach(add);
+    if (facts.length) {
+      const strip = make('div', 'fx-facts');
+      for (const f of facts) {
+        const fact = make('div', 'fx-fact');
+        const value = make('span', 'fx-fact-v');
+        f.cells.forEach(c => { fill(c, value); follow(fact, f.line, c); });
+        if (!clean(value.textContent)) value.dataset.empty = '';
+        fact.append(make('span', 'fx-fact-k', f.label), value);
+        if (f.action) fact.appendChild(f.action);
+        strip.appendChild(fact);
+      }
+      root.prepend(strip);
+    }
+    root.querySelectorAll('.fx-line').forEach(l => { l.dataset.n = String(l.children.length); });
+    root.querySelectorAll('.fx-sec').forEach(s => { if (!s.querySelector('.fx-grid > *')) s.remove(); });
+    return { root, mirrors, fills };
+  }
+  const saves = a => /\(([^)]*\bsaves\b[^)]*)\)/i.test(a.textContent);
+  // "Change User ID (Also saves current screen data)" → a small "Change User ID" button marked "saves first".
+  function linkButton(a) {
+    a.classList.add('fx-linkbtn');
+    if (!a.getAttribute('role') && !a.getAttribute('href')) a.setAttribute('role', 'button');
+    const m = a.textContent.match(/^(.*?)\s*\(([^)]*\bsaves\b[^)]*)\)\s*$/i);
+    if (m) { a.textContent = clean(m[1]); a.title = m[2].replace(/^also /i, '').replace(/^./, c => c.toUpperCase()); a.classList.add('fx-saves'); }
+  }
+  let uid = 0;
+  function render(item, fill, follow) {
+    if (item.type === 'fact') {
+      const el = make('div', 'fx-item fx-field fx-static');
+      const value = make('div', 'fx-ctl fx-value');
+      item.cells.forEach(c => { fill(c, value); follow(el, c); });
+      if (!clean(value.textContent)) value.dataset.empty = '';
+      el.append(make('div', 'fx-label', item.label), value);
+      return el;
+    }
+    if (item.type === 'link') {
+      linkButton(item.node);
+      const el = make('div', 'fx-item fx-actionrow');
+      el.appendChild(item.node);
+      return el;
+    }
+    if (item.type === 'note') {
+      const el = make('div', 'fx-item fx-note');
+      if (item.cell) fill(item.cell, el); else el.textContent = item.text;
+      return el;
+    }
+    if (item.type === 'raw') {
+      const el = make('div', 'fx-item fx-raw' + (item.list ? ' fx-list' : ''));
+      if (item.row) {
+        // A whole row CommPilot's scripts may still address: it moves inside a table of its own.
+        const table = document.createElement('table');
+        const tbody = document.createElement('tbody');
+        tbody.appendChild(item.node);
+        table.appendChild(tbody);
+        el.appendChild(table);
+      } else el.appendChild(item.node);
+      return el;
+    }
+    if (item.type === 'check') {
+      // A checkbox is a switch; its words sit beside it, and a label CommPilot gave it sits in the label column.
+      const el = make('div', 'fx-item fx-check');
+      const label = make('label', 'fx-check-label');
+      item.input.classList.add('fx-switch');
+      label.appendChild(item.input);
+      const text = make('span', 'fx-check-text');
+      if (item.labelCell) { fill(item.labelCell, text); follow(el, item.labelCell); }
+      else fill(item.cell, text);
+      if (item.after?.length) for (const n of [...text.childNodes]) if (n.nodeType === 3) n.textContent = n.textContent.replace(/:\s*$/, ' ');
+      if (!clean(text.textContent) && item.heading) text.textContent = item.heading;
+      label.appendChild(text);
+      if (item.heading && clean(text.textContent) !== item.heading) el.appendChild(make('div', 'fx-label', item.heading));
+      const line = make('div', 'fx-check-line');
+      line.appendChild(label);
+      for (const cell of item.after || []) { const part = make('span', 'fx-ctl fx-check-after'); fill(cell, part); line.appendChild(part); }
+      el.appendChild(line);
+      return el;
+    }
+    if (item.type === 'choice') {
+      const el = make('div', 'fx-item fx-choice' + (item.label ? '' : ' fx-nolabel'));
+      el.appendChild(make('div', 'fx-label', item.label));
+      const ctl = make('div', 'fx-ctl fx-opts');
+      ctl.setAttribute('role', 'radiogroup');
+      if (item.label) ctl.setAttribute('aria-label', item.label);
+      if (item.options.length <= 4 && item.options.every(o => o.text && o.text.length <= 22)) ctl.classList.add('fx-seg');
+      for (const o of item.options) {
+        if (o.wrap) { o.wrap.classList.add('fx-opt'); ctl.appendChild(o.wrap); continue; }   // CommPilot's own label
+        const label = make('label', 'fx-opt');
+        const span = make('span');
+        span.append(...o.nodes);
+        // CommPilot spaces its options with &nbsp; (\s covers it): trim them off the ends.
+        const ends = [...span.childNodes].filter(n => n.nodeType === 3);
+        if (ends.length) {
+          ends[0].textContent = ends[0].textContent.replace(/^\s+/, '');
+          ends[ends.length - 1].textContent = ends[ends.length - 1].textContent.replace(/\s+$/, '');
+        }
+        if (!clean(span.textContent)) span.textContent = o.text;
+        label.append(o.input, span);
+        ctl.appendChild(label);
+      }
+      // Anything else in the radios' cell (a field after "Other:") stays with them.
+      if (item.cell && controlsIn(item.cell).length) fill(item.cell, ctl);
+      el.appendChild(ctl);
+      return el;
+    }
+    if (item.type === 'field') {
+      const el = make('div', 'fx-item fx-field' + (item.label ? '' : ' fx-nolabel'));
+      el.dataset.size = item.size;
+      const label = make('label', 'fx-label', item.label);
+      if (item.required) label.appendChild(make('span', 'fx-req', '*'));
+      const ctl = make('div', 'fx-ctl');
+      if (item.grid) {
+        ctl.classList.add('fx-boxgrid');
+        ctl.style.setProperty('--fx-cols', String(Math.max(...item.grid.map(r => r.length))));
+        for (const head of item.heads || []) ctl.appendChild(make('div', 'fx-boxhead', ownText(head).replace(/:\s*$/, '')));
+        for (const row of item.grid) for (const cell of row) { const box = make('div', 'fx-box'); fill(cell, box); ctl.appendChild(box); }
+        el.dataset.grid = '';
+      } else {
+        fill(item.cell, ctl);
+        // "Label: [control]" in one cell: the words move to the label, out of the control's place.
+        if (item.inlineLabel) for (const n of [...ctl.childNodes]) if (n.nodeType === 3 && /:/.test(n.textContent)) { n.remove(); break; }
+      }
+      for (const more of item.more || []) { const line = make('div', 'fx-ctl-more'); fill(more, line); ctl.appendChild(line); follow(line, more); }
+      const first = ctl.querySelector(CONTROL);
+      if (first) { if (!first.id) first.id = 'fx-f' + (++uid); label.htmlFor = first.id; }
+      const boxes = [...ctl.querySelectorAll(CONTROL)].filter(b => !b.closest('.fx-ctl-more'));
+      if (boxes.length > 1 && !item.grid) {
+        ctl.dataset.multi = '';
+        boxes.forEach(b => { if (b.tagName === 'INPUT') b.style.setProperty('--fx-in', INPUT_WIDTH[fieldSize(b)]); });
+      }
+      el.append(label, ctl);
+      for (const cell of item.hints || []) { const hint = make('div', 'fx-hint'); fill(cell, hint); follow(hint, cell); el.appendChild(hint); }
+      return el;
+    }
+    return null;
+  }
+
+  function formLayout(cell) {
+    if (cell.querySelector(':scope > .cp-console, .fx, .cp-ev')) return;
+    const body = cell.querySelector('form[name="mainForm"] > table > tbody > tr > td.enduserbody');
+    if (!body) return;
+    const items = readForm(body);
+    // Only a page with something to set: lists, searches and read-only pages keep today's look.
+    const settable = i => ['field', 'check', 'choice'].includes(i.type) || (i.type === 'section' && i.items.some(settable));
+    if (!items.some(settable)) return;
+    if (items.reduce((n, i) => n + (i.type === 'section' ? i.items.length : 1), 0) > 400) return;   // not a form: a sheet
+    const { root, mirrors, fills } = buildForm(items);
+    const host = [...body.children].find(c => c.tagName === 'TABLE' || c.tagName === 'FIELDSET');
+    body.insertBefore(root, host || null);
+    for (const child of [...body.children]) if (child !== root && /^(TABLE|FIELDSET)$/.test(child.tagName)) child.classList.add('fx-native');
+    // Follow CommPilot: rows, cells and fieldset divs it shows and hides, and controls it puts into a cell.
+    const sync = () => {
+      for (const m of mirrors) m.el.hidden = m.from.some(n => offUpTo(n, body));
+      for (const section of root.querySelectorAll('.fx-sec')) if (!section.hidden)
+        section.classList.toggle('fx-empty-sec', ![...section.querySelectorAll('.fx-item')].some(i => !i.hidden));
+      root.cpChips?.();
+    };
+    const refill = f => {
+      const added = [...f.cell.childNodes];
+      if (!added.length) return;
+      const names = new Set(added.flatMap(n => n.nodeType === 1 ? [n, ...n.querySelectorAll('[name]')] : []).map(n => n.getAttribute?.('name')).filter(Boolean));
+      for (const n of f.nodes) if (n.nodeType !== 1 || [n, ...n.querySelectorAll('[name]')].some(x => names.has(x.getAttribute?.('name')))) n.remove();
+      f.into.append(...added);
+      f.into.removeAttribute('data-empty');
+      f.nodes = added;
+    };
+    // A control CommPilot puts somewhere else in its (hidden) tables, e.g. a cell that was empty when the page opened:
+    // it joins its row's field, or the row comes into the layout whole, so it is never hidden from you.
+    const strays = () => {
+      for (const native of body.querySelectorAll(':scope > .fx-native')) {
+        for (const ctl of native.querySelectorAll(CONTROL)) {
+          if (ctl.closest('.fx')) continue;
+          const tr = ctl.closest('tr');
+          const owner = tr && mirrors.find(m => m.from.includes(tr) && m.el.matches('.fx-item'));
+          const into = owner?.el.querySelector(':scope > .fx-ctl, :scope > .fx-check-line');
+          const cell = ctl.closest('td');
+          if (into && cell) {
+            const f = fills.find(x => x.cell === cell);
+            if (f) refill(f);
+            else { const nodes = [...cell.childNodes]; into.append(...nodes); fills.push({ cell, into, nodes }); }
+            continue;
+          }
+          if (!tr) continue;
+          const el = make('div', 'fx-item fx-raw');
+          const table = document.createElement('table');
+          const tbody = document.createElement('tbody');
+          tbody.appendChild(tr);
+          table.appendChild(tbody);
+          el.appendChild(table);
+          root.appendChild(el);
+        }
+      }
+    };
+    const observer = new MutationObserver(records => {
+      if (!root.isConnected) { observer.disconnect(); return; }
+      let changed = false, added = false;
+      for (const r of records) {
+        if (r.type === 'attributes') { if (!root.contains(r.target)) changed = true; continue; }
+        const f = r.addedNodes.length && fills.find(x => x.cell === r.target);
+        if (f) refill(f);
+        else if (r.addedNodes.length && !root.contains(r.target)) added = true;
+      }
+      if (added) strays();
+      if (changed || added) sync();
+    });
+    observer.observe(body, { attributes: true, attributeFilter: ['style'], subtree: true, childList: true });
+    strays();   // anything the reader left behind shows from the start
+    sync();
+    root.cpSync = sync;
+  }
+
+  /* ---- After the frame: unsaved changes, section chips, empty lists (mockup extras, 2026-10-02) ---------- */
+  const valueOf = el => el.type === 'checkbox' || el.type === 'radio' ? el.checked :
+    el.tagName === 'SELECT' ? [...el.selectedOptions].map(o => o.value).join('\n') : el.value;
+  function formExtras(cell) {
+    const root = cell.querySelector('.fx');
+    if (root && !root.cpExtras) {
+      root.cpExtras = true;
+      // Unsaved changes: what each field holds the first time you reach for the page (a click, a key, a focus) is the
+      // starting point, so values the page's own scripts fill in as it opens never count as yours. A changed field
+      // gets a dot, the header a count.
+      let start = null;
+      root.cpBegin = () => { start ||= new Map([...root.querySelectorAll(CONTROL)].map(el => [el, valueOf(el)])); };
+      root.cpDirty = () => {
+        if (!start) return;
+        let n = 0;
+        for (const item of root.querySelectorAll('.fx-item, .fx-fact')) {
+          const any = [...item.querySelectorAll(CONTROL)].some(el => start.has(el) && valueOf(el) !== start.get(el));
+          item.classList.toggle('is-dirty', any);
+          if (any) n++;
+        }
+        const actions = cell.querySelector('.cp-frame-actions');
+        let pill = cell.querySelector('.fx-unsaved');
+        if (!pill && actions && n) { pill = make('span', 'fx-unsaved'); pill.setAttribute('role', 'status'); actions.prepend(pill); }
+        if (pill) { pill.hidden = !n; pill.textContent = n === 1 ? '1 unsaved change' : `${n} unsaved changes`; }
+      };
+      // Section chips: a page with titled sections gets chips under its title that jump to each one.
+      // Titled sections, and the untitled one at the top as "Details".
+      const sections = [...root.querySelectorAll(':scope > .fx-sec')].filter((s, i) => s.dataset.title || i === 0);
+      const head = cell.querySelector('.cp-frame-head');
+      if (head && sections.length >= 2 && sections.some(s => s.dataset.title)) {
+        const nav = make('nav', 'fx-jump');
+        nav.setAttribute('aria-label', 'Sections on this page');
+        const chips = sections.map(section => {
+          const chip = make('button', 'fx-jump-chip', section.dataset.title ? section.dataset.title.replace(/^./, c => c.toUpperCase()) : 'Details');
+          chip.type = 'button';
+          chip.addEventListener('click', () => {
+            section.style.scrollMarginTop = Math.round(head.getBoundingClientRect().height + 16) + 'px';
+            section.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+          });
+          nav.appendChild(chip);
+          return { chip, section };
+        });
+        head.appendChild(nav);
+        root.cpChips = () => {
+          const line = head.getBoundingClientRect().bottom + 24;
+          let on = chips.find(c => !c.section.hidden) || chips[0];
+          for (const c of chips) { c.chip.hidden = c.section.hidden; if (!c.section.hidden && c.section.getBoundingClientRect().top <= line) on = c; }
+          for (const c of chips) c.chip.classList.toggle('is-on', c === on);
+        };
+        root.cpChips();
+      }
+    }
+    // Empty lists: "No Entries Present" becomes a quiet empty state that names what will show, with its own Add.
+    for (const td of cell.querySelectorAll('td')) {
+      if (td.querySelector('td, .fx-empty') || !/^No Entries Present\.?$/i.test(clean(td.textContent))) continue;
+      const table = td.closest('table');
+      // A heading's words only: CommPilot keeps its sort scripts inside the heading cells.
+      const heads = [...table.querySelectorAll(':scope > tbody > tr > td.listHeader')].map(ownText).filter(Boolean);
+      const add = [...cell.querySelectorAll('.cp-frame-actions :is(input, button), td.buttonbar :is(input, button)')]
+        .find(b => /^add\b/i.test(clean(b.value || b.textContent)));
+      const box = make('div', 'fx-empty');
+      box.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M3.5 9.5h17M8 14h8"/></svg>';
+      const words = make('div', 'fx-empty-words');
+      const cols = heads.filter(h => !/^(edit|active|delete|select)$/i.test(h)).slice(0, 3).map(h => h.toLowerCase());
+      words.append(make('b', '', 'Nothing here yet'),
+        make('span', '', cols.length ? 'Entries you add show here with their ' + cols.join(', ') + '.' : 'Entries you add show here.'));
+      box.appendChild(words);
+      if (add) {
+        const button = make('button', 'fx-empty-add', '+ ' + clean(add.value || add.textContent));
+        button.type = 'button';
+        button.addEventListener('click', () => add.click());
+        box.appendChild(button);
+      }
+      td.textContent = '';
+      td.appendChild(box);
+      td.colSpan = Math.max(heads.length, 1);
+      td.closest('tr').classList.add('fx-empty-row');
+    }
+  }
+  // One listener each for the whole session: the current page's layout answers.
+  const currentForm = () => document.querySelector('td[width="82%"] .fx');
+  // You reaching for the page (before the change happens) sets the starting point; a change updates the count.
+  const reach = event => {
+    const form = currentForm();
+    if (form?.cpBegin && event.isTrusted && event.target?.closest?.('td[width="82%"], .bw-search-popover')) form.cpBegin();
+  };
+  for (const type of ['pointerdown', 'keydown', 'focusin']) document.addEventListener(type, reach, true);
+  const edited = () => { const form = currentForm(); if (form?.cpDirty) setTimeout(form.cpDirty, 0); };
+  for (const type of ['input', 'change', 'click']) document.addEventListener(type, edited, true);
+  document.addEventListener('scroll', () => currentForm()?.cpChips?.(), { capture: true, passive: true });
 
   /* ---- Available / Assigned pick lists: paired cards (mockup pick B) --------------------------------- */
   // CommPilot's pick list: one row of [select multiple][cell of Add / Remove buttons][select multiple], under a
@@ -176,7 +649,7 @@
   function headerTitles(row) {
     for (let tr = row.previousElementSibling; tr; tr = tr.previousElementSibling) {
       const heads = [...tr.children].filter(td => td.classList.contains('listHeader'));
-      if (heads.length >= 2) return { row: tr, left: clean(heads[0].textContent), right: clean(heads[heads.length - 1].textContent) };
+      if (heads.length >= 2) return { row: tr, left: ownText(heads[0]), right: ownText(heads[heads.length - 1]) };
     }
     return { row: null, left: 'Available', right: 'Assigned' };
   }
@@ -497,7 +970,7 @@
     body.classList.add('cp-frame-body');
     // Spacer rows (empty cells, one-pixel images) only add height between the parts.
     const blank = el => !clean(el.textContent) &&
-      !el.querySelector('input:not([type="hidden"]), select, textarea, button, a, table, fieldset, .cp-set, .cp-dl, .cp-ev');
+      !el.querySelector('input:not([type="hidden"]), select, textarea, button, a, table, fieldset, .fx, .cp-dl, .cp-ev');
     rows.forEach(tr => { if (blank(tr)) tr.classList.add('cp-frame-spacer'); });
     const top = frame.querySelector(':scope > tbody > tr#buttonbartop > td.buttonbar');
     const bottom = frame.querySelector(':scope > tbody > tr#buttonbarbottom');
@@ -534,8 +1007,6 @@
     // small, even gap instead of a full text line.
     const spacerOnly = tr => [...tr.querySelectorAll('img')].every(img => /onepx\.gif$/i.test(img.getAttribute('src') || ''));
     body.querySelectorAll('tr:not(.cp-frame-spacer)').forEach(tr => { if (blank(tr) && spacerOnly(tr)) tr.classList.add('cp-frame-gap'); });
-    // A settings card headed with the page's own title repeats it.
-    body.querySelectorAll('.cp-set-head').forEach(h => { if (clean(h.textContent).toLowerCase() === clean(name.textContent).toLowerCase()) h.hidden = true; });
     // Results, the empty band CommPilot draws under them, and the pager, so the card can give them dividers
     // and one inset.
     for (const table of body.querySelectorAll('table')) {
@@ -593,7 +1064,7 @@
     if (!active()) return;
     const cell = content();
     if (!cell) return;
-    for (const transform of [searchBar, eventEditor, settingsRows, pickLists, pageFrame]) {
+    for (const transform of [searchBar, eventEditor, formLayout, pickLists, pageFrame, formExtras]) {
       try { transform(cell); } catch (error) { console.warn('[CommPilot forms]', transform.name, error); }
     }
   }

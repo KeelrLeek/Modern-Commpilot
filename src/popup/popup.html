@@ -1,10 +1,13 @@
 <!doctype html>
-<html lang="en" data-theme="atlas">
+<html lang="en" data-cp-palette="atlas">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CommPilot settings</title>
+  <!-- The themes' colours: each palette's tokens apply to any element with data-cp-palette (theme-palettes.css). -->
+  <link rel="stylesheet" href="../content/theme-palettes.css">
   <link rel="stylesheet" href="popup.css">
+  <script src="../content/themes.js" defer></script>
   <script src="popup.js" defer></script>
 </head>
 <body>
@@ -26,54 +29,16 @@
       <div class="section-heading">
         <div>
           <p class="eyebrow">Appearance</p>
-          <h2 id="appearance-title">Choose your palette</h2>
+          <h2 id="appearance-title">Choose your theme</h2>
         </div>
-        <svg class="section-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 3a9 9 0 1 0 0 18h1.2a2.3 2.3 0 0 0 2-3.4 1.8 1.8 0 0 1 1.6-2.7h1.1a3.1 3.1 0 0 0 3.1-3.1A8.9 8.9 0 0 0 12 3Z" stroke="currentColor" stroke-width="1.6"/>
-          <circle cx="7.7" cy="11" r="1" fill="currentColor"/><circle cx="10.2" cy="7.5" r="1" fill="currentColor"/>
-          <circle cx="15.1" cy="7.6" r="1" fill="currentColor"/><circle cx="18" cy="11.4" r="1" fill="currentColor"/>
-        </svg>
+        <div class="mode" role="radiogroup" aria-label="Light or dark">
+          <label><input type="radio" name="mode" value="light">Light</label>
+          <label><input type="radio" name="mode" value="dark">Dark</label>
+        </div>
       </div>
-      <p class="intro">Pick the look that feels right. Your choice is saved and follows you across CommPilot tabs.</p>
-
-      <fieldset class="palette-grid" id="palette-grid">
-        <legend class="sr-only">Color palette</legend>
-
-        <div class="palette-option nord">
-          <input type="radio" id="palette-nord" name="palette" value="nord">
-          <label for="palette-nord">
-            <span class="mini-browser" aria-hidden="true"><span class="mini-top"></span><span class="mini-side"></span><span class="mini-page"><span class="mini-title"></span><span class="mini-row"></span><span class="mini-row short"></span></span></span>
-            <span class="option-details"><span class="option-name">Nord</span><span class="option-check" aria-hidden="true">✓</span></span>
-            <span class="option-caption">Polar night · frost</span>
-          </label>
-        </div>
-
-        <div class="palette-option atlas">
-          <input type="radio" id="palette-atlas" name="palette" value="atlas" checked>
-          <label for="palette-atlas">
-            <span class="mini-browser" aria-hidden="true"><span class="mini-top"></span><span class="mini-side"></span><span class="mini-page"><span class="mini-title"></span><span class="mini-row"></span><span class="mini-row short"></span></span></span>
-            <span class="option-details"><span class="option-name">Atlas</span><span class="option-check" aria-hidden="true">✓</span></span>
-            <span class="option-caption">Cool light · teal</span>
-          </label>
-        </div>
-
-        <div class="palette-option graphite">
-          <input type="radio" id="palette-graphite" name="palette" value="graphite">
-          <label for="palette-graphite">
-            <span class="mini-browser" aria-hidden="true"><span class="mini-top"></span><span class="mini-side"></span><span class="mini-page"><span class="mini-title"></span><span class="mini-row"></span><span class="mini-row short"></span></span></span>
-            <span class="option-details"><span class="option-name">Graphite</span><span class="option-check" aria-hidden="true">✓</span></span>
-            <span class="option-caption">Charcoal · lime</span>
-          </label>
-        </div>
-
-        <div class="palette-option terra">
-          <input type="radio" id="palette-terra" name="palette" value="terra">
-          <label for="palette-terra">
-            <span class="mini-browser" aria-hidden="true"><span class="mini-top"></span><span class="mini-side"></span><span class="mini-page"><span class="mini-title"></span><span class="mini-row"></span><span class="mini-row short"></span></span></span>
-            <span class="option-details"><span class="option-name">Terra</span><span class="option-check" aria-hidden="true">✓</span></span>
-            <span class="option-caption">Warm ivory · clay</span>
-          </label>
-        </div>
+      <p class="intro">Every theme comes light and dark. Your choice is saved and follows you across CommPilot tabs.</p>
+      <fieldset class="theme-grid" id="palette-grid">
+        <legend class="sr-only">Theme</legend>
       </fieldset>
     </section>
 

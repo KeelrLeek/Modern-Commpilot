@@ -1,34 +1,132 @@
-#cp-native-help-toggle {
-  display: block;
-  margin: 8px 12px;
-  padding: 4px 12px;
-  border: 1px solid #9aa4ba;
-  border-radius: 4px;
-  background: #30394f;
-  color: #fff;
-  cursor: pointer;
-  font: 12px Arial, sans-serif;
+/* Help tips (native-help.js): the top bar's Help tips button (drawn like Help / Home / Settings, theme-palettes.css),
+   the tip, the cues while tips are on, and the debug view's outlines and panel. Colours are palette tokens. */
+
+/* CommPilot's own Help link stays in the page for its scripts, out of sight: Help tips takes its place. */
+body[id="initBody.menuTemplate"] td.headerBar a.headerLink[data-cp-native-help] { display: none !important; }
+body[id="initBody.menuTemplate"] #cp-help-tips { cursor: pointer; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar #cp-help-tips::before {
+  content: ""; display: inline-block; background: currentColor;
+  -webkit-mask: var(--cp-help-icon) center / contain no-repeat; mask: var(--cp-help-icon) center / contain no-repeat;
 }
-#cp-native-help-toggle[aria-pressed="true"] {
-  border-color: #70d6ab;
-  background: #1e463d;
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar #cp-help-tips[aria-pressed="true"] {
+  border-color: var(--d-accent); background: color-mix(in srgb, var(--d-accent) 16%, var(--d-raised)); color: var(--d-text);
 }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar #cp-help-tips:focus-visible { outline: 2px solid var(--d-ring); outline-offset: 2px; }
+
+/* The tip. */
 #cp-native-help-tip {
-  box-sizing: border-box;
-  position: fixed;
-  z-index: 2147483641;
-  width: min(340px, calc(100vw - 16px));
-  max-height: min(300px, calc(100vh - 16px));
-  overflow: auto;
-  padding: 12px 14px;
-  border: 1px solid #9aa4ba;
-  border-radius: 6px;
-  background: #30394f;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, .45);
-  color: #fff;
-  pointer-events: none;
-  font: 12px/1.45 Arial, sans-serif;
+  box-sizing: border-box; position: fixed; z-index: 2147483641; width: min(340px, calc(100vw - 16px)); max-height: min(300px, calc(100vh - 16px));
+  overflow: auto; padding: 12px 14px; border: 1px solid var(--d-line, #9aa4ba); border-radius: 12px;
+  background: var(--d-surface, #30394f); color: var(--d-text, #fff); box-shadow: 0 16px 40px #00000059;
+  font: 13px/1.5 "Inter", sans-serif; pointer-events: none;
 }
 #cp-native-help-tip[hidden] { display: none; }
-#cp-native-help-tip strong { display: block; margin-bottom: 5px; font-size: 13px; }
-#cp-native-help-tip span { display: block; }
+#cp-native-help-tip strong { display: block; margin-bottom: 5px; font-size: 13.5px; font-weight: 650; }
+#cp-native-help-tip span { display: block; color: var(--d-muted, #d8dee9); }
+
+/* Tips on: what has one says so (a dotted underline on titles, sections and settings; the help cursor). */
+html[data-cp-help] body[id="initBody.menuTemplate"] [data-cp-tip="yes"]:is(.fx-label, .fx-check-text, td.screenName, .cp-frame-title, .cp-console-head-name) {
+  text-decoration: underline dotted color-mix(in srgb, var(--d-accent) 70%, transparent); text-underline-offset: 4px; cursor: help;
+}
+html[data-cp-help] body[id="initBody.menuTemplate"] [data-cp-tip="yes"]:is(a.leftnavfolder, a.leftnavfolderopen) { cursor: help; }
+
+/* The debug view: everything that could have a tip, coloured by whether it has one: the palette's On green for a
+   tip, its Off red (dashed) for none yet; lighter on the sidebar. A kind switched off in the panel keeps its own look.
+   Forms still in CommPilot's own layout are dotted in the accent (when switched on in the panel). */
+html[data-cp-debug] body[id="initBody.menuTemplate"] {
+  --cp-debug-have: var(--d-on, #1f9d55);
+  --cp-debug-missing: var(--d-off, #d64545);
+}
+html[data-cp-debug] body[id="initBody.menuTemplate"] form[name="leftNavForm"] {
+  --cp-debug-have: color-mix(in srgb, var(--d-on, #1f9d55), #fff 35%);
+  --cp-debug-missing: color-mix(in srgb, var(--d-off, #d64545), #fff 25%);
+}
+html[data-cp-debug] body[id="initBody.menuTemplate"] [data-cp-tip="yes"] { --cp-debug-tone: var(--cp-debug-have); --cp-debug-line: solid; }
+html[data-cp-debug] body[id="initBody.menuTemplate"] [data-cp-tip="no"] { --cp-debug-tone: var(--cp-debug-missing); --cp-debug-line: dashed; }
+html[data-cp-debug] body[id="initBody.menuTemplate"] [data-cp-tip]:not(html[data-cp-debug-hide~="menu"] [data-cp-tip-kind="menu"],
+  html[data-cp-debug-hide~="section"] [data-cp-tip-kind="section"], html[data-cp-debug-hide~="page"] [data-cp-tip-kind="page"],
+  html[data-cp-debug-hide~="setting"] [data-cp-tip-kind="setting"]) {
+  outline: 2px var(--cp-debug-line) var(--cp-debug-tone) !important; outline-offset: 2px !important; border-radius: 6px;
+  box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--cp-debug-tone) 14%, transparent) !important;
+}
+html[data-cp-debug] body[id="initBody.menuTemplate"] form[name="leftNavForm"] [data-cp-tip] { outline-offset: -2px !important; }   /* inside the sidebar's rows */
+/* A menu board option is a box, its title row and its description row: the whole box takes the colour (a tint and a
+   bar down its left edge), not just its title. */
+html[data-cp-debug] body[id="initBody.menuTemplate"] .cp-console-body a.navMenuItem[data-cp-tip][data-cp-tip-kind] { outline: none !important; box-shadow: none !important; }
+html[data-cp-debug] body[id="initBody.menuTemplate"] tr[data-cp-tip-box="yes"] { --cp-debug-tone: var(--cp-debug-have); }
+html[data-cp-debug] body[id="initBody.menuTemplate"] tr[data-cp-tip-box="no"] { --cp-debug-tone: var(--cp-debug-missing); }
+html[data-cp-debug]:not([data-cp-debug-hide~="menu"]) body[id="initBody.menuTemplate"] tr[data-cp-tip-box] > td {
+  box-shadow: inset 4px 0 0 var(--cp-debug-tone), inset 0 0 0 999px color-mix(in srgb, var(--cp-debug-tone) 12%, transparent) !important;
+}
+html[data-cp-debug] body[id="initBody.menuTemplate"] [data-cp-debug-native] { outline: 2px dotted var(--d-accent) !important; outline-offset: 3px !important; }
+
+/* Pointing at something coloured: its kind, its key in help-content.json, and its tip's title or how to copy one. */
+#cp-debug-inspect {
+  position: fixed; z-index: 2147483642; display: grid; gap: 2px; box-sizing: border-box; max-width: min(420px, calc(100vw - 16px));
+  padding: 7px 10px; border: 1px solid var(--cp-debug-missing, var(--d-line)); border-left-width: 4px; border-radius: 8px;
+  background: var(--d-surface); color: var(--d-text); box-shadow: 0 10px 28px #0000004d; font: 400 12px/1.4 "Inter", sans-serif; pointer-events: none;
+}
+#cp-debug-inspect.is-have { border-color: var(--cp-debug-have, var(--d-line)); }
+#cp-debug-inspect[hidden] { display: none; }
+#cp-debug-inspect strong { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+#cp-debug-inspect code { overflow-wrap: anywhere; font: 600 12px/1.35 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+#cp-debug-inspect span { color: var(--d-muted); }
+
+/* The debug panel: bottom left at first; its header drags it. */
+#cp-debug {
+  position: fixed; left: 12px; bottom: 12px; z-index: 2147483350; box-sizing: border-box; width: 300px; max-height: calc(100vh - 24px); overflow: auto;
+  border: 1px solid var(--d-line); border-radius: 12px; background: var(--d-surface); color: var(--d-text);
+  box-shadow: 0 16px 40px #0000004d; font: 400 12.5px/1.45 "Inter", sans-serif;
+}
+#cp-debug.is-dragging { box-shadow: 0 24px 60px #00000066; user-select: none; }
+#cp-debug .cp-debug-head {
+  display: flex; align-items: center; gap: 8px; padding: 7px 7px 7px 8px; border-bottom: 1px solid var(--d-line); cursor: grab; touch-action: none;
+}
+#cp-debug.is-dragging .cp-debug-head { cursor: grabbing; }
+#cp-debug .cp-debug-grip {
+  width: 10px; height: 16px; flex: none; opacity: .6;
+  background: radial-gradient(circle, var(--d-muted) 1.2px, transparent 1.6px) 0 0 / 5px 5px;
+}
+#cp-debug .cp-debug-head strong { flex: 1; font-size: 12.5px; font-weight: 700; letter-spacing: .02em; }
+#cp-debug.is-folded .cp-debug-head { border-bottom: 0; }
+#cp-debug.is-folded .cp-debug-body { display: none; }
+#cp-debug button {
+  box-sizing: border-box; min-height: 28px; margin: 0; padding: 4px 10px; border: 1px solid var(--d-line) !important; border-radius: 8px;
+  background: var(--d-raised) !important; color: var(--d-text) !important; box-shadow: none; transform: none;
+  font: 600 12px/1.2 "Inter", sans-serif; cursor: pointer;
+}
+#cp-debug button:hover:not(:disabled) { border-color: var(--d-accent) !important; }
+#cp-debug button:disabled { opacity: .55; cursor: default; }
+#cp-debug :is(button, input, summary):focus-visible { outline: 2px solid var(--d-ring); outline-offset: 2px; }
+#cp-debug .cp-debug-fold { width: 26px; min-height: 26px; padding: 0; font-size: 15px; line-height: 1; }
+#cp-debug .cp-debug-fold::before { content: "\2013"; }
+#cp-debug.is-folded .cp-debug-fold::before { content: "+"; }
+#cp-debug .cp-debug-body { display: grid; gap: 10px; padding: 10px 12px 12px; }
+#cp-debug .cp-debug-tips { display: grid; gap: 7px; }
+#cp-debug .cp-debug-total { font-weight: 650; }
+#cp-debug .cp-debug-meter { height: 6px; overflow: hidden; border-radius: 3px; background: var(--cp-debug-missing, var(--d-line)); }
+#cp-debug .cp-debug-meter span { display: block; height: 100%; width: 0; background: var(--cp-debug-have, var(--d-accent)); }
+#cp-debug .cp-debug-legend { display: flex; gap: 14px; margin: 0; padding: 0; list-style: none; color: var(--d-muted); font-size: 11.5px; }
+#cp-debug .cp-debug-legend li { display: inline-flex; align-items: center; gap: 6px; }
+#cp-debug .cp-debug-legend li::before { content: ""; width: 12px; height: 9px; border: 2px solid; border-radius: 3px; }
+#cp-debug .cp-debug-legend li.is-have::before { border-color: var(--cp-debug-have); background: color-mix(in srgb, var(--cp-debug-have) 20%, transparent); }
+#cp-debug .cp-debug-legend li.is-missing::before { border: 2px dashed var(--cp-debug-missing); background: color-mix(in srgb, var(--cp-debug-missing) 20%, transparent); }
+#cp-debug .cp-debug-kinds { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
+#cp-debug .cp-debug-kinds label { display: flex; align-items: center; gap: 8px; padding: 2px 0; cursor: pointer; }
+#cp-debug .cp-debug-kinds span { flex: 1; }
+#cp-debug .cp-debug-kinds b { font-weight: 650; }
+#cp-debug .cp-debug-kinds li.is-have b { color: var(--cp-debug-have); }
+#cp-debug .cp-debug-kinds li.is-missing b { color: var(--cp-debug-missing); }
+#cp-debug input[type="checkbox"] { margin: 0; accent-color: var(--d-accent); }
+#cp-debug .cp-debug-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+#cp-debug .cp-debug-hint { margin: 0; color: var(--d-muted); font-size: 11.5px; }
+#cp-debug .cp-debug-page { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; margin: 0; padding-top: 8px; border-top: 1px solid var(--d-line); }
+#cp-debug .cp-debug-page dt { color: var(--d-muted); }
+#cp-debug .cp-debug-page dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+#cp-debug .cp-debug-loads summary { color: var(--d-muted); font-weight: 600; cursor: pointer; }
+#cp-debug .cp-debug-loads ol { display: grid; gap: 2px; margin: 6px 0 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
+#cp-debug .cp-debug-loads li { display: flex; gap: 10px; justify-content: space-between; }
+#cp-debug .cp-debug-loads li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#cp-debug .cp-debug-loads li.cp-debug-none { color: var(--d-muted); }
+#cp-debug .cp-debug-checks { display: grid; gap: 5px; padding-top: 8px; border-top: 1px solid var(--d-line); }
+#cp-debug .cp-debug-check { display: flex; align-items: baseline; gap: 7px; cursor: pointer; }

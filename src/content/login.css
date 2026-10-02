@@ -1,268 +1,217 @@
-/* Center Cisco's original login image and controls. */
-body#loginBody {
-  box-sizing: border-box !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  min-height: 100vh !important;
-  margin: 0 !important;
-}
-body#loginBody > br,
-body#loginBody tr:has(input[name="rememberPass"]) { display: none !important; }
-body#loginBody > form[name="loginForm"] { flex: none !important; margin: auto !important; }
+/* CommPilot 2.0's Login page, "Focus" (picked 2026-09-30; login.js builds it round CommPilot's own form). No card: one
+   calm column on the palette's canvas. The app's tile (the browser tab's icon) sits on a heartbeat line that runs across
+   the window, then the title and a pill with the site and the version. Saved sign-ins come first as "Continue as" rows;
+   CommPilot's own User ID and Password fields follow, and its Login link is the Sign in button. While CommPilot checks
+   the password the line runs in from the left to the tile and the tile pings. Messages are toasts (toasts.js). Every
+   colour is a palette token (theme-palettes.css sets them on this page's body too). */
 
-/* A small Cisco-blue drawer below the unchanged login image. */
-body#loginBody .bw-saved-login {
-  box-sizing: border-box;
-  width: min(752px, calc(100vw - 40px));
-  margin: 8px 0 0 20px;
-  border: 1px solid #2b94ba;
-  border-radius: 6px;
-  background: #fff;
-  color: #424b50;
-  font: 12px Arial, Helvetica, sans-serif;
-}
-body#loginBody .bw-saved-login button,
-body#loginBody .bw-saved-login input,
-body#loginBody .bw-saved-login select { font: inherit; }
-body#loginBody .bw-saved-trigger {
-  display: block; width: 100%; padding: 7px 11px;
-  border: 0; border-radius: 5px; background: #fff;
-  color: #1684ad; text-align: left; font-weight: bold !important; cursor: pointer;
-}
-body#loginBody .bw-saved-trigger:hover,
-body#loginBody .bw-saved-back:hover,
-body#loginBody .bw-saved-account-name:hover { background: #eef8fb; }
-body#loginBody .bw-saved-marker { margin-right: 7px; }
-body#loginBody .bw-saved-panel { padding: 10px 13px 13px; border-top: 1px solid #b7d5e0; }
-body#loginBody .bw-saved-panel[hidden] { display: none !important; }
-body#loginBody .bw-saved-heading { margin: 0 0 8px; color: #167aa3; font-weight: bold; }
-body#loginBody .bw-saved-empty { margin: 8px 0; color: #777; }
-body#loginBody .bw-saved-status { margin: 0; color: #357f3c; }
-body#loginBody .bw-saved-status:not(:empty) { margin-bottom: 8px; }
-body#loginBody .bw-saved-status.bw-saved-error { color: #b32828; }
-body#loginBody .bw-saved-account { display: flex; align-items: center; width: min(360px, 100%); border-bottom: 1px solid #e5edf1; }
-body#loginBody .bw-saved-account-name,
-body#loginBody .bw-saved-back { padding: 6px 4px; border: 0; background: transparent; color: #167aa3; text-align: left; cursor: pointer; }
-body#loginBody .bw-saved-account-name { flex: 1; }
-body#loginBody .bw-saved-account-hint { color: #777; }
-body#loginBody .bw-saved-back { display: block; margin-bottom: 7px; }
-body#loginBody .bw-saved-label { display: block; width: min(290px, 100%); margin: 7px 0; }
-body#loginBody .bw-saved-input {
-  box-sizing: border-box; display: block; width: 100%; margin-top: 3px;
-  padding: 4px 6px; border: 1px solid #9ba8ad; background: #fff; color: #272727;
-}
-body#loginBody .bw-saved-label[hidden] { display: none !important; }
-body#loginBody .bw-saved-help { margin: 8px 0; color: #737373; }
-body#loginBody .bw-saved-actions { display: flex; align-items: center; gap: 13px; }
-body#loginBody .bw-saved-button {
-  margin-top: 8px; padding: 4px 14px; border: 1px solid #278aad;
-  border-radius: 3px; background: #fff; color: #167aa3; cursor: pointer;
-}
-body#loginBody .bw-saved-primary { background: #238eaf; color: #fff; }
-body#loginBody .bw-saved-button:disabled { opacity: .55; cursor: default; }
-body#loginBody .bw-saved-remove { margin-left: 10px; padding: 4px; border: 0; background: transparent; color: #777; cursor: pointer; }
-@media (max-width: 815px) {
-  body#loginBody { justify-content: flex-start !important; }
-  body#loginBody > form[name="loginForm"] { margin: 8px !important; }
-}
+/* Until login.js has built the page, and until the palette has arrived, the form waits out of sight. If neither comes,
+   CommPilot's own form shows after a moment. */
+body#loginBody > form[name="loginForm"]:not(:has(> .cp-login)),
+html:not([data-cp-direction]) body#loginBody .cp-login { opacity: 0; animation: cp-login-late 0s 1.5s forwards; }
+@keyframes cp-login-late { to { opacity: 1; } }
+body#loginBody > form[name="loginForm"]:has(> .cp-login) > table[background] { display: none !important; }
+body#loginBody > br { display: none; }
 
-/* CommPilot 2.0 login shell. The Cisco form and its handlers remain untouched. */
-body#loginBody {
-  --lg-canvas:#2e3440; --lg-surface:#3b4252; --lg-raised:#434c5e;
-  --lg-visual:#3b4252; --lg-glow:#5e81ac; --lg-text:#eceff4;
-  --lg-muted:#d8dee9; --lg-line:#4c566a; --lg-action:#88c0d0;
-  --lg-action-text:#2e3440; --lg-focus:#8fbcbb;
-  --lg-error-space:30px;
-  --lg-shadow:0 26px 80px #1d2330a6;
-  flex-direction:column; align-items:center !important; justify-content:flex-start !important;
-  min-height:100dvh !important; padding:16px !important;
-  background:radial-gradient(circle at 50% 0%,var(--lg-raised),transparent 53%),var(--lg-canvas) !important;
-  color:var(--lg-text); color-scheme:dark;
-  font:400 13px/1.45 "Inter","Segoe UI",Arial,sans-serif;
-  -webkit-font-smoothing:antialiased;
+html[data-cp-direction] body#loginBody {
+  box-sizing: border-box; display: flex !important; flex-direction: column; align-items: center; min-height: 100dvh;
+  margin: 0 !important; padding: 0 16px 96px !important; overflow-x: hidden;   /* the bottom kept clear for the toasts */
+  background: var(--d-canvas); color: var(--d-text); font: 400 13px/1.45 "Inter", sans-serif;
 }
-html[data-cp-direction="atlas"] body#loginBody {
-  --lg-canvas:#edf2f7; --lg-surface:#fff; --lg-raised:#e4edf4;
-  --lg-visual:#173850; --lg-glow:#278b95; --lg-text:#162b3d;
-  --lg-muted:#536778; --lg-line:#d5e0e9; --lg-action:#096c77;
-  --lg-action-text:#fff; --lg-focus:#18aab3; --lg-shadow:0 26px 80px #17364b24;
-  color-scheme:light;
-}
-html[data-cp-direction="graphite"] body#loginBody {
-  --lg-canvas:#15191d; --lg-surface:#242c31; --lg-raised:#2c373a;
-  --lg-visual:#273b37; --lg-glow:#4d7555; --lg-text:#f0f5f2;
-  --lg-muted:#b4c4c1; --lg-line:#3d4b4b; --lg-action:#a7d65e;
-  --lg-action-text:#15210e; --lg-focus:#c6ee7c; --lg-shadow:0 26px 80px #00000080;
-}
-html[data-cp-direction="terra"] body#loginBody {
-  --lg-canvas:#ebe6dc; --lg-surface:#fffcf7; --lg-raised:#f5ede2;
-  --lg-visual:#514139; --lg-glow:#aa7352; --lg-text:#302d2a;
-  --lg-muted:#6c655e; --lg-line:#ddd1c2; --lg-action:#a54d37;
-  --lg-action-text:#fff; --lg-focus:#cb7358; --lg-shadow:0 26px 80px #4a30202b;
-  color-scheme:light;
-}
-body#loginBody *,body#loginBody *::before,body#loginBody *::after { box-sizing:border-box; }
-body#loginBody > form[name="loginForm"] {
-  width:min(800px,100%); flex:none !important; margin:auto !important;
-}
-body#loginBody form[name="loginForm"] > table[background] {
-  width:100% !important; height:auto !important; overflow:hidden;
-  border:1px solid var(--lg-line); border-radius:20px;
-  background:var(--lg-surface) !important; box-shadow:var(--lg-shadow);
-  color:var(--lg-text); font:inherit;
-}
-body#loginBody form[name="loginForm"] > table[background] > tbody > tr:first-child > td {
-  height:74px !important; border-bottom:1px solid var(--lg-line); background:var(--lg-surface);
-}
-body#loginBody form[name="loginForm"] > table[background] > tbody > tr:first-child > td[colspan] {
-  padding:12px 26px; vertical-align:middle;
-}
-body#loginBody img[src$="/conf/clientLogo.gif"] { width:63px; height:33px; vertical-align:middle; }
-html:not([data-cp-direction="atlas"]):not([data-cp-direction="terra"]) body#loginBody img[src$="/conf/clientLogo.gif"] {
-  filter:grayscale(1) invert(1) brightness(1.6); mix-blend-mode:screen;
-}
-body#loginBody form[name="loginForm"] > table[background] > tbody > tr:first-child > td[colspan]::after {
-  content:"CommPilot"; display:inline-block; margin-left:14px; vertical-align:middle;
-  color:var(--lg-text); font:690 24px/1 "Geist","Inter","Segoe UI",Arial,sans-serif;
-  letter-spacing:-.045em;
-}
-body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child(2) > td {
-  height:var(--lg-error-space) !important; background:var(--lg-surface);
-}
-body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child(2) > td.loginerror {
-  padding:0 calc(44% + 12px) 0 26px; color:#ec727b;
-  font:600 12px/1.2 "Inter","Segoe UI",Arial,sans-serif;
-  overflow-wrap:anywhere;
-}
-html[data-cp-direction="atlas"] body#loginBody td.loginerror,
-html[data-cp-direction="terra"] body#loginBody td.loginerror { color:#ac3636 !important; }
-body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child(3) > td {
-  position:relative; height:220px !important; padding:26px 20px 24px; vertical-align:top;
-  background:var(--lg-surface);
-}
-body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child(3) > td::before {
-  content:""; position:absolute; top:calc(-1 * var(--lg-error-space)); right:0; bottom:0; width:44%;
-  background-image:var(--cp-login-photo);
-  background-position:right top;
-  background-size:auto 100%;
-  background-repeat:no-repeat;
-}
-body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child(3) > td::after {
-  content:"Welcome back."; position:absolute; top:155px; left:46px; width:44%;
-  color:var(--lg-text); font:650 25px/1.14 "Geist","Inter","Segoe UI",Arial,sans-serif;
-  letter-spacing:-.035em;
-}
-body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child(3) > td > table {
-  position:relative; z-index:1; width:400px; max-width:55%;
-}
-body#loginBody form[name="loginForm"] td.logintext {
-  width:88px !important; padding-right:9px; white-space:nowrap;
-  color:var(--lg-muted); font:550 13px/1.3 "Inter","Segoe UI",Arial,sans-serif;
-}
-body#loginBody form[name="loginForm"] input[name="EnteredUserID"],
-body#loginBody form[name="loginForm"] input[name="Password"] {
-  width:186px; height:38px; padding:8px 10px; outline:none;
-  border:1px solid var(--lg-line); border-radius:10px;
-  background:var(--lg-raised); color:var(--lg-text);
-  font:500 13px/1.4 "Inter","Segoe UI",Arial,sans-serif;
-}
-body#loginBody form[name="loginForm"] input[name="EnteredUserID"]:focus-visible,
-body#loginBody form[name="loginForm"] input[name="Password"]:focus-visible,
-body#loginBody .bw-saved-input:focus-visible {
-  border-color:var(--lg-focus); box-shadow:0 0 0 3px color-mix(in srgb,var(--lg-focus) 24%,transparent);
-}
-body#loginBody form[name="loginForm"] td.logintext3 { padding-left:4px; vertical-align:top; }
-body#loginBody form[name="loginForm"] td.logintext3 a {
-  display:inline-flex; align-items:center; justify-content:center;
-  min-width:84px; min-height:38px; padding:8px 14px; border-radius:10px;
-  background:var(--lg-action); box-shadow:0 3px 8px #0000001c;
-  color:var(--lg-action-text); font:680 13px/1.2 "Inter","Segoe UI",Arial,sans-serif;
-  text-decoration:none; transition:transform .15s ease,box-shadow .15s ease;
-}
-body#loginBody form[name="loginForm"] td.logintext3 a:hover,
-body#loginBody .bw-saved-primary:hover { transform:translateY(-1px); box-shadow:0 6px 15px #0000002c; }
-body#loginBody form[name="loginForm"] td.logintext3 a:focus-visible,
-body#loginBody .bw-saved-login button:focus-visible { outline:3px solid var(--lg-focus); outline-offset:2px; }
-body#loginBody form[name="loginForm"] > table[background] > tbody > tr:last-child > td.copyright {
-  height:auto !important; padding:17px 28px 20px 8px; border-top:1px solid var(--lg-line);
-  background:var(--lg-surface); color:var(--lg-muted);
-  font:400 10px/1.35 "Inter","Segoe UI",Arial,sans-serif;
-}
-body#loginBody form[name="loginForm"] > table[background] > tbody > tr:last-child > td:first-child {
-  border-top:1px solid var(--lg-line); background:var(--lg-surface);
-}
-body#loginBody .copyrighttext { color:var(--lg-muted); font:inherit; }
+html[data-cp-direction] body#loginBody > form[name="loginForm"] { display: contents; }
+html[data-cp-direction] body#loginBody .cp-login *,
+html[data-cp-direction] body#loginBody .cp-login *::before,
+html[data-cp-direction] body#loginBody .cp-login *::after { box-sizing: border-box; }
+html[data-cp-direction] body#loginBody .cp-login { width: min(372px, 100%); margin-block: auto; padding-top: 40px; }
 
-/* Rounded, readable saved sign-ins in every palette. */
-body#loginBody .bw-saved-login {
-  width:100%; margin:16px 0 0; overflow:hidden;
-  border:1px solid var(--lg-line); border-radius:16px;
-  background:var(--lg-surface); box-shadow:var(--lg-shadow);
-  color:var(--lg-text); font:400 13px/1.45 "Inter","Segoe UI",Arial,sans-serif;
+/* The tile on the line. */
+html[data-cp-direction] body#loginBody .cp-login-mark { position: relative; display: grid; place-items: center; height: 72px; }
+html[data-cp-direction] body#loginBody .cp-login-tile {
+  position: relative; z-index: 1; display: grid; place-items: center; width: 64px; height: 64px; overflow: hidden; border-radius: 18px;
+  background: var(--d-action); color: var(--d-action-text);
+  box-shadow: 0 0 0 8px var(--d-canvas), 0 10px 26px color-mix(in srgb, var(--d-action) 30%, transparent);
 }
-body#loginBody .bw-saved-trigger {
-  display:flex; align-items:center; width:100%; min-height:52px; padding:13px 20px;
-  border:0; border-radius:0; background:var(--lg-surface); color:var(--lg-text);
-  text-align:left; font-weight:650 !important; cursor:pointer;
+html[data-cp-direction] body#loginBody .cp-login-tile svg { width: 64px; height: 64px; overflow: visible; }
+html[data-cp-direction] body#loginBody .cp-login-tile .cp-tile-ground { fill: color-mix(in srgb, var(--d-action-text) 16%, transparent); }
+html[data-cp-direction] body#loginBody .cp-login-ping {
+  position: absolute; z-index: 0; width: 64px; height: 64px; border: 2px solid var(--d-accent); border-radius: 18px; opacity: 0;
 }
-body#loginBody .bw-saved-trigger:hover,
-body#loginBody .bw-saved-back:hover,
-body#loginBody .bw-saved-account-name:hover { background:var(--lg-raised); }
-body#loginBody .bw-saved-marker { margin-right:12px; color:var(--lg-action); font-size:14px; }
-body#loginBody .bw-saved-panel { padding:18px 20px 20px; border-top:1px solid var(--lg-line); }
-body#loginBody .bw-saved-heading {
-  margin:0 0 10px; color:var(--lg-text);
-  font:670 16px/1.35 "Geist","Inter","Segoe UI",Arial,sans-serif;
+html[data-cp-direction] body#loginBody .cp-login-horizon {
+  position: absolute; top: 50%; left: calc(50% - 50vw); width: 100vw; height: 60px; transform: translateY(-50%);
+  overflow: visible; color: var(--d-accent); pointer-events: none;
 }
-body#loginBody .bw-saved-empty,body#loginBody .bw-saved-help,
-body#loginBody .bw-saved-account-hint { color:var(--lg-muted); }
-body#loginBody .bw-saved-status { color:#56c996; }
-body#loginBody .bw-saved-status.bw-saved-error { color:#ee777d; }
-html[data-cp-direction="atlas"] body#loginBody .bw-saved-status.bw-saved-error,
-html[data-cp-direction="terra"] body#loginBody .bw-saved-status.bw-saved-error { color:#ae3535; }
-body#loginBody .bw-saved-account { width:min(420px,100%); border-color:var(--lg-line); }
-body#loginBody .bw-saved-account-name,body#loginBody .bw-saved-back {
-  padding:8px 6px; border-radius:8px; color:var(--lg-action);
+html[data-cp-direction] body#loginBody .cp-login-horizon path { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+html[data-cp-direction] body#loginBody .cp-login-horizon .cp-login-line { stroke: url(#cp-login-fade); }
+/* Signing in: the line runs in to the tile as CommPilot works (--cp-progress, set by login.js), and the tile pings. */
+html[data-cp-direction] body#loginBody .cp-login-horizon .cp-login-load {
+  visibility: hidden; stroke: currentColor; stroke-dasharray: 1 2;
+  stroke-dashoffset: calc((1 - var(--cp-progress, 0)) * 1px);   /* a length: Firefox refuses a unitless calc() here */
+  transition: stroke-dashoffset .2s ease-out;
 }
-body#loginBody .bw-saved-label {
-  width:min(340px,100%); margin:6px 0; color:var(--lg-text); font-weight:560;
+html[data-cp-direction][data-cp-progress] body#loginBody .cp-login-horizon .cp-login-load { visibility: visible; }
+html[data-cp-direction][data-cp-progress="on"] body#loginBody .cp-login-ping { animation: cp-login-ping 1.6s ease-out infinite; }
+@keyframes cp-login-ping { 0% { opacity: .7; transform: scale(1); } 100% { opacity: 0; transform: scale(1.5); } }
+
+html[data-cp-direction] body#loginBody .cp-login-title {
+  margin: 26px 0 0; color: var(--d-text); font: 780 26px/1.15 "Inter", sans-serif; letter-spacing: -.03em; text-align: center; text-wrap: balance;
 }
-body#loginBody .bw-saved-input {
-  min-height:38px; margin-top:5px; padding:8px 11px; outline:none;
-  border:1px solid var(--lg-line); border-radius:10px;
-  background:var(--lg-raised); color:var(--lg-text);
+html[data-cp-direction] body#loginBody .cp-login-meta { display: flex; justify-content: center; margin: 10px 0 0; }
+html[data-cp-direction] body#loginBody .cp-login-meta span {
+  display: inline-flex; align-items: center; gap: 7px; padding: 4px 11px; border: 1px solid var(--d-line); border-radius: 99px;
+  background: var(--d-surface); color: var(--d-muted); font: 600 11.5px/1.3 "Inter", sans-serif; font-variant-numeric: tabular-nums;
 }
-body#loginBody .bw-saved-input::placeholder { color:var(--lg-muted); }
-body#loginBody .bw-saved-help { margin:10px 0; }
-body#loginBody .bw-saved-button {
-  min-height:37px; margin-top:10px; padding:8px 15px;
-  border:1px solid var(--lg-line); border-radius:10px;
-  background:var(--lg-raised); color:var(--lg-text); font-weight:640 !important;
-  transition:transform .15s ease,box-shadow .15s ease;
+html[data-cp-direction] body#loginBody .cp-login-meta i { width: 6px; height: 6px; border-radius: 50%; background: var(--d-accent); }
+
+/* Saved sign-ins: "Continue as" rows. A PIN account opens its PIN box in its row. */
+html[data-cp-direction] body#loginBody .cp-login-saved { display: grid; gap: 8px; margin-top: 28px; }
+html[data-cp-direction] body#loginBody .cp-login-saved[hidden] { display: none; }
+html[data-cp-direction] body#loginBody .cp-login-acct {
+  display: grid; overflow: hidden; border: 1px solid var(--d-line); border-radius: 14px; background: var(--d-surface);
+  transition: border-color .15s ease, box-shadow .15s ease;
 }
-body#loginBody .bw-saved-primary {
-  border-color:var(--lg-action); background:var(--lg-action); color:var(--lg-action-text);
+html[data-cp-direction] body#loginBody .cp-login-acct:hover,
+html[data-cp-direction] body#loginBody .cp-login-acct.is-open { border-color: var(--d-accent); }
+html[data-cp-direction] body#loginBody .cp-login-acct.is-open { box-shadow: 0 0 0 3px color-mix(in srgb, var(--d-accent) 14%, transparent); }
+html[data-cp-direction] body#loginBody .cp-login-acct-go {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; padding: 11px 14px;
+  border: 0; background: none; color: var(--d-text); font: inherit; text-align: left; cursor: pointer;
 }
-body#loginBody .bw-saved-remove {
-  padding:8px; border-radius:8px; color:var(--lg-muted);
+html[data-cp-direction] body#loginBody .cp-login-acct-go:focus-visible { outline: 2px solid var(--d-ring); outline-offset: -2px; border-radius: 13px; }
+html[data-cp-direction] body#loginBody .cp-login-avatar {
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+  background: color-mix(in srgb, var(--d-accent) 16%, transparent); color: var(--d-accent); font: 750 12.5px/1 "Inter", sans-serif; letter-spacing: .02em;
+}
+html[data-cp-direction] body#loginBody .cp-login-acct-go b { display: block; overflow: hidden; font: 650 13.5px/1.25 "Inter", sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+html[data-cp-direction] body#loginBody .cp-login-acct-go small { display: block; color: var(--d-muted); font-size: 12px; }
+html[data-cp-direction] body#loginBody .cp-login-acct-go > svg { width: 16px; height: 16px; fill: none; stroke: var(--d-muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+html[data-cp-direction] body#loginBody .cp-login-acct.is-open .cp-login-acct-go > svg { transform: rotate(90deg); }
+html[data-cp-direction] body#loginBody .cp-login-acct.is-busy .cp-login-acct-go > svg { display: none; }
+html[data-cp-direction] body#loginBody .cp-login-pin { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 0 14px 14px; }
+html[data-cp-direction] body#loginBody .cp-login-pin[hidden] { display: none; }
+html[data-cp-direction] body#loginBody .cp-login-pin .cp-login-caps { grid-column: 1 / -1; }
+html[data-cp-direction] body#loginBody .cp-login-manage {
+  justify-self: center; margin-top: 2px; padding: 4px 6px; border: 0; border-radius: 6px; background: none;
+  color: var(--d-muted); font: 600 12px/1.3 "Inter", sans-serif; cursor: pointer;
+}
+html[data-cp-direction] body#loginBody .cp-login-manage:hover { color: var(--d-accent); }
+html[data-cp-direction] body#loginBody .cp-login-or { display: flex; align-items: center; gap: 12px; margin: 22px 0 0; color: var(--d-muted); font-size: 12px; }
+html[data-cp-direction] body#loginBody .cp-login-or[hidden] { display: none; }
+html[data-cp-direction] body#loginBody .cp-login-or::before,
+html[data-cp-direction] body#loginBody .cp-login-or::after { content: ""; flex: 1; height: 1px; background: var(--d-line); }
+
+/* Managing them: the accounts with Remove, and the forms to add one or to move the old vault's across. */
+html[data-cp-direction] body#loginBody .cp-login-panel { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--d-line); border-radius: 14px; background: var(--d-surface); }
+html[data-cp-direction] body#loginBody .cp-login-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+html[data-cp-direction] body#loginBody .cp-login-panel-head h2 { margin: 0; color: var(--d-text); font: 680 14.5px/1.3 "Inter", sans-serif; }
+html[data-cp-direction] body#loginBody .cp-login-mrow { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--d-line); }
+html[data-cp-direction] body#loginBody .cp-login-mrow b { flex: 1; min-width: 0; overflow: hidden; font: 600 13px/1.3 "Inter", sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+html[data-cp-direction] body#loginBody .cp-login-mrow small { color: var(--d-muted); font-size: 12px; }
+html[data-cp-direction] body#loginBody .cp-login-help { margin: 0; color: var(--d-muted); font-size: 12px; }
+html[data-cp-direction] body#loginBody .cp-login-empty { margin: 0; color: var(--d-muted); }
+html[data-cp-direction] body#loginBody .cp-login-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+/* Fields. */
+html[data-cp-direction] body#loginBody .cp-login-fields { display: grid; gap: 14px; margin-top: 28px; }
+html[data-cp-direction] body#loginBody .cp-login-or:not([hidden]) + .cp-login-fields { margin-top: 18px; }
+html[data-cp-direction] body#loginBody .cp-login-field { display: grid; gap: 6px; }
+html[data-cp-direction] body#loginBody .cp-login-field[hidden] { display: none; }
+html[data-cp-direction] body#loginBody .cp-login-label { color: var(--d-text); font: 600 12.5px/1.2 "Inter", sans-serif; }
+html[data-cp-direction] body#loginBody .cp-login input.cp-login-input,
+html[data-cp-direction] body#loginBody .cp-login select.cp-login-input {
+  width: 100%; height: 44px; margin: 0; padding: 0 13px; outline: none; border: 1px solid var(--d-line); border-radius: 12px;
+  background: var(--d-surface); color: var(--d-text); font: 500 14px/1 "Inter", sans-serif;
+  transition: border-color .15s ease, box-shadow .15s ease, opacity .15s ease;
+}
+html[data-cp-direction] body#loginBody .cp-login .cp-login-panel .cp-login-input,
+html[data-cp-direction] body#loginBody .cp-login .cp-login-pin .cp-login-input { height: 40px; border-radius: 10px; background: var(--d-input); }
+html[data-cp-direction] body#loginBody .cp-login .cp-login-pin .cp-login-input { font-weight: 600; letter-spacing: .3em; }
+html[data-cp-direction] body#loginBody .cp-login .cp-login-input::placeholder { color: var(--d-muted); font-weight: 500; letter-spacing: 0; }
+html[data-cp-direction] body#loginBody .cp-login .cp-login-input:focus {
+  border-color: var(--d-ring); box-shadow: 0 0 0 3px color-mix(in srgb, var(--d-ring) 22%, transparent);
+}
+/* Show password: an eye in the field. */
+html[data-cp-direction] body#loginBody .cp-login-secret { position: relative; }
+html[data-cp-direction] body#loginBody .cp-login-secret input.cp-login-input { padding-right: 46px; }
+html[data-cp-direction] body#loginBody .cp-login-eye {
+  position: absolute; top: 50%; right: 5px; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; transform: translateY(-50%);
+  border: 0; border-radius: 9px; background: none; color: var(--d-muted); cursor: pointer;
+}
+html[data-cp-direction] body#loginBody .cp-login-eye:hover { background: var(--d-raised); color: var(--d-text); }
+html[data-cp-direction] body#loginBody .cp-login-eye:focus-visible { outline: 2px solid var(--d-ring); outline-offset: -2px; }
+html[data-cp-direction] body#loginBody .cp-login-eye svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+html[data-cp-direction] body#loginBody .cp-login-eye .cp-login-eye-off,
+html[data-cp-direction] body#loginBody .cp-login-eye[aria-pressed="true"] .cp-login-eye-on { display: none; }
+html[data-cp-direction] body#loginBody .cp-login-eye[aria-pressed="true"] .cp-login-eye-off { display: block; }
+/* Caps Lock. */
+html[data-cp-direction] body#loginBody .cp-login-caps {
+  display: flex; align-items: center; gap: 6px; margin: 0; color: var(--cp-toast-warning, var(--d-muted)); font: 600 12px/1.3 "Inter", sans-serif;
+}
+html[data-cp-direction] body#loginBody .cp-login-caps[hidden] { display: none; }
+html[data-cp-direction] body#loginBody .cp-login-caps svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Buttons: Sign in (CommPilot's Login link), and the smaller ones. */
+html[data-cp-direction] body#loginBody .cp-login-submit {
+  display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; height: 46px; margin-top: 20px; border-radius: 12px;
+  background: var(--d-action); color: var(--d-action-text); font: 680 14.5px/1 "Inter", sans-serif; text-decoration: none;
+  cursor: pointer; user-select: none; transition: filter .15s ease;
+}
+html[data-cp-direction] body#loginBody .cp-login-submit:hover { filter: brightness(1.06); }
+html[data-cp-direction] body#loginBody .cp-login-submit:focus-visible { outline: 2px solid var(--d-ring); outline-offset: 2px; }
+html[data-cp-direction] body#loginBody .cp-login-submit > svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+html[data-cp-direction] body#loginBody .cp-login-button {
+  height: 40px; padding: 0 16px; border: 1px solid var(--d-line); border-radius: 10px; background: var(--d-surface);
+  color: var(--d-text); font: 650 13px/1 "Inter", sans-serif; cursor: pointer; white-space: nowrap;
+}
+html[data-cp-direction] body#loginBody .cp-login-button.is-primary { border-color: var(--d-action); background: var(--d-action); color: var(--d-action-text); }
+html[data-cp-direction] body#loginBody .cp-login-button:hover { filter: brightness(1.05); }
+html[data-cp-direction] body#loginBody .cp-login-button:disabled { opacity: .55; cursor: default; filter: none; }
+html[data-cp-direction] body#loginBody .cp-login-link {
+  padding: 4px 6px; border: 0; border-radius: 6px; background: none; color: var(--d-accent); font: 600 12.5px/1.3 "Inter", sans-serif; cursor: pointer;
+}
+html[data-cp-direction] body#loginBody .cp-login-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+html[data-cp-direction] body#loginBody .cp-login-link.is-quiet { color: var(--d-muted); }
+html[data-cp-direction] body#loginBody .cp-login :is(.cp-login-button, .cp-login-link, .cp-login-manage):focus-visible { outline: 2px solid var(--d-ring); outline-offset: 2px; }
+html[data-cp-direction] body#loginBody .cp-login-save { display: flex; justify-content: center; margin: 12px 0 0; }
+html[data-cp-direction] body#loginBody .cp-login-save[hidden] { display: none; }
+
+/* Signing in: the button waits, the fields dim. */
+html[data-cp-direction] body#loginBody .cp-login-spin {
+  display: none; width: 15px; height: 15px; flex: none; border: 2px solid color-mix(in srgb, currentColor 35%, transparent); border-top-color: currentColor;
+  border-radius: 50%; animation: cp-login-spin .8s linear infinite;
+}
+@keyframes cp-login-spin { to { transform: rotate(1turn); } }
+html[data-cp-direction] body#loginBody .cp-login.is-busy .cp-login-submit .cp-login-spin,
+html[data-cp-direction] body#loginBody .cp-login-acct.is-busy .cp-login-spin { display: block; }
+html[data-cp-direction] body#loginBody .cp-login.is-busy .cp-login-submit > svg { display: none; }
+html[data-cp-direction] body#loginBody .cp-login.is-busy .cp-login-submit { cursor: progress; filter: saturate(.85); }
+html[data-cp-direction] body#loginBody .cp-login.is-busy .cp-login-fields { opacity: .6; }
+
+/* A failed sign-in: the fields and the button give a small shake. */
+html[data-cp-direction] body#loginBody .cp-login.is-shaking :is(.cp-login-fields, .cp-login-submit) { animation: cp-login-shake .42s cubic-bezier(.36, .07, .19, .97) both; }
+@keyframes cp-login-shake {
+  15%, 85% { transform: translateX(-2px); } 30%, 70% { transform: translateX(4px); } 45% { transform: translateX(-6px); } 58% { transform: translateX(6px); }
 }
 
-@media (max-width:815px) {
-  body#loginBody { padding:16px 12px !important; }
-  body#loginBody > form[name="loginForm"] { width:100%; margin:auto !important; }
-  body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child(3) > td::before { width:42%; }
+/* Cisco's notice under it all: its first line, the rest behind Legal notice. */
+html[data-cp-direction] body#loginBody .cp-login-legal { margin: 26px 0 0; color: var(--d-muted); font: 400 11px/1.5 "Inter", sans-serif; text-align: center; }
+html[data-cp-direction] body#loginBody .cp-login-legal summary { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 2px 10px; list-style: none; cursor: pointer; border-radius: 6px; }
+html[data-cp-direction] body#loginBody .cp-login-legal summary::-webkit-details-marker { display: none; }
+html[data-cp-direction] body#loginBody .cp-login-legal summary:focus-visible { outline: 2px solid var(--d-ring); outline-offset: 2px; }
+html[data-cp-direction] body#loginBody .cp-login-legal-toggle {
+  color: var(--d-accent); font-weight: 600; text-decoration: underline; text-underline-offset: 2px;
+  text-decoration-color: color-mix(in srgb, var(--d-accent) 40%, transparent);
 }
-@media (max-width:640px) {
-  body#loginBody form[name="loginForm"] > table[background] > tbody > tr:first-child > td[colspan] { padding:10px 16px; }
-  body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child(3) > td {
-    height:auto !important; padding:24px 12px 30px; background:var(--lg-surface);
-  }
-  body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child(3) > td::before,
-  body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child(3) > td::after { display:none; }
-  body#loginBody form[name="loginForm"] > table[background] > tbody > tr:nth-child(3) > td > table { width:100%; max-width:100%; }
-  body#loginBody form[name="loginForm"] input[name="EnteredUserID"],
-  body#loginBody form[name="loginForm"] input[name="Password"] { width:min(170px,100%); }
-  body#loginBody form[name="loginForm"] > table[background] > tbody > tr:last-child > td.copyright { padding-right:13px; }
-  body#loginBody .bw-saved-panel { padding:16px 14px; }
+html[data-cp-direction] body#loginBody .cp-login-legal-text {
+  margin-top: 8px; padding: 10px 12px; border: 1px solid var(--d-line); border-radius: 10px; background: var(--d-surface); font-size: 10.5px; text-align: left;
+}
+html[data-cp-direction] body#loginBody .cp-login-legal .copyrighttext { color: inherit; font: inherit; }
+
+@media (max-height: 760px) {
+  html[data-cp-direction] body#loginBody .cp-login { padding-top: 20px; }
+  html[data-cp-direction] body#loginBody .cp-login-title { margin-top: 16px; }
+  html[data-cp-direction] body#loginBody :is(.cp-login-saved, .cp-login-fields) { margin-top: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-cp-direction] body#loginBody :is(.cp-login-ping, .cp-login-spin, .cp-login-fields, .cp-login-submit) { animation: none !important; }
+  html[data-cp-direction] body#loginBody .cp-login-horizon .cp-login-load { transition: none; }
 }

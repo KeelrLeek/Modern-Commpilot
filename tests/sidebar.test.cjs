@@ -50,7 +50,7 @@ async function open(browser, width, height, stored) {
   await tab.goto(origin + '/commpilot/User/CF/Always/', { waitUntil: 'domcontentloaded' });
   for (const file of ['native-theme.css', 'theme-palettes.css', 'theme-settings.css'])
     await tab.addStyleTag({ path: path.join(root, 'src/content', file) });
-  for (const file of ['fonts.js', 'theme-settings.js', 'native-theme.js', 'theme-icons.js'])
+  for (const file of ['fonts.js', 'themes.js', 'theme-settings.js', 'native-theme.js', 'theme-icons.js'])
     await tab.addScriptTag({ path: path.join(root, 'src/content', file) });
   await tab.waitForFunction(() => document.documentElement.dataset.cpDirection === 'graphite');
   return tab;

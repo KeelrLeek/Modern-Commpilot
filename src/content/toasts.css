@@ -1,12 +1,10 @@
 /* Toasts (toasts.js): CommPilot's messages at the bottom of the window, centred on the page content, each with its
    severity's icon in its tone (the red of Off, amber, the accent) and a countdown line along its foot. */
-html[data-cp-direction] body[id="initBody.menuTemplate"] {
+html[data-cp-direction] body:is([id="initBody.menuTemplate"], [id="loginBody"]) {   /* the Login page's too (login.js) */
   --cp-toast-error: var(--d-off, #c0281a);
-  --cp-toast-warning: #9a5b00;
+  --cp-toast-warning: var(--d-warn, #9a5b00);
   --cp-toast-info: var(--d-accent, #087f89);
 }
-html[data-cp-direction="nord"] body[id="initBody.menuTemplate"],
-html[data-cp-direction="graphite"] body[id="initBody.menuTemplate"] { --cp-toast-warning: #f2c36b; }
 
 /* The page's own message stays in place for CommPilot's scripts, out of sight; a row holding only it goes too. */
 html[data-cp-direction] body[id="initBody.menuTemplate"] [data-cp-toast] { display: none !important; }

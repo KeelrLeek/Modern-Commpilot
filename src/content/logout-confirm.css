@@ -1,37 +1,23 @@
 /* The native header Logout link stays in place; this dialog asks before it runs. */
 .cp-native-logout-overlay {
-  --logout-card:#3b4252;
-  --logout-raised:#434c5e;
-  --logout-text:#eceff4;
-  --logout-muted:#d8dee9;
-  --logout-line:#4c566a;
-  --logout-accent:#88c0d0;
-  --logout-accent-text:#2e3440;
+  /* The theme's own colours (theme-palettes.css tokens, inherited from the page); Nord's are the fallback. */
+  --logout-card:var(--d-surface, #3b4252);
+  --logout-raised:var(--d-raised, #434c5e);
+  --logout-text:var(--d-text, #eceff4);
+  --logout-muted:var(--d-muted, #d8dee9);
+  --logout-line:var(--d-line, #4c566a);
+  --logout-accent:var(--d-action, #88c0d0);
+  --logout-accent-text:var(--d-action-text, #2e3440);
   position:fixed;
   inset:0;
   z-index:2147483500;
   display:grid;
   place-items:center;
   padding:24px;
-  background:#2e3440b8;
+  background:color-mix(in srgb, var(--d-canvas, #2e3440) 72%, transparent);
   color:var(--logout-text);
   font:400 14px/1.5 "Inter","Segoe UI",Arial,sans-serif;
   -webkit-font-smoothing:antialiased;
-}
-html[data-cp-direction="atlas"] .cp-native-logout-overlay {
-  --logout-card:#fff; --logout-raised:#f0f5f9; --logout-text:#162b3d;
-  --logout-muted:#536778; --logout-line:#d5e0e9;
-  --logout-accent:#096c77; --logout-accent-text:#fff;
-}
-html[data-cp-direction="graphite"] .cp-native-logout-overlay {
-  --logout-card:#242c31; --logout-raised:#2c373a; --logout-text:#f0f5f2;
-  --logout-muted:#b4c4c1; --logout-line:#3d4b4b;
-  --logout-accent:#a7d65e; --logout-accent-text:#15210e;
-}
-html[data-cp-direction="terra"] .cp-native-logout-overlay {
-  --logout-card:#fffcf7; --logout-raised:#f5ede2; --logout-text:#302d2a;
-  --logout-muted:#6c655e; --logout-line:#ddd1c2;
-  --logout-accent:#a54d37; --logout-accent-text:#fff;
 }
 .cp-native-logout-overlay *, .cp-native-logout-overlay *::before,
 .cp-native-logout-overlay *::after { box-sizing:border-box; }

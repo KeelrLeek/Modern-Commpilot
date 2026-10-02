@@ -28,7 +28,7 @@ def sha256(path: Path) -> str:
 
 
 def make_favicons() -> set[str]:
-    """Draw a favicon pair for every palette theme-palettes.css names and return their paths."""
+    """Draw a favicon pair and a theme mark for every palette theme-palettes.css names and return their paths."""
     try:
         subprocess.run(["node", str(SOURCE / "scripts" / "make-icons.cjs"), "--favicons"], cwd=SOURCE, check=True)
     except (OSError, subprocess.CalledProcessError) as error:
@@ -37,7 +37,13 @@ def make_favicons() -> set[str]:
     palettes = set(re.findall(r'data-cp-direction="([^"]*)"', re.sub(r"/\*.*?\*/", "", css, flags=re.S)))
     if not palettes:
         raise SystemExit("theme-palettes.css names no palettes.")
-    return {f"assets/icons/pulse-{name}{sandbox}.svg" for name in palettes for sandbox in ("", "-sbx")}
+    # Each palette's mark beside the site link and in Settings' theme list, drawn from the same tokens.
+    try:
+        subprocess.run(["node", str(SOURCE / "scripts" / "make-theme-marks.cjs")], cwd=SOURCE, check=True, stdout=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise SystemExit(f"Could not draw the theme marks (node scripts/make-theme-marks.cjs): {error}")
+    return ({f"assets/icons/pulse-{name}{sandbox}.svg" for name in palettes for sandbox in ("", "-sbx")} |
+            {f"assets/icons/theme-{name}.svg" for name in palettes})
 
 
 def verify_manifest_files(manifest: dict, names: set[str], favicons: set[str]) -> None:

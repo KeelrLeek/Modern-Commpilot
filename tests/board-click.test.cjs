@@ -74,3 +74,92 @@ test('only an option row opens its option; the empty space under a shorter colum
     assert.deepEqual(opened, ['/commpilot/Reseller/Admins/']);
   } finally { await browser.close(); }
 });
+
+// A board of four folders whose sections load slowly, one at a time, as on a busy CommPilot.
+const FOLDERS = [['R0', 'Profile'], ['R1', 'Resources'], ['R2', 'Services'], ['R3', 'Utilities']];
+const folderBoard = id => `<table width="100%"><tbody><tr>${column('Basic', Array.from({ length: 9 }, (_, i) => [`${id} option ${i + 1}`, `/Reseller/${id}/${i + 1}/`]))}</tr></tbody></table>`;
+function multiShell(body, token) {
+  return `<!doctype html><html><head><title>Reseller</title></head><body id="initBody.menuTemplate">
+    <table><tr><td class="headerBar"><span class="headerAuthLevel">Reseller</span></td></tr></table>
+    <form name="leftNavForm">${FOLDERS.map(([id, name], i) => `<table><tr><td class="${i ? 'leftnavfolder' : 'leftnavfolderopen'}">
+      <a class="${i ? 'leftnavfolder' : 'leftnavfolderopen'}" onclick="redirectPost('${folderPath}', {folder:'${id}', menuId:'8'})">${name}</a></td></tr></table>`).join('')}</form>
+    <table height="100%"><tr><td width="82%" valign="top" style="width:1000px">${body}</td></tr></table>
+    <input type="hidden" name="formtokenserial" value="${token}">
+    <script>window.redirectPost=function(){};</script>
+  </body></html>`;
+}
+
+test('a sidebar folder picked while the board is still filling in is shown and stays at the top', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 700 } });
+    let serial = 1;
+    await page.route(origin + '/**', async route => {
+      const req = route.request();
+      const folder = (/folder=(R\d)/.exec(req.postData() || '') || [])[1] || 'R0';
+      if (req.method() === 'POST') await new Promise(r => setTimeout(r, 700));   // each section takes a while
+      return route.fulfill({ status: 200, contentType: 'text/html', body: multiShell(folderBoard(folder), 'token-' + (++serial)) });
+    });
+    await page.goto(origin + folderPath, { waitUntil: 'domcontentloaded' });
+    for (const file of ['native-theme.css', 'theme-palettes.css', 'menu-board.css', 'page-baseline.css'])
+      await page.addStyleTag({ path: path.join(root, 'src/content', file) });
+    await page.evaluate(() => { document.documentElement.dataset.cpDirection = 'graphite'; });
+    await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
+    await page.waitForFunction(() => document.querySelectorAll('.cp-console-section').length === 4 &&
+      document.querySelector('.cp-console-section[data-cp-folder="R0"] .cp-console-body')?.dataset.cpLoaded === '1');
+    // Utilities has not appeared yet.
+    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.cp-console-section[data-cp-folder="R3"]')).display), 'none');
+    await page.locator('form[name="leftNavForm"] a', { hasText: 'Utilities' }).click();
+    const shown = await page.evaluate(() => {
+      const sec = document.querySelector('.cp-console-section[data-cp-folder="R3"]');
+      return getComputedStyle(sec).display !== 'none' && getComputedStyle(sec).visibility === 'visible';
+    });
+    assert.equal(shown, true, 'the picked section shows at once');
+    // Once everything has loaded (the sections above it included), Utilities is still the one at the top.
+    await page.waitForFunction(() => [...document.querySelectorAll('.cp-console-body')].every(b => b.dataset.cpLoaded === '1'), null, { timeout: 15000 });
+    await page.waitForTimeout(900);
+    const offset = await page.evaluate(() => {
+      const cons = document.querySelector('.cp-console');
+      return Math.round(document.querySelector('.cp-console-section[data-cp-folder="R3"]').getBoundingClientRect().top - cons.getBoundingClientRect().top);
+    });
+    assert.ok(Math.abs(offset) <= 4, `Utilities sits at the top of the board (${offset}px off)`);
+  } finally { await browser.close(); }
+});
+
+test('a sidebar swapped in by a level change still navigates, with no stamps and no CommPilot listeners on it', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    const posts = [];
+    let serial = 1;
+    // A user-level settings page (no board): the sidebar's links are wired only by the script beside each one, and
+    // here those scripts never attach anything, as after a swap whose wiring was not re-run.
+    const folders = [['U0', 'Profile'], ['U1', 'Incoming Calls'], ['U4', 'Call Control']];
+    const sidebar = folders.map(([id, name], i) => `<table><tr><td class="${i ? 'leftnavfolder' : 'leftnavfolderopen'}">
+      <a id="anchor_${id}" class="${i ? 'leftnavfolder' : 'leftnavfolderopen'}">${name}</a>
+      <script>if (false) { document.getElementById('anchor_${id}').addEventListener('click', function () {
+        redirectPost('/commpilot/Common/folder_contents.jsp', {folder: '${id}', menuId: '0'}); }); }</script></td></tr></table>`).join('');
+    const pageHtml = token => `<!doctype html><html><head><title>Profile</title></head><body id="initBody.menuTemplate">
+      <table><tr><td class="headerBar"><span class="headerAuthLevel">SMDonuts21</span></td></tr></table>
+      <form name="leftNavForm">${sidebar}</form>
+      <table height="100%"><tr><td width="82%" valign="top"><form name="mainForm"><table><tr><td class="screenName">Profile</td></tr></table></form></td></tr></table>
+      <input type="hidden" name="formtokenserial" value="${token}"><script>window.redirectPost=function(){};</script></body></html>`;
+    await page.route(origin + '/**', route => {
+      const req = route.request();
+      if (req.method() === 'POST') posts.push(new URL(req.url()).pathname + ' ' + (req.postData() || ''));
+      return route.fulfill({ status: 200, contentType: 'text/html', body: pageHtml('token-' + (++serial)) });
+    });
+    await page.goto(origin + '/commpilot/User/Profile/', { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => { document.documentElement.dataset.cpDirection = 'graphite'; });
+    await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
+    await page.waitForTimeout(400);
+    assert.equal(await page.locator('a[data-cp-folder]').count(), 0, 'no board was built, so nothing is stamped yet');
+    await page.locator('form[name="leftNavForm"] a', { hasText: 'Call Control' }).click();
+    await page.waitForFunction(() => true);
+    await page.waitForTimeout(800);
+    assert.ok(posts.some(p => p.startsWith('/commpilot/Common/folder_contents.jsp') && /folder=U4/.test(p) && /menuId=0/.test(p)),
+      'the click opened Call Control: ' + JSON.stringify(posts));
+  } finally { await browser.close(); }
+});

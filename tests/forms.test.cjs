@@ -94,55 +94,38 @@ test('list search criteria become one toolbar line that still drives CommPilot�
   } finally { await browser.close(); }
 });
 
-test('small settings forms become rows whose controls drive CommPilot’s own inputs', async () => {
+test('settings forms become aligned rows whose controls are CommPilot’s own inputs', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });
   try {
     const page = await open(browser, shell(settingsBody));
-    await page.locator('.cp-set').waitFor();
-    assert.equal(await page.locator('.cp-set-row').count(), 3);
-    assert.equal(await page.locator('.cp-set-head').innerText(), 'Call Forwarding Always');
-    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('table.cp-set-native')).display), 'none');
-    const off = page.getByRole('radio', { name: 'Off' });
-    const on = page.getByRole('radio', { name: 'On' });
-    assert.equal(await off.getAttribute('aria-checked'), 'true');
-    const number = page.locator('.cp-set input[name="forwardedToNumber"]');
-    assert.equal(await number.isDisabled(), true, 'the real number field moved into the card, still disabled while Off');
-    await on.click();
+    await page.locator('.fx').waitFor();
+    assert.deepEqual(await page.locator('.fx .fx-item > .fx-label').allInnerTexts(),
+      ['Call Forwarding Always', 'Calls Forward to phone number / SIP-URI*']);
+    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('td.enduserbody > table.fx-native')).display), 'none');
+    // Two short choices are one segmented control; the real radios sit behind their labels.
+    assert.deepEqual(await page.locator('.fx-seg .fx-opt').allInnerTexts(), ['On', 'Off']);
+    const number = page.locator('.fx input[name="forwardedToNumber"]');
+    assert.equal(await number.isDisabled(), true, 'the real number field moved into the layout, still disabled while Off');
+    await page.locator('.fx-seg .fx-opt', { hasText: 'On' }).click();
     assert.equal(await page.evaluate(() => document.getElementById('active_true').checked), true);
-    assert.equal(await on.getAttribute('aria-checked'), 'true');
     assert.equal(await number.isEnabled(), true, 'CommPilot’s own script enabled the number');
     await number.fill('2125550100');
-    const reminder = page.getByRole('switch', { name: 'Play Ring Reminder when a call is forwarded' });
-    await reminder.click();
-    assert.equal(await reminder.getAttribute('aria-checked'), 'true');
+    // The checkbox is a switch beside its words; a click on the words toggles it.
+    assert.equal(await page.locator('.fx-check input#ringSplash').evaluate(el => el.classList.contains('fx-switch')), true);
+    await page.locator('.fx-check-text', { hasText: 'Play Ring Reminder' }).click();
+    assert.equal(await page.evaluate(() => document.getElementById('ringSplash').checked), true);
     const sent = await page.evaluate(() => Object.fromEntries(new FormData(document.forms.mainForm)));
-    assert.deepEqual({ active: sent.active, number: sent.forwardedToNumber, splash: sent.ringSplash },
-      { active: 'true', number: '2125550100', splash: 'on' }, 'the form submits the values chosen in the card');
-    // PJAX swaps the content and dispatches cp:reskin: the new page gets its card once.
+    assert.deepEqual({ active: sent.active, number: sent.forwardedToNumber, splash: sent.ringSplash, token: sent.formtokenserial },
+      { active: 'true', number: '2125550100', splash: 'on', token: 't1' }, 'the form submits the values chosen in the layout');
+    // PJAX swaps the content and dispatches cp:reskin: the new page gets its layout once.
     await page.evaluate(body => {
       document.querySelector('td[width="82%"]').innerHTML = body;
       document.dispatchEvent(new Event('cp:reskin'));
     }, settingsBody);
-    await page.waitForFunction(() => document.querySelectorAll('.cp-set').length === 1);
+    await page.waitForFunction(() => document.querySelectorAll('.fx').length === 1 && document.querySelector('.fx input[name="forwardedToNumber"]'));
     await page.waitForTimeout(200);
-    assert.equal(await page.locator('.cp-set').count(), 1);
-  } finally { await browser.close(); }
-});
-
-test('forms outside the simple settings pattern keep CommPilot’s layout', async () => {
-  assert.ok(browserPath, 'Edge or Chrome is required');
-  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
-  try {
-    const withPassword = settingsBody.replace('<input type="text" name="forwardedToNumber"', '<input type="password" name="pin"><input type="text" name="forwardedToNumber"');
-    const nested = settingsBody.replace('Play Ring Reminder when a call is forwarded', '<table><tr><td>nested</td></tr></table>');
-    for (const body of [withPassword, nested]) {
-      const page = await open(browser, shell(body));
-      await page.waitForTimeout(300);
-      assert.equal(await page.locator('.cp-set').count(), 0);
-      assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('td.enduserbody table table')).display), 'table');
-      await page.close();
-    }
+    assert.equal(await page.locator('.fx').count(), 1);
   } finally { await browser.close(); }
 });
 
@@ -361,7 +344,7 @@ test('the shared page frame: actions beside the title, one flat card, compact ro
   } finally { await browser.close(); }
 });
 
-test('the shared page frame keeps a bar with text in it, and turns blank rows and fieldsets into light sections', async () => {
+test('the shared page frame keeps a bar with text in it; the form under it becomes aligned rows and sections', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });
   try {
@@ -383,16 +366,165 @@ test('the shared page frame keeps a bar with text in it, and turns blank rows an
       moved: document.querySelectorAll('.cp-frame-actions input').length,
       bars: [...document.querySelectorAll('#buttonbartop, #buttonbarbottom')].map(tr => getComputedStyle(tr).display !== 'none'),
       barBackground: getComputedStyle(document.querySelector('#buttonbartop td')).backgroundColor,
-      gaps: [...document.querySelectorAll('tr.cp-frame-gap')].map(tr => Math.round(tr.getBoundingClientRect().height)),
-      indent: document.querySelector('td[width="20"]').getBoundingClientRect().width,
-      fieldset: ['borderLeftWidth', 'borderTopWidth', 'backgroundColor'].map(k => getComputedStyle(document.querySelector('fieldset'))[k]),
+      sections: [...document.querySelectorAll('.fx > .fx-sec')].map(sec => sec.dataset.title || ''),
+      labels: [...document.querySelectorAll('.fx .fx-item > .fx-label')].map(l => l.textContent),
+      native: getComputedStyle(document.querySelector('td.enduserbody > table.fx-native')).display,
     }));
     assert.equal(state.moved, 0, 'a bar with text is not taken apart');
     assert.deepEqual(state.bars, [true, true]);
     assert.equal(state.barBackground, 'rgba(0, 0, 0, 0)', 'it is a plain row of controls, not a band');
-    assert.equal(state.gaps.length, 2, 'the &nbsp; rows become gaps');
-    assert.ok(state.gaps.every(h => h <= 8), `gaps are small (${state.gaps})`);
-    assert.equal(state.indent, 0, 'CommPilot’s 20px indent column gives way to the card’s inset');
-    assert.deepEqual(state.fieldset, ['0px', '1px', 'rgba(0, 0, 0, 0)'], 'a fieldset is a labelled divider, not a box');
+    assert.deepEqual(state.sections, ['', 'User Limits'], 'the fields, then the fieldset as a titled section');
+    assert.deepEqual(state.labels, ['Group Name', 'Limited To']);
+    assert.equal(state.native, 'none', 'CommPilot’s emptied tables stay in the form, hidden');
+  } finally { await browser.close(); }
+});
+
+// Profile as CommPilot renders it (trimmed): read-only IDs with "Change … (Also saves current screen data)" links,
+// two fields to a row, a note under a field, a fieldset, and an address's second line under the first.
+const profilePage = shell(`<form name="mainForm" id="mainForm" method="post"><table width="100%"><tbody>
+  <tr><td class="screenName">Profile</td></tr>
+  <tr id="buttonbartop"><td class="buttonbar"><input type="submit" name="ok" value="OK"> <input type="submit" name="apply" value="Apply"></td></tr>
+  <tr><td class="enduserbody"><table class="enduserbody"><tbody><tr><td width="20"></td><td width="100%">
+    <table><tbody>
+      <tr><td align="right">Group: </td><td align="left">Stan Mikita Donuts</td></tr>
+      <tr><td align="right">User ID: </td><td align="left">SMDonuts21</td>
+        <td colspan="2" align="center"><a class="nestedLink" id="changeUser">Change User ID (Also saves current screen data)</a></td></tr>
+      <tr id="nameRow"><td align="right" nowrap>* Last Name: </td><td align="left"><input type="text" name="lastName" id="lastName" value="Campbell" size="30" maxlength="30"></td>
+        <td align="right" nowrap>* First Name: </td><td align="left"><input type="text" name="firstName" id="firstName" value="Wayne" size="30" maxlength="30"></td></tr>
+      <tr><td align="right">Calling Line ID Phone Number: </td><td align="left"><input type="text" name="clid" value="" size="23" maxlength="23"></td></tr>
+      <tr><td></td><td align="left">Phone number is stored as typed</td></tr>
+      <tr id="deptRow"><td align="right">Department: </td><td align="left" id="deptCell"><select name="dept"><option>Basement</option><option>Lobby</option></select></td></tr>
+    </tbody></table>
+    <table width="100%"><tbody><tr><td width="100%"><fieldset class="fldsetline"><legend class="fldset"> Additional Information </legend>
+      <table><tbody>
+        <tr><td align="right" nowrap>E-mail: </td><td align="left" colspan="3"><input type="text" name="email" value="wayne@example.com" size="50" maxlength="80"></td></tr>
+        <tr><td align="right" nowrap>Address: </td><td align="left" colspan="3"><input type="text" name="addressLine1" value="" size="68" maxlength="80"></td></tr>
+        <tr><td width="20"></td><td align="left" colspan="3"><input type="text" name="addressLine2" value="" size="68" maxlength="80"></td></tr>
+      </tbody></table></fieldset></td></tr></tbody></table>
+  </td></tr></tbody></table></td></tr>
+  </tbody></table></form>
+  <script>document.getElementById('changeUser').addEventListener('click', () => { window.changed = (window.changed || 0) + 1; });</script>`);
+
+test('a big form: IDs in a strip, Change buttons that say they save, pairs kept, sections, chips and unsaved changes', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await open(browser, profilePage);
+    await page.locator('.fx').waitFor();
+    // The page's own script fills a field before you touch anything: not your change.
+    await page.evaluate(() => { document.querySelector('input[name="clid"]').value = '+12125550100'; document.querySelector('input[name="clid"]').dispatchEvent(new Event('change', { bubbles: true })); });
+    await page.waitForTimeout(100);
+    assert.equal(await page.locator('.fx-item.is-dirty').count(), 0);
+    const facts = await page.locator('.fx-facts .fx-fact').evaluateAll(els => els.map(el => [el.querySelector('.fx-fact-k').textContent,
+      el.querySelector('.fx-fact-v').textContent, el.querySelector('.fx-linkbtn')?.textContent || '']));
+    assert.deepEqual(facts, [['Group', 'Stan Mikita Donuts', ''], ['User ID', 'SMDonuts21', 'Change User ID']]);
+    const change = page.locator('.fx-fact a.fx-linkbtn.fx-saves');
+    assert.match(await change.evaluate(el => getComputedStyle(el, '::after').content), /saves first/);
+    await change.click();
+    assert.equal(await page.evaluate(() => window.changed), 1, 'CommPilot’s own handler still runs');
+    // Last Name and First Name came from one CommPilot row: one line, side by side.
+    const pair = await page.evaluate(() => {
+      const line = document.getElementById('lastName').closest('.fx-line');
+      const [a, b] = [document.getElementById('lastName'), document.getElementById('firstName')].map(el => el.getBoundingClientRect());
+      return { same: line === document.getElementById('firstName').closest('.fx-line'), top: Math.abs(a.top - b.top), right: b.left > a.right };
+    });
+    assert.deepEqual([pair.same, pair.top < 2, pair.right], [true, true, true]);
+    assert.equal(await page.locator('.fx-field', { has: page.locator('input[name="clid"]') }).locator('.fx-hint').innerText(), 'Phone number is stored as typed');
+    assert.equal(await page.locator('.fx-sec[data-title="Additional Information"] .fx-sec-title').innerText(), 'ADDITIONAL INFORMATION');
+    assert.equal(await page.locator('.fx-field', { has: page.locator('input[name="addressLine1"]') }).locator('input[name="addressLine2"]').count(), 1,
+      'the second address line sits under the first, in the same field');
+    // The header, built after the layout: chips for the sections, a count of unsaved changes.
+    assert.deepEqual(await page.locator('.cp-frame-head .fx-jump-chip').allInnerTexts(), ['Details', 'Additional Information']);
+    assert.equal(await page.locator('.fx-unsaved').count(), 0);
+    await page.locator('input[name="lastName"]').fill('Campbell Jr');
+    await page.locator('.fx select[name="dept"]').selectOption('Lobby');
+    await page.waitForFunction(() => document.querySelector('.fx-unsaved')?.textContent === '2 unsaved changes');
+    assert.equal(await page.locator('.fx-item.is-dirty').count(), 2);
+    assert.equal(await page.evaluate(() => document.querySelector('.fx-unsaved').closest('.cp-frame-actions') !== null), true);
+    await page.locator('input[name="lastName"]').fill('Campbell');
+    await page.waitForFunction(() => document.querySelector('.fx-unsaved')?.textContent === '1 unsaved change');
+  } finally { await browser.close(); }
+});
+
+test('the layout follows CommPilot: rows it hides and shows, controls it puts into a cell', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await open(browser, profilePage);
+    await page.locator('.fx').waitFor();
+    const dept = page.locator('.fx-field', { has: page.locator('[name="dept"]') });
+    await page.evaluate(() => { document.getElementById('deptRow').style.display = 'none'; });
+    await page.waitForFunction(() => document.querySelector('.fx select[name="dept"]').closest('.fx-item').hidden);
+    await page.evaluate(() => { document.getElementById('deptRow').style.display = ''; });
+    await page.waitForFunction(() => !document.querySelector('.fx select[name="dept"]').closest('.fx-item').hidden);
+    // A script that rebuilds the cell: the new list replaces the old one in the layout (never two of the same name).
+    await page.evaluate(() => { document.getElementById('deptCell').innerHTML = '<select name="dept"><option>Garage</option></select>'; });
+    await page.waitForFunction(() => document.querySelectorAll('select[name="dept"]').length === 1 &&
+      document.querySelector('.fx select[name="dept"]')?.value === 'Garage');
+    assert.equal(await dept.isVisible(), true);
+    // A control put into a cell that was empty when the page opened (a port list for a device type) joins its row's
+    // field; one in a brand-new row comes in with its row. Neither is left hidden in CommPilot's table.
+    await page.evaluate(() => {
+      const row = document.getElementById('deptRow');
+      const cell = document.createElement('td');
+      row.appendChild(cell);
+      cell.innerHTML = '<select name="portNumber"><option>1</option><option>2</option></select>';
+      const extra = document.createElement('tr');
+      extra.innerHTML = '<td>Port:</td><td><input type="text" name="portOther" value="5060"></td>';
+      row.parentNode.appendChild(extra);
+    });
+    await page.waitForFunction(() => document.querySelector('.fx select[name="portNumber"]') && document.querySelector('.fx input[name="portOther"]'));
+    assert.equal(await page.evaluate(() => document.querySelector('.fx select[name="portNumber"]').closest('.fx-item') ===
+      document.querySelector('.fx select[name="dept"]').closest('.fx-item')), true, 'the port list sits with its row’s field');
+    assert.equal(await page.locator('.fx input[name="portOther"]').isVisible(), true);
+    // A list page has nothing to lay out: it keeps today's look.
+    const list = await open(browser, listPage);
+    await list.locator('table.cp-frame').waitFor({ state: 'attached' });
+    assert.equal(await list.locator('.fx').count(), 0);
+  } finally { await browser.close(); }
+});
+
+test('an empty list shows what will be there (headings’ words only, not their scripts), with its own Add; Add is not a second green button', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await open(browser, shell(`<form name="mainForm"><table width="100%"><tbody>
+      <tr><td class="screenName">Call Notify</td></tr>
+      <tr id="buttonbartop"><td class="buttonbar"><input type="submit" name="apply" value="Apply"> <input type="button" name="add" value="Add" onclick="window.adds = (window.adds || 0) + 1"></td></tr>
+      <tr><td class="enduserbody"><table class="enduserbody"><tbody><tr><td width="20"></td><td width="100%">
+        <table><tbody><tr><td align="right">* Send e-mail to: </td><td align="left"><input type="text" name="email" size="40"></td></tr></tbody></table>
+        <table width="100%"><tbody><tr><td class="listHeader">Active</td><td class="listHeader"><a class="listSortHeader" id="sortDesc">Description</a><script>document.addEventListener('DOMContentLoaded', function () { var elem = document.getElementById('sortDesc'); });</script></td><td class="listHeader">Calls from</td><td class="listHeader">Edit</td></tr>
+          <tr><td colspan="4">No Entries Present</td></tr></tbody></table>
+      </td></tr></tbody></table></td></tr></tbody></table></form>`));
+    await page.locator('.fx-empty').waitFor();
+    assert.equal(await page.locator('.fx-empty-words').innerText(), 'Nothing here yet\nEntries you add show here with their description, calls from.');
+    await page.getByRole('button', { name: '+ Add' }).click();
+    assert.equal(await page.evaluate(() => window.adds), 1, 'it presses CommPilot’s own Add');
+    const colors = await page.evaluate(() => ['apply', 'add'].map(n => getComputedStyle(document.querySelector(`.cp-frame-actions input[name="${n}"]`)).backgroundColor));
+    assert.notEqual(colors[0], colors[1], 'Apply keeps the action colour; Add is outlined');
+  } finally { await browser.close(); }
+});
+
+test('radio options keep their words however CommPilot writes them', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await open(browser, shell(`<form name="mainForm"><table width="100%"><tbody>
+      <tr><td class="screenName">Addresses</td></tr>
+      <tr><td class="enduserbody"><table class="enduserbody"><tbody><tr><td width="20"></td><td width="100%"><table><tbody>
+        <tr><td align="left"><input type="radio" name="a" id="a1" value="1" checked> Identity/Device Profile&nbsp;&nbsp;&nbsp;<input type="radio" name="a" id="a2" value="2"> Trunking&nbsp;&nbsp;&nbsp;<input type="radio" name="a" id="a3" value="3"> None&nbsp;&nbsp;&nbsp;</td></tr>
+        <tr><td align="right">Device: </td><td align="left"><input type="radio" name="b" id="b1" value="1" checked><label for="b1">Identity/Device Profile Name</label>&nbsp;<input type="radio" name="b" id="b2" value="2"><label for="b2">Trunking Group Name</label></td></tr>
+        <tr><td align="right">Mode: </td><td align="left"><input type="radio" name="c" id="c1" value="1" checked><span>Use the group's setting</span><br><input type="radio" name="c" id="c2" value="2"><span>Use this user's own setting</span></td></tr>
+        <tr><td align="right">Wrapped: </td><td align="left"><label><input type="radio" name="d" id="d1" value="1" checked> Every day all day</label> <label><input type="radio" name="d" id="d2" value="2"> Weekdays only, business hours</label></td></tr>
+      </tbody></table></td></tr></tbody></table></td></tr></tbody></table></form>`));
+    await page.locator('.fx').waitFor();
+    const groups = await page.locator('.fx-choice .fx-opts').evaluateAll(gs => gs.map(g => [...g.querySelectorAll('.fx-opt')].map(o => o.textContent.replace(/\s+/g, ' ').trim())));
+    assert.deepEqual(groups, [['Identity/Device Profile', 'Trunking', 'None'], ['Identity/Device Profile Name', 'Trunking Group Name'],
+      ['Use the group’s setting'.replace('’', "'"), "Use this user's own setting"], ['Every day all day', 'Weekdays only, business hours']]);
+    assert.equal(await page.evaluate(() => [...document.querySelectorAll('table.fx-native')].map(t => t.textContent.replace(/\s+/g, '')).join('')),
+      'Device:Mode:Wrapped:', 'only the labels (copied, not moved) stay in CommPilot’s hidden table');
+    await page.locator('.fx-opt', { hasText: 'Trunking Group Name' }).click();
+    await page.locator('.fx-opt', { hasText: 'Weekdays only' }).click();
+    assert.deepEqual(await page.evaluate(() => [document.getElementById('b2').checked, document.getElementById('d2').checked]), [true, true]);
   } finally { await browser.close(); }
 });

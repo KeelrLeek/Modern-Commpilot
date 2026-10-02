@@ -12,10 +12,38 @@ const chromePath = process.env.CHROME_PATH || [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 ].find(fs.existsSync);
 
-test('native login is centered with saved sign-ins and no setup password', async () => {
+// CommPilot's Login page as it comes (the table, the message cell, the legal notice), with its own handlers: Enter
+// anywhere on the page and the Login link submit the form. Here "submitting" keeps what was sent. Served without a charset,
+// its © reads as Â©, as on the live site.
+const loginPage = message => `<html><head><title>Login</title></head><body id="loginBody" bgcolor="#FFFFFF"><br />
+  <form name="loginForm" method="post" action="/commpilot/servlet/Login">
+    <input type="hidden" name="formtokenserial" value="1:2"><input type="hidden" name="domain" value=""><input type="hidden" name="UserID" value="">
+    <table width="800" height="460" cellspacing="0" cellpadding="0" background="/commpilot/Graphics/login.gif">
+      <tr><td width="20" height="60">&nbsp;</td><td colspan="2"><img src="/commpilot/conf/clientLogo.gif"></td></tr>
+      <tr><td width="20" height="40">&nbsp;</td><td colspan="2" class="loginerror" align="left">${message || '&nbsp;'}</td></tr>
+      <tr><td valign="top" colspan="3" height="180"><table cellspacing="0" cellpadding="0"><tr><td width="250"><table>
+        <tr><td class="logintext">User&#x20;ID</td><td><input type="text" name="EnteredUserID" size="16" maxlength="161" autocomplete="off"></td></tr>
+        <tr><td class="logintext">Password</td><td><input type="password" name="Password" size="16" autocomplete="new-password"></td></tr>
+        <tr><td>&nbsp;</td><td class=logintext2><input type="checkbox" name="rememberPass">Remember&#x20;Password</td></tr>
+      </table></td><td valign="top" width="120"><table width="100%"><tr><td height=40 align=center class="logintext3"><a id="link_1">Login</a></td></tr></table></td></tr></table></td></tr>
+      <tr><td width="20">&nbsp;</td><td class="copyright" colspan="2" height="60">Copyright&#x20;©&#x20;2020&#x20;Cisco&#x20;and&#x2F;or&#x20;its&#x20;affiliates.<br/>
+        <span class="copyrighttext">PROPRIETARY&#x20;AND&#x20;CONFIDENTIAL.</span><br /><span class="copyrighttext">All&#x20;rights&#x20;reserved.</span></td></tr>
+    </table>
+  </form>
+  <script>
+    window.sent = [];
+    function submitForm() { window.sent.push({ user: document.loginForm.EnteredUserID.value, password: document.loginForm.Password.value }); }
+    document.addEventListener('DOMContentLoaded', function () {
+      document.getElementById('loginBody').addEventListener('keypress', function (e) { if (e.keyCode == 13) submitForm(); });
+      document.getElementById('link_1').addEventListener('click', function () { submitForm(); });
+    });
+  </script></body></html>`;
+
+test('the Login page: CommPilot’s form in the Focus design, its message as a toast, and the extras', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'bw-login-test-'));
-  let context;
+  const version = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8')).version;
+  let context, message = '';
   try {
     context = await chromium.launchPersistentContext(profile, {
       executablePath: chromePath,
@@ -23,45 +51,92 @@ test('native login is centered with saved sign-ins and no setup password', async
       viewport: { width: 1200, height: 900 },
       args: [`--disable-extensions-except=${root}`, `--load-extension=${root}`]
     });
-    await context.route('https://apps-sbx.avpaas.io/commpilot/Login/', route => route.fulfill({
-      contentType: 'text/html',
-      body: `<!doctype html><body id="loginBody" bgcolor="#FFFFFF"><br>
-        <form name="loginForm" method="post" action="/commpilot/servlet/Login">
-          <table width="800" height="460"><tr><td><input name="EnteredUserID"></td></tr>
-          <tr><td><input name="Password" type="password"></td></tr>
-          <tr><td class="logintext2"><input name="rememberPass" type="checkbox">Remember Password</td></tr>
-          <tr><td class="logintext3"><a id="native-login" onclick="window.loginClicks=(window.loginClicks||0)+1">Login</a></td></tr></table>
-        </form></body>`
-    }));
+    await context.route('https://apps-sbx.avpaas.io/commpilot/Login/', route => route.fulfill({ contentType: 'text/html', body: loginPage(message) }));
+    await context.route(/\/commpilot\/(Graphics|conf)\//, route => route.fulfill({ status: 404, body: '' }));
     const page = await context.newPage();
     await page.goto('https://apps-sbx.avpaas.io/commpilot/Login/');
-    await page.locator('.bw-saved-trigger').waitFor();
-    const photoUrl = await page.evaluate(() =>
-      document.documentElement.style.getPropertyValue('--cp-login-photo').match(/url\("([^"]+)"\)/)?.[1]);
-    assert.match(photoUrl, /^chrome-extension:\/\/.*\/assets\/login\/comm-pilot-women-transparent\.png$/);
-    const photoSize = await page.evaluate(url => new Promise((resolve, reject) => {
-      const photo = new Image();
-      photo.onload = () => resolve([photo.naturalWidth, photo.naturalHeight]);
-      photo.onerror = () => reject(new Error('Transparent login photo did not load'));
-      photo.src = url;
-    }), photoUrl);
-    assert.deepEqual(photoSize, [354, 263]);
-    const photoFile = fs.readFileSync(path.join(root, 'assets/login/comm-pilot-women-transparent.png'));
-    assert.equal(photoFile[25], 6, 'PNG must have an alpha channel');
-    const box = await page.locator('form[name="loginForm"]').boundingBox();
-    assert.ok(Math.abs(box.x - 200) <= 1, `login form x=${box.x}`);
-    assert.ok(Math.abs(box.y - (900 - box.height) / 2) <= 1, `login form y=${box.y}`);
-    assert.equal(await page.locator('#native-login').count(), 1);
-    assert.equal(await page.locator('input[name="rememberPass"]').count(), 0);
-    assert.equal(await page.locator('.bw-login-auto-choice').count(), 0);
-    assert.equal(await page.locator('.bw-saved-panel').isVisible(), false);
-    assert.equal(await page.evaluate(() => window.loginClicks || 0), 0);
-    await page.locator('.bw-saved-trigger').focus();
+    await page.locator('.cp-login').waitFor();
+    await page.waitForFunction(() => document.documentElement.dataset.cpDirection);
+
+    // The page: the tile on its line, the title, the site and version; CommPilot's own fields and link, still in its form.
+    const look = await page.evaluate(() => {
+      const form = document.forms.loginForm, box = document.querySelector('.cp-login').getBoundingClientRect();
+      return {
+        title: document.querySelector('.cp-login-title').textContent, meta: document.querySelector('.cp-login-meta').textContent,
+        tile: !!document.querySelector('.cp-login-tile svg'), line: !!document.querySelector('.cp-login-horizon .cp-login-load'),
+        inForm: form.contains(form.elements.EnteredUserID) && form.elements.EnteredUserID.closest('.cp-login') !== null &&
+          form.elements.Password.closest('.cp-login') !== null && form.querySelector('#link_1').closest('.cp-login') !== null,
+        tableShown: getComputedStyle(form.querySelector('table[background]')).display !== 'none',
+        remember: !!form.querySelector('input[name="rememberPass"]'),
+        centre: Math.round(box.left + box.width / 2), scroll: document.documentElement.scrollWidth > innerWidth,
+        canvas: getComputedStyle(document.body).backgroundColor, focus: document.activeElement?.name,
+        save: document.querySelector('.cp-login-save')?.hidden === false,
+        legal: document.querySelector('.cp-login-legal summary').textContent, legalOpen: document.querySelector('.cp-login-legal details').open,
+      };
+    });
+    assert.equal(look.title, 'Sign in to CommPilot');
+    assert.equal(look.meta, `apps-sbx.avpaas · v${version}`);
+    assert.deepEqual([look.tile, look.line, look.inForm, look.tableShown, look.remember], [true, true, true, false, false]);
+    assert.equal(look.centre, 600, 'one column in the middle');
+    assert.equal(look.scroll, false);
+    assert.equal(look.canvas, 'rgb(237, 242, 247)', 'the palette’s canvas (Atlas)');
+    assert.equal(look.focus, 'EnteredUserID');
+    assert.equal(look.save, true, 'no saved sign-ins yet: an offer to save one');
+    assert.match(look.legal, /^Copyright © 2020 Cisco and\/or its affiliates\.\s*Legal notice$/, 'the notice’s first line, © mended');
+    assert.equal(look.legalOpen, false);
+    assert.equal(await page.evaluate(() => document.querySelectorAll('.cp-toast').length), 0, 'no message, no toast');
+
+    // Show password, and Caps Lock.
+    await page.locator('#cp-login-password').fill('secret-pw');
+    await page.getByRole('button', { name: 'Show password' }).click();
+    assert.equal(await page.locator('#cp-login-password').getAttribute('type'), 'text');
+    await page.getByRole('button', { name: 'Hide password' }).click();
+    assert.equal(await page.locator('#cp-login-password').getAttribute('type'), 'password');
+    const caps = on => page.evaluate(on => document.querySelector('#cp-login-password')
+      .dispatchEvent(new KeyboardEvent('keyup', { key: 'a', modifierCapsLock: on, bubbles: true })), on);
+    await caps(true);
+    assert.equal(await page.locator('.cp-login-fields .cp-login-caps').isVisible(), true);
+    await caps(false);
+    assert.equal(await page.locator('.cp-login-fields .cp-login-caps').isVisible(), false);
+
+    // Enter on the legal notice opens it and sends nothing; Sign in from the keyboard sends the form once and waits.
+    await page.locator('.cp-login-legal summary').focus();
     await page.keyboard.press('Enter');
-    await page.locator('.bw-saved-panel').waitFor({ state: 'visible' });
-    await page.getByRole('button', { name: 'Add login' }).waitFor();
-    assert.equal(await page.getByRole('button', { name: 'Create vault' }).count(), 0);
-    assert.equal(await page.evaluate(() => window.loginClicks || 0), 0);
+    assert.equal(await page.evaluate(() => document.querySelector('.cp-login-legal details').open), true);
+    assert.deepEqual(await page.evaluate(() => window.sent), []);
+    await page.locator('#cp-login-user').fill('admin.one');
+    await page.locator('#cp-login-password').focus();
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'link_1', 'Sign in takes the keyboard');
+    await page.keyboard.press('Enter');
+    assert.deepEqual(await page.evaluate(() => window.sent), [{ user: 'admin.one', password: 'secret-pw' }]);
+    const busy = await page.evaluate(() => ({ progress: document.documentElement.dataset.cpProgress,
+      text: document.querySelector('.cp-login-submit').textContent.trim(), busy: document.querySelector('.cp-login').classList.contains('is-busy') }));
+    assert.deepEqual(busy, { progress: 'on', text: 'Signing in…', busy: true });
+
+    // CommPilot says no: the page again, its message a toast, the form shakes, the User ID is back, and typing clears it.
+    message = 'Invalid user ID or password.';
+    await page.reload();
+    await page.locator('#cp-toasts .cp-toast').waitFor();
+    const failed = await page.evaluate(() => ({
+      kind: document.querySelector('#cp-toasts .cp-toast').className.match(/cp-toast-(error|warning|info)/)[1],
+      title: document.querySelector('#cp-toasts .cp-toast-title').textContent, body: document.querySelector('#cp-toasts .cp-toast-body').textContent,
+      user: document.querySelector('#cp-login-user').value, focus: document.activeElement.id,
+      shook: document.querySelector('.cp-login').classList.contains('is-shaking'), progress: document.documentElement.dataset.cpProgress || null,
+      messageShown: !!document.querySelector('td.loginerror').offsetParent }));
+    assert.deepEqual(failed, { kind: 'error', title: 'Couldn’t sign in', body: 'Invalid user ID or password.', user: 'admin.one',
+      focus: 'cp-login-password', shook: true, progress: null, messageShown: false });
+    await page.keyboard.type('x');
+    await page.waitForFunction(() => !document.querySelector('#cp-toasts .cp-toast:not(.cp-toast-leaving)'), null, { timeout: 3000 });
+
+    // A session that ended is a warning, and nothing shakes.
+    message = 'Your session has expired. Please login again.';
+    await page.reload();
+    await page.locator('#cp-toasts .cp-toast').waitFor();
+    assert.deepEqual(await page.evaluate(() => ({ kind: document.querySelector('#cp-toasts .cp-toast').className.match(/cp-toast-(error|warning|info)/)[1],
+      title: document.querySelector('#cp-toasts .cp-toast-title').textContent, shook: document.querySelector('.cp-login').classList.contains('is-shaking') })),
+    { kind: 'warning', title: 'You were signed out', shook: false });
   } finally {
     await context?.close();
     fs.rmSync(profile, { recursive: true, force: true });

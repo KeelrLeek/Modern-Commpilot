@@ -27,6 +27,7 @@
   let popover;
   let searchInput;
   let summary;
+  let createBox;
   let resultsBox;
   let openSelect = null;
   let shownOptions = [];
@@ -446,7 +447,10 @@
         info.needsMeasurement = false;
       }
     }
-    info.trigger.disabled = select.matches(":disabled");
+    const off = select.matches(":disabled");
+    info.trigger.disabled = off;
+    info.trigger.setAttribute("aria-disabled", String(off));
+    info.trigger.tabIndex = off ? -1 : 0;
     info.trigger.setAttribute("aria-label", selectLabel(select) + ": " +
       (select.selectedOptions[0]?.textContent.trim() || "No selection") +
       ". Search options");
@@ -455,7 +459,7 @@
   }
 
   function enhanceSelect(select) {
-    if (select.closest(".bw-search-popover, .bw-menu-search, .bw-saved-login") ||
+    if (select.closest(".bw-search-popover, .bw-menu-search") ||
         select.multiple || select.size > 1) return;
     let info = selectInfo.get(select);
     if (info) {
@@ -474,8 +478,10 @@
     select.before(shell);
     shell.append(select);
 
-    const trigger = document.createElement("button");
-    trigger.type = "button";
+    // A focusable span, not a button: it never joins the form's elements, so scripts that count or index them (the
+    // Users search) see CommPilot's form exactly as it was.
+    const trigger = document.createElement("span");
+    trigger.tabIndex = 0;
     trigger.className = "bw-select-trigger";
     trigger.setAttribute("role", "combobox");
     trigger.setAttribute("aria-haspopup", "dialog");
@@ -572,7 +578,21 @@
     resultsBox.setAttribute("role", "listbox");
     searchInput.setAttribute("aria-controls", resultsBox.id);
 
-    popover.append(searchInput, summary, resultsBox);
+    const field = document.createElement("span");
+    field.className = "bw-search-field";
+    field.append(searchInput);
+    // The count, and on its right a button for an option that starts something new ("New Identity/Device
+    // Profile (Group)"): it picks that option, so CommPilot does what it does when the option is chosen.
+    const head = document.createElement("div");
+    head.className = "bw-search-head";
+    createBox = document.createElement("span");
+    createBox.className = "bw-search-create";
+    head.append(summary, createBox);
+    popover.append(field, head, resultsBox);
+    createBox.addEventListener("click", event => {
+      const button = event.target.closest("[data-bw-option-index]");
+      if (button) chooseOption(Number(button.dataset.bwOptionIndex));
+    });
     document.body.append(popover);
     popover.addEventListener("click", event => event.stopPropagation());
     searchInput.addEventListener("input", event => {
@@ -615,7 +635,9 @@
       return;
     }
     const rect = openSelect.getBoundingClientRect();
-    const width = Math.min(420, Math.max(280, rect.width), window.innerWidth - 16);
+    // Room for a "+ New …" button beside the count when there is one.
+    const least = createBox && !createBox.hidden ? 380 : 280;
+    const width = Math.min(Math.max(420, least), Math.max(least, rect.width), window.innerWidth - 16);
     const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
     const below = window.innerHeight - rect.bottom - 8;
     const above = rect.top - 8;
@@ -626,6 +648,7 @@
     popover.style.maxHeight = height + "px";
     popover.style.left = left + "px";
     popover.style.top = (useAbove ? Math.max(8, rect.top - height - 4) : rect.bottom + 4) + "px";
+    popover.dataset.bwSide = useAbove ? "above" : "below";
   }
 
   function openPopover(select) {
@@ -639,11 +662,44 @@
     searchInput.setAttribute("aria-label", "Search options for " + selectLabel(select));
     popover.dataset.bwTheme = isDarkBackground(select) ? "dark" : "light";
     collectOptions(select);
+    renderCreate(select);
     searchInput.value = "";
     popover.hidden = false;
     positionPopover();
     renderResults();
+    // Open on the current value, in the middle of the list (a 172-department list opens at Houston, not at the top).
+    if (activeResult > 0) {
+      resultsBox.scrollTop = Math.max(0, activeResult * RESULT_HEIGHT - (resultsBox.clientHeight - RESULT_HEIGHT) / 2);
+      renderVisibleResults();
+      updateActiveResult(false);
+    }
     searchInput.focus();
+  }
+
+  // CommPilot's own "start something new" option: "New Identity/Device Profile (Group)" carries a code value
+  // ("New Device") that differs from its words. A device or a state that is merely NAMED "New …" ("New 1148 (Group)",
+  // "New Jersey") has its name as its value, so it never qualifies.
+  function isCreateOption(select, entry) {
+    const option = select.options[entry.index];
+    if (!option || entry.disabled || !/^new\b/i.test(entry.label)) return false;
+    const value = String(option.value || "").trim();
+    return /^new\b/i.test(value) && value.toLowerCase() !== entry.label.toLowerCase();
+  }
+  function renderCreate(select) {
+    const info = selectInfo.get(select);
+    createBox.replaceChildren();
+    for (const entry of (info?.options || []).filter(o => isCreateOption(select, o)).slice(0, 1)) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "bw-search-create-btn";
+      button.dataset.bwOptionIndex = String(entry.index);
+      // "+ New Identity/Device Profile": the option's words without its scope in brackets; the full words as the tip.
+      button.textContent = "+ " + entry.label.replace(/\s*\([^)]*\)\s*$/, "");
+      button.title = entry.label;
+      button.setAttribute("aria-label", entry.label);
+      createBox.append(button);
+    }
+    createBox.hidden = !createBox.childElementCount;
   }
 
   function closePopover(restoreFocus) {
@@ -702,6 +758,13 @@
       return element;
     };
     if (start) fragment.append(spacer(start * RESULT_HEIGHT));
+    const typed = searchInput.value.trim().toLowerCase();
+    if (!shownOptions.length) {
+      const empty = document.createElement("div");
+      empty.className = "bw-search-empty";
+      empty.textContent = typed ? "Nothing matches “" + searchInput.value.trim() + "”" : "No options";
+      fragment.append(empty);
+    }
     for (let position = start; position < end; position++) {
       const entry = shownOptions[position];
       const row = document.createElement("button");
@@ -715,8 +778,22 @@
       row.setAttribute("aria-setsize", String(shownOptions.length));
       row.setAttribute("aria-selected", String(entry.index === openSelect.selectedIndex));
       row.disabled = entry.disabled;
-      row.textContent = entry.groupLabel
-        ? entry.groupLabel + " — " + entry.label : entry.label;
+      if (entry.groupLabel) {
+        const group = document.createElement("span");
+        group.className = "bw-result-group";
+        group.textContent = entry.groupLabel + " — ";
+        row.append(group);
+      }
+      const text = document.createElement("span");
+      text.className = "bw-result-text";
+      const at = typed ? entry.label.toLowerCase().indexOf(typed) : -1;
+      if (at >= 0) {
+        const mark = document.createElement("mark");
+        mark.className = "bw-match";
+        mark.textContent = entry.label.slice(at, at + typed.length);
+        text.append(entry.label.slice(0, at), mark, entry.label.slice(at + typed.length));
+      } else text.textContent = entry.label;
+      row.append(text);
       row.title = row.textContent;
       fragment.append(row);
     }
@@ -879,9 +956,11 @@
     if (!(root instanceof Element) || root.closest(".bw-search-popover")) return;
     if (root.matches("a.navMenuitem, a.navMenuItem")) colorize(root);
     root.querySelectorAll("a.navMenuitem, a.navMenuItem").forEach(colorize);
+    // Every dropdown gets the searchable list. The Users search keeps its menus as they are (their filter field
+    // would join its form).
+    if (root.matches("select")) enhanceSelect(root);
+    root.querySelectorAll("select").forEach(enhanceSelect);
     if (!isUsersSearchPage()) {
-      if (root.matches("select")) enhanceSelect(root);
-      root.querySelectorAll("select").forEach(enhanceSelect);
       if (root.matches(MENU_SELECTOR)) enhanceMenu(root);
       root.querySelectorAll(MENU_SELECTOR).forEach(enhanceMenu);
     }
@@ -917,8 +996,11 @@
       }
       if (info.original.searchable === null) select.removeAttribute("data-bw-searchable");
       else select.setAttribute("data-bw-searchable", info.original.searchable);
+      // Unwrap, never remove: CommPilot swaps a select for a new one in place (the Users search rebuilds
+      // findOp0 with `old.parentNode.replaceChild(new, old)`), so the new one lands inside this shell. Removing
+      // the shell would delete it, and the search would go out without it (HTTP 500).
       info.trigger.remove();
-      info.shell.remove();
+      if (info.shell.isConnected) info.shell.replaceWith(...info.shell.childNodes);
       selectInfo.delete(select);
     }
     for (const menu of menuInfo.keys()) if (!menu.isConnected) menuInfo.delete(menu);
