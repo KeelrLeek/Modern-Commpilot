@@ -2,7 +2,8 @@
    and the page size follows the window as it is resized. pjax.js fetches the list's other CommPilot pages into
    the same table (cpListFill, table[data-cp-fill]); until it has, the first page is paged, and if it cannot,
    CommPilot's own pager comes back. A click anywhere on a row opens it: the row's own link is clicked, so
-   CommPilot's handler does the navigation. The Edit column goes where it only repeats the row's link. */
+   CommPilot's handler does the navigation. The Edit column goes where it only repeats the row's link. An Export button saves
+   every result of the search, all its pages, as an Excel workbook (pjax.js builds and saves it). */
 (() => {
   if (window !== window.top) return;
 
@@ -229,6 +230,85 @@
     render(content(), table);
   }
 
+  // Export: every row of the search, in the order on screen, with the columns that carry a name (not Edit, not the
+  // spacers). With the whole list here (lists.js pages it) the rows go to pjax.js as they are; when CommPilot's own
+  // pager stayed (a search of more pages than pjax.js fills), pjax.js walks every page itself. pjax.js runs in the
+  // page, so the request and its progress travel as JSON in DOM events.
+  const exportButtons = new WeakMap();   // results table -> its Export button
+  const EXPORT_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>';
+  let exporting = null;                  // { table, button } while pjax.js works
+  function exportColumns(table) {
+    const head = table.querySelector(':scope > tbody > tr:has(> td.listHeader)');
+    return [...(head?.children || [])].map((td, index) => ({ index, name: textOf(td) })).filter(c => c.name && c.name !== 'Edit');
+  }
+  // A cell as text; a ticked box or CommPilot's check image is "Yes".
+  function exportCell(td) {
+    if (!td) return '';
+    const text = textOf(td);
+    if (text) return text;
+    const box = td.querySelector('input[type="checkbox"]');
+    if (box) return box.checked ? 'Yes' : 'No';
+    return td.querySelector('img') ? 'Yes' : '';
+  }
+  function exportLabel(button, text, busy) {
+    button.querySelector('.cp-export-text').textContent = text;
+    button.classList.toggle('cp-export-busy', Boolean(busy));
+  }
+  function startExport(table, button) {
+    if (exporting || button.disabled) return;
+    const columns = exportColumns(table);
+    if (!columns.length) return;
+    const native = nativePager(table);
+    const at = native && /Page\s+(\d+)\s+of\s+(\d+)/i.exec(native.textContent);
+    const whole = pagers.has(table);
+    exporting = { table, button };
+    exportLabel(button, 'Exporting…', true);
+    document.dispatchEvent(new CustomEvent('cp:list-export', { detail: JSON.stringify({
+      complete: whole || !at,
+      page: at ? +at[1] : 1, pages: at ? +at[2] : 1,
+      columns: columns.map(c => c.index), headers: columns.map(c => c.name),
+      rows: whole || !at ? rowsOf(table).map(tr => columns.map(c => exportCell(tr.children[c.index]))) : [],
+    }) }));
+  }
+  document.addEventListener('cp:list-export-status', event => {
+    if (!exporting) return;
+    let status = {};
+    try { status = JSON.parse(event.detail); } catch (e) {}
+    const { button } = exporting;
+    if (status.state === 'working') { exportLabel(button, `Exporting ${num(status.done)} of ${num(status.total)} pages…`, true); return; }
+    exporting = null;
+    exportLabel(button, status.state === 'done' ? `Exported ${num(status.count)}` : 'Could not export', false);
+    button.title = status.state === 'done' ? 'Saved as an Excel workbook' : (status.message || 'Try again in a moment');
+    setTimeout(() => { if (!exporting) { exportLabel(button, 'Export', false); button.title = EXPORT_TITLE; } }, 2600);
+  });
+  const EXPORT_TITLE = 'Save every result of this search, all pages, as an Excel workbook';
+  function exportButton(table, slot) {
+    let button = exportButtons.get(table);
+    if (!button) {
+      button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'cp-export-btn';
+      button.title = EXPORT_TITLE;
+      button.innerHTML = `${EXPORT_ICON}<span class="cp-export-text">Export</span>`;
+      button.addEventListener('click', () => startExport(table, button));
+      exportButtons.set(table, button);
+    }
+    if (button.parentElement !== slot) slot.appendChild(button);
+    // While pjax.js is still bringing the list's other pages in, the list is not whole yet.
+    button.disabled = table.dataset.cpFill === 'loading';
+  }
+  // CommPilot's own pager stayed: the button sits on a row of its own under it.
+  function nativeExportSlot(table, native) {
+    const anchor = native || table;
+    let row = anchor.nextElementSibling;
+    if (!row?.classList.contains('cp-export-row')) {
+      row = document.createElement('div');
+      row.className = 'cp-export-row';
+      anchor.after(row);
+    }
+    return row;
+  }
+
   // Rows that fit between the first row's top and the window's bottom, leaving room for everything that follows
   // the list (pager, card edge, a Find line, the page's bottom gutter), so the page does not scroll. A list
   // further down a long form keeps CommPilot's 20.
@@ -281,6 +361,7 @@
       if (state) { state.el.remove(); pagers.delete(table); }
       native?.classList.remove('cp-pager-native');
       table.querySelectorAll('tr.cp-row-off, tr.cp-row-end').forEach(tr => tr.classList.remove('cp-row-off', 'cp-row-end'));
+      exportButton(table, nativeExportSlot(table, native));
       return;
     }
     if (!state) {
@@ -303,6 +384,9 @@
     if (state.sort?.client) sortRows(table, state.sort);
     if (!state.el.isConnected) (native || table).after(state.el);
     native?.classList.add('cp-pager-native');
+    const exportRow = state.el.nextElementSibling;
+    if (exportRow?.classList.contains('cp-export-row')) exportRow.remove();   // the pager has its own place for it now
+    exportButton(table, state.el.querySelector('.cp-pager-end'));
     render(cell, table);
   }
 

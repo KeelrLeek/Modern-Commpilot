@@ -139,20 +139,49 @@ test('the user-id pill copies the id, and the extension chip joined to it copies
     await page.evaluate(() => { document.documentElement.dataset.cpDirection = 'graphite'; });
 
     // pjax.js reads the extension from Addresses and marks the id element.
-    const mark = (state, ext) => page.evaluate(([state, ext]) => {
+    const mark = (state, ext, number) => page.evaluate(([state, ext, number]) => {
       const id = document.querySelector('#crumbs span.headerAuthLevel');
       id.setAttribute('data-cp-extension-state', state);
       if (ext !== undefined) id.setAttribute('data-cp-extension', ext);
+      if (number !== undefined) id.setAttribute('data-cp-number', number);
       document.dispatchEvent(new Event('cp:user-extension'));
-    }, [state, ext]);
+    }, [state, ext, number]);
     await mark('loading');
     await page.waitForFunction(() => document.querySelector('#crumbs .cp-ext-chip .cp-ext-spin'));
     assert.equal((await read()).chip, 'EXT …');
-    await mark('done', '1002');
+    assert.equal(await page.locator('#crumbs .cp-num-chip').count(), 0, 'no number chip until the number is known');
+    await mark('done', '1002', '2622622622');
     await page.waitForFunction(() => document.querySelector('#crumbs .cp-ext-chip')?.textContent.includes('1002'));
     const loaded = await read();
     assert.equal(loaded.chip, 'EXT 1002');
     assert.equal(loaded.disabled, false);
+    // The phone number joins after the extension, shown grouped and copied as CommPilot's digits.
+    const number = page.locator('#crumbs .cp-bc button.cp-num-chip');
+    await number.waitFor();
+    assert.deepEqual(await page.evaluate(() => {
+      const num = document.querySelector('#crumbs .cp-num-chip');
+      return { text: num.textContent.trim(), after: num.previousElementSibling === document.querySelector('#crumbs .cp-ext-chip'),
+        icons: num.querySelectorAll('svg').length, joined: getComputedStyle(document.querySelector('#crumbs .cp-ext-chip')).borderTopRightRadius };
+    }), { text: '262-262-2622', after: true, icons: 2, joined: '0px' });
+    await number.click();
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), '2622622622');
+    await page.waitForFunction(() => document.querySelector('.cp-tip:not([hidden])')?.textContent === 'Copied 2622622622');
+    // Every copy control looks the same: the id's icon box, the chips' copy icon in the same box, and only the box
+    // lights up (the chips themselves keep their colours); the tooltips name what is copied, alike.
+    await page.mouse.move(0, 400);
+    await page.waitForTimeout(250);
+    const box = () => page.evaluate(() => [...document.querySelectorAll('#crumbs :is(.cp-copy-id, .cp-ext-chip > svg:last-child, .cp-num-chip > svg:last-child)')]
+      .map(el => { const r = el.getBoundingClientRect(), cs = getComputedStyle(el); return `${Math.round(r.width)}x${Math.round(r.height)} r${cs.borderTopLeftRadius}`; }));
+    assert.deepEqual(await box(), ['20x20 r5px', '20x20 r5px', '20x20 r5px']);
+    const chipLook = () => page.evaluate(() => getComputedStyle(document.querySelector('#crumbs .cp-ext-chip')).backgroundColor);
+    const restLook = await chipLook();
+    await chip.hover();
+    await page.waitForTimeout(250);
+    assert.equal(await chipLook(), restLook, 'pointing at the chip lights only its copy box');
+    assert.notEqual(await page.evaluate(() => getComputedStyle(document.querySelector('#crumbs .cp-ext-chip > svg:last-child')).backgroundColor),
+      'rgba(0, 0, 0, 0)');
+    assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#crumbs :is(.cp-copy-id, .cp-ext-chip, .cp-num-chip)')].map(el => el.dataset.cpTip)),
+      ['Copy user ID', 'Copy extension', 'Copy number']);
 
     await chip.hover();
     await page.waitForTimeout(300);
@@ -170,6 +199,7 @@ test('the user-id pill copies the id, and the extension chip joined to it copies
     assert.equal(await page.evaluate(() => document.querySelector('#crumbs span.headerAuthLevel')
       .getAttribute('data-cp-extension-state')), 'done', 'a remembered extension is not read again');
     assert.ok((await read()).joined);
+    await page.waitForFunction(() => document.querySelector('#crumbs .cp-bc .cp-num-chip')?.textContent.trim() === '262-262-2622');
 
     // Another user never shows this user's extension.
     await page.evaluate(html => { document.getElementById('crumbs').innerHTML = html; }, trail().replace('TriSandbox1002', 'TriSandbox1003'));
@@ -180,8 +210,9 @@ test('the user-id pill copies the id, and the extension chip joined to it copies
     await page.evaluate(() => {
       const list = document.createElement('table');
       list.innerHTML = '<tbody><tr><td class="listHeader">User ID <script>void 0</script></td><td class="listHeader">Last Name</td>' +
-        '<td class="listHeader">Extension</td></tr><tr id="Row0"><td><a class="tableLink">TriSandbox1004</a></td><td>Four</td>' +
-        '<td>1004</td></tr><tr id="Row1"><td><a class="tableLink">TriSandbox1005</a></td><td>Five</td><td>&nbsp;</td></tr></tbody>';
+        '<td class="listHeader">Phone Number</td><td class="listHeader">Extension</td></tr><tr id="Row0"><td><a class="tableLink">TriSandbox1004</a></td>' +
+        '<td>Four</td><td>+1-2244830060</td><td>1004</td></tr><tr id="Row1"><td><a class="tableLink">TriSandbox1005</a></td><td>Five</td><td>&nbsp;</td>' +
+        '<td>&nbsp;</td></tr></tbody>';
       document.querySelector('td[width="82%"]').append(list);
     });
     const openListed = async (row, user) => {
@@ -193,10 +224,21 @@ test('the user-id pill copies the id, and the extension chip joined to it copies
         chip: document.querySelector('#crumbs .cp-ext-chip').textContent.replace(/\s+/g, ' ').trim(),
         tip: document.querySelector('#crumbs .cp-ext-chip').dataset.cpTip,
         state: document.querySelector('#crumbs span.headerAuthLevel').getAttribute('data-cp-extension-state'),
+        number: document.querySelector('#crumbs .cp-num-chip')?.textContent.trim() || '',
       }));
     };
-    assert.deepEqual(await openListed('Row0', 'TriSandbox1004'), { chip: 'EXT 1004', tip: 'Copy extension 1004', state: 'done' });
-    assert.deepEqual(await openListed('Row1', 'TriSandbox1005'), { chip: 'EXT –', tip: 'This user has no extension', state: 'done' },
+    assert.deepEqual(await openListed('Row0', 'TriSandbox1004'), { chip: 'EXT 1004', tip: 'Copy extension', state: 'done', number: '224-483-0060' },
+      "the Users list's number comes along, without its +1");
+    assert.deepEqual(await openListed('Row1', 'TriSandbox1005'), { chip: 'EXT –', tip: 'This user has no extension', state: 'done', number: '' },
       'a listed user without an extension is known too');
+
+    // A hunt group (and an auto attendant, a call center) has the same id pill: its number and extension join it.
+    await page.evaluate(html => { document.getElementById('crumbs').innerHTML = html; },
+      trail().replace('>Users<', '>Hunt Groups<').replace('TriSandbox1002', 'StanMikitaHG'));
+    await page.waitForFunction(() => document.querySelector('#crumbs .cp-bc span.headerAuthLevel')?.textContent.trim() === 'StanMikitaHG' &&
+      document.querySelector('#crumbs .cp-ext-chip'));
+    await mark('done', '0040', '2244830040');
+    await page.waitForFunction(() => document.querySelector('#crumbs .cp-num-chip')?.textContent.trim() === '224-483-0040' &&
+      document.querySelector('#crumbs .cp-ext-chip').textContent.includes('0040'));
   } finally { await browser.close(); }
 });

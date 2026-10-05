@@ -1086,10 +1086,10 @@
     var cpListFill = null;
     var CP_LIST_FILL_MAX_PAGES = 50;
     function cpListFillStop() {
-      var s = cpListFill;
-      if (!s) return Promise.resolve();
-      s.abort = true;
-      return (s.busy || Promise.resolve()).then(function () {}, function () {});
+      var s = cpListFill, x = cpListExportRun;   // a list export walking its pages stops at the same moments
+      if (x) x.abort = true;
+      if (s) s.abort = true;
+      return Promise.all([(s && s.busy) || null, (x && x.busy) || null]).then(function () {}, function () {});
     }
     function cpJsString(v) {
       return String(v).replace(/\\u([0-9a-fA-F]{4})/g, function (m, h) { return String.fromCharCode(parseInt(h, 16)); })
@@ -1189,6 +1189,102 @@
           function (e) { cpDbg("[pjax] list fill stopped:", e && e.message); announce(state.abort ? "stopped" : "failed"); });
     }
     window.cpListFillStart = cpListFillStart;
+
+    // --- List export: every result of a search, all its pages, as an Excel workbook ------------------------
+    // lists.js asks with cp:list-export (JSON: the columns it shows, their names, and the rows when the whole list
+    // is here) and hears back with cp:list-export-status (working · done · failed). When CommPilot's own pager
+    // stayed (more pages than the fill brings in), every page is walked here with page.jsp, the same sequential,
+    // token-threaded walk as the fill, and CommPilot's list is put back on the page shown. Navigation stops it
+    // (cpListFillStop) and waits for its request.
+    var cpListExportRun = null;
+    function cpListExportStatus(state, extra) {
+      var detail = { state: state };
+      for (var k in (extra || {})) detail[k] = extra[k];
+      document.dispatchEvent(new CustomEvent("cp:list-export-status", { detail: JSON.stringify(detail) }));
+    }
+    // A fetched cell as lists.js reads one on screen: its text without the wiring scripts; a ticked box or a check
+    // image is "Yes".
+    function cpListExportText(td) {
+      if (!td) return "";
+      var copy = td.cloneNode(true);
+      copy.querySelectorAll("script, style").forEach(function (el) { el.remove(); });
+      var text = (copy.textContent || "").replace(/\s+/g, " ").trim();
+      if (text) return text;
+      var box = td.querySelector('input[type="checkbox"]');
+      if (box) return box.checked || box.hasAttribute("checked") ? "Yes" : "No";
+      return td.querySelector("img") ? "Yes" : "";
+    }
+    function cpListExportSave(headers, rows) {
+      var raw = (document.title || "List").replace(/\s+/g, " ").trim();
+      var pad = function (n) { return (n < 10 ? "0" : "") + n; }, d = new Date();
+      var stamp = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+      var name = raw.replace(/\s*:\s*/g, " - ").replace(/[\\/*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || "List";
+      var bytes = cpXlsxBuild([{ name: cpXlsxSheetName(raw.split(/:\s*/).pop() || "List", {}), headers: headers, rows: rows,
+        widths: cpUxpWidths(headers, rows) }]);
+      cpUxpDownloadBlob(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), name + " " + stamp + ".xlsx");
+    }
+    function cpListExport(req) {
+      var done = function (rows) {
+        try { cpListExportSave(req.headers, rows); cpListExportStatus("done", { count: rows.length }); }
+        catch (e) { console.warn("[pjax] list export", e); cpListExportStatus("failed", { message: "Could not build the workbook" }); }
+      };
+      if (req.complete) { done(req.rows || []); return; }
+      var desc = cpSearchDescriptor(document);
+      if (!desc || !(req.pages > 0)) { cpListExportStatus("failed", { message: "This list cannot be read page by page" }); return; }
+      var run = { abort: false, busy: null }, rows = [];
+      var hop = function (value) {
+        if (run.abort) return Promise.reject(new Error("stopped"));
+        var tokEl = document.getElementsByName("formtokenserial")[0];
+        run.busy = cpFollow(location.origin + "/commpilot/Common/page.jsp",
+          { returnPage: desc.returnPage, tableName: desc.tableName, value: String(value) }, tokEl ? tokEl.value : null, 0)
+          .then(function (res) {
+            run.busy = null;
+            if (!res || res.auth === false || res.err || !res.doc) throw new Error("page " + (value + 1) + " failed");
+            var nt = res.doc.getElementsByName("formtokenserial")[0];
+            if (nt && nt.value) cpWriteToken(nt.value);
+            return res.doc;
+          }, function (e) { run.busy = null; throw e; });
+        return run.busy;
+      };
+      cpListFillStop().then(function () {
+        cpListExportRun = run;
+        return new Promise(function (resolve, reject) {   // only once no other token-bearing request is out
+          var t0 = Date.now();
+          (function idle() {
+            if (run.abort) { reject(new Error("stopped")); return; }
+            if (cpInflightPosts === 0 && !cpNavPending) { resolve(); return; }
+            if (Date.now() - t0 > 5000) { reject(new Error("busy")); return; }
+            setTimeout(idle, 50);
+          })();
+        });
+      }).then(function () {
+        var seq = Promise.resolve();
+        for (var p = 0; p < req.pages; p++) (function (p) {
+          seq = seq.then(function () { return hop(p); }).then(function (doc) {
+            doc.querySelectorAll('tr[id^="Row"]').forEach(function (tr) {
+              rows.push(req.columns.map(function (i) { return cpListExportText(tr.children[i]); }));
+            });
+            cpListExportStatus("working", { done: p + 1, total: req.pages });
+          });
+        })(p);
+        return seq;
+      }).then(function () { return hop(Math.max(0, (req.page || 1) - 1)); })   // CommPilot's list back on the page shown
+        .then(function () {
+          if (cpListExportRun === run) cpListExportRun = null;
+          done(rows);
+        }, function (e) {
+          if (cpListExportRun === run) cpListExportRun = null;
+          cpDbg("[pjax] list export stopped:", e && e.message);
+          cpListExportStatus("failed", { message: run.abort ? "Stopped: the page changed" : "CommPilot did not return every page" });
+        });
+    }
+    if (window === window.top) {
+      document.addEventListener("cp:list-export", function (e) {
+        var req = null;
+        try { req = JSON.parse(e.detail); } catch (x) {}
+        if (req && Array.isArray(req.columns) && Array.isArray(req.headers)) cpListExport(req);
+      });
+    }
     if (window === window.top) {
       document.addEventListener("cp:reskin", cpListFillStart);
       if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", cpListFillStart, { once: true });
@@ -6228,10 +6324,11 @@
       });
     }
 
-    // The breadcrumb's extension chip (enhancer.js): when a user's board opens, read the user's extension
-    // from their Addresses page, first in the board's read queue. The result is marked on the id element
-    // (data-cp-extension-state loading|done|failed, data-cp-extension) and announced with cp:user-extension;
-    // enhancer.js keeps it for the user, so each user is read once a session.
+    // The breadcrumb's extension and number chips (enhancer.js): when a user's board opens (or a hunt group's, an
+    // auto attendant's or a call center's, which have user boards too), read the extension and phone number from
+    // the board's own Addresses option, first in the board's read queue. The result is marked on the id element
+    // (data-cp-extension-state loading|done|failed, data-cp-extension, data-cp-number) and announced with
+    // cp:user-extension; enhancer.js keeps it for the entity, so each is read once a session.
     function cpUserIdElement() {
       var cells = document.querySelectorAll("td.headerBar");
       for (var i = 0; i < cells.length; i++) {
@@ -6244,19 +6341,29 @@
     function cpReadUserExtension() {
       var id = cpUserIdElement(), user = cpIdText(id);
       if (!user || id.hasAttribute("data-cp-extension-state")) return;
-      var mark = function (state, ext) {
+      var mark = function (state, ext, number) {
         var live = cpUserIdElement();   // pjax may have rewritten the header since the read started
         if (!live || cpIdText(live) !== user) return;
         live.setAttribute("data-cp-extension-state", state);
-        if (state === "done") live.setAttribute("data-cp-extension", ext);
+        if (state === "done") { live.setAttribute("data-cp-extension", ext); live.setAttribute("data-cp-number", number || ""); }
         document.dispatchEvent(new Event("cp:user-extension"));
       };
+      // A user's Addresses is /User/Addresses/; a service's is its own (/Group/Hunt_Group/Addresses/index.jsp?key=…).
+      var board = document.querySelector(".cp-console"), path = "/commpilot/User/Addresses/";
+      [].some.call(board ? board.querySelectorAll("a.navMenuItem[name]") : [], function (a) {
+        if (!/^\s*addresses\s*$/i.test(a.textContent || "")) return false;
+        path = "/commpilot" + a.getAttribute("name");
+        return true;
+      });
       mark("loading");
-      cpReadBoardPage("/commpilot/User/Addresses/").then(function (doc) {
-        var field = doc && doc.querySelector('input#extension[name="extension"]');
-        // The Addresses page must be this user's: CommPilot answers for its current target, not for a URL.
+      cpReadBoardPage(path).then(function (doc) {
+        var field = doc && doc.querySelector('input[name="extension"]');
+        // The Addresses page must be this entity's: CommPilot answers for its current target, not for a URL.
         if (!field || cpIdText(doc.querySelector("td.headerBar span.headerAuthLevel")) !== user) { mark("failed"); return; }
-        mark("done", String(field.getAttribute("value") || "").trim());
+        var select = doc.querySelector('select[name="phoneNumber"]');
+        var chosen = select && (select.querySelector("option[selected]") || select.options[select.selectedIndex]);
+        var number = chosen ? chosen.value : (doc.querySelector('input[name="phoneNumber"]') || {}).value;
+        mark("done", String(field.getAttribute("value") || "").trim(), String(number || "").trim());
       });
     }
 
@@ -7773,7 +7880,7 @@
             currentBoard.querySelectorAll(".cp-leaf-summary:not([data-cp-peek-started])").forEach(function (box) { box.remove(); });
             return;
           }
-          try { cpHarvestPageMenu(currentBoard); } catch (e) { console.warn("[pjax] page menu harvest", e); }
+          try { cpHarvestPageMenu(currentBoard); cpDecorateBoardMenu(); } catch (e) { console.warn("[pjax] page menu harvest", e); }
           if (!/^[RGU]\d+$/.test(secs[0].getAttribute("data-cp-folder") || "")) return;
           if (/^U/.test(secs[0].getAttribute("data-cp-folder"))) { cpEnableServiceSwitches(currentBoard); cpReadUserExtension(); }
           secs.forEach(function (s) { cpSummarizeLeaves(s.querySelector(".cp-console-body")); });
@@ -7979,20 +8086,21 @@
     function cpClosePageMenu() {
       var menu = document.querySelector(".cp-page-menu");
       if (menu) menu.remove();
-      var pill = document.querySelector(".cp-page-pill");
-      if (pill) pill.setAttribute("aria-expanded", "false");
+      document.querySelectorAll(".cp-page-pill, [data-cp-crumb-menu]").forEach(function (pill) { pill.setAttribute("aria-expanded", "false"); });
       document.removeEventListener("click", cpPageMenuOutside, true);
       document.removeEventListener("keydown", cpPageMenuKeys, true);
     }
     function cpPageMenuOutside(e) {
-      if (e.target.closest && e.target.closest(".cp-page-menu, .cp-page-pill")) return;
+      if (e.target.closest && e.target.closest(".cp-page-menu, .cp-page-pill, [data-cp-crumb-menu]")) return;
       cpClosePageMenu();
     }
     function cpPageMenuKeys(e) {
-      if (e.key === "Escape") { cpClosePageMenu(); var pill = document.querySelector(".cp-page-pill"); if (pill) pill.focus(); }
+      if (e.key === "Escape") { cpClosePageMenu(); var pill = document.querySelector(".cp-page-pill, [data-cp-crumb-menu]"); if (pill) pill.focus(); }
     }
     function cpDecoratePageMenu() {
       cpClosePageMenu();
+      var boardPill = document.querySelector("td.headerBar [data-cp-crumb-menu]");   // the board's menu stays on the board
+      if (boardPill) cpUnmarkBoardMenu(boardPill);
       document.querySelectorAll(".cp-page-pill").forEach(function (p) { p.remove(); });
       var data = null;
       try { data = JSON.parse(sessionStorage.getItem(cpPageMenuKey()) || "null"); } catch (e) {}
@@ -8022,6 +8130,67 @@
       });
       anchor.parentNode.insertBefore(pill, anchor.nextSibling);
     }
+    // On a board (a level's base menu) the breadcrumb's last pill opens the level's menu, as the page pill does on the
+    // level's other pages: a ⌄ inside the pill, and a click on it (not on its copy icon) opens the list instead of
+    // reloading the level. It lists the level's options once the board has been read through, and opens on the folder
+    // at the top of the board.
+    var CP_CRUMB_CARET = '<svg class="cp-crumb-caret" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" ' +
+      'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+    function cpBoardMenuPill() {
+      var cell = [].slice.call(document.querySelectorAll("td.headerBar")).find(function (td) {
+        return td.querySelector("a.headerAuthLevelLink, span.headerAuthLevel");
+      });
+      if (!cell) return null;
+      return cell.querySelector("span.headerAuthLevel") || [].slice.call(cell.querySelectorAll("a.headerAuthLevelLink")).pop() || null;
+    }
+    function cpUnmarkBoardMenu(pill) {
+      ["data-cp-crumb-menu", "role", "tabindex", "aria-haspopup", "aria-expanded", "title"].forEach(function (a) { pill.removeAttribute(a); });
+      pill.querySelectorAll(":scope > .cp-crumb-caret").forEach(function (c) { c.remove(); });
+      pill.__cpMenu = null;
+    }
+    function cpDecorateBoardMenu() {
+      var pill = cpBoardMenuPill(), marked = document.querySelector("td.headerBar [data-cp-crumb-menu]"), data = null;
+      try { data = JSON.parse(sessionStorage.getItem(cpPageMenuKey()) || "null"); } catch (e) {}
+      var ready = !!(pill && document.querySelector(".cp-console") && data && data.folders && data.folders.length);
+      if (marked && (!ready || marked !== pill)) cpUnmarkBoardMenu(marked);
+      if (!ready) return;
+      pill.__cpMenu = data;
+      if (pill.hasAttribute("data-cp-crumb-menu")) return;
+      pill.setAttribute("data-cp-crumb-menu", "");
+      pill.setAttribute("role", "button");
+      pill.setAttribute("tabindex", "0");
+      pill.setAttribute("aria-haspopup", "true");
+      pill.setAttribute("aria-expanded", "false");
+      pill.title = "All options at this level";
+      pill.insertAdjacentHTML("beforeend", CP_CRUMB_CARET);
+    }
+    function cpToggleBoardMenu(pill) {
+      if (document.querySelector(".cp-page-menu")) { cpClosePageMenu(); return; }
+      var data = pill.__cpMenu;
+      if (!data) return;
+      var cons = document.querySelector(".cp-console"), top = cons ? cons.getBoundingClientRect().top : 0, name = "";
+      [].some.call(document.querySelectorAll(".cp-console-section"), function (sec) {
+        if (sec.getBoundingClientRect().bottom <= top + 8) return false;
+        name = ((sec.querySelector(".cp-console-head-name") || {}).textContent || "").trim();
+        return true;
+      });
+      var folder = data.folders.find(function (f) { return f.name === name; }) || data.folders[0];
+      cpOpenPageMenu(pill, data, { folder: folder, option: null });
+    }
+    // Ahead of CommPilot's own handler on a level link, so the pill opens the menu instead of reloading the level.
+    document.addEventListener("click", function (e) {
+      var pill = e.target.closest && e.target.closest("td.headerBar [data-cp-crumb-menu]");
+      if (!pill || e.target.closest(".cp-copy-id")) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      cpToggleBoardMenu(pill);
+    }, true);
+    document.addEventListener("keydown", function (e) {
+      if ((e.key !== "Enter" && e.key !== " ") || !(e.target.matches && e.target.matches("td.headerBar [data-cp-crumb-menu]"))) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      cpToggleBoardMenu(e.target);
+    }, true);
     function cpOpenPageMenu(pill, data, current) {
       var menu = document.createElement("div");
       menu.className = "cp-page-menu";
@@ -8102,6 +8271,8 @@
           cpPopScroll = null;
           requestAnimationFrame(function () { cell.scrollTop = restoreTop; });
         }
+      } else if (cell.querySelector(".cp-console")) {
+        try { cpDecorateBoardMenu(); } catch (e) { console.warn("[pjax] board menu", e); }
       } else if (!cell.querySelector(".cp-console")) {
         // cpHook's fetched page schedules its own DOMContentLoaded wiring in
         // microtasks. Let those handlers finish against the native menu before
@@ -8110,7 +8281,10 @@
           cpBoardBuildQueued = true;
           Promise.resolve().then(function () {
             cpBoardBuildQueued = false;
-            if (cell.isConnected && cell.querySelector('a.navMenuItem') && !cell.querySelector('.cp-console')) cpBuildConsole();
+            if (cell.isConnected && cell.querySelector('a.navMenuItem') && !cell.querySelector('.cp-console')) {
+              cpBuildConsole();
+              try { cpDecorateBoardMenu(); } catch (e) { console.warn("[pjax] board menu", e); }   // a level read through before
+            }
           });
         }
       }

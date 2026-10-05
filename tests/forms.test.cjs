@@ -94,6 +94,89 @@ test('list search criteria become one toolbar line that still drives CommPilot�
   } finally { await browser.close(); }
 });
 
+// The Users search row with CommPilot's own getChoice (trimmed to four fields): picking a field builds the row a new
+// operator list and a new value box, an empty text box or a list of values.
+const usersSearchPage = shell(`<form name="mainForm"><table class="list" width="100%"><tbody>
+  <tr id="trHeader" class="listHeader"><td colspan="6">Enter search criteria below</td></tr>
+  <tr id="tr0"><td id="td00" align="center"><select id="findKey0" name="findKey0">
+      <option value="UserID" selected>User ID</option><option value="UserLastName">Last Name</option>
+      <option value="Extension">Extension</option><option value="ExactUserDepartment">Department</option></select></td>
+    <td id="td01" align="center"><select id="findOp0" name="findOp0"><option value="STARTS_WITH" selected>Starts With</option>
+      <option value="CONTAINS">Contains</option><option value="EQUAL_TO">Equal To</option></select></td>
+    <td id="td02" align="center"><input type="text" id="findValue0" name="findValue0" value="" maxlength="161" size="30"></td>
+    <td id="td03" align="center"></td><td id="td04" align="center"></td>
+    <td id="td05" align="center"><input type="submit" class="bwbutton" id="search0" name="search" value="Search"></td></tr>
+  <tr id="trLast"><td colspan="6"></td></tr>
+  </tbody></table></form>
+  <script>
+    var findOp = [], findValue = [];
+    var findOpEqualTO = document.createElement('select'); findOpEqualTO.options[0] = new Option('Equal To', 'EQUAL_TO');
+    var findOpFull = document.createElement('select');
+    findOpFull.options[0] = new Option('Starts With', 'STARTS_WITH'); findOpFull.options[1] = new Option('Contains', 'CONTAINS');
+    findOpFull.options[2] = new Option('Equal To', 'EQUAL_TO');
+    [161, 30, 20].forEach(function (max, i) {
+      findOp[i] = findOpFull; findValue[i] = document.createElement('input'); findValue[i].setAttribute('type', 'text');
+      findValue[i].setAttribute('maxLength', max);
+    });
+    findOp[3] = findOpEqualTO; findValue[3] = document.createElement('select');
+    findValue[3].options[0] = new Option('Basement', 'G+Basement'); findValue[3].options[1] = new Option('Front Counter', 'G+Front Counter');
+    function getChoice(e) {
+      var rowNum = e.target.id.substring(7), index = e.target.selectedIndex;
+      var findOpOld = document.getElementById('findOp' + rowNum), findOpNew = document.createElement('select');
+      for (var i = 0; i < findOp[index].length; i++) findOpNew.options[i] = new Option(findOp[index].options[i].text, findOp[index].options[i].value);
+      findOpNew.setAttribute('id', 'findOp' + rowNum); findOpNew.setAttribute('name', 'findOp' + rowNum);
+      findOpOld.parentNode.replaceChild(findOpNew, findOpOld);
+      var findValueOld = document.getElementById('findValue' + rowNum), sample = findValue[index], findValueNew;
+      if (sample.tagName == 'SELECT') {
+        findValueNew = document.createElement('select');
+        for (var j = 0; j < sample.length; j++) findValueNew.options[j] = new Option(sample.options[j].text, sample.options[j].value);
+      } else {
+        findValueNew = document.createElement('input'); findValueNew.setAttribute('type', 'text');
+        findValueNew.setAttribute('maxLength', sample.maxLength);
+      }
+      findValueNew.setAttribute('id', 'findValue' + rowNum); findValueNew.setAttribute('name', 'findValue' + rowNum);
+      findValueOld.parentNode.replaceChild(findValueNew, findValueOld);
+    }
+    document.getElementById('findKey0').addEventListener('change', function (event) { getChoice(event); });
+  </script>`);
+
+test('changing a search field keeps the text typed and the operator picked', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await open(browser, usersSearchPage);
+    await page.addStyleTag({ path: path.join(root, 'src/content/enhancer.css') });   // the searchable dropdowns
+    await page.addScriptTag({ path: path.join(root, 'src/content/enhancer.js') });
+    const pick = async (id, label) => {
+      await page.locator(`#${id}`).locator('xpath=..').locator('.bw-select-trigger').click();
+      await page.locator('.bw-search-result', { hasText: label }).first().click();
+      await page.waitForTimeout(100);
+    };
+    const row = () => page.evaluate(() => {
+      const box = document.getElementById('findValue0'), ops = document.getElementById('findOp0');
+      return { box: box.tagName, value: box.value, op: ops.value,
+        shown: ops.closest('.bw-select-shell')?.querySelector('.bw-select-trigger')?.getAttribute('aria-label') };
+    });
+    await page.locator('#findOp0[data-bw-searchable="1"]').waitFor({ state: 'attached' });
+    await page.locator('#findValue0').fill('smith');
+    await pick('findOp0', 'Contains');
+    await pick('findKey0', 'Last Name');
+    assert.deepEqual(await row(), { box: 'INPUT', value: 'smith', op: 'CONTAINS', shown: 'findOp0: Contains. Search options' }, 'a new box, the same text and operator');
+    await pick('findKey0', 'Department');
+    assert.deepEqual((({ box, op }) => ({ box, op }))(await row()), { box: 'SELECT', op: 'EQUAL_TO' }, 'a list of values takes no text');
+    await pick('findKey0', 'User ID');
+    assert.deepEqual(await row(), { box: 'INPUT', value: 'smith', op: 'CONTAINS', shown: 'findOp0: Contains. Search options' }, 'both come back after the list');
+    // A plain change of the native select, as a script makes it, carries the text too; it is cut to the new box's length.
+    await page.locator('#findValue0').fill('a-very-long-search-text-here');
+    await page.evaluate(() => { const key = document.getElementById('findKey0'); key.value = 'Extension'; key.dispatchEvent(new Event('change', { bubbles: true })); });
+    assert.equal((await row()).value, 'a-very-long-search-t', 'Extension holds 20 characters');
+    await pick('findKey0', 'Last Name');
+    await page.locator('#findValue0').fill('');
+    await pick('findKey0', 'User ID');
+    assert.equal((await row()).value, '', 'a box emptied on purpose stays empty');
+  } finally { await browser.close(); }
+});
+
 test('settings forms become aligned rows whose controls are CommPilot’s own inputs', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });
@@ -105,10 +188,21 @@ test('settings forms become aligned rows whose controls are CommPilot’s own in
     assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('td.enduserbody > table.fx-native')).display), 'none');
     // Two short choices are one segmented control; the real radios sit behind their labels.
     assert.deepEqual(await page.locator('.fx-seg .fx-opt').allInnerTexts(), ['On', 'Off']);
+    // On | Off is colour-coded like the board's switches: the chosen side in the theme's On or Off colour.
+    const lit = () => page.evaluate(() => [...document.querySelectorAll('.fx-seg .fx-opt')].map(opt => ({ tone: opt.dataset.tone,
+      color: getComputedStyle(opt).color, on: getComputedStyle(document.body).getPropertyValue('--d-on').trim(),
+      off: getComputedStyle(document.body).getPropertyValue('--d-off').trim() })));
+    const hex = rgb => '#' + rgb.match(/\d+/g).slice(0, 3).map(n => (+n).toString(16).padStart(2, '0')).join('');
+    let tones = await lit();
+    assert.deepEqual(tones.map(t => t.tone), ['on', 'off']);
+    assert.equal(hex(tones[1].color), tones[1].off, 'Off, chosen, is in the Off colour');
     const number = page.locator('.fx input[name="forwardedToNumber"]');
     assert.equal(await number.isDisabled(), true, 'the real number field moved into the layout, still disabled while Off');
     await page.locator('.fx-seg .fx-opt', { hasText: 'On' }).click();
     assert.equal(await page.evaluate(() => document.getElementById('active_true').checked), true);
+    tones = await lit();
+    assert.equal(hex(tones[0].color), tones[0].on, 'On, chosen, is in the On colour');
+    assert.notEqual(hex(tones[1].color), tones[1].off, 'Off is quiet once not chosen');
     assert.equal(await number.isEnabled(), true, 'CommPilot’s own script enabled the number');
     await number.fill('2125550100');
     // The checkbox is a switch beside its words; a click on the words toggles it.

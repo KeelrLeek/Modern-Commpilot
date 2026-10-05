@@ -51,10 +51,13 @@
     return /^\/commpilot\/group\/members(?:\/|$)/i.test(location.pathname);
   }
 
+  // The levels whose id pill gets the copy icon and the extension and number chips: a user, and the services that
+  // work like one (each opened from its group list, whose link sits right before the id).
+  const ENTITY_LISTS = new Set(["users", "hunt groups", "hunt group", "auto attendants", "auto attendant", "call centers", "call center"]);
   function userBreadcrumb() {
     for (const header of document.querySelectorAll("td.headerBar")) {
       const links = Array.from(header.querySelectorAll("a.headerAuthLevelLink"));
-      const users = links.find(link => normalize(link.textContent) === "users");
+      const users = links.find(link => ENTITY_LISTS.has(normalize(link.textContent)));
       const current = header.querySelector("span.headerAuthLevel");
       if (!users || !current ||
           !(users.compareDocumentPosition(current) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
@@ -99,6 +102,22 @@
     return visible === null ? cachedExtension(context) || "" : visible;
   }
 
+  // The phone number, kept beside the extension (null: not known yet, "": none). CommPilot gives it as ten digits on
+  // the Addresses page and as +1-NNNNNNNNNN in lists; it is kept as digits without the leading 1.
+  const numberKey = context => context.cacheKey + "#number";
+  function cachedNumber(context) {
+    try { return sessionStorage.getItem(numberKey(context)); } catch (_) { return null; }
+  }
+  function rememberNumber(context, value) {
+    try { sessionStorage.setItem(numberKey(context), value || ""); } catch (_) {}
+  }
+  function numberDigits(text) {
+    const digits = String(text || "").replace(/\D/g, "");
+    return digits.length === 11 && digits[0] === "1" ? digits.slice(1) : digits;
+  }
+  const numberShown = digits => /^\d{10}$/.test(digits) ? `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}` : digits;
+  const numberFor = context => cachedNumber(context) || "";
+
   // A Users list shows each user's extension: note it for the row being opened, so the user's pages know it
   // without pjax.js reading their Addresses page (which takes BroadWorks seconds in a group with many numbers
   // and devices). The header and the rows share column positions.
@@ -113,22 +132,25 @@
     const head = row?.parentElement?.querySelector(":scope > tr:has(> td.listHeader)");
     if (!head) return;
     const names = Array.from(head.children, cell => normalize(cellText(cell)));
-    const idAt = names.indexOf("user id"), extAt = names.indexOf("extension");
+    const idAt = names.indexOf("user id"), extAt = names.indexOf("extension"), numberAt = names.indexOf("phone number");
     if (idAt < 0 || extAt < 0 || row.children.length !== names.length) return;
     const userId = cellText(row.children[idAt]);
     if (!userId) return;
     try {
       sessionStorage.setItem(LISTED_KEY, JSON.stringify({
-        origin: location.origin, userId, extension: cellText(row.children[extAt]), at: Date.now()
+        origin: location.origin, userId, extension: cellText(row.children[extAt]),
+        number: numberAt < 0 ? null : numberDigits(cellText(row.children[numberAt])), at: Date.now()
       }));
     } catch (_) {}
   }
   function adoptListedExtension(context) {
-    if (cachedExtension(context) !== null) return;
+    if (cachedExtension(context) !== null && cachedNumber(context) !== null) return;
     try {
       const listed = JSON.parse(sessionStorage.getItem(LISTED_KEY) || "null");
-      if (listed && listed.origin === location.origin && normalize(listed.userId) === normalize(context.userId) &&
-          Date.now() - listed.at < 10 * 60 * 1000) rememberExtension(context, listed.extension);
+      if (!listed || listed.origin !== location.origin || normalize(listed.userId) !== normalize(context.userId) ||
+          Date.now() - listed.at >= 10 * 60 * 1000) return;
+      if (cachedExtension(context) === null) rememberExtension(context, listed.extension);
+      if (cachedNumber(context) === null && typeof listed.number === "string") rememberNumber(context, listed.number);
     } catch (_) {}
   }
 
@@ -168,9 +190,10 @@
   }
 
   // CommPilot 2.0 (a palette is active): Copy User ID is an icon on the breadcrumb's user-id pill, and the
-  // extension shows in a chip joined to it (crumbs.js keeps the chip beside the pill). pjax.js reads the
-  // extension from the user's Addresses page when the user's board opens and marks the id element
-  // (data-cp-extension-state / data-cp-extension); a value already cached for this user is used as is.
+  // extension and phone number show in chips joined to it (crumbs.js keeps them beside the pill), for users and the
+  // services that work like one (hunt groups, auto attendants, call centers). pjax.js reads both from the entity's
+  // Addresses page when its board opens and marks the id element (data-cp-extension-state, data-cp-extension,
+  // data-cp-number); values already cached for the entity, or noted from the Users list, are used as is.
   // CommPilot without the theme keeps the toolbar below.
   const themed = () => Boolean(document.documentElement.dataset.cpDirection) &&
     document.body?.id === "initBody.menuTemplate";
@@ -207,17 +230,17 @@
   function copyFromPill(kind, button) {
     const context = userBreadcrumb();
     if (!context) return;
-    const value = kind === "user-id" ? context.userId.split("@", 1)[0].trim() : extensionFor(context);
+    const value = kind === "user-id" ? context.userId.split("@", 1)[0].trim() : kind === "number" ? numberFor(context) : extensionFor(context);
     if (!value) return;
     writeClipboard(value, ok => {
       showTip(button, ok ? `Copied ${value}` : "Could not copy", true);
       if (!ok) return;
       button.classList.add("cp-copied");
-      const icon = button.querySelector("svg");
+      const icon = button.querySelector("svg:last-of-type");   // the copy icon (the number chip leads with a phone)
       if (icon) icon.outerHTML = CHECK_ICON;
       setTimeout(() => {
         button.classList.remove("cp-copied");
-        const done = button.querySelector("svg");
+        const done = button.querySelector("svg:last-of-type");
         if (done) done.outerHTML = COPY_ICON;
       }, 1600);
     });
@@ -229,11 +252,13 @@
     context.header.querySelector(".bw-copy-controls[data-bw-owned='1']")?.remove();
     if (tipFor && !tipFor.isConnected) hideTip();   // pjax rewrote the header under the pointer
     const read = span.getAttribute("data-cp-extension-state");
-    const cached = cachedExtension(context);
+    const cached = cachedExtension(context), cachedNo = cachedNumber(context);
     if (read === "done" && span.hasAttribute("data-cp-extension")) {
       rememberExtension(context, span.getAttribute("data-cp-extension"));
-    } else if (!read && cached !== null) {   // already known for this user: nothing for pjax.js to read
+      rememberNumber(context, numberDigits(span.getAttribute("data-cp-number") || ""));   // a finished read knows it, even as none
+    } else if (!read && cached !== null && cachedNo !== null) {   // both already known: nothing for pjax.js to read
       span.setAttribute("data-cp-extension", cached);
+      span.setAttribute("data-cp-number", cachedNo);
       span.setAttribute("data-cp-extension-state", "done");
     }
     let idButton = span.querySelector("button.cp-copy-id");
@@ -246,7 +271,9 @@
       idButton.innerHTML = COPY_ICON;
       idButton.addEventListener("click", event => { event.stopPropagation(); copyFromPill("user-id", idButton); });
       tipOn(idButton);
-      span.append(idButton);   // an icon only: the id's text (read by the tools and pjax.js) is unchanged
+      // An icon only: the id's text (read by the tools and pjax.js) is unchanged. On a board it goes before the pill's ⌄.
+      const caret = span.querySelector(":scope > .cp-crumb-caret");
+      if (caret) caret.before(idButton); else span.append(idButton);
     }
     let chip = context.header.querySelector("button.cp-ext-chip");
     if (!chip) {
@@ -257,6 +284,7 @@
       tipOn(chip);
       span.after(chip);
     }
+    syncNumberChip(context, chip);
     const ext = extensionFor(context);
     const state = ext ? "value" : span.getAttribute("data-cp-extension-state") || "unknown";
     if (chip.dataset.state === state + ext) return;
@@ -266,8 +294,33 @@
     chip.replaceChildren("EXT ", value);
     chip.insertAdjacentHTML("beforeend", state === "loading" ? '<span class="cp-ext-spin" aria-hidden="true"></span>' : ext ? COPY_ICON : "");
     chip.setAttribute("aria-disabled", String(!ext));   // not disabled: its tooltip still explains why
-    chip.dataset.cpTip = ext ? `Copy extension ${ext}` : state === "loading" ? "Loading extension…" :
+    chip.dataset.cpTip = ext ? "Copy extension" : state === "loading" ? "Loading extension…" :
       state === "done" ? "This user has no extension" : "Open Profile > Addresses to load the extension";
+    chip.setAttribute("aria-label", chip.dataset.cpTip);
+  }
+
+  // The number chip, joined after the extension chip once the number is known (none: no chip).
+  const PHONE_ICON = svgIcon('<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7A2 2 0 0 1 22 16.9Z"/>');
+  function syncNumberChip(context, after) {
+    const number = numberFor(context);
+    let chip = context.header.querySelector("button.cp-num-chip");
+    if (!number) { chip?.remove(); return; }
+    if (!chip) {
+      chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "cp-num-chip cp-bc-attach";
+      chip.addEventListener("click", () => copyFromPill("number", chip));
+      tipOn(chip);
+      after.after(chip);
+    }
+    if (chip.dataset.value === number) return;
+    chip.dataset.value = number;
+    const value = document.createElement("b");
+    value.textContent = numberShown(number);
+    chip.replaceChildren(value);
+    chip.insertAdjacentHTML("afterbegin", PHONE_ICON);
+    chip.insertAdjacentHTML("beforeend", COPY_ICON);
+    chip.dataset.cpTip = "Copy number";
     chip.setAttribute("aria-label", chip.dataset.cpTip);
   }
 

@@ -195,6 +195,23 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] {
     }
     & button.cp-pager-btn:hover:not(:disabled) { border-color: var(--d-accent) !important; background: var(--d-raised) !important; }
     & button.cp-pager-btn:disabled { opacity: .35; cursor: default; }
+    /* Export (lists.js): every result of the search to Excel, at the pager's right end, drawn like its buttons with a
+       label. Where CommPilot's own pager stayed, it has a row of its own under it. */
+    & .cp-pager-end { grid-column: 3; display: flex; justify-content: flex-end; min-width: 0; }   /* the right column, arrows or not */
+    & .cp-export-row { display: flex; justify-content: flex-end; padding: 6px var(--pb-inset); border-top: 1px solid var(--d-line); }
+    & button.cp-export-btn {
+      display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; height: 28px; min-height: 0; margin: 0;
+      padding: 0 11px 0 9px; border: 1px solid var(--d-line) !important; border-radius: var(--pb-radius-control);
+      background: var(--d-surface) !important; color: var(--d-text) !important; box-shadow: none; transform: none;
+      font: 600 12.5px/1 "Inter", sans-serif; white-space: nowrap; cursor: pointer;
+    }
+    & button.cp-export-btn svg {
+      width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+    }
+    & button.cp-export-btn:hover:not(:disabled) { border-color: var(--d-accent) !important; background: var(--d-raised) !important; }
+    & button.cp-export-btn:disabled { opacity: .45; cursor: default; }
+    & button.cp-export-btn.cp-export-busy { cursor: progress; }
+    & button.cp-export-btn.cp-export-busy svg { animation: cp-export-bob 1s ease-in-out infinite alternate; }
     & .cp-pager-spinner { display: none; width: 12px; height: 12px; border: 2px solid var(--d-line);
       border-top-color: var(--d-accent); border-radius: 50%; animation: cp-spin .8s linear infinite; }
     & .cp-pager-loading .cp-pager-spinner { display: inline-block; }
@@ -247,10 +264,10 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] {
     }
 
     /* Fields and buttons: one control height. */
-    & :is(input:not([type="hidden"], [type="checkbox"], [type="radio"], [type="image"]), select, textarea, button):not(.bw-select-trigger, .cp-switch, .cp-seg-opt, .cp-ev-day, .cp-searchbar-add, .cp-pager-btn, .cp-frame-info) {
+    & :is(input:not([type="hidden"], [type="checkbox"], [type="radio"], [type="image"]), select, textarea, button):not(.bw-select-trigger, .cp-switch, .cp-seg-opt, .cp-ev-day, .cp-searchbar-add, .cp-pager-btn, .cp-export-btn, .cp-frame-info) {
       min-height: var(--pb-control); padding-block: 3px; border-radius: var(--pb-radius-control);
     }
-    & :is(input[type="button"], input[type="submit"], input[type="reset"], button):not(.bw-select-trigger, .cp-switch, .cp-seg-opt, .cp-ev-day, .cp-searchbar-add, .cp-pager-btn, .cp-frame-info) {
+    & :is(input[type="button"], input[type="submit"], input[type="reset"], button):not(.bw-select-trigger, .cp-switch, .cp-seg-opt, .cp-ev-day, .cp-searchbar-add, .cp-pager-btn, .cp-export-btn, .cp-frame-info) {
       padding-inline: 12px;
     }
     & :is(.error, .warning, .informational) { border-radius: var(--pb-radius-control); }
@@ -295,3 +312,6 @@ html[data-cp-direction][data-cp-nav="busy"] body[id="initBody.menuTemplate"] td.
   body > #cp-progress { transition: opacity .2s ease; }
 }
 
+
+@keyframes cp-export-bob { from { transform: translateY(-1px); } to { transform: translateY(2px); } }
+@media (prefers-reduced-motion: reduce) { body[id="initBody.menuTemplate"] button.cp-export-btn svg { animation: none !important; } }

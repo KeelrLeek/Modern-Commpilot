@@ -107,7 +107,7 @@ test('the logo: the same top bar on every CommPilot site, which site it is, the 
     assert.equal(s.row, 70);
     assert.deepEqual(s.edge, [0, 0, 0], 'the trace runs from the window’s edge to the logo’s end, on the bar’s bottom edge');
     assert.equal(s.dot, -1, 'the dot sits on the trace');
-    assert.match(s.favicon, /\/assets\/icons\/pulse-atlas-sbx\.svg$/, 'the tab shows the outlined sandbox tile');
+    assert.match(s.favicon, /\/assets\/icons\/theme-atlas-sbx\.svg$/, "the tab shows the theme's icon, with the sandbox's dot");
     assert.equal(s.isNew, true, 'a new version: the dot wears its ring');
 
     // The logo is the Home button: a click or Enter presses CommPilot's own Home link; a modified click does not.
@@ -175,7 +175,7 @@ test('the logo: the same top bar on every CommPilot site, which site it is, the 
     const main = await openApp(context, 'https://apps.avpaas.io', 1920, 1080);
     const m = await bar(main);
     assert.deepEqual([m.left, m.buttonsRight, m.env, m.tag], [27, 27, 'live', `v${version} · apps.avpaas`]);
-    assert.match(m.favicon, /\/assets\/icons\/pulse-atlas\.svg$/);
+    assert.match(m.favicon, /\/assets\/icons\/theme-atlas\.svg$/, "the tab shows the theme's icon");
     assert.equal(m.isNew, false, 'About was seen (the version is remembered across tabs)');
     await main.locator('#cp-account').click();
     assert.match(await main.getByRole('menu').textContent(), /Signed in to CommPilot(?! ·)/);

@@ -254,6 +254,15 @@
 
   // What is new in each version (About, in the Settings window). Plain text; the newest version first.
   const NEWS = {
+    "0.3.78": [
+      "All twelve themes have new little mascot icons with expressive faces, in matching light and dark versions. Your selected designs appear in Settings, the toolbar popup, and beside the site link.",
+      "The browser tab shows your theme’s icon too; on the sandbox it carries an amber dot, so sandbox tabs stand apart.",
+      "On | Off choices on settings pages light up green or red, like the switches on the menu board.",
+      "A user’s, hunt group’s, auto attendant’s or call center’s breadcrumb shows its phone number beside the extension; click it to copy.",
+      "Every menu board has a ⌄ on the breadcrumb’s last pill that lists all the options at that level, like the page menu on the level’s other pages.",
+      "Every search list has an Export button that saves all of its results, every page, as an Excel workbook.",
+      "Changing a search’s field (User ID to Last Name …) keeps the text you typed and your Starts With / Contains choice.",
+    ],
     "0.3.77": [
       "Twelve themes, each light and dark, named for video games: DMG, Duke, FLUDD, Flowey, Gerudo, Kill Screen, Mode 7, Shovel Knight, Snowdin, Solaire, Tokyo-to and Vampire Killer. Atlas is now FLUDD, Graphite is Duke, Terra is Shovel Knight, and Nord is Snowdin, refined.",
       "Settings shows every theme with its icon and a Light | Dark switch; point at a theme to see it on the page before you pick it. The toolbar popup has the same list.",

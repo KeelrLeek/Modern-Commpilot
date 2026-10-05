@@ -1,0 +1,126 @@
+{
+  "selected": "2026-10-05",
+  "collection": "User-selected mascot theme icons",
+  "themes": [
+    {
+      "id": "dmg",
+      "name": "DMG",
+      "choice": "B",
+      "design": "Cartridge pal",
+      "files": {
+        "light": "dmg-light.svg",
+        "dark": "dmg-dark.svg"
+      }
+    },
+    {
+      "id": "graphite",
+      "name": "Duke",
+      "choice": "A",
+      "design": "Jewel buddy",
+      "files": {
+        "light": "graphite-light.svg",
+        "dark": "graphite-dark.svg"
+      }
+    },
+    {
+      "id": "atlas",
+      "name": "FLUDD",
+      "choice": "C",
+      "design": "Drop of mischief",
+      "files": {
+        "light": "atlas-light.svg",
+        "dark": "atlas-dark.svg"
+      }
+    },
+    {
+      "id": "rosepine",
+      "name": "Flowey",
+      "choice": "C",
+      "design": "Smug bloom",
+      "files": {
+        "light": "rosepine-light.svg",
+        "dark": "rosepine-dark.svg"
+      }
+    },
+    {
+      "id": "gruvbox",
+      "name": "Gerudo",
+      "choice": "B",
+      "design": "Desert gem buddy",
+      "files": {
+        "light": "gruvbox-light.svg",
+        "dark": "gruvbox-dark.svg"
+      }
+    },
+    {
+      "id": "contrast",
+      "name": "Kill Screen",
+      "choice": "A",
+      "design": "Glitch grin",
+      "files": {
+        "light": "contrast-light.svg",
+        "dark": "contrast-dark.svg"
+      }
+    },
+    {
+      "id": "snes",
+      "name": "Mode 7",
+      "choice": "A",
+      "design": "Controller chum",
+      "files": {
+        "light": "snes-light.svg",
+        "dark": "snes-dark.svg"
+      }
+    },
+    {
+      "id": "terra",
+      "name": "Shovel Knight",
+      "choice": "A",
+      "design": "Horned little hero",
+      "files": {
+        "light": "terra-light.svg",
+        "dark": "terra-dark.svg"
+      }
+    },
+    {
+      "id": "nord",
+      "name": "Snowdin",
+      "choice": "A",
+      "design": "Scarf snow-pal",
+      "files": {
+        "light": "nord-light.svg",
+        "dark": "nord-dark.svg"
+      }
+    },
+    {
+      "id": "solarized",
+      "name": "Solaire",
+      "choice": "A",
+      "design": "Sunny little pal",
+      "files": {
+        "light": "solarized-light.svg",
+        "dark": "solarized-dark.svg"
+      }
+    },
+    {
+      "id": "tokyo",
+      "name": "Tokyo-to",
+      "choice": "A",
+      "design": "Spray-can pal",
+      "files": {
+        "light": "tokyo-light.svg",
+        "dark": "tokyo-dark.svg"
+      }
+    },
+    {
+      "id": "dracula",
+      "name": "Vampire Killer",
+      "choice": "A",
+      "design": "Morning-star mischief",
+      "files": {
+        "light": "dracula-light.svg",
+        "dark": "dracula-dark.svg"
+      }
+    }
+  ]
+}

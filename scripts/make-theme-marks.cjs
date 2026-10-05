@@ -1,6 +1,8 @@
-// Draws each theme side's mark, the small picture beside the site link in the top bar and in Settings' theme list:
-// assets/icons/theme-<palette>.svg for every palette in src/content/themes.js, coloured from that palette's tokens in
-// src/content/theme-palettes.css (the user's picks, 2026-10-02). A 20 × 20 grid; CommPilot's content policy blocks
+// Draws each theme side's mark, the small picture beside the site link in the top bar, in Settings' theme list and on
+// the browser tab (with theme-<palette>-sbx.svg, the sandbox's tab icon):
+// assets/icons/theme-<palette>.svg for every palette in src/content/themes.js. The selected mascot masters in
+// scripts/theme-mascots take precedence; new themes fall back to drawings using theme-palettes.css tokens.
+// CommPilot's content policy blocks
 // data: images, so the marks are files the extension serves.
 //
 //   node scripts/make-theme-marks.cjs        (build_release.py runs it with the favicons)
@@ -10,6 +12,8 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const cssFile = path.join(root, 'src', 'content', 'theme-palettes.css');
 const iconDir = path.join(root, 'assets', 'icons');
+const mascotDir = path.join(__dirname, 'theme-mascots');
+const mascotSelections = JSON.parse(fs.readFileSync(path.join(mascotDir, 'selections.json'), 'utf8')).themes;
 require(path.join(root, 'src', 'content', 'themes.js'));
 
 // A palette's tokens: every block whose selector names it with the app's body.
@@ -93,21 +97,36 @@ const MARKS = {
   },
 };
 
+// The sandbox's tab icon: the same mark with an amber dot in its lower right corner, so a sandbox tab stands apart
+// from the main site's (brand.js). The mark is nested whole; an SVG favicon cannot load another file.
+function sandbox(svg) {
+  const box = (svg.match(/<svg\b[^>]*\bviewBox="([^"]+)"/) || [])[1];
+  if (!box) throw new Error('A theme mark has no viewBox');
+  const [x, y, w, h] = box.trim().split(/[\s,]+/).map(Number);
+  const r = w * 0.18, cx = x + w - r - w * 0.03, cy = y + h - r - h * 0.03;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box}">${svg.replace(/<\?xml[^>]*>\s*/, '').trim()}` +
+    `<circle cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${r.toFixed(2)}" fill="#ff9f1a" stroke="#ffffff" stroke-width="${(w * 0.05).toFixed(2)}"/></svg>\n`;
+}
+
 function main() {
   const css = fs.readFileSync(cssFile, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const written = [];
   for (const theme of globalThis.cpThemes) {
+    const mascot = mascotSelections.find(selection => selection.id === theme.id);
     const draw = MARKS[theme.id];
-    if (!draw) throw new Error(`No mark drawn for the ${theme.name} theme (${theme.id})`);
+    if (!mascot && !draw) throw new Error(`No mark drawn for the ${theme.name} theme (${theme.id})`);
     for (const mode of ['light', 'dark']) {
       const palette = theme[mode];
       const tokens = readTokens(css, palette);
       if (!tokens.accent) throw new Error(`theme-palettes.css has no tokens for ${palette}`);
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">${draw(tokens, mode)}</svg>\n`;
+      const svg = mascot
+        ? fs.readFileSync(path.join(mascotDir, mascot.files[mode]), 'utf8')
+        : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">${draw(tokens, mode)}</svg>\n`;
       if (/undefined|NaN/.test(svg)) throw new Error(`The ${palette} mark uses a token its palette does not set`);
       const name = `theme-${palette}.svg`;
       fs.writeFileSync(path.join(iconDir, name), svg);
-      written.push(`assets/icons/${name}`);
+      fs.writeFileSync(path.join(iconDir, `theme-${palette}-sbx.svg`), sandbox(svg));
+      written.push(`assets/icons/${name}`, `assets/icons/theme-${palette}-sbx.svg`);
     }
   }
   return written;

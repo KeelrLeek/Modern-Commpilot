@@ -41,7 +41,7 @@ function shell(body, title) {
     <script>window.redirectPost=function(){};</script></body></html>`;
 }
 
-test('a board page’s options become a breadcrumb page menu on the level’s other pages', async () => {
+test('a board’s options become a breadcrumb menu: a ⌄ on the board’s last pill, and the page pill on the level’s other pages', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });
   try {
@@ -57,11 +57,28 @@ test('a board page’s options become a breadcrumb page menu on the level’s ot
       return route.fulfill({ status: 200, contentType: 'text/html', body: shell(`<h1>${title}</h1>`, title) });
     });
     await page.goto('https://apps-sbx.avpaas.io' + folderPath, { waitUntil: 'domcontentloaded' });
+    await page.addStyleTag({ path: path.join(root, 'src/content/theme-palettes.css') });
     await page.addStyleTag({ path: path.join(root, 'src/content/menu-board.css') });
     await page.evaluate(() => { document.documentElement.dataset.cpDirection = 'atlas'; });
     await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
     await page.waitForFunction(() => Object.keys(sessionStorage).some(k => k.startsWith('cp-page-menu:')), null, { timeout: 15000 });
     assert.equal(await page.locator('.cp-page-pill').count(), 0, 'the board itself gets no pill');
+    // The board (the level's base menu) gets the same menu on its last breadcrumb pill: a ⌄ inside it, like the page pill.
+    const caret = page.locator('td.headerBar span.headerAuthLevel[data-cp-crumb-menu]');
+    await caret.waitFor();
+    assert.deepEqual(await page.evaluate(() => {
+      const pill = document.querySelector('td.headerBar span.headerAuthLevel');
+      return { text: pill.textContent.trim(), caret: pill.lastElementChild?.matches('svg.cp-crumb-caret'), box: !!document.querySelector('.cp-crumb-menu') };
+    }), { text: 'Reseller', caret: true, box: false }, 'the ⌄ is inside the pill and adds no text');
+    await caret.click();
+    const boardMenu = page.getByRole('dialog', { name: 'Pages at this level' });
+    await boardMenu.waitFor();
+    assert.equal(await boardMenu.getByRole('button', { name: 'Profile' }).getAttribute('aria-pressed'), 'true', 'it opens on the folder at the top');
+    assert.equal(await boardMenu.locator('[aria-current="page"]').count(), 0, 'nothing is the current page on a board');
+    assert.equal(await caret.getAttribute('aria-expanded'), 'true');
+    await page.keyboard.press('Escape');
+    assert.equal(await boardMenu.count(), 0);
+    assert.equal(await caret.getAttribute('aria-expanded'), 'false');
     const stored = await page.evaluate(() => JSON.parse(sessionStorage.getItem(Object.keys(sessionStorage).find(k => k.startsWith('cp-page-menu:')))));
     assert.deepEqual(stored.folders.map(f => f.name), ['Profile', 'Resources']);
     assert.deepEqual(stored.folders[0].options.find(o => o.label === 'Administrators'),
@@ -72,9 +89,25 @@ test('a board page’s options become a breadcrumb page menu on the level’s ot
     const pill = page.locator('.cp-page-pill');
     await pill.waitFor();
     assert.equal(await pill.innerText(), 'Domains');
+    const look = () => page.evaluate(() => {
+      const pill = document.querySelector('.cp-page-pill'), arrow = pill.querySelector('svg');
+      return { ring: getComputedStyle(pill).boxShadow, border: getComputedStyle(pill).borderTopColor,
+        turn: getComputedStyle(arrow).transform, timing: getComputedStyle(arrow).transitionDuration };
+    });
+    await page.mouse.move(5, 790);
+    const closed = await look();
     await pill.click();
     const dialog = page.getByRole('dialog', { name: 'Pages at this level' });
     await dialog.waitFor();
+    await page.mouse.move(5, 790);   // the pointer off the pill, as when reading the menu
+    await page.waitForTimeout(300);
+    const open = await look();
+    // Open: the arrow has turned over in place (animated), and the pill wears no ring or new border.
+    assert.equal(open.turn, 'matrix(-1, 0, 0, -1, 0, 0)');
+    assert.equal(closed.turn, 'none');
+    assert.equal(open.timing, '0.2s');
+    assert.equal(open.ring, closed.ring);
+    assert.equal(open.border, closed.border);
     assert.equal(await dialog.getByRole('button', { name: 'Resources' }).getAttribute('aria-pressed'), 'true');
     assert.equal(await dialog.locator('[aria-current="page"]').innerText(), 'Domains');
     await dialog.getByRole('button', { name: 'Profile' }).click();

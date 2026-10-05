@@ -2,8 +2,9 @@
    a pill with an arrow between; the current place (the page pill pjax.js adds, else the entity, else the last
    level) is the accent pill and pops in when it changes. CommPilot's own links are MOVED into the trail, so they
    keep their native clicks, and everything stays in the same header cell and document order that pjax.js and
-   enhancer.js read. The header is rebuilt by pjax.js on every page; the trail follows it. An element marked
-   .cp-bc-attach (enhancer.js's extension chip) rides on the entity pill, right after it with no arrow.
+   enhancer.js read. The header is rebuilt by pjax.js on every page; the trail follows it. Elements marked
+   .cp-bc-attach (enhancer.js's extension and number chips, pjax.js's ⌄ menu on a board) ride on the entity pill, or
+   the last pill when there is none, right after it with no arrow.
    The trail keeps one line (mockup pick B): when it does not fit its cell, the levels after the first fold, earliest
    first, into a "…" pill whose list opens them, and then the page pill shortens. */
 (() => {
@@ -158,8 +159,9 @@
     });
   }, { passive: true });
 
+  // Attached elements ride on the entity pill, or on a board without one (a group's, a reseller's) on the last pill.
   function attach(items, attached) {
-    let at = items.find(el => el.matches('span.headerAuthLevel'));
+    let at = items.find(el => el.matches('span.headerAuthLevel')) || items[items.length - 1];
     for (const el of attached) {
       if (!at) return;
       if (at.nextElementSibling !== el) at.after(el);

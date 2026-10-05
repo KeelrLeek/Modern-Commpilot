@@ -43,7 +43,7 @@ def make_favicons() -> set[str]:
     except (OSError, subprocess.CalledProcessError) as error:
         raise SystemExit(f"Could not draw the theme marks (node scripts/make-theme-marks.cjs): {error}")
     return ({f"assets/icons/pulse-{name}{sandbox}.svg" for name in palettes for sandbox in ("", "-sbx")} |
-            {f"assets/icons/theme-{name}.svg" for name in palettes})
+            {f"assets/icons/theme-{name}{sandbox}.svg" for name in palettes for sandbox in ("", "-sbx")})
 
 
 def verify_manifest_files(manifest: dict, names: set[str], favicons: set[str]) -> None:

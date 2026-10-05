@@ -310,13 +310,15 @@ test('User options switch their service on and off, and Peek keeps the rest of t
   } finally { await browser.close(); }
 });
 
-test('a user board reads the user’s extension from Addresses first, in the user’s context', async () => {
+test('a user board reads the extension and number from its own Addresses option first, in the user’s context', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    // Its Addresses option at a service's own path, as a hunt group's board has (a user's is /User/Addresses/).
+    const addresses = '/Group/Hunt_Group/Addresses/index.jsp?key=TriSandbox1002';
     const userMenus = {
-      U0: menu([['Profile', routes.dense]]),
+      U0: menu([['Profile', routes.dense], ['Addresses', addresses]]),
       U1: menu([['Do Not Disturb', routes.dnd]]),
       U2: menu([['Call Waiting', routes.cw]]),
       U3: menu([['Voice Portal Calling', routes.portal]])
@@ -339,8 +341,10 @@ test('a user board reads the user’s extension from Addresses first, in the use
       }
       if (pathname === folderPath) return respond(menu([['Users', '/Reseller/Users/']]), 'Profile', false);
       if (context !== 'user') return respond('<h1>Wrong user context</h1>', 'Unavailable');
-      if (pathname === '/commpilot/User/Addresses/') {
-        return respond('<form name="mainForm"><input type="text" name="extension" id="extension" value="1002" size="4"></form>', 'Addresses');
+      if (pathname === '/commpilot/Group/Hunt_Group/Addresses/index.jsp') {
+        return respond('<form name="mainForm"><select name="phoneNumber" id="phoneNumber"><option value="">None</option>' +
+          '<option value="2622622622" selected>2622622622</option></select>' +
+          '<input type="text" name="extension" id="extension" value="1002" size="4"></form>', 'Addresses');
       }
       const routeName = pathname.replace(/^\/commpilot/, '');
       if (routeName === routes.dnd || routeName === routes.cw || routeName === routes.portal) {
@@ -361,7 +365,7 @@ test('a user board reads the user’s extension from Addresses first, in the use
     await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
     await page.waitForFunction(() => document.querySelector('.cp-console-section[data-cp-folder="R0"] .cp-console-body')
       ?.dataset.cpLoaded === '1');
-    const readsBefore = requests.filter(r => r.pathname === '/commpilot/User/Addresses/').length;
+    const readsBefore = requests.filter(r => /\/Addresses\//.test(r.pathname)).length;
     assert.equal(readsBefore, 0, 'a reseller board does not read an extension');
     await page.waitForTimeout(400);
     await page.evaluate(url => window.redirectPost(url, { key: 'Trifecta_Sandbox_SP>%Trifecta_Sandbox_Group>%TriSandbox1002' }), userEntry);
@@ -369,12 +373,15 @@ test('a user board reads the user’s extension from Addresses first, in the use
       ?.getAttribute('data-cp-extension-state') === 'done', null, { timeout: 20000 });
     const id = await page.evaluate(() => {
       const el = document.querySelector('td.headerBar span.headerAuthLevel');
-      return { ext: el.getAttribute('data-cp-extension'), events: window.extensionEvents, token: document.getElementsByName('formtokenserial')[0].value };
+      return { ext: el.getAttribute('data-cp-extension'), number: el.getAttribute('data-cp-number'), events: window.extensionEvents,
+        token: document.getElementsByName('formtokenserial')[0].value };
     });
     assert.equal(id.ext, '1002');
+    assert.equal(id.number, '2622622622', 'the number comes from the same read');
     assert.equal(id.events, 2, 'loading, then done');
-    const reads = requests.filter(r => r.pathname === '/commpilot/User/Addresses/');
+    const reads = requests.filter(r => /\/Addresses\//.test(r.pathname));
     assert.equal(reads.length, 1);
+    assert.equal(reads[0].pathname, '/commpilot/Group/Hunt_Group/Addresses/index.jsp', "the board's own Addresses option is read");
     assert.equal(reads[0].context, 'user', 'the read waits until the user context is restored');
     const peek = requests.findIndex(r => r.pathname === '/commpilot' + routes.dnd);
     assert.ok(peek === -1 || requests.indexOf(reads[0]) < peek, 'the extension is read before Peek');

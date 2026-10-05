@@ -15,6 +15,9 @@
     return el;
   };
   const clean = text => String(text || '').replace(/\s+/g, ' ').trim();   // \s includes the non-breaking space
+  // A choice that turns something on or off, by its words.
+  const toneOf = text => /^(on|enabled?|active|activated)$/i.test(clean(text)) ? 'on'
+    : /^(off|disabled?|inactive|deactivated)$/i.test(clean(text)) ? 'off' : '';
 
   /* ---- List search criteria: one toolbar line (mockup pick C) ---------------------------------------- */
   function searchBar(cell) {
@@ -33,6 +36,40 @@
     add.hidden = !plus();
     wrap.appendChild(add);
   }
+
+  // Changing a criteria row's field (User ID → Last Name) keeps what was typed. CommPilot's getChoice builds the row a
+  // new, empty value box and a new operator list on every change; the text goes into the new box when it is a text
+  // box too (up to its length), and the operator (Contains …) stays when the new field offers it. Both are remembered
+  // per row, so they come back after a field with a list of values and only Equal To (Department) in between.
+  const kept = new WeakMap();   // findKeyN select -> { text, op } last chosen in its row
+  document.addEventListener('change', event => {
+    const key = event.target;
+    const row = /^findKey(\d+)$/.exec(key?.name || '')?.[1];
+    if (row == null || key.tagName !== 'SELECT') return;
+    const box = document.getElementById(`findValue${row}`), ops = document.getElementById(`findOp${row}`);
+    const memo = kept.get(key) || {};
+    if (box?.tagName === 'INPUT') memo.text = box.value;
+    if (ops?.options?.length > 1) memo.op = ops.value;   // a choice, not the only operator a field has
+    kept.set(key, memo);
+    let done = false;
+    // CommPilot's handler is on the select itself: carry after it, as the event reaches the document (or, for a
+    // change that does not bubble, right after).
+    const after = e => { if (e === event) carry(); };
+    const carry = () => {
+      if (done) return;
+      done = true;
+      document.removeEventListener('change', after);
+      const newBox = document.getElementById(`findValue${row}`), newOps = document.getElementById(`findOp${row}`);
+      if (memo.text && newBox && newBox !== box && newBox.tagName === 'INPUT' && !newBox.value)
+        newBox.value = newBox.maxLength > 0 ? memo.text.slice(0, newBox.maxLength) : memo.text;
+      if (memo.op && newOps && newOps !== ops && newOps.value !== memo.op && [...newOps.options].some(o => o.value === memo.op)) {
+        newOps.value = memo.op;
+        newOps.dispatchEvent(new Event('change', { bubbles: true }));   // the dropdown over it shows the choice
+      }
+    };
+    document.addEventListener('change', after);
+    setTimeout(carry);
+  }, true);
 
   /* ---- Settings forms: aligned rows (mockup pick A, 2026-10-02) ---------------------------------------- */
   // CommPilot's forms are tables of [label][control] cells (two pairs to a row on big pages), fieldsets for sections,
@@ -414,6 +451,11 @@
         if (!clean(span.textContent)) span.textContent = o.text;
         label.append(o.input, span);
         ctl.appendChild(label);
+      }
+      // An On | Off pair lights its chosen side in the app's On or Off colour, like the board's switches (forms.css).
+      if (ctl.classList.contains('fx-seg')) {
+        const tones = [...ctl.querySelectorAll(':scope > .fx-opt')].map(opt => [opt, toneOf(opt.textContent)]);
+        if (tones.some(([, t]) => t === 'on') && tones.some(([, t]) => t === 'off')) for (const [opt, t] of tones) if (t) opt.dataset.tone = t;
       }
       // Anything else in the radios' cell (a field after "Other:") stays with them.
       if (item.cell && controlsIn(item.cell).length) fill(item.cell, ctl);

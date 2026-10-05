@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 // The twelve themes (themes.js): every side is a palette in theme-palettes.css with every token the rules read, a mark
 // and its favicons, and text that stays readable. A theme added later gets the same checks with nothing else to do.
@@ -45,7 +46,7 @@ test('every theme has a light and a dark palette, each complete, readable, with 
       const r = ratio(t[fg], t[g]);
       assert.ok(r >= 4.5, `${palette}: --d-${fg} on --d-${g} is ${r.toFixed(2)}:1, under 4.5:1`);
     }
-    for (const file of [`theme-${palette}.svg`, `pulse-${palette}.svg`, `pulse-${palette}-sbx.svg`])
+    for (const file of [`theme-${palette}.svg`, `theme-${palette}-sbx.svg`, `pulse-${palette}.svg`, `pulse-${palette}-sbx.svg`])
       assert.ok(fs.existsSync(path.join(root, 'assets/icons', file)), `${file} is drawn (scripts/make-theme-marks.cjs, make-icons.cjs)`);
   }
 });
@@ -57,5 +58,21 @@ test('nothing outside theme-palettes.css names a palette', () => {
     const text = fs.readFileSync(path.join(root, file), 'utf8');
     assert.doesNotMatch(text, /data-cp-direction="(nord|atlas|graphite|terra)/, `${file} keys a rule to one palette`);
     assert.doesNotMatch(text, /swatch-(nord|atlas|graphite|terra)/, `${file} has a per-palette swatch`);
+  }
+});
+
+test('release icon generation preserves the selected mascot masters in both theme modes', () => {
+  const masterDir = path.join(root, 'scripts/theme-mascots');
+  const selections = JSON.parse(fs.readFileSync(path.join(masterDir, 'selections.json'), 'utf8')).themes;
+  assert.deepEqual(new Set(selections.map(s => s.id)), new Set(globalThis.cpThemes.map(t => t.id)));
+  execFileSync(process.execPath, [path.join(root, 'scripts/make-theme-marks.cjs')], { cwd: root });
+  for (const theme of globalThis.cpThemes) {
+    const selection = selections.find(s => s.id === theme.id);
+    for (const mode of ['light', 'dark']) {
+      const master = fs.readFileSync(path.join(masterDir, selection.files[mode]));
+      const generated = fs.readFileSync(path.join(root, `assets/icons/theme-${theme[mode]}.svg`));
+      assert.deepEqual(generated, master, `${theme.name} ${mode} retains the chosen mascot after regeneration`);
+      assert.doesNotMatch(generated.toString(), /<image\b|data:image|<script\b/i, 'the mascot remains a standalone vector');
+    }
   }
 });

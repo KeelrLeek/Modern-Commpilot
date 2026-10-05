@@ -5,7 +5,7 @@
    Everything below reads these tokens; nothing else names a palette. Besides the colours, each palette carries
    --d-side-accent (the open folder's icon), --d-warn (toasts' warning tone), --d-logo-blend and --d-logo-opacity (the
    site's own logo on dark sides), and Mode 7's --d-quad-* (its four button colours). Each side's mark beside the site
-   link is assets/icons/theme-<palette>.svg, drawn from these tokens by scripts/make-theme-marks.cjs. */
+   link is assets/icons/theme-<palette>.svg, installed from the selected mascot masters by scripts/make-theme-marks.cjs. */
 /* DMG, light */
 html[data-cp-direction="dmg-light"]:has(> body[id="initBody.menuTemplate"]),
 html[data-cp-direction="dmg-light"] body[id="initBody.menuTemplate"],
@@ -713,14 +713,22 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc .cp
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc span.headerAuthLevel.cp-bc-id { text-transform: none; letter-spacing: .01em; }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc .cp-bc-hidden { display: none !important; }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-page-pill svg { width: 13px; height: 13px; color: currentColor; opacity: .85; }
-html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-page-pill[aria-expanded="true"] {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--d-accent) 22%, transparent) !important;
+/* A menu's arrow (the page pill's, and a board's last pill's): it turns over in place while its menu is open; the pill
+   itself does not change. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar :is(button.cp-page-pill, [data-cp-crumb-menu]) > svg:last-child {
+  transform-origin: 50% 50%; transition: transform .2s cubic-bezier(.3, .7, .4, 1) !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar :is(button.cp-page-pill, [data-cp-crumb-menu])[aria-expanded="true"] > svg:last-child {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar :is(button.cp-page-pill, [data-cp-crumb-menu]) > svg:last-child { transition: none !important; }
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(a, button):focus-visible { outline: 2px solid var(--d-ring); outline-offset: 2px; }
 
-/* Copy User ID and the extension (enhancer.js): a copy icon inside the user-id pill, and the extension chip
-   joined to the pill's right edge (its left border overlaps the pill's). Both show a tooltip, and a check
-   after copying. */
+/* Copy User ID, the extension and the phone number (enhancer.js): a copy icon inside the id pill, and the extension
+   and number chips joined to the pill's right edge (the extension's left border overlaps the pill's). Each shows a
+   tooltip, and a check after copying. */
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc span.headerAuthLevel:has(+ .cp-ext-chip) {
   padding-right: 4px !important; border-top-right-radius: 0 !important; border-bottom-right-radius: 0 !important;
 }
@@ -743,14 +751,37 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc but
   transition: background-color .12s ease, border-color .12s ease, color .12s ease;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-ext-chip b { color: var(--d-text); font-weight: 700; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
-html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-ext-chip:is(:not([aria-disabled="true"]):hover, .cp-copied) {
-  border-color: var(--d-accent) !important;
-  background: color-mix(in srgb, var(--d-accent) 20%, transparent) !important; color: color-mix(in srgb, var(--d-accent) 82%, var(--d-text)) !important;
-}
-html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-ext-chip:is(:not([aria-disabled="true"]):hover, .cp-copied) b { color: inherit; }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-ext-chip[aria-disabled="true"] { cursor: default; }
-html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(button.cp-copy-id, button.cp-ext-chip) svg {
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(button.cp-copy-id, button.cp-ext-chip, button.cp-num-chip) svg {
   width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+/* The chips' copy icon in the same box as the id's: 20px, rounded, quiet until the chip is pointed at or copied. The
+   whole chip stays the button; only the box lights, as on the id pill. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(button.cp-ext-chip, button.cp-num-chip) > svg:last-child {
+  box-sizing: border-box; width: 20px; height: 20px; margin: -2px -3px -2px -2px; padding: 3.5px; border-radius: 5px;
+  opacity: .7; transition: background-color .12s ease, color .12s ease, opacity .12s ease;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(button.cp-ext-chip:not([aria-disabled="true"]), button.cp-num-chip):is(:hover, :focus-visible, .cp-copied) > svg:last-child {
+  opacity: 1; background: color-mix(in srgb, var(--d-accent) 22%, transparent); color: var(--d-accent);
+}
+/* The phone number (enhancer.js), joined after the extension chip in the same style: a phone, the number, a copy icon. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-num-chip {
+  display: inline-flex; align-items: center; gap: 5px; flex: none; box-sizing: border-box; min-height: 0 !important;
+  margin: 0 0 0 -8px !important; padding: 3px 8px !important;   /* -8px: the trail's 7px gap, and the border shared */
+  border: 1px solid var(--d-line) !important; border-radius: 0 7px 7px 0 !important; box-shadow: none !important; transform: none !important;
+  background: var(--d-surface) !important; color: var(--d-muted) !important; opacity: 1 !important;
+  font: 700 11.5px/1.5 "Inter", sans-serif !important; letter-spacing: .02em; white-space: nowrap; vertical-align: middle; cursor: pointer;
+  transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-num-chip b { color: var(--d-text); font-weight: 700; font-variant-numeric: tabular-nums; }
+/* A board's last pill opens every option at this level (pjax.js): a ⌄ inside it, as on the page pill. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc [data-cp-crumb-menu] { cursor: pointer; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc [data-cp-crumb-menu] > svg.cp-crumb-caret {
+  width: 13px; height: 13px; flex: none; color: currentColor; opacity: .85;
+}
+/* Whatever a chip joins loses its right-hand rounding. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(a.headerAuthLevelLink, span.headerAuthLevel, button.cp-ext-chip, button.cp-num-chip):has(+ .cp-bc-attach) {
+  border-top-right-radius: 0 !important; border-bottom-right-radius: 0 !important;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc .cp-ext-spin {
   width: 9px; height: 9px; border: 2px solid color-mix(in srgb, currentColor 28%, transparent); border-top-color: var(--d-accent);

@@ -7,9 +7,9 @@
    a bright line runs along it from the left, and when the page lands it reaches the dot, which pings. When the
    logo first appears the trace sweeps in once. After an update the dot wears a ring until Settings (with About)
    is opened.
-   Every colour is a palette token, so the logo follows any palette. The tab's icon is the Pulse tile made for the
-   palette (assets/icons/pulse-<palette>[-sbx].svg, generated from theme-palettes.css by scripts/make-icons.cjs;
-   outlined on the sandbox), and the toolbar icon (src/bg/icon.js) is drawn from the colours sent from here. */
+   Every colour is a palette token, so the logo follows any palette. The tab's icon is the theme's own icon
+   (assets/icons/theme-<palette>.svg; on the sandbox theme-<palette>-sbx.svg, with an amber dot), installed by
+   scripts/make-theme-marks.cjs, and the toolbar icon (src/bg/icon.js) is drawn from the colours sent from here. */
 (() => {
   if (window !== window.top) return;
   const version = chrome.runtime.getManifest().version;
@@ -103,11 +103,12 @@
     }
   });
 
-  // The tab's icon, for the palette on <html> (theme-settings.js sets it on every CommPilot page, Login included).
+  // The tab's icon: the theme's icon for the palette on <html> (theme-settings.js sets it on every CommPilot page,
+  // Login included), with an amber dot on the sandbox.
   function setFavicon() {
     const palette = document.documentElement?.dataset.cpDirection;
     if (!palette || !document.head) return;
-    const href = chrome.runtime.getURL(`assets/icons/pulse-${palette}${env === "sandbox" ? "-sbx" : ""}.svg`);
+    const href = chrome.runtime.getURL(`assets/icons/theme-${palette}${env === "sandbox" ? "-sbx" : ""}.svg`);
     let link = document.getElementById("cp-favicon");
     if (!link) {
       link = document.createElement("link");

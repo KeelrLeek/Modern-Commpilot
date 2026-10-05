@@ -1,6 +1,6 @@
 /* The CommPilot themes (2026-10-02). Each theme has a light and a dark side; each side is one palette in
    theme-palettes.css, named by the id set on <html data-cp-direction>. The names are video-game nods the user picked.
-   Colours live only in theme-palettes.css; scripts/make-theme-marks.cjs draws each side's mark from them
+   Colours live only in theme-palettes.css; scripts/make-theme-marks.cjs installs the selected mascot marks
    (assets/icons/theme-<palette>.svg). Listed in the order Settings and the toolbar popup show them. Shared by the
    content scripts (theme-settings.js) and the popup. */
 globalThis.cpThemes = Object.freeze([
