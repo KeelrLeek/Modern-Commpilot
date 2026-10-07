@@ -254,6 +254,9 @@
 
   // What is new in each version (About, in the Settings window). Plain text; the newest version first.
   const NEWS = {
+    "0.3.79": [
+      "Signing back in after CommPilot signs you out works again. The extension reopened your last page, but CommPilot can’t open a group’s or user’s page straight after a new sign-in, so it signed you out with “Error loading the menu” on every try. Now that page is reopened only when it can be, and otherwise you start on your home page.",
+    ],
     "0.3.78": [
       "All twelve themes have new little mascot icons with expressive faces, in matching light and dark versions. Your selected designs appear in Settings, the toolbar popup, and beside the site link.",
       "The browser tab shows your theme’s icon too; on the sandbox it carries an amber dot, so sandbox tabs stand apart.",

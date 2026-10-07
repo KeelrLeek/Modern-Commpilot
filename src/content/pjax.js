@@ -99,9 +99,20 @@
     // onLogin → cp-pending-return → a spurious full-load + auto-return on its own form navigations.
     (!!document.querySelector('input[name="password"]') &&
      !document.querySelector('td[width="82%"], a.navMenuItem, .navOptions'));
+  // After a sign-in the extension reopens the last page (auto-return, below). A return that ends back on the Login
+  // page failed: CommPilot could not open that page in the new session and signed it out ("Error loading the menu
+  // … [Error 6004] … serviceProviderId xsi:nil"). Forget the page then, so the next sign-in starts at home instead
+  // of failing the same way every time (seen 2026-10-07: a timed-out user could not sign back in in that tab).
   try {
-    if (onLogin && sessionStorage.getItem("cp-last-nav"))
-      sessionStorage.setItem("cp-pending-return", "1");
+    if (onLogin) {
+      var _returnAt = parseInt(sessionStorage.getItem("cp-return-at") || "0", 10) || 0;
+      var _loginMsg = (document.querySelector("td.loginerror") || {}).textContent || "";
+      sessionStorage.removeItem("cp-return-at");
+      if ((_returnAt && Date.now() - _returnAt < 90000) || /Error loading the menu/i.test(_loginMsg)) {
+        sessionStorage.removeItem("cp-last-nav");
+        sessionStorage.removeItem("cp-pending-return");
+      } else if (sessionStorage.getItem("cp-last-nav")) sessionStorage.setItem("cp-pending-return", "1");
+    }
   } catch (e) {}
 
   // Harvest the live CSP nonce once (needed by reexecScripts on login pages too)
@@ -5973,8 +5984,17 @@
       ) {
         sessionStorage.removeItem("cp-pending-return");
         var last = JSON.parse(sessionStorage.getItem("cp-last-nav") || "null");
+        // A new session starts at the account's home level, and CommPilot opens an entity only from the level
+        // above it (a group from its service provider, a user from its group). Reopen the page only when its
+        // entry (or, without one, the page itself) belongs to the home level; otherwise stay home.
+        if (last && last.url && !cpReturnReachable(last)) {
+          cpDbg("[pjax] auto-return skipped: not reachable from home", last.url);
+          sessionStorage.removeItem("cp-last-nav");
+          last = null;
+        }
         if (last && last.url) {
           cpDbg("[pjax] auto-return →", last.url, last.params);
+          sessionStorage.setItem("cp-return-at", String(Date.now()));
           setTimeout(function () {
             try {
               // A fresh login's server context is HOME — re-enter the entity first when the saved nav is
@@ -5992,6 +6012,27 @@
         }
       }
     } catch (e) {}
+
+    // The level letter (R reseller, S service provider, G group, U user) a saved place is reopened from: its
+    // entry's path names the level the entity was opened at (/Reseller/ServiceProviders/Modify/ → R,
+    // /ServiceProvider/Members/Modify/ → S, /Group/Members/Modify/ → G); a place without an entry is opened at
+    // its own level (its path, or its folder id). "" when it cannot be told.
+    function cpNavLevel(nav) {
+      var m = /^\/commpilot\/(Reseller|ServiceProvider|Group|User)\//.exec(String((nav && nav.url) || ""));
+      if (m) return { Reseller: "R", ServiceProvider: "S", Group: "G", User: "U" }[m[1]];
+      var f = nav && nav.params && (nav.params.folder || nav.params.P_folder);
+      return f && /^[RSGU]\d+$/.test(f) ? f.charAt(0) : "";
+    }
+    // The level this page's sidebar belongs to (its folder ids' letter).
+    function cpSidebarLevel() {
+      var a = document.querySelector('form[name="leftNavForm"] a.leftnavfolder, form[name="leftNavForm"] a.leftnavfolderopen');
+      var t = a ? cpFolderTarget(a) : null;
+      return t && /^[RSGU]\d+$/.test(t.folder || "") ? t.folder.charAt(0) : "";
+    }
+    function cpReturnReachable(nav) {
+      var home = cpSidebarLevel(), from = cpNavLevel(nav.entry && nav.entry.url ? nav.entry : nav);
+      return !!home && from === home;
+    }
 
     // ---- Unified Console (Phase 1) ----------------------------------
     function cpReexecWiringScripts(container) {
