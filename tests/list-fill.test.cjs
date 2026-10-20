@@ -40,7 +40,7 @@ function listPage(pageNo, total, token) {
     <script>window.redirectPost = window.redirectPost || function () {};</script></body></html>`;
 }
 
-async function fixture({ total = 3, empty = 0, slow = 0 } = {}) {
+async function fixture({ total = 3, empty = 0, slow = 0, search = false } = {}) {
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   const posts = [];
@@ -61,7 +61,8 @@ async function fixture({ total = 3, empty = 0, slow = 0 } = {}) {
       return route.fulfill({ status: 200, contentType: 'text/html',
         body: listPage(1, 1, `tok-${++serial}`).replace('Groups</td>', 'Opened</td>') });
     }
-    return route.fulfill({ status: 200, contentType: 'text/html', body: listPage(1, total, 'tok-0') });
+    const initial=listPage(1,total,'tok-0');
+    return route.fulfill({ status: 200, contentType: 'text/html', body: search?initial.replace('<input name="findKey0"','<input type="button" id="search0" name="search" value="Search"><input name="findKey0"'):initial });
   });
   await page.goto('https://apps-sbx.avpaas.io/commpilot/Reseller/Groups/', { waitUntil: 'domcontentloaded' });
   await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
@@ -87,6 +88,32 @@ test('a paged list fetches its other pages in order, threading the token, and ea
     assert.equal(opened.key, 'SP>%Group 3-1', 'the added row posts its own decoded key');
     assert.equal(opened.token, 'tok-3', 'with the latest token');
   } finally { await browser.close(); }
+});
+
+test('reskinning the same result set never restarts or duplicates its preload',async()=>{
+  const {browser,page,posts}=await fixture({total:3,slow:150});
+  try{
+    await page.waitForFunction(()=>document.querySelector('table[data-cp-fill="loading"]'));
+    await page.evaluate(()=>document.dispatchEvent(new Event('cp:reskin')));
+    await page.waitForFunction(()=>document.querySelector('table[data-cp-fill="done"]'),null,{timeout:15000});
+    const before=posts.length;
+    await page.evaluate(()=>document.dispatchEvent(new Event('cp:reskin')));
+    await page.waitForTimeout(700);
+    assert.equal(posts.length,before,'the completed results are reused instead of walking page.jsp again');
+    assert.equal(await page.locator('tr[id^="Row"]').count(),6,'no duplicate cached rows');
+    assert.deepEqual(posts.filter(post=>post.path==='/commpilot/Common/page.jsp').map(post=>post.value),['1','2','0'],'one preload for this search');
+  }finally{await browser.close();}
+});
+
+test('a search beyond 50 server pages is collected once instead of silently reverting to server paging',async()=>{
+  const {browser,page,posts}=await fixture({total:51,search:true});
+  try{
+    await page.waitForFunction(()=>document.querySelector('table[data-cp-fill="done"]'),null,{timeout:15000});
+    assert.equal(await page.locator('tr[id^="Row"]').count(),102);
+    const hops=posts.filter(post=>post.path==='/commpilot/Common/page.jsp');
+    assert.deepEqual(hops.map(post=>post.value),[...Array.from({length:50},(_,i)=>String(i+1)),'0']);
+    assert.ok(hops.every((post,index)=>post.token==='tok-'+index),'one sequential token chain');
+  }finally{await browser.close();}
 });
 
 test('a fetched page without rows puts the list back as CommPilot showed it', async () => {

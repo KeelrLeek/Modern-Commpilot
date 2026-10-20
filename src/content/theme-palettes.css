@@ -558,6 +558,12 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] textarea,
 html[data-cp-direction] body[id="initBody.menuTemplate"] button:not(.bw-select-trigger) {
   border-color:var(--d-line); border-radius:11px; background:var(--d-input); box-shadow:none; color:var(--d-text);
 }
+/* A consistent inset chevron on single-value dropdowns; listboxes keep their native rendering. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] select:not([multiple]):is(:not([size]), [size="0"], [size="1"]) {
+  appearance:none; -webkit-appearance:none; padding-right:30px !important;
+  background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);
+  background-position:right 14px center,right 10px center; background-size:4px 4px; background-repeat:no-repeat;
+}
 html[data-cp-direction] body[id="initBody.menuTemplate"] input[type="button"],
 html[data-cp-direction] body[id="initBody.menuTemplate"] input[type="submit"],
 html[data-cp-direction] body[id="initBody.menuTemplate"] button:not(.bw-select-trigger) {
@@ -685,6 +691,51 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is
   fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc-lead svg { width: 14px; height: 14px; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar button.cp-bc-history {
+  display:inline-grid !important; flex:0 0 26px !important; width:26px !important; min-width:26px !important; min-height:26px !important;
+  margin:0 3px 0 0 !important; padding:0 !important; cursor:pointer; box-shadow:none !important; transform:none !important;
+  border-color:color-mix(in srgb,var(--d-accent) 38%,transparent) !important;
+  background:color-mix(in srgb,var(--d-accent) 18%,transparent) !important; color:var(--d-accent) !important;
+}
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar button.cp-bc-history:is(:hover, [aria-expanded="true"]) { background:color-mix(in srgb,var(--d-accent) 28%,var(--d-surface)) !important; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar button.cp-bc-history:focus-visible { outline:2px solid var(--d-ring); outline-offset:2px; }
+#cp-bc-history-menu {
+  position:fixed; z-index:2147483300; display:flex; flex-direction:column; box-sizing:border-box;
+  width:min(420px,calc(100vw - 16px)); padding:6px; border:1px solid var(--d-line); border-radius:12px;
+  background:var(--d-surface); color:var(--d-text); box-shadow:0 16px 40px #0004; font:13px/1.4 var(--cp-font,"Inter",sans-serif);
+}
+#cp-bc-history-menu[hidden] { display:none; }
+#cp-bc-history-menu .cp-history-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:6px 10px 10px; border-bottom:1px solid var(--d-line); }
+#cp-bc-history-menu .cp-history-list { overflow:auto; min-height:0; overscroll-behavior:contain; padding-top:4px; }
+#cp-bc-history-menu button { display:flex; flex-direction:column; gap:3px; width:100%; margin:0 !important; padding:9px 10px !important; border:0 !important; border-radius:7px; background:transparent !important; color:var(--d-text) !important; box-shadow:none !important; font:inherit !important; text-align:left; cursor:pointer; transform:none !important; }
+#cp-bc-history-menu button:is(:hover,:focus-visible) { background:var(--d-raised) !important; outline:2px solid var(--d-ring); outline-offset:-2px; }
+#cp-bc-history-menu button strong { font-weight:600; }
+#cp-bc-history-menu button span { color:var(--d-muted); font-size:11.5px; overflow-wrap:anywhere; }
+#cp-bc-history-menu button.cp-history-clear { width:auto; padding:4px 8px !important; color:var(--d-accent) !important; font-size:12px !important; }
+#cp-bc-history-menu .cp-history-empty { padding:8px 10px; color:var(--d-muted); }
+#cp-bc-history-menu .cp-history-location { padding:6px 0; }
+#cp-bc-history-menu .cp-history-location + .cp-history-location { border-top:1px solid var(--d-line); }
+#cp-bc-history-menu .cp-history-location-heading { display:flex; align-items:center; gap:9px; padding:7px 9px 4px; }
+#cp-bc-history-menu button.cp-history-location-heading { flex-direction:row; align-items:center; gap:9px; padding:7px 9px !important; }
+#cp-bc-history-menu button.cp-history-location-heading:hover { background:color-mix(in srgb,var(--d-accent) 8%,var(--d-surface)) !important; outline:none; }
+#cp-bc-history-menu button.cp-history-location-heading:focus-visible { outline:2px solid var(--d-ring); outline-offset:-2px; }
+#cp-bc-history-menu .cp-history-location-heading > div { min-width:0; }
+#cp-bc-history-menu .cp-history-symbol { display:grid; place-items:center; flex:0 0 28px; height:28px; border:1px solid var(--d-line); border-radius:7px; background:var(--d-raised); color:var(--d-muted); }
+#cp-bc-history-menu .cp-history-symbol svg { width:15px; height:15px; }
+#cp-bc-history-menu .cp-history-location-title { display:block; font-size:12.5px; font-weight:650; overflow-wrap:anywhere; }
+#cp-bc-history-menu .cp-history-location-meta { display:block; margin-top:2px; color:var(--d-muted); font-size:11px; overflow-wrap:anywhere; }
+#cp-bc-history-menu .cp-history-location-id { display:block; margin-top:2px; color:var(--d-muted); font-size:11.5px; overflow-wrap:anywhere; }
+#cp-bc-history-menu .cp-history-pages { padding:1px 0 0 36px; }
+#cp-bc-history-menu .cp-history-pages button { flex-direction:row; align-items:center; gap:9px; padding:7px 9px !important; }
+#cp-bc-history-menu .cp-history-pages button strong { flex:1; min-width:0; font-size:12.5px; font-weight:450; line-height:1.4; white-space:normal; overflow-wrap:anywhere; }
+#cp-bc-history-menu .cp-history-page-icon { display:inline-flex; flex:0 0 15px; color:var(--d-muted); }
+#cp-bc-history-menu .cp-history-page-icon svg { width:15px; height:15px; }
+#cp-bc-history-menu button span.cp-history-time { flex:none; font-size:10px; color:var(--d-muted); }
+#cp-bc-history-menu .cp-history-pages button:hover { background:color-mix(in srgb,var(--d-accent) 8%,var(--d-surface)) !important; outline:none; }
+#cp-bc-history-menu .cp-history-pages button:focus-visible { outline:2px solid var(--d-ring); outline-offset:-2px; }
+#cp-bc-history-menu .cp-history-footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:7px 12px; border-top:1px solid var(--d-line); padding:9px 10px 4px; color:var(--d-muted); font-size:10px; }
+#cp-bc-history-menu .cp-history-footer label { display:inline-flex; align-items:center; gap:7px; font-size:11px; cursor:pointer; }
+#cp-bc-history-menu .cp-history-footer input { width:14px; height:14px; margin:0; accent-color:var(--d-accent); }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc-sep { display: inline-flex; flex: none; color: var(--d-muted); opacity: .75; }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc-sep svg { width: 13px; height: 13px; }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(a.headerAuthLevelLink, span.headerAuthLevel, button.cp-page-pill) {
@@ -729,7 +780,7 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is
 /* Copy User ID, the extension and the phone number (enhancer.js): a copy icon inside the id pill, and the extension
    and number chips joined to the pill's right edge (the extension's left border overlaps the pill's). Each shows a
    tooltip, and a check after copying. */
-html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc span.headerAuthLevel:has(+ .cp-ext-chip) {
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc span.headerAuthLevel:has(+ :is(.cp-name-chip, .cp-ext-chip)) {
   padding-right: 4px !important; border-top-right-radius: 0 !important; border-bottom-right-radius: 0 !important;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-copy-id {
@@ -752,20 +803,20 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc but
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-ext-chip b { color: var(--d-text); font-weight: 700; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-ext-chip[aria-disabled="true"] { cursor: default; }
-html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(button.cp-copy-id, button.cp-ext-chip, button.cp-num-chip) svg {
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(button.cp-copy-id, button.cp-name-chip, button.cp-ext-chip, button.cp-num-chip) svg {
   width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
 }
 /* The chips' copy icon in the same box as the id's: 20px, rounded, quiet until the chip is pointed at or copied. The
    whole chip stays the button; only the box lights, as on the id pill. */
-html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(button.cp-ext-chip, button.cp-num-chip) > svg:last-child {
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(button.cp-name-chip, button.cp-ext-chip, button.cp-num-chip) > svg:last-child {
   box-sizing: border-box; width: 20px; height: 20px; margin: -2px -3px -2px -2px; padding: 3.5px; border-radius: 5px;
-  opacity: .7; transition: background-color .12s ease, color .12s ease, opacity .12s ease;
+  opacity: .7; flex:none; transition: background-color .12s ease, color .12s ease, opacity .12s ease;
 }
-html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(button.cp-ext-chip:not([aria-disabled="true"]), button.cp-num-chip):is(:hover, :focus-visible, .cp-copied) > svg:last-child {
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(button.cp-name-chip, button.cp-ext-chip:not([aria-disabled="true"]), button.cp-num-chip):is(:hover, :focus-visible, .cp-copied) > svg:last-child {
   opacity: 1; background: color-mix(in srgb, var(--d-accent) 22%, transparent); color: var(--d-accent);
 }
-/* The phone number (enhancer.js), joined after the extension chip in the same style: a phone, the number, a copy icon. */
-html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-num-chip {
+/* Name and phone chips share the extension's type, sizing and copy box. */
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(button.cp-name-chip, button.cp-num-chip) {
   display: inline-flex; align-items: center; gap: 5px; flex: none; box-sizing: border-box; min-height: 0 !important;
   margin: 0 0 0 -8px !important; padding: 3px 8px !important;   /* -8px: the trail's 7px gap, and the border shared */
   border: 1px solid var(--d-line) !important; border-radius: 0 7px 7px 0 !important; box-shadow: none !important; transform: none !important;
@@ -773,14 +824,16 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc but
   font: 700 11.5px/1.5 "Inter", sans-serif !important; letter-spacing: .02em; white-space: nowrap; vertical-align: middle; cursor: pointer;
   transition: background-color .12s ease, border-color .12s ease, color .12s ease;
 }
-html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-num-chip b { color: var(--d-text); font-weight: 700; font-variant-numeric: tabular-nums; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(button.cp-name-chip, button.cp-num-chip) b { color: var(--d-text); font-weight: 700; font-variant-numeric: tabular-nums; }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-name-chip { max-width:min(230px,27vw); }
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc button.cp-name-chip b { min-width:0; overflow:hidden; text-overflow:ellipsis; }
 /* A board's last pill opens every option at this level (pjax.js): a ⌄ inside it, as on the page pill. */
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc [data-cp-crumb-menu] { cursor: pointer; }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc [data-cp-crumb-menu] > svg.cp-crumb-caret {
   width: 13px; height: 13px; flex: none; color: currentColor; opacity: .85;
 }
 /* Whatever a chip joins loses its right-hand rounding. */
-html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(a.headerAuthLevelLink, span.headerAuthLevel, button.cp-ext-chip, button.cp-num-chip):has(+ .cp-bc-attach) {
+html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc :is(a.headerAuthLevelLink, span.headerAuthLevel, button.cp-name-chip, button.cp-ext-chip, button.cp-num-chip):has(+ .cp-bc-attach) {
   border-top-right-radius: 0 !important; border-bottom-right-radius: 0 !important;
 }
 html[data-cp-direction] body[id="initBody.menuTemplate"] td.headerBar .cp-bc .cp-ext-spin {

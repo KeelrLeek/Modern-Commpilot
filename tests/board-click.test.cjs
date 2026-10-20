@@ -127,6 +127,71 @@ test('a sidebar folder picked while the board is still filling in is shown and s
   } finally { await browser.close(); }
 });
 
+test('sidebar jumps survive refreshes during menu loading and override Back scroll restoration', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 700 } });
+    let serial = 1;
+    await page.route(origin + '/**', async route => {
+      const req = route.request();
+      const pathname = new URL(req.url()).pathname;
+      const folder = (/folder=(R\d)/.exec(req.postData() || '') || [])[1] || 'R0';
+      if (pathname === folderPath && req.method() === 'POST') await new Promise(r => setTimeout(r, 250));
+      return route.fulfill({ status: 200, contentType: 'text/html', body: multiShell(
+        pathname === folderPath ? folderBoard(folder) : '<h1 class="screenName">Option</h1>', 'token-' + (++serial)) });
+    });
+    await page.goto(origin + folderPath, { waitUntil: 'domcontentloaded' });
+    for (const file of ['native-theme.css', 'theme-palettes.css', 'menu-board.css', 'page-baseline.css'])
+      await page.addStyleTag({ path: path.join(root, 'src/content', file) });
+    await page.evaluate(() => { document.documentElement.dataset.cpDirection = 'graphite'; document.documentElement.dataset.cpRail = ''; });
+    await page.evaluate(() => {
+      const refreshed = new WeakSet();
+      window.skeletonRefreshes = 0;
+      new MutationObserver(() => {
+        const board = document.querySelector('.cp-console');
+        if (!board || refreshed.has(board) || board.querySelector('a.navMenuItem')) return;
+        refreshed.add(board);
+        window.skeletonRefreshes++;
+        document.dispatchEvent(new Event('cp:reskin'));
+      }).observe(document.body, { childList: true, subtree: true });
+    });
+    await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
+    const loaded = () => page.waitForFunction(() => document.querySelectorAll('.cp-console-body[data-cp-loaded="1"]').length === 4);
+    const offset = folder => page.evaluate(folder => document.querySelector(`.cp-console-section[data-cp-folder="${folder}"]`).getBoundingClientRect().top -
+      document.querySelector('.cp-console').getBoundingClientRect().top, folder);
+    const sidebar = name => page.locator('form[name="leftNavForm"] a', { hasText: name });
+    await loaded();
+    await page.waitForTimeout(700);
+    assert.ok(await page.evaluate(() => window.skeletonRefreshes > 0), 'a refresh arrived while the board had only loading placeholders');
+    assert.equal(await page.evaluate(() => document.documentElement.classList.contains('cp-board-active')), true,
+      'a refresh during loading preserves the board scroll layout');
+    await sidebar('Utilities').click();
+    await page.waitForFunction(() => Math.abs(document.querySelector('.cp-console-section[data-cp-folder="R3"]').getBoundingClientRect().top -
+      document.querySelector('.cp-console').getBoundingClientRect().top) < 4);
+    await page.locator('.cp-console-section[data-cp-folder="R3"] a.navMenuItem').first().click();
+    await page.waitForFunction(() => location.pathname === '/commpilot/Reseller/R3/1/');
+    await page.goBack();
+    await page.waitForFunction(() => document.querySelector('.cp-console-section[data-cp-folder="R0"] .cp-console-body')?.dataset.cpLoaded === '1');
+    await sidebar('Resources').click();
+    await loaded();
+    await page.waitForTimeout(1000);
+    assert.ok(Math.abs(await offset('R1')) < 4, `Resources stays at the top after Back finishes (${await offset('R1')}px off)`);
+    for (const [folder, name] of [['R3', 'Utilities'], ['R0', 'Profile'], ['R2', 'Services']]) {
+      await sidebar(name).click();
+      await page.waitForTimeout(800);
+      assert.ok(Math.abs(await offset(folder)) < 4, `${name} still scrolls after returning to the board (${await offset(folder)}px off)`);
+    }
+    // Back still restores the previous section when there is no newer sidebar choice.
+    await page.locator('.cp-console-section[data-cp-folder="R2"] a.navMenuItem').first().click();
+    await page.waitForFunction(() => location.pathname === '/commpilot/Reseller/R2/1/');
+    await page.goBack();
+    await loaded();
+    await page.waitForTimeout(1000);
+    assert.ok(Math.abs(await offset('R2')) < 4, `Back without another sidebar click restores Services (${await offset('R2')}px off)`);
+  } finally { await browser.close(); }
+});
+
 test('a sidebar swapped in by a level change still navigates, with no stamps and no CommPilot listeners on it', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });

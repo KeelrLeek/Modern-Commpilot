@@ -1,0 +1,1432 @@
+{
+  "source": "CommPilot-Add-User-2026-10-19T15-51-59-111Z.json",
+  "limitations": [
+    "Recording masks passwords and removes hidden fields and scripts; it cannot establish server validation rules or defaults.",
+    "Visibility is based on recorded inline styles; runtime checks must also use computed visibility.",
+    "No personal field values or credentials are included in this contract."
+  ],
+  "pages": [
+    {
+      "name": "user-add",
+      "seconds": 101.53,
+      "controls": [
+        {
+          "name": "autofillPwdDiscarded",
+          "type": "password",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "label": "User ID*",
+          "required": true,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "domain",
+          "type": "select",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 1,
+          "nativeChoices": []
+        },
+        {
+          "name": "unicodeLastName",
+          "type": "text",
+          "label": "Last Name*",
+          "required": true,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 30
+        },
+        {
+          "name": "unicodeFirstName",
+          "type": "text",
+          "label": "First Name*",
+          "required": true,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 30
+        },
+        {
+          "name": "lastName",
+          "type": "text",
+          "label": "Calling Line ID Last Name*",
+          "required": true,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 30
+        },
+        {
+          "name": "firstName",
+          "type": "text",
+          "label": "Calling Line ID First Name*",
+          "required": true,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 30
+        },
+        {
+          "name": "nameDialingLastName",
+          "type": "text",
+          "label": "Name Dialing Last Name",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 30
+        },
+        {
+          "name": "nameDialingFirstName",
+          "type": "text",
+          "label": "Name Dialing First Name",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 30
+        },
+        {
+          "name": "clidPhone",
+          "type": "text",
+          "label": "Calling Line ID Phone Number",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 23
+        },
+        {
+          "name": "password",
+          "type": "password",
+          "label": "Initial Password*",
+          "required": true,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 60
+        },
+        {
+          "name": "echoPassword",
+          "type": "password",
+          "label": "Re-type Initial Password*",
+          "required": true,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 60
+        },
+        {
+          "name": "deptEncodedKey",
+          "type": "select",
+          "label": "Department",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 173,
+          "nativeChoices": []
+        },
+        {
+          "name": "language",
+          "type": "select",
+          "label": "Language",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "nativeDefault": "English",
+          "optionCount": 2,
+          "nativeChoices": []
+        },
+        {
+          "name": "timeZone",
+          "type": "select",
+          "label": "Time Zone",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "nativeDefault": "America/Chicago",
+          "optionCount": 298,
+          "nativeChoices": []
+        },
+        {
+          "name": "ncos",
+          "type": "select",
+          "label": "Network Class of Service",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "nativeDefault": "",
+          "optionCount": 1,
+          "nativeChoices": []
+        },
+        {
+          "name": "isPlace",
+          "type": "checkbox",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": false
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "label": "Title",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 50
+        },
+        {
+          "name": "pager",
+          "type": "text",
+          "label": "Pager",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 30
+        },
+        {
+          "name": "mobile",
+          "type": "text",
+          "label": "Mobile",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 30
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "label": "E-mail",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "yahooID",
+          "type": "text",
+          "label": "YahooID",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 50
+        },
+        {
+          "name": "location",
+          "type": "text",
+          "label": "Location",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "addressLine1",
+          "type": "text",
+          "label": "Address",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "addressLine2",
+          "type": "text",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "city",
+          "type": "text",
+          "label": "City",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 50
+        },
+        {
+          "name": "stateValue",
+          "type": "select",
+          "label": "State/Province",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 65,
+          "nativeChoices": []
+        },
+        {
+          "name": "zipOrPostalCode",
+          "type": "text",
+          "label": "Zip/Postal Code",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 50
+        },
+        {
+          "name": "country",
+          "type": "text",
+          "label": "Country",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 50
+        }
+      ]
+    },
+    {
+      "name": "alternate-id",
+      "seconds": 126.64,
+      "controls": [
+        {
+          "name": "alt1",
+          "type": "text",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 161
+        },
+        {
+          "name": "desc1",
+          "type": "text",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "alt2",
+          "type": "text",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 161
+        },
+        {
+          "name": "desc2",
+          "type": "text",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "alt3",
+          "type": "text",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 161
+        },
+        {
+          "name": "desc3",
+          "type": "text",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "alt4",
+          "type": "text",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 161
+        },
+        {
+          "name": "desc4",
+          "type": "text",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        }
+      ]
+    },
+    {
+      "name": "addresses",
+      "seconds": 178.38,
+      "controls": [
+        {
+          "name": "phoneNumber",
+          "type": "select",
+          "label": "Phone Number",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 2130,
+          "nativeChoices": []
+        },
+        {
+          "name": "extension",
+          "type": "text",
+          "label": "Extension",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 6
+        },
+        {
+          "name": "deviceChoice",
+          "type": "radio",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": true
+        },
+        {
+          "name": "deviceChoice",
+          "type": "radio",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": false
+        },
+        {
+          "name": "deviceChoice",
+          "type": "radio",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": true
+        },
+        {
+          "name": "deviceName",
+          "type": "select",
+          "label": "Identity/Device Profile Name",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 17285,
+          "nativeChoices": [
+            {
+              "value": "New Device",
+              "label": "New Identity/Device Profile (Group)"
+            }
+          ]
+        },
+        {
+          "name": "newDeviceName",
+          "type": "text",
+          "label": "New Identity/Device Profile Name*",
+          "required": true,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 40
+        },
+        {
+          "name": "newDeviceType",
+          "type": "select",
+          "label": "Identity/Device Profile Type",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 152,
+          "nativeChoices": [
+            {
+              "value": "Trifecta PolycomVVX400",
+              "label": "Trifecta PolycomVVX400 (Reseller)"
+            },
+            {
+              "value": "Trifecta Teams",
+              "label": "Trifecta Teams (Reseller)"
+            }
+          ]
+        },
+        {
+          "name": "ipAddressRequired",
+          "type": "text",
+          "label": "Host Name/IP Address*",
+          "required": true,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "portRequired",
+          "type": "text",
+          "label": "Port",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 10
+        },
+        {
+          "name": "ipAddressOptional",
+          "type": "text",
+          "label": "Host Name/IP Address",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "portOptional",
+          "type": "text",
+          "label": "Port",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 10
+        },
+        {
+          "name": "macAddress",
+          "type": "text",
+          "label": "MAC Address",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 12
+        },
+        {
+          "name": "physicalLocation",
+          "type": "text",
+          "label": "Physical Location",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1024
+        },
+        {
+          "name": "deviceLinePort",
+          "type": "text",
+          "label": "Line/Port*",
+          "required": true,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "deviceLinePortDomain",
+          "type": "text",
+          "label": "Line/Port*",
+          "required": true,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "deviceDomain",
+          "type": "select",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 1,
+          "nativeChoices": []
+        },
+        {
+          "name": "devicePortNumberDropdown",
+          "type": "select",
+          "label": "Port Number",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 1,
+          "nativeChoices": []
+        },
+        {
+          "name": "deviceStaticSipUrl",
+          "type": "text",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1020
+        },
+        {
+          "name": "deviceStaticSipPath",
+          "type": "textarea",
+          "label": "Path",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1024
+        },
+        {
+          "name": "deviceStaticSipUrl2",
+          "type": "text",
+          "label": "sip",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1020
+        },
+        {
+          "name": "deviceStaticSipPath2",
+          "type": "textarea",
+          "label": "Path",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1024
+        },
+        {
+          "name": "deviceStaticSipUrl3",
+          "type": "text",
+          "label": "sip",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1020
+        },
+        {
+          "name": "deviceStaticSipPath3",
+          "type": "textarea",
+          "label": "Path",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1024
+        },
+        {
+          "name": "deviceStaticSipUrl4",
+          "type": "text",
+          "label": "sip",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1020
+        },
+        {
+          "name": "deviceStaticSipPath4",
+          "type": "textarea",
+          "label": "Path",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1024
+        },
+        {
+          "name": "deviceStaticSipUrl5",
+          "type": "text",
+          "label": "sip",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1020
+        },
+        {
+          "name": "deviceStaticSipPath5",
+          "type": "textarea",
+          "label": "Path",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1024
+        },
+        {
+          "name": "useHotline",
+          "type": "checkbox",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": false
+        },
+        {
+          "name": "hotlineContact",
+          "type": "text",
+          "label": "Hotline Contact",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 161
+        },
+        {
+          "name": "trunkGroupName",
+          "type": "select",
+          "label": "Trunk Group",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 1,
+          "nativeChoices": []
+        },
+        {
+          "name": "trunkGroupLinePortReq",
+          "type": "text",
+          "label": "Line/Port*",
+          "required": true,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "trunkGroupLinePort",
+          "type": "text",
+          "label": "Line/Port",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "trunkGroupLinePortDomain",
+          "type": "text",
+          "label": "Line/Port",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "trunkGroupDomain",
+          "type": "select",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 1,
+          "nativeChoices": []
+        },
+        {
+          "name": "trunkGroupLinePortDomainReq",
+          "type": "text",
+          "label": "Line/Port*",
+          "required": true,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "trunkGroupDomainReq",
+          "type": "select",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 1,
+          "nativeChoices": []
+        },
+        {
+          "name": "trunkGroupStaticSipUrl",
+          "type": "text",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1020
+        },
+        {
+          "name": "trunkGroupStaticSipPath",
+          "type": "textarea",
+          "label": "Path",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1024
+        },
+        {
+          "name": "trunkGroupStaticSipUrl2",
+          "type": "text",
+          "label": "sip",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1020
+        },
+        {
+          "name": "trunkGroupStaticSipPath2",
+          "type": "textarea",
+          "label": "Path",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1024
+        },
+        {
+          "name": "trunkGroupStaticSipUrl3",
+          "type": "text",
+          "label": "sip",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1020
+        },
+        {
+          "name": "trunkGroupStaticSipPath3",
+          "type": "textarea",
+          "label": "Path",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1024
+        },
+        {
+          "name": "trunkGroupStaticSipUrl4",
+          "type": "text",
+          "label": "sip",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1020
+        },
+        {
+          "name": "trunkGroupStaticSipPath4",
+          "type": "textarea",
+          "label": "Path",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1024
+        },
+        {
+          "name": "trunkGroupStaticSipUrl5",
+          "type": "text",
+          "label": "sip",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1020
+        },
+        {
+          "name": "trunkGroupStaticSipPath5",
+          "type": "textarea",
+          "label": "Path",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1024
+        },
+        {
+          "name": "alternateTrunkIdentity",
+          "type": "text",
+          "label": "Alternate Trunk Identity",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "enterpriseTrunk",
+          "type": "select",
+          "label": "Enterprise Trunk",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 1,
+          "nativeChoices": []
+        },
+        {
+          "name": "trunkPhysicalLocation",
+          "type": "text",
+          "label": "Physical Location",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1024
+        },
+        {
+          "name": "alias1",
+          "type": "text",
+          "label": "sip",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "alias1Domain",
+          "type": "select",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 1,
+          "nativeChoices": []
+        },
+        {
+          "name": "alias2",
+          "type": "text",
+          "label": "sip",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "alias2Domain",
+          "type": "select",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 1,
+          "nativeChoices": []
+        },
+        {
+          "name": "alias3",
+          "type": "text",
+          "label": "sip",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "alias3Domain",
+          "type": "select",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 1,
+          "nativeChoices": []
+        }
+      ]
+    },
+    {
+      "name": "authentication",
+      "seconds": 197.05,
+      "controls": [
+        {
+          "name": "autofillPwdDiscarded",
+          "type": "password",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1
+        },
+        {
+          "name": "username",
+          "type": "text",
+          "label": "Authentication User Name*",
+          "required": true,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "newPassword",
+          "type": "password",
+          "label": "Type new authentication password*",
+          "required": true,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 60
+        },
+        {
+          "name": "newPasswordConfirm",
+          "type": "password",
+          "label": "Re-type new authentication password*",
+          "required": true,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 60
+        }
+      ]
+    },
+    {
+      "name": "teams-add",
+      "seconds": 239.64,
+      "controls": [
+        {
+          "name": "deviceName",
+          "type": "select",
+          "label": "Identity/Device Profile Name",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 17286,
+          "nativeChoices": [
+            {
+              "value": "New Device",
+              "label": "New Identity/Device Profile (Group)"
+            }
+          ]
+        },
+        {
+          "name": "newDeviceName",
+          "type": "text",
+          "label": "New Identity/Device Profile Name*",
+          "required": true,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 40
+        },
+        {
+          "name": "newDeviceType",
+          "type": "select",
+          "label": "Identity/Device Profile Type",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 152,
+          "nativeChoices": [
+            {
+              "value": "Trifecta PolycomVVX400",
+              "label": "Trifecta PolycomVVX400 (Reseller)"
+            },
+            {
+              "value": "Trifecta Teams",
+              "label": "Trifecta Teams (Reseller)"
+            }
+          ]
+        },
+        {
+          "name": "ipAddressRequired",
+          "type": "text",
+          "label": "Host Name/IP Address*",
+          "required": true,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "portRequired",
+          "type": "text",
+          "label": "Port",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 10
+        },
+        {
+          "name": "ipAddressOptional",
+          "type": "text",
+          "label": "Host Name/IP Address",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "portOptional",
+          "type": "text",
+          "label": "Port",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 10
+        },
+        {
+          "name": "macAddress",
+          "type": "text",
+          "label": "MAC Address",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 12
+        },
+        {
+          "name": "physicalLocation",
+          "type": "text",
+          "label": "Physical Location",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1024
+        },
+        {
+          "name": "deviceLinePort",
+          "type": "text",
+          "label": "Line/Port*",
+          "required": true,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "deviceDomain",
+          "type": "select",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 1,
+          "nativeChoices": []
+        },
+        {
+          "name": "deviceLinePortDomain",
+          "type": "text",
+          "label": "Line/Port*",
+          "required": true,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 80
+        },
+        {
+          "name": "devicePortNumberDropdown",
+          "type": "select",
+          "label": "Port Number",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 1,
+          "nativeChoices": []
+        },
+        {
+          "name": "deviceStaticSipUrl",
+          "type": "text",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1020
+        },
+        {
+          "name": "deviceStaticSipPath",
+          "type": "textarea",
+          "label": "Path",
+          "required": false,
+          "visibleByInlineStyles": false,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 1024
+        },
+        {
+          "name": "useHotline",
+          "type": "checkbox",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": false
+        },
+        {
+          "name": "hotlineContact",
+          "type": "text",
+          "label": "Hotline Contact",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": 161
+        },
+        {
+          "name": "activeEndpoint",
+          "type": "checkbox",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": true
+        },
+        {
+          "name": "allowOrigination",
+          "type": "checkbox",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": true
+        },
+        {
+          "name": "allowTermination",
+          "type": "checkbox",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": true
+        }
+      ]
+    },
+    {
+      "name": "teams-saved",
+      "seconds": 241,
+      "controls": [
+        {
+          "name": "clickToDial",
+          "type": "checkbox",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": false
+        },
+        {
+          "name": "groupPaging",
+          "type": "checkbox",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": false
+        },
+        {
+          "name": "allowSCACallRetrieve",
+          "type": "checkbox",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": false
+        },
+        {
+          "name": "allowBridgeLoc",
+          "type": "checkbox",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": false
+        },
+        {
+          "name": "enableCallParkNotification",
+          "type": "checkbox",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": false
+        },
+        {
+          "name": "bridgeWarningTone",
+          "type": "radio",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": true
+        },
+        {
+          "name": "bridgeWarningTone",
+          "type": "radio",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": false
+        },
+        {
+          "name": "bridgeWarningTone",
+          "type": "radio",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "checked": false
+        },
+        {
+          "name": "checkbox___DFLT_COL_ID____DELIMITER__RSG Teams 46013<!>3127846013_Teams@phonenetwork.net<!>empty_staticSipUrl<!>empty_portNumberStr<!>false<!>empty_staticSipPath",
+          "type": "CHECKBOX",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1
+        },
+        {
+          "name": "findKey",
+          "type": "select",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 3,
+          "nativeChoices": []
+        },
+        {
+          "name": "findOp",
+          "type": "select",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1,
+          "optionCount": 3,
+          "nativeChoices": []
+        },
+        {
+          "name": "findValue",
+          "type": "text",
+          "label": "",
+          "required": false,
+          "visibleByInlineStyles": true,
+          "disabled": false,
+          "readOnly": false,
+          "maxLength": -1
+        }
+      ]
+    }
+  ]
+}

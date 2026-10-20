@@ -20,7 +20,7 @@ function row(n, name, target = name) {
     <td width="0">&nbsp;</td><td>${link(`Row${n}Col1`, String((n * 7) % 13))}</td><td width="0">&nbsp;</td>
     <td class="unselected">${link(`link_${n}`, 'Edit')}</td></tr>`;
 }
-function listPage(rows, { pager = 'Page 1 of 1', fill = '' } = {}) {
+function listPage(rows, { pager = 'Page 1 of 1', fill = '', heldRows = '' } = {}) {
   return `<!doctype html><html data-cp-direction="graphite"><head><title>Groups</title></head>
     <body id="initBody.menuTemplate"><table height="100%"><tbody><tr><td width="82%" valign="top">
     <form name="mainForm"><table width="100%"><tbody>
@@ -35,8 +35,11 @@ function listPage(rows, { pager = 'Page 1 of 1', fill = '' } = {}) {
             <td class="listHeader"><img src="/commpilot/Graphics/onepx.gif" width="0" height="1"></td>
             <td class="listHeader">Edit</td></tr>
           ${rows}
-        </tbody></table>
-        <table class="enduserbody" width="100%"><tbody><tr><td width="33%"></td><td width="33%">[ ${pager} ]</td><td width="33%"></td></tr></tbody></table>
+        </tbody>${heldRows ? `<template class="cp-rows-held">${heldRows}</template>` : ''}</table>
+        <table border="0" cellpadding="0" cellspacing="0" width="100%"><tbody><tr>
+          <td class="listHeader"><img src="/commpilot/Graphics/onepx.gif" width="1" height="2"></td>
+        </tr></tbody></table>
+        <table class="enduserbody" width="100%"><tbody><tr><td width="33%"></td><td width="33%">[ ${pager} ]</td><td width="33%"><input id="native-next" type="button" value="Next"><input type="button" value="Last"></td></tr></tbody></table>
       </td></tr>
     </tbody></table></form>
     </td></tr></tbody></table>
@@ -60,6 +63,7 @@ async function open(browser, html, viewport = { width: 1280, height: 720 }) {
 }
 const shown = page => page.evaluate(() => [...document.querySelectorAll('tr[id^="Row"]')]
   .filter(tr => getComputedStyle(tr).display !== 'none').map(tr => tr.id));
+const settled = page => page.waitForFunction(()=>[...document.querySelectorAll('table[data-cp-page-phase]')].every(table=>table.dataset.cpPagePhase==='idle'));
 
 test('a whole result row opens its page, by click or keyboard, and Edit goes where it repeats the row', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');
@@ -120,6 +124,7 @@ test('a list shows as many rows as fit the window, pages the rest, and refits on
     assert.ok(Math.abs(fit.gap) <= 1, `no gap between the last row and the pager (${fit.gap}px)`);
     assert.ok(fit.left >= 0 && fit.left < 2, `no space left under the list (${fit.left}px)`);
     await page.getByRole('button', { name: 'Next page' }).click();
+    await settled(page);
     assert.equal((await shown(page))[0], `Row${first.length + 1}`);
     await page.setViewportSize({ width: 1280, height: 1100 });
     await page.waitForFunction(n => [...document.querySelectorAll('tr[id^="Row"]')]
@@ -128,6 +133,85 @@ test('a list shows as many rows as fit the window, pages the rest, and refits on
     assert.ok(taller.length > first.length, `a taller window shows more rows (${taller.length})`);
     assert.ok(taller.includes(`Row${first.length + 1}`), 'and keeps the row you were on in view');
   } finally { await browser.close(); }
+});
+
+test('paging reveals complete pages together, reserves the last page height and honors reduced motion',async()=>{
+  const browser=await chromium.launch({executablePath:browserPath,headless:true});
+  try{
+    const page=await open(browser,listPage(names(39),{pager:'Page 1 of 2',fill:'done'}));
+    await page.waitForTimeout(250);
+    const height=await page.locator('table.cp-frame-results').evaluate(el=>el.getBoundingClientRect().height);
+    const phase=await page.evaluate(()=>{document.querySelector('[data-go="last"]').click();return document.querySelector('table[data-cp-page-phase]').dataset.cpPagePhase;});
+    assert.equal(phase,'entering','the complete final page is committed in the click handler');
+    await settled(page);
+    assert.ok(Math.abs(await page.locator('table.cp-frame-results').evaluate(el=>el.getBoundingClientRect().height)-height)<2,'short final page keeps the same result area');
+    assert.ok((await shown(page)).includes('Row39'));
+    await page.emulateMedia({reducedMotion:'reduce'});
+    await page.getByRole('button',{name:'First page',exact:true}).click();
+    assert.equal((await shown(page))[0],'Row1');
+    assert.equal(await page.locator('table.cp-frame-results').evaluate(el=>el.getAnimations().length),0);
+  }finally{await browser.close();}
+});
+
+test('search design A fills the window by default, refits on resize and preserves short-page geometry',async()=>{
+  const browser=await chromium.launch({executablePath:browserPath,headless:true});
+  try{
+    const search='<table><tr id="tr0"><td><select name="findKey0"><option>User ID</option></select></td><td><select name="findOp0"><option>Contains</option></select></td><td><input name="findValue0"></td><td><input type="submit" id="search0" name="search" value="Search"></td></tr></table>';
+    const page=await open(browser,listPage(names(59),{pager:'Page 1 of 3',fill:'done'}).replace('<td class="enduserbody">','<td class="enduserbody">'+search));
+    await page.waitForTimeout(200);
+    assert.equal(await page.getByLabel('Rows per page').inputValue(),'auto');
+    let previous=0;
+    for(const height of [720,900,1100,1200]){
+      await page.setViewportSize({width:1440,height});await page.waitForTimeout(200);
+      const fit=await page.evaluate(()=>{
+        const cell=document.querySelector('td[width="82%"]'),form=cell.querySelector('form'),table=document.querySelector('table.cp-frame-results');
+        return {count:table.querySelectorAll('tr[id^="Row"]:not(.cp-row-off)').length,overflow:cell.scrollHeight-cell.clientHeight,
+          unused:cell.getBoundingClientRect().bottom-parseFloat(getComputedStyle(cell).paddingBottom)-form.getBoundingClientRect().bottom,
+          tableHeight:table.getBoundingClientRect().height,label:document.querySelector('.cp-pager-page').textContent};
+      });
+      assert.ok(fit.count>previous,`more rows fit a taller window (${height}px: ${JSON.stringify(fit)})`);
+      assert.ok(fit.overflow<=0,`no scrolling at ${height}px: ${JSON.stringify(fit)}`);
+      assert.ok(fit.unused>=0&&fit.unused<2,`the results fill the window at ${height}px: ${JSON.stringify(fit)}`);
+      previous=fit.count;
+      await page.evaluate(()=>document.querySelector('[data-go="last"]').click());await settled(page);
+      assert.ok((await shown(page)).includes('Row59'));
+      assert.ok(Math.abs(await page.locator('table.cp-frame-results').evaluate(el=>el.getBoundingClientRect().height)-fit.tableHeight)<2,'the final page reserves the full window height');
+      await page.evaluate(()=>document.querySelector('[data-go="first"]').click());await settled(page);
+      assert.equal(await page.locator('.cp-pager-page').textContent(),fit.label,'Previous/First keeps the fitted page size');
+    }
+  }finally{await browser.close();}
+});
+
+test('search design A commits rapid page clicks immediately with stable controls and a Rows selector',async()=>{
+  const browser=await chromium.launch({executablePath:browserPath,headless:true});
+  try{
+    const search='<table><tr id="tr0"><td><select name="findKey0"><option>User ID</option></select></td><td><select name="findOp0"><option>Contains</option></select></td><td><input name="findValue0"></td><td><input type="submit" id="search0" name="search" value="Search"></td></tr></table>';
+    const page=await open(browser,listPage(names(39),{pager:'Page 1 of 2',fill:'done'}).replace('<td class="enduserbody">','<td class="enduserbody">'+search));
+    await page.waitForTimeout(180);
+    assert.equal(await page.locator('.cp-results-heading').count(),1,'the native blank divider is not a second result list');
+    assert.equal(await page.locator('table.cp-frame-results').count(),1,'only the table with named columns is a result list');
+    assert.equal(await page.locator('.fx').count(),0,'search and native pager controls must not become a settings form');
+    assert.equal(await page.locator('#native-next').isVisible(),false,'the native pager buttons are hidden, not moved into another visible table');
+    assert.equal(await page.getByLabel('Rows per page').inputValue(),'auto');
+    await page.getByLabel('Rows per page').selectOption('10');await settled(page);
+    const height=await page.locator('table.cp-frame-results').evaluate(el=>el.getBoundingClientRect().height);
+    const metrics=await page.evaluate(()=>{
+      const table=document.querySelector('table.cp-frame-results'),pager=document.querySelector('.cp-pager');
+      const before=pager.getBoundingClientRect();
+      document.querySelector('[data-go="next"]').click();document.querySelector('[data-go="next"]').click();document.querySelector('[data-go="prev"]').click();
+      return {first:table.querySelector('tr[id^="Row"]:not(.cp-row-off)').id,label:pager.querySelector('.cp-pager-page').textContent,shift:pager.getBoundingClientRect().y-before.y,pagerOpacity:getComputedStyle(pager).opacity,pagerAnimations:pager.getAnimations().length,transform:getComputedStyle(table).transform};
+    });
+    assert.deepEqual(metrics,{first:'Row11',label:'Page 2 of 4',shift:0,pagerOpacity:'1',pagerAnimations:0,transform:'none'});
+    await page.evaluate(()=>document.querySelector('[data-go="last"]').click());await settled(page);
+    assert.ok(Math.abs(await page.locator('table.cp-frame-results').evaluate(el=>el.getBoundingClientRect().height)-height)<1,'short final page preserves the frame');
+    await page.getByLabel('Rows per page').selectOption('20');await settled(page);assert.equal((await shown(page)).length,20);
+    await page.emulateMedia({reducedMotion:'reduce'});
+    await page.getByRole('button',{name:'Next page',exact:true}).click();
+    assert.equal((await shown(page))[0],'Row21');
+    assert.equal(await page.locator('table.cp-frame-results').evaluate(el=>el.getAnimations().length),0);
+    await page.getByLabel('Rows per page').selectOption('auto');await settled(page);
+    assert.ok((await shown(page)).length>=1);
+  }finally{await browser.close();}
 });
 
 test('a list whose other pages are not all here keeps CommPilot’s own pager', async () => {
@@ -161,6 +245,7 @@ test('with the whole list here, a column header sorts it in place (no second sea
     assert.equal(await page.evaluate(() => document.querySelector('#sortId').closest('td').getAttribute('aria-sort')), 'descending');
 
     await page.getByRole('button', { name: 'Next page' }).click();
+    await settled(page);
     await page.locator('#sortLimit').click();
     const sorted = await limits();
     assert.deepEqual(sorted, [...sorted].sort((a, b) => a - b), 'rows ordered by the number in that column');
@@ -170,10 +255,12 @@ test('with the whole list here, a column header sorts it in place (no second sea
 
     const pageLabel = () => page.locator('.cp-pager-page').innerText();
     await page.getByRole('button', { name: 'Last page' }).click();
+    await settled(page);
     const total = (await pageLabel()).match(/of (\d+)/)[1];
     assert.equal(await pageLabel(), `Page ${total} of ${total}`);
     assert.equal(await page.getByRole('button', { name: 'Last page' }).isDisabled(), true);
     await page.getByRole('button', { name: 'First page' }).click();
+    await settled(page);
     assert.equal(await pageLabel(), `Page 1 of ${total}`);
     assert.equal(await page.getByRole('button', { name: 'First page' }).isDisabled(), true);
     const centered = await page.evaluate(() => {
@@ -192,6 +279,36 @@ test('with the whole list here, a column header sorts it in place (no second sea
     const again = await limits();
     assert.deepEqual(again, [...again].sort((a, b) => a - b), 'the list comes back in the order chosen');
     assert.equal(await page.evaluate(() => document.querySelector('#sortLimit').closest('td').getAttribute('aria-sort')), 'ascending');
+  } finally { await browser.close(); }
+});
+
+for (const held of [false, true]) test(`blank User IDs move to the top when sorting descending (${held ? 'held' : 'regular'} rows)`, async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const users = Array.from({ length: 36 }, (_, i) => row(i + 1, `user${i + 1}@example.net`));
+    // Native blank cells can be empty or padded with whitespace, and can still contain link-wiring scripts.
+    const blanks = [row(37, ''), row(38, '&nbsp;'), row(39, '  ')];
+    const rows = (held ? users.slice(0, 20) : [...users, ...blanks]).join('');
+    const heldRows = held ? [...users.slice(20), ...blanks].join('') : '';
+    const page = await open(browser, listPage(rows, { pager: 'Page 1 of 2', fill: 'done', heldRows }).replace('Group ID<img', 'User ID<img'));
+    await page.locator('.cp-pager').waitFor();
+
+    await page.locator('#sortId').click(); // native ascending order becomes descending
+    assert.deepEqual((await shown(page)).slice(0, 5), ['Row37', 'Row38', 'Row39', 'Row36', 'Row35'],
+      'blank IDs come first; populated IDs still sort naturally, with equal blanks kept stable');
+    assert.equal(await page.locator('#sortId').evaluate(el => el.closest('td').getAttribute('aria-sort')), 'descending');
+
+    await page.locator('#sortId').click();
+    assert.deepEqual((await shown(page)).slice(0, 3), ['Row1', 'Row2', 'Row3'], 'ascending starts with the lowest populated IDs');
+    await page.getByRole('button', { name: 'Last page' }).click();
+    await settled(page);
+    assert.deepEqual((await shown(page)).slice(-3), ['Row37', 'Row38', 'Row39'], 'ascending keeps blank IDs at the end');
+
+    await page.locator('#sortId').click();
+    assert.deepEqual((await shown(page)).slice(0, 3), ['Row37', 'Row38', 'Row39'], 'reversing from the last page returns to the blank IDs');
+    assert.equal(await page.evaluate(() => window.serverSorts), 0, 'sorting does not submit another search');
+    assert.match(await page.locator('.cp-pager-count').innerText(), /39/);
   } finally { await browser.close(); }
 });
 

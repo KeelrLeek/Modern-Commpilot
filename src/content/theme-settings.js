@@ -254,6 +254,27 @@
 
   // What is new in each version (About, in the Settings window). Plain text; the newest version first.
   const NEWS = {
+    "0.3.82": [
+      "RSG Bulk create users guides you through users and department numbers, SIP passwords by department, and review. It sets up the primary VVX profile, Teams shared call appearance, alternate ID, and authentication, then checks the saved configuration.",
+      "Choose number now lists only unassigned numbers in the selected department, excludes numbers already selected in the batch, and shows a retry action when the lookup fails.",
+      "Bulk creation fills required Calling Line ID names and commits both primary and SCA Line/Port values through CommPilot's native field handlers before saving. The native domain stays unchanged, and saved device profiles and line/ports are checked again.",
+      "Fixed native script initialization, legacy Prototype compatibility, and encoded SCA navigation links that interrupted bulk creation. Completed steps are preserved when retrying a failed user while the batch stays open.",
+      "Recent locations groups pages under clickable user, group, and provider headings, merges repeated destinations, and shows user names above their IDs. Returning to history after signing in restores the selected context before opening its pages. Browser Back also handles older search entries without saved navigation state.",
+      "Search pages use the approved layout and consistent typography. Results are collected once per search; paging, sorting, and Rows changes reuse them. Auto rows fit the window, and completed results appear together with quieter transitions.",
+      "Breadcrumb dropdowns have matching icons and highlights, and user names match the extension and phone chips. SCA settings have cleaner spacing, and device-profile returns go directly to the originating SCA page.",
+    ],
+    "0.3.81": [
+      "Shared Call Appearance has a refreshed layout with grouped call settings, a clearer appearances list, and fonts and control sizes that match the rest of CommPilot.",
+      "Identity/Device Profile Modify has a cleaner layout and working PJAX tabs for Profile, Users, Files, Custom Tags, and the other device pages, including after filtering a list.",
+      "Opening a device profile from a user's Shared Call Appearance now remembers where you came from, even after a reload. OK and Cancel return to that user's SCA list or appearance; Apply saves and keeps the current device tab open. Profiles opened from group inventory retain their group return.",
+      "Saving a user's Addresses with Apply or OK updates the breadcrumb's phone number and extension, including for newly created users.",
+      "Sidebar section clicks scroll reliably after switching menus, even when menu previews finish loading during a jump.",
+    ],
+    "0.3.80": [
+      "Search-result sorting now brings blank values to the top when descending and puts them last when ascending, including lists spanning multiple pages.",
+      "Choosing New Identity/Device Profile no longer freezes large dropdowns. Both the shortcut button and the dropdown option respond quickly, and reopening the list on a late selection stays responsive.",
+      "Sidebar section jumps keep working after returning to a menu. Refreshes during loading preserve the scrolling layout, and a new sidebar choice takes priority over Back’s saved scroll position.",
+    ],
     "0.3.79": [
       "Signing back in after CommPilot signs you out works again. The extension reopened your last page, but CommPilot can’t open a group’s or user’s page straight after a new sign-in, so it signed you out with “Error loading the menu” on every try. Now that page is reopened only when it can be, and otherwise you start on your home page.",
     ],

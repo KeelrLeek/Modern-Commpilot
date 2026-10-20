@@ -57,6 +57,7 @@ test('a board’s options become a breadcrumb menu: a ⌄ on the board’s last 
       return route.fulfill({ status: 200, contentType: 'text/html', body: shell(`<h1>${title}</h1>`, title) });
     });
     await page.goto('https://apps-sbx.avpaas.io' + folderPath, { waitUntil: 'domcontentloaded' });
+    await page.addStyleTag({ path: path.join(root, 'src/content/native-theme.css') });
     await page.addStyleTag({ path: path.join(root, 'src/content/theme-palettes.css') });
     await page.addStyleTag({ path: path.join(root, 'src/content/menu-board.css') });
     await page.evaluate(() => { document.documentElement.dataset.cpDirection = 'atlas'; });
@@ -110,6 +111,12 @@ test('a board’s options become a breadcrumb menu: a ⌄ on the board’s last 
     assert.equal(open.border, closed.border);
     assert.equal(await dialog.getByRole('button', { name: 'Resources' }).getAttribute('aria-pressed'), 'true');
     assert.equal(await dialog.locator('[aria-current="page"]').innerText(), 'Domains');
+    assert.equal(await dialog.locator('.cp-page-tab > .cp-page-icon svg').count(),2);
+    assert.equal(await dialog.locator('.cp-page-item > .cp-page-icon svg').count(),await dialog.locator('.cp-page-item').count(),'every option has an icon');
+    assert.deepEqual(await dialog.evaluate(el=>{
+      const tab=getComputedStyle(el.querySelector('.cp-page-tab[aria-pressed="true"]')),item=getComputedStyle(el.querySelector('.cp-page-item[aria-current="page"]'));
+      return {background:tab.backgroundColor===item.backgroundColor,color:tab.color===item.color,shadow:tab.boxShadow};
+    }),{background:true,color:true,shadow:'none'},'category and current page use one selection style');
     await dialog.getByRole('button', { name: 'Profile' }).click();
     assert.deepEqual(await dialog.locator('.cp-page-group').allInnerTexts(), ['BASIC', 'ADVANCED'], 'Basic and Advanced groups');
     await page.keyboard.press('Escape');
@@ -122,5 +129,30 @@ test('a board’s options become a breadcrumb menu: a ⌄ on the board’s last 
     assert.equal(nav.params.get('mode'), 'list', 'the option’s own redirectPost params were sent');
     await page.locator('.cp-page-pill').waitFor();
     assert.equal(await page.locator('.cp-page-pill').innerText(), 'Administrators');
+
+    // The user menu wraps eight categories. Keep its actual long labels in the visual check, including
+    // a focused but unselected category: the old generic button focus paint left a second highlight behind.
+    await page.evaluate(()=>{
+      const key=Object.keys(sessionStorage).find(k=>k.startsWith('cp-page-menu:'));
+      const names=['Profile','Incoming Calls','Outgoing Calls','Call Control','Calling Plans','Client Applications','Messaging','Utilities'];
+      const incoming=['Calling Name Delivery','Calling Number Delivery','Call Forwarding Always','Call Forwarding Always Secondary','Call Forwarding Busy','Call Forwarding No Answer','Call Forwarding Not Reachable','Connected Line Identification Restriction','External Calling Line ID Delivery','Internal Calling Line ID Delivery'];
+      sessionStorage.setItem(key,JSON.stringify({folders:names.map(name=>({name,options:(name==='Incoming Calls'?incoming:[name]).map(label=>({label,group:'Basic',url:label==='Call Forwarding Always'?'/commpilot/User/CF/Always/':'/commpilot/User/Profile/',params:{}}))}))}));
+      window.redirectPost('/commpilot/User/CF/Always/',{});
+    });
+    await page.waitForFunction(()=>location.pathname==='/commpilot/User/CF/Always/');
+    await page.locator('.cp-page-pill').click();
+    const userMenu=page.getByRole('dialog',{name:'Pages at this level'});
+    await userMenu.getByRole('button',{name:'Messaging',exact:true}).focus();
+    await page.mouse.move(5,790);
+    assert.equal(await userMenu.locator('.cp-page-tab').evaluateAll(tabs=>tabs.filter(t=>getComputedStyle(t).backgroundColor!=='rgba(0, 0, 0, 0)').length),1,'only the selected category keeps its fill');
+    assert.equal(await userMenu.locator('.cp-page-tab .cp-page-icon svg').count(),8);
+    assert.equal(await userMenu.locator('.cp-page-item .cp-page-icon svg').count(),10);
+    await userMenu.screenshot({path:path.join(root,'dev-preview/sca-designs/page-dropdown-light.png'),animations:'disabled'});
+    await page.evaluate(()=>document.documentElement.dataset.cpDirection='graphite');
+    await userMenu.screenshot({path:path.join(root,'dev-preview/sca-designs/page-dropdown-dark.png'),animations:'disabled'});
+    await page.setViewportSize({width:390,height:700});
+    await page.keyboard.press('Escape');
+    await page.locator('.cp-page-pill').click();
+    assert.equal(await userMenu.evaluate(el=>{const r=el.getBoundingClientRect();return r.width<=innerWidth-24&&r.left>=0&&r.right<=innerWidth;}),true,'menu fits a narrow viewport');
   } finally { await browser.close(); }
 });

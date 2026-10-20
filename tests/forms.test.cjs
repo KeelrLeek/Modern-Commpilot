@@ -140,6 +140,24 @@ const usersSearchPage = shell(`<form name="mainForm"><table class="list" width="
     document.getElementById('findKey0').addEventListener('change', function (event) { getChoice(event); });
   </script>`);
 
+test('search design A resets native criteria without resetting the current form token',async()=>{
+  const browser=await chromium.launch({executablePath:browserPath,headless:true});
+  try{
+    const page=await open(browser,usersSearchPage);
+    await page.evaluate(()=>{
+      const form=document.querySelector('form[name="mainForm"]');
+      const token=document.createElement('input');token.type='hidden';token.name='formtokenserial';token.defaultValue='spent-token';token.value='current-token';form.appendChild(token);
+      form.addEventListener('submit',event=>{event.preventDefault();window.searchSnapshot=Object.fromEntries(new FormData(form));});
+    });
+    await page.locator('#findKey0').selectOption('UserLastName');
+    await page.locator('#findOp0').selectOption('CONTAINS');
+    await page.locator('#findValue0').fill('Example');
+    await page.getByRole('button',{name:'Reset',exact:true}).click();
+    const result=await page.evaluate(()=>window.searchSnapshot);
+    assert.equal(result.formtokenserial,'current-token');assert.equal(result.findKey0,'UserID');assert.equal(result.findValue0,'');assert.equal(result.findOp0,'STARTS_WITH');
+  }finally{await browser.close();}
+});
+
 test('changing a search field keeps the text typed and the operator picked', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });

@@ -68,6 +68,7 @@
       return {
         header,
         userId,
+        nameScope: JSON.stringify(trail.slice(0,-1)),
         cacheKey: COPY_CACHE_PREFIX + JSON.stringify([location.origin, ...trail, userId])
       };
     }
@@ -98,6 +99,10 @@
   }
 
   function extensionFor(context) {
+    const field = document.querySelector('input#extension[name="extension"]');
+    // Addresses edits are drafts until CommPilot accepts Apply/OK. The themed breadcrumb represents
+    // the saved identity, even while an invalid or unsaved value remains in the form.
+    if (themed() && field?.dataset.bwCopySaved === "1") return cachedExtension(context) || "";
     const visible = displayedExtension(context);
     return visible === null ? cachedExtension(context) || "" : visible;
   }
@@ -136,21 +141,30 @@
     if (idAt < 0 || extAt < 0 || row.children.length !== names.length) return;
     const userId = cellText(row.children[idAt]);
     if (!userId) return;
+    const header = [...document.querySelectorAll('td.headerBar')].find(el=>el.querySelector('a.headerAuthLevelLink'));
+    const links = [...(header?.querySelectorAll('a.headerAuthLevelLink') || [])];
+    const scope = links.filter(el=>!ENTITY_LISTS.has(normalize(el.textContent))).map(el=>el.textContent.trim());
+    const entity = header?.querySelector('span.headerAuthLevel');
+    if (entity && !links.some(el=>ENTITY_LISTS.has(normalize(el.textContent)))) scope.push(entity.textContent.trim());
     try {
       sessionStorage.setItem(LISTED_KEY, JSON.stringify({
         origin: location.origin, userId, extension: cellText(row.children[extAt]),
+        nameScope: JSON.stringify(scope),
+        userName: names.includes('first name') && names.includes('last name') ?
+          [cellText(row.children[names.indexOf('first name')]),cellText(row.children[names.indexOf('last name')])].filter(Boolean).join(' ') : null,
         number: numberAt < 0 ? null : numberDigits(cellText(row.children[numberAt])), at: Date.now()
       }));
     } catch (_) {}
   }
   function adoptListedExtension(context) {
-    if (cachedExtension(context) !== null && cachedNumber(context) !== null) return;
     try {
       const listed = JSON.parse(sessionStorage.getItem(LISTED_KEY) || "null");
       if (!listed || listed.origin !== location.origin || normalize(listed.userId) !== normalize(context.userId) ||
           Date.now() - listed.at >= 10 * 60 * 1000) return;
       if (cachedExtension(context) === null) rememberExtension(context, listed.extension);
       if (cachedNumber(context) === null && typeof listed.number === "string") rememberNumber(context, listed.number);
+      if (typeof listed.userName === 'string' && listed.nameScope === context.nameScope) sessionStorage.setItem(context.cacheKey+'#name',listed.userName);
+      sessionStorage.removeItem(LISTED_KEY);
     } catch (_) {}
   }
 
@@ -230,7 +244,7 @@
   function copyFromPill(kind, button) {
     const context = userBreadcrumb();
     if (!context) return;
-    const value = kind === "user-id" ? context.userId.split("@", 1)[0].trim() : kind === "number" ? numberFor(context) : extensionFor(context);
+    const value = kind === "user-id" ? context.userId.split("@", 1)[0].trim() : kind === 'name' ? context.header.querySelector('span.headerAuthLevel')?.getAttribute('data-cp-user-name') : kind === "number" ? numberFor(context) : extensionFor(context);
     if (!value) return;
     writeClipboard(value, ok => {
       showTip(button, ok ? `Copied ${value}` : "Could not copy", true);
@@ -285,6 +299,7 @@
       span.after(chip);
     }
     syncNumberChip(context, chip);
+    syncNameChip(context, span);
     const ext = extensionFor(context);
     const state = ext ? "value" : span.getAttribute("data-cp-extension-state") || "unknown";
     if (chip.dataset.state === state + ext) return;
@@ -297,6 +312,42 @@
     chip.dataset.cpTip = ext ? "Copy extension" : state === "loading" ? "Loading extension…" :
       state === "done" ? "This user has no extension" : "Open Profile > Addresses to load the extension";
     chip.setAttribute("aria-label", chip.dataset.cpTip);
+  }
+
+  // Names stay outside headerAuthLevel: its text is the native user ID used by navigation and copy tools.
+  // Only server defaults are accepted from Profile; edits remain drafts until Apply/OK succeeds.
+  function syncNameChip(context, span) {
+    if (![...context.header.querySelectorAll('a.headerAuthLevelLink')].some(link=>normalize(link.textContent)==='users')) return;
+    const key = context.cacheKey+'#name';
+    let name = null;
+    const userProfile = /^\/commpilot\/User\/Profile\/(?:index\.jsp)?$/.test((document.documentElement.getAttribute('data-cp-path') || location.pathname).split('?')[0]);
+    const first = userProfile && document.querySelector('td[width="82%"] input[name="firstName"]');
+    const last = userProfile && document.querySelector('td[width="82%"] input[name="lastName"]');
+    const rejected = document.querySelector('td[width="82%"] .Failure, td[width="82%"] td.error');
+    if (first && last && !rejected?.textContent.trim()) name = [first.defaultValue,last.defaultValue].map(value=>value.trim()).filter(Boolean).join(' ');
+    else if (span.getAttribute('data-cp-name-state') === 'done') name = span.getAttribute('data-cp-user-name') || '';
+    else try { name = sessionStorage.getItem(key); } catch {}
+    if (name === null) return;
+    try { sessionStorage.setItem(key,name); } catch {}
+    const changed = span.getAttribute('data-cp-user-name') !== name || span.getAttribute('data-cp-name-state') !== 'done';
+    if (changed) {
+      span.setAttribute('data-cp-user-name',name);
+      span.setAttribute('data-cp-name-state','done');
+      document.dispatchEvent(new Event('cp:user-name'));
+    }
+    let chip = context.header.querySelector('button.cp-name-chip');
+    if (!name) { chip?.remove(); return; }
+    if (!chip) {
+      chip = document.createElement('button'); chip.type = 'button'; chip.className = 'cp-name-chip cp-bc-attach';
+      chip.dataset.cpTip = 'Copy name'; chip.setAttribute('aria-label','Copy name');
+      chip.addEventListener('click',()=>copyFromPill('name',chip)); tipOn(chip);
+    }
+    if (chip.dataset.value !== name) {
+      chip.dataset.value = name;
+      const text = document.createElement('b'); text.textContent = name;
+      chip.replaceChildren(text); chip.insertAdjacentHTML('beforeend',COPY_ICON);
+    }
+    if (span.nextElementSibling !== chip) span.after(chip);
   }
 
   // The number chip, joined after the extension chip once the number is known (none: no chip).
@@ -403,10 +454,28 @@
     if (field && field.dataset.bwCopyWatched !== "1") {
       field.dataset.bwCopyWatched = "1";
       field.dataset.bwCopyIdentity = context.cacheKey;
-      rememberExtension(context, field.value.trim());
+      const savedAddresses = themed() && /^\/commpilot\/User\/Addresses\/(?:index\.jsp)?$/.test(
+        (document.documentElement.getAttribute("data-cp-path") || location.pathname).split("?")[0]);
+      if (savedAddresses) {
+        field.dataset.bwCopySaved = "1";
+        const rejected = [...document.querySelectorAll('td[width="82%"] :is(td.error, span.Failure)')]
+          .some(el => el.textContent.trim());
+        if (!rejected) {
+          const phone = document.querySelector('select[name="phoneNumber"], input[name="phoneNumber"]');
+          const selected = phone?.tagName === "SELECT" ? [...phone.options].find(o => o.defaultSelected) : null;
+          const number = numberDigits(selected ? selected.value : phone?.defaultValue || phone?.value || "");
+          const extension = field.defaultValue.trim();
+          rememberExtension(context, extension);
+          rememberNumber(context, number);
+          const id = context.header.querySelector("span.headerAuthLevel");
+          id?.setAttribute("data-cp-extension", extension);
+          id?.setAttribute("data-cp-number", number);
+          id?.setAttribute("data-cp-extension-state", "done");
+        }
+      } else rememberExtension(context, field.value.trim());
       const refresh = () => {
         const current = userBreadcrumb();
-        if (current && current.cacheKey === field.dataset.bwCopyIdentity) {
+        if (!savedAddresses && current && current.cacheKey === field.dataset.bwCopyIdentity) {
           rememberExtension(current, field.value.trim());
         }
         syncCopyControls();
@@ -512,7 +581,7 @@
   }
 
   function enhanceSelect(select) {
-    if (select.closest(".bw-search-popover, .bw-menu-search") ||
+    if (select.closest(".bw-search-popover, .bw-menu-search, .cp-page-size, #cp-user-bulk") ||
         select.multiple || select.size > 1) return;
     let info = selectInfo.get(select);
     if (info) {
@@ -788,8 +857,11 @@
     const matchCount = shownOptions.length;
     summary.textContent = matchCount === 0 ? "No matching options" :
       matchCount + (matchCount === 1 ? " matching option" : " matching options");
+    // The browser may walk the native options to read selectedIndex. Read it once, rather than once per
+    // match: selecting the last of 17,000 devices otherwise turns this lookup into quadratic work.
+    const selectedIndex = openSelect.selectedIndex;
     activeResult = shownOptions.findIndex(entry => !entry.disabled &&
-      entry.index === openSelect.selectedIndex);
+      entry.index === selectedIndex);
     if (activeResult < 0) activeResult = shownOptions.findIndex(entry => !entry.disabled);
     renderVisibleResults();
   }
@@ -818,6 +890,7 @@
       empty.textContent = typed ? "Nothing matches “" + searchInput.value.trim() + "”" : "No options";
       fragment.append(empty);
     }
+    const selectedIndex = openSelect.selectedIndex;
     for (let position = start; position < end; position++) {
       const entry = shownOptions[position];
       const row = document.createElement("button");
@@ -829,7 +902,7 @@
       row.setAttribute("role", "option");
       row.setAttribute("aria-posinset", String(position + 1));
       row.setAttribute("aria-setsize", String(shownOptions.length));
-      row.setAttribute("aria-selected", String(entry.index === openSelect.selectedIndex));
+      row.setAttribute("aria-selected", String(entry.index === selectedIndex));
       row.disabled = entry.disabled;
       if (entry.groupLabel) {
         const group = document.createElement("span");
@@ -910,6 +983,9 @@
     const changed = select.multiple ? true : select.selectedIndex !== index;
     if (select.multiple) option.selected = !option.selected;
     else select.selectedIndex = index;
+    // A single selection is finished before CommPilot's change handler runs. Do not rebuild the closing
+    // search results during that change, or steal focus back after the native handler opens its new fields.
+    if (!select.multiple) closePopover(true);
     if (changed) {
       select.dispatchEvent(new Event("input", { bubbles: true }));
       select.dispatchEvent(new Event("change", { bubbles: true }));
@@ -918,7 +994,7 @@
       collectOptions(select);
       renderResults();
       searchInput.focus();
-    } else {
+    } else if (select.multiple) {
       closePopover(true);
     }
   }
@@ -1127,7 +1203,7 @@
     });
     scanRoot(document.documentElement);
     // pjax.js marks the user's extension read on the id element; the palette can be switched on or off.
-    for (const name of ["cp:user-extension", "cp:theme-change"]) {
+    for (const name of ["cp:user-extension", "cp:user-name", "cp:theme-change"]) {
       document.addEventListener(name, () => requestAnimationFrame(syncCopyControls));
     }
     document.addEventListener("click", noteListedExtension, true);

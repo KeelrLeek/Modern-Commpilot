@@ -1,7 +1,7 @@
 /* CommPilot 2.0 result lists. A list fills the window: it shows as many rows as fit, with a pager for the rest,
    and the page size follows the window as it is resized. pjax.js fetches the list's other CommPilot pages into
-   the same table (cpListFill, table[data-cp-fill]); until it has, the first page is paged, and if it cannot,
-   CommPilot's own pager comes back. A click anywhere on a row opens it: the row's own link is clicked, so
+   the same table (cpListFill, table[data-cp-fill]); the completed list is formatted before revealing it. If collection
+   fails, CommPilot's own page and pager come back. A click anywhere on a row opens it: the row's own link is clicked, so
    CommPilot's handler does the navigation. The Edit column goes where it only repeats the row's link. An Export button saves
    every result of the search, all its pages, as an Excel workbook (pjax.js builds and saves it). */
 (() => {
@@ -22,6 +22,93 @@
   const ROWS = ':scope > tbody > tr[id^="Row"]';
   const num = n => n.toLocaleString();   // 2,600 (a swept list runs to thousands)
   const pagers = new WeakMap();   // results table -> { el, start }
+  const headings = new WeakMap(), readyJobs = new WeakMap(), waiters = new WeakMap();
+  const searchDesign = table => table.closest('.cp-search-design-a');
+  const searchTitle = () => {
+    const title=document.querySelector('.cp-frame-title')?.cloneNode(true);
+    title?.querySelectorAll('button,.cp-frame-about,script,style').forEach(el=>el.remove());
+    return clean(title?.textContent)||'Results';
+  };
+  const searchFiltered = table => [...searchDesign(table).querySelectorAll('[name^="findValue"]')].some(input=>clean(input.value));
+  function searchCaption(table) {
+    const label=searchTitle().toLowerCase();
+    const filtered=searchFiltered(table);
+    const entity=document.querySelector('td.headerBar span.headerAuthLevel')?.cloneNode(true);
+    entity?.querySelectorAll('button,.cp-bc-attach,script').forEach(el=>el.remove());
+    const place=entity&&clean(entity.textContent);
+    return `${filtered?'Matching':'All'} ${label}${place?' in '+place:''}`;
+  }
+  function markSearchColumns(table) {
+    if(!searchDesign(table))return;
+    const head=table.querySelector(':scope > tbody > tr:has(> td.listHeader)');
+    if(!head)return;
+    [...head.children].forEach((cell,index)=>{
+      const name=textOf(cell).toLowerCase().replace(/[^a-z]/g,'');
+      const spacer=!name&&cell.querySelector('img[width="0"],img[width="20"]');
+      const role=spacer?'spacer':name==='userid'?'user-id':name==='activated'?'activated':'';
+      if(!role)return;
+      cell.dataset.cpColumn=role;
+      for(const row of rowsOf(table))if(row.children[index])row.children[index].dataset.cpColumn=role;
+    });
+  }
+  function resultHeading(table,complete) {
+    if(!content()?.querySelector('.cp-searchbar-wrap'))return null;
+    let heading=headings.get(table);
+    if(!heading){
+      heading=document.createElement('div');heading.className='cp-results-heading';
+      const count=document.createElement('span');count.className='cp-results-total';
+      const summary=document.createElement('span');summary.className='cp-results-summary';
+      const caption=document.createElement('span');caption.className='cp-results-caption';
+      const tools=document.createElement('span');tools.className='cp-results-tools';
+      if(searchDesign(table)){
+        const all=document.createElement('button');all.type='button';all.className='cp-results-show-all';
+        all.textContent='Show all '+searchTitle().toLowerCase();
+        all.addEventListener('click',()=>searchDesign(table)?.querySelector('.cp-searchbar-reset')?.click());tools.appendChild(all);
+      }
+      summary.append(count,caption);heading.append(summary,tools);table.before(heading);headings.set(table,heading);
+    }
+    const total=rowsOf(table).length;
+    heading.querySelector('.cp-results-total').textContent=complete?`${num(total)} ${total===1?'result':'results'}`:`${num(total)} results on this page`;
+    if(searchDesign(table)){
+      heading.querySelector('.cp-results-caption').textContent=searchCaption(table);
+      heading.querySelector('.cp-results-show-all').hidden=!searchFiltered(table);
+    }
+    return heading.querySelector('.cp-results-tools');
+  }
+  function waiting(table) {
+    table.dataset.cpResultsReady='false';
+    table.setAttribute('aria-busy','true');
+    let notice=waiters.get(table);
+    if(!notice?.isConnected){
+      notice=document.createElement('div');notice.className='cp-list-wait';notice.setAttribute('role','status');
+      const text=document.createElement('span');text.textContent='Loading results…';notice.appendChild(text);(headings.get(table)||table).before(notice);waiters.set(table,notice);
+    }
+    if(headings.get(table)) headings.get(table).hidden=true;
+  }
+  function ready(table) {
+    table.dataset.cpResultsReady='true';
+    table.setAttribute('aria-busy','false');
+    waiters.get(table)?.remove();
+    if(headings.get(table))headings.get(table).hidden=false;
+  }
+  function cancelTurn(state) {
+    state.turn=(state.turn||0)+1;
+    for(const animation of state.animations||[])animation.cancel();
+    state.animations=[];
+    state.table.dataset.cpPagePhase='idle';
+  }
+  async function turnPage(cell,table) {
+    const state=pagers.get(table);if(!state)return;
+    const opacity=Math.min(.78,Number(getComputedStyle(table).opacity));
+    cancelTurn(state);const turn=state.turn;
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches){render(cell,table);return;}
+    // Commit in this task. Controls never move or disappear, and rapid clicks need no exit animation to finish.
+    render(cell,table,true);
+    table.dataset.cpPagePhase='entering';
+    state.animations=[table.animate([{opacity},{opacity:1}],{duration:140,easing:'ease-out'})];
+    await Promise.all(state.animations.map(animation=>animation.finished.catch(()=>{})));
+    if(state.turn===turn){state.animations=[];table.dataset.cpPagePhase='idle';}
+  }
   // A list of thousands (pjax.js's Load all) comes with only its first page in the page; the other rows wait
   // outside it, in a <template class="cp-rows-held"> inside the table, as the alpha's grid kept its rows as data.
   // They are taken from there once, and from then on the page holds only the rows on screen: a page turn swaps
@@ -47,8 +134,13 @@
   const DEFAULT_PAGE = 20;        // CommPilot's own page size, for lists that are not the page's main content
 
   function resultTables(cell) {
-    return [...cell.querySelectorAll('table')].filter(table => !table.closest('.cp-console') &&
-      table.querySelector(ROWS) && table.querySelector(':scope > tbody > tr > td.listHeader'));
+    return [...cell.querySelectorAll('table')].filter(table => {
+      if(table.closest('.cp-console') || table.matches('.cp-searchbar,.cp-frame-rule,.cp-frame-pager,.cp-pager-native'))return false;
+      const headers=[...table.querySelectorAll(':scope > tbody > tr > td.listHeader')];
+      // CommPilot draws its bottom rule as a separate table with an empty listHeader cell and a 1px GIF.
+      // The class alone does not identify a result list; an empty search still has real column names.
+      return headers.some(header=>textOf(header)) && (table.querySelector(ROWS)||cell.querySelector('.cp-searchbar-wrap'));
+    });
   }
 
   // How many different places a row's links lead: its scripts' redirectPost calls (rows pjax.js added carry
@@ -164,8 +256,9 @@
       known?.set(tr, k);
       return k;
     };
+    // Blanks follow populated values ascending and lead them descending, like reversing any other value.
     const sorted = rows.map((tr, i) => ({ tr, i, k: key(tr) }))
-      .sort((a, b) => (a.k === '') - (b.k === '') || sort.dir * collator.compare(a.k, b.k) || a.i - b.i);
+      .sort((a, b) => sort.dir * ((a.k === '') - (b.k === '') || collator.compare(a.k, b.k)) || a.i - b.i);
     if (all) { sorted.forEach(({ tr }, i) => { all[i] = tr; }); return; }   // render() puts the page's rows in
     const body = rows[rows.length - 1].parentNode, after = rows[rows.length - 1].nextSibling;
     // Rows already in place stay; the rest go back in one move (a swept list runs to thousands). They come out
@@ -312,7 +405,7 @@
   // Rows that fit between the first row's top and the window's bottom, leaving room for everything that follows
   // the list (pager, card edge, a Find line, the page's bottom gutter), so the page does not scroll. A list
   // further down a long form keeps CommPilot's 20.
-  function fit(cell, shown) {
+  function fit(cell, shown, search = false) {
     if (!shown.length) return DEFAULT_PAGE;
     const box = cell.getBoundingClientRect();
     const at = y => y - box.top + cell.scrollTop;
@@ -323,7 +416,7 @@
     const below = Math.max(0, end + (parseFloat(getComputedStyle(cell).paddingBottom) || 0) - at(last.bottom));
     const room = cell.clientHeight - at(first.top) - below;
     const rows = Math.floor(room / rowHeight);
-    return rows >= 8 ? rows : DEFAULT_PAGE;
+    return search ? Math.max(1, rows) : rows >= 8 ? rows : DEFAULT_PAGE;
   }
 
   // A full page of rows leaves less than a row of space under the list. Spread it over the rows (under a pixel
@@ -342,7 +435,7 @@
       return r.bottom + (parseFloat(getComputedStyle(el).marginBottom) || 0);
     }));
     const spare = box.bottom - (parseFloat(getComputedStyle(cell).paddingBottom) || 0) - end;
-    if (spare <= 0 || count < 8) return;
+    if (spare <= 0 || count < (searchDesign(state.table) ? 1 : 8)) return;
     const fill = `${Math.min(4, spare / count / 2).toFixed(2)}px`;
     for (const tr of shown) tr.style.setProperty('--cp-row-fill', fill);
     state.filled = shown;
@@ -361,21 +454,38 @@
       if (state) { state.el.remove(); pagers.delete(table); }
       native?.classList.remove('cp-pager-native');
       table.querySelectorAll('tr.cp-row-off, tr.cp-row-end').forEach(tr => tr.classList.remove('cp-row-off', 'cp-row-end'));
-      exportButton(table, nativeExportSlot(table, native));
+      exportButton(table, resultHeading(table,false)||nativeExportSlot(table,native));
       return;
     }
     if (!state) {
-      state = { el: makePager(), start: 0, perPage: 0 };
+      state = { el: makePager(), table, start: 0, perPage: 0 };
+      if(searchDesign(table)){
+        const label=document.createElement('label');label.className='cp-page-size';label.append('Rows ');
+        const select=document.createElement('select');select.setAttribute('aria-label','Rows per page');
+        for(const value of ['10','20','50','auto']){const option=document.createElement('option');option.value=value;option.textContent=value==='auto'?'Auto':value;select.appendChild(option);}
+        let saved='auto';try{saved=sessionStorage.getItem('cp-search-page-size')||saved;}catch{}
+        select.value=['10','20','50','auto'].includes(saved)?saved:'auto';state.size=select.value;
+        select.addEventListener('change',event=>{
+          event.stopPropagation();
+          state.size=select.value;state.start=0;state.reserveHeight=0;state.perPage=0;
+          try{sessionStorage.setItem('cp-search-page-size',state.size);}catch{}
+          turnPage(cell,table);
+        });
+        label.appendChild(select);state.el.querySelector('.cp-pager-end').appendChild(label);
+      }
       pagers.set(table, state);
       state.el.addEventListener('click', event => {
-        const go = event.target.closest('[data-go]')?.dataset.go;
-        if (!go || !state.perPage) return;
+        const button=event.target.closest('button[data-go]');
+        if(!button)return;
+        event.preventDefault();event.stopPropagation();
+        const go=button.dataset.go;
+        if (button.disabled || !state.perPage || table.dataset.cpResultsReady!=='true') return;
         const total = rowsOf(table).length;
         const lastStart = Math.max(0, Math.floor((total - 1) / state.perPage) * state.perPage);
         state.start = go === 'first' ? 0 : go === 'last' ? lastStart :
           Math.min(lastStart, Math.max(0, state.start + (go === 'next' ? 1 : -1) * state.perPage));
-        render(cell, table);
-      });
+        turnPage(cell,table);
+      },true);
       table.addEventListener('click', sortClick, true);
       state.sort = rememberedSort(table);
       if (state.sort) showSort(table, state.sort);
@@ -386,13 +496,15 @@
     native?.classList.add('cp-pager-native');
     const exportRow = state.el.nextElementSibling;
     if (exportRow?.classList.contains('cp-export-row')) exportRow.remove();   // the pager has its own place for it now
-    exportButton(table, state.el.querySelector('.cp-pager-end'));
+    exportButton(table, resultHeading(table,true)||state.el.querySelector('.cp-pager-end'));
     render(cell, table);
   }
 
-  function render(cell, table) {
+  function render(cell, table, motion=false) {
     const state = pagers.get(table);
     if (!state) return;
+    if(!motion)cancelTurn(state);
+    state.spacer?.remove();
     const all = held.get(table);
     const rows = all || [...table.querySelectorAll(ROWS)];
     // Only the rows that change place are touched: the page's rows and the ones it replaces. The first time, and
@@ -418,7 +530,8 @@
     // Measure with a full page of CommPilot's size showing, then show what fits.
     clearFill(state);
     if (!state.perPage) show(0, DEFAULT_PAGE);
-    let perPage = fit(cell, state.shown);
+    const fixed=state.size&&state.size!=='auto';
+    let perPage = fixed?Number(state.size):fit(cell, state.shown, searchDesign(table));
     let pages = Math.max(1, Math.ceil(rows.length / perPage));
     let current = Math.min(pages - 1, Math.floor(state.start / perPage));
     show(current * perPage, perPage);
@@ -426,17 +539,29 @@
     // scroll; take off the rows that overflow.
     const overflow = cell.scrollHeight - cell.clientHeight;
     const shownRow = rows[current * perPage];
-    if (overflow > 0 && perPage !== DEFAULT_PAGE && shownRow) {
-      perPage = Math.max(8, perPage - Math.ceil(overflow / (shownRow.getBoundingClientRect().height || 30)));
+    if (!fixed && overflow > 0 && (perPage !== DEFAULT_PAGE || searchDesign(table)) && shownRow) {
+      perPage = Math.max(searchDesign(table)?1:8, perPage - Math.ceil(overflow / (shownRow.getBoundingClientRect().height || 30)));
       pages = Math.max(1, Math.ceil(rows.length / perPage));
       current = Math.min(pages - 1, Math.floor(state.start / perPage));
       show(current * perPage, perPage);
     }
     state.perPage = perPage;
     state.start = current * perPage;
-    freezeColumns(table, state);
+    if(table.dataset.cpFill!=='loading')freezeColumns(table, state);
     // Only a page that is full: the last, shorter page keeps its natural rows.
-    if (pages > 1 && current < pages - 1 && perPage !== DEFAULT_PAGE) fillRows(cell, state, rows.slice(state.start, state.start + perPage));
+    if (!fixed && pages > 1 && current < pages - 1 && (perPage !== DEFAULT_PAGE || searchDesign(table))) fillRows(cell, state, rows.slice(state.start, state.start + perPage));
+    state.reserveHeight=Math.max(state.reserveHeight||0,table.getBoundingClientRect().height);
+    if(fixed){
+      const head=table.querySelector(':scope > tbody > tr:has(> td.listHeader)');
+      state.reserveHeight=Math.max(state.reserveHeight,(head?.getBoundingClientRect().height||0)+perPage*(state.shown[0]?.getBoundingClientRect().height||40));
+    }
+    if((pages>1&&current===pages-1)||(fixed&&rows.length<perPage)){
+      const spare=state.reserveHeight-table.getBoundingClientRect().height;
+      if(spare>1){
+        const spacer=document.createElement('tr');spacer.className='cp-page-spacer';spacer.setAttribute('aria-hidden','true');
+        const space=document.createElement('td');space.colSpan=table.querySelector('tr:has(> td.listHeader)')?.children.length||1;space.style.height=spare+'px';spacer.appendChild(space);rowBody(table).appendChild(spacer);state.spacer=spacer;
+      }
+    }
     // While pjax.js fetches the rest, the pager says so and nothing else changes; the totals appear once.
     const loading = table.dataset.cpFill === 'loading';
     state.el.classList.toggle('cp-pager-loading', loading);
@@ -470,7 +595,7 @@
   function refit() {
     const cell = content();
     if (!cell) return;
-    for (const table of resultTables(cell)) if (pagers.has(table)) render(cell, table);
+    for (const table of resultTables(cell)) if (pagers.has(table) && table.dataset.cpResultsReady!=='false') {pagers.get(table).reserveHeight=0;render(cell, table);}
   }
 
   function apply() {
@@ -479,24 +604,50 @@
     if (!cell || cell.querySelector(':scope > .cp-console')) return;
     const tables = resultTables(cell);
     for (const table of tables) {
-      try {
-        takeHeld(table);
-        if (tables.length !== 1) releaseHeld(table);
-        wireRows(table); editColumn(table);
-      } catch (error) { console.warn('[CommPilot lists] rows', error); }
-    }
-    // Only a page's one list is paged to the window; pages with several lists keep CommPilot's paging.
-    if (tables.length === 1) {
-      try { page(cell, tables[0]); } catch (error) { console.warn('[CommPilot lists] pager', error); }
+      if(table.dataset.cpResultsReady==='true')continue;
+      waiting(table);
+      const job={};readyJobs.set(table,job);
+      Promise.resolve(document.fonts?.ready).then(()=>requestAnimationFrame(()=>{
+        if(!table.isConnected || readyJobs.get(table)!==job)return;
+        if(table.dataset.cpFill==='loading'){
+          // Prepare the same hidden 10/20/50-row geometry while collecting. The native 20-row page must not
+          // make the card twice as tall during loading and then collapse when the completed list is shown.
+          if(searchDesign(table)&&tables.length===1&&!pagers.has(table)){markSearchColumns(table);page(cell,table);}
+          return;
+        }
+        try {
+          takeHeld(table);if(tables.length!==1)releaseHeld(table);
+          wireRows(table);editColumn(table);markSearchColumns(table);
+          if(tables.length===1)page(cell,table);
+          else exportButton(table,resultHeading(table,true)||nativeExportSlot(table,nativePager(table)));
+          ready(table);
+          if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
+            const animation=table.animate([{opacity:.78},{opacity:1}],{duration:140,easing:'ease-out'});
+            const state=pagers.get(table);if(state)state.animations=[animation];
+          }
+          document.dispatchEvent(new Event('cp:list-ready'));
+        }catch(error){console.warn('[CommPilot lists] results',error);ready(table);}
+      }));
     }
     if (observer && observed !== cell) { observer.disconnect(); observer.observe(cell); observed = cell; }
   }
 
+  document.addEventListener('cp:list-page',event=>{
+    let request;try{request=JSON.parse(event.detail);}catch{return;}
+    const cell=content();if(!cell||!Number.isSafeInteger(request.offset)||request.offset<0)return;
+    const table=resultTables(cell).find(table=>table.dataset.cpFill==='done'&&table.dataset.cpResultsReady==='true'&&
+      table.dataset.cpReturnPage===request.returnPage&&table.dataset.cpTableName===request.tableName);
+    const state=table&&pagers.get(table);if(!state?.perPage)return;
+    const last=Math.max(0,Math.floor((rowsOf(table).length-1)/state.perPage)*state.perPage);
+    state.start=Math.min(last,Math.floor(request.offset/state.perPage)*state.perPage);
+    event.preventDefault();turnPage(cell,table);
+  });
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply, { once: true });
   else apply();
   // Same frame as forms.js (registered first), so a new page paints once, already in its final form.
-  document.addEventListener('cp:reskin', () => requestAnimationFrame(apply));
-  document.addEventListener('cp:list-fill', () => requestAnimationFrame(apply));
+  document.addEventListener('cp:reskin', () => {for(const table of resultTables(content()||document.createElement('div')))if(table.dataset.cpResultsReady!=='true')waiting(table);requestAnimationFrame(apply);});
+  document.addEventListener('cp:list-fill', () => {for(const table of resultTables(content()||document.createElement('div')))waiting(table);requestAnimationFrame(apply);});
   document.addEventListener('cp:theme-change', () => requestAnimationFrame(apply));
   document.fonts?.ready.then(() => requestAnimationFrame(refit));
 })();

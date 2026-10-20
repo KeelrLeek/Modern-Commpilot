@@ -241,10 +241,13 @@ test('a search CommPilot refuses as too many offers to load them all, sweeps by 
       const top = () => document.querySelector('.cp-sweep-table tr[id^="Row"] a[id$="Col2"]')?.textContent;
       const up = top();
       link.click(); await frame();
-      return { up, down: top(), rows: document.querySelectorAll('.cp-sweep-table tr[id^="Row"]').length };
+      const downNames = [...document.querySelectorAll('.cp-sweep-table tr[id^="Row"] a[id$="Col2"]')].map(a => a.textContent);
+      return { up, down: top(), downNames, rows: document.querySelectorAll('.cp-sweep-table tr[id^="Row"]').length };
     });
     const names = every.names.filter(Boolean).sort(new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare);
-    assert.deepEqual([sorted.up, sorted.down], [names[0], names.at(-1)], 'sorted up, then down, across all 2,600');
+    assert.deepEqual([sorted.up, sorted.down], [names[0], ''], 'ascending puts blanks last; descending brings them first across all 2,600');
+    assert.deepEqual(sorted.downNames.slice(0, 3), ['', '', ''], 'all three users without first names lead the descending list');
+    assert.equal(sorted.downNames.find(Boolean), names.at(-1), 'the highest populated name follows the blanks');
     assert.equal(sorted.rows, all.shown);
 
     // CommPilot's own list state is put back (the page's search, all users), and no request ever used a spent token.

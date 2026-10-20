@@ -732,6 +732,65 @@ test('a dropdown with a “New …” option offers it as a button at the top of
   await page.close();
 });
 
+test('New Identity/Device Profile stays responsive with 17,270 options, from either control', async t => {
+  const page = await openPage();
+  try {
+    await page.evaluate(() => {
+      const select = document.createElement('select');
+      select.id = 'device';
+      select.setAttribute('aria-label', 'Identity/Device Profile Name');
+      const fragment = document.createDocumentFragment();
+      for (let i = 0; i < 17269; i++) fragment.append(new Option(`Device ${i} (Group)`, String(i)));
+      fragment.append(new Option('New Identity/Device Profile (Group)', 'New Device'));
+      select.append(fragment);
+      const field = document.createElement('input');
+      field.id = 'newDeviceName';
+      field.hidden = true;
+      window.deviceEvents = [];
+      for (const type of ['input', 'change']) select.addEventListener(type, () => {
+        window.deviceEvents.push(type);
+        if (type === 'change') {
+          field.hidden = select.value !== 'New Device';
+          if (!field.hidden) field.focus();
+        }
+      });
+      document.body.append(select, field);
+    });
+    await page.locator('#device[data-bw-searchable]').waitFor();
+    for (const control of ['button', 'option']) {
+      await page.locator('#device').evaluate(select => { select.selectedIndex = 0; });
+      await dropdownTrigger(page, 'device').click();
+      if (control === 'option') {
+        await page.locator('.bw-search-results').evaluate(el => { el.scrollTop = el.scrollHeight; });
+        await page.locator('.bw-search-result', { hasText: 'New Identity/Device Profile' }).waitFor({ state: 'visible' });
+      }
+      const target = control === 'button' ? page.locator('.bw-search-create-btn') :
+        page.locator('.bw-search-result', { hasText: 'New Identity/Device Profile' });
+      const elapsed = await target.evaluate(button => new Promise(resolve => {
+        const started = performance.now();
+        button.click();
+        setTimeout(() => resolve(performance.now() - started), 0);
+      }));
+      t.diagnostic(`${control}: click through next event-loop turn took ${elapsed.toFixed(1)} ms`);
+      assert.ok(elapsed < 1000, `${control} blocked the tab for ${elapsed.toFixed(0)} ms`);
+      assert.equal(await page.locator('#device').inputValue(), 'New Device');
+      assert.equal(await page.locator('#newDeviceName').isVisible(), true, 'the native change handler reveals the new-device fields');
+      assert.equal(await page.locator('#newDeviceName').evaluate(el => document.activeElement === el), true,
+        'closing the search does not steal focus from the native new-device field');
+      assert.equal(await page.locator('.bw-search-popover').isHidden(), true);
+    }
+    assert.deepEqual(await page.evaluate(() => window.deviceEvents), ['input', 'change', 'input', 'change']);
+    const reopenMs = await dropdownTrigger(page, 'device').evaluate(trigger => {
+      const started = performance.now();
+      trigger.click();
+      return performance.now() - started;
+    });
+    t.diagnostic(`reopening on the final option took ${reopenMs.toFixed(1)} ms`);
+    assert.ok(reopenMs < 1000, `opening with the final item selected blocked the tab for ${reopenMs.toFixed(0)} ms`);
+    assert.equal(await page.locator('.bw-search-result[aria-selected="true"]').innerText(), 'New Identity/Device Profile (Group)');
+  } finally { await page.close(); }
+});
+
 test('a long list opens on its current value, not at the top', async () => {
   const page = await openPage();
   await page.evaluate(() => {

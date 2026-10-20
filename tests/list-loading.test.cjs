@@ -51,7 +51,7 @@ function page(token, results) {
     <script>window.redirectPost = window.redirectPost || function () {};</script></body></html>`;
 }
 
-test('a search shows it is working, then paints its results once in their final form, and nothing moves while the rest loads', async () => {
+test('a search collects all pages offscreen and reveals only the completed formatted results', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });
   try {
@@ -79,7 +79,7 @@ test('a search shows it is working, then paints its results once in their final 
     await tab.addScriptTag({ path: path.join(root, 'src/content/lists.js') });
     // What the first frame after the results arrive shows (this listener runs after lists.js's, same frame).
     await tab.evaluate(() => {
-      document.addEventListener('cp:reskin', () => requestAnimationFrame(() => {
+      document.addEventListener('cp:list-ready', () => requestAnimationFrame(() => {
         const rows = [...document.querySelectorAll('tr[id^="Row"]')];
         window.firstFrame = {
           shown: rows.filter(tr => getComputedStyle(tr).display !== 'none').length,
@@ -101,13 +101,29 @@ test('a search shows it is working, then paints its results once in their final 
     }));
     assert.deepEqual(waiting, { busy: 'busy', bar: true }, 'the page shows it is waiting for CommPilot');
 
+    await tab.waitForFunction(()=>document.querySelector('table[data-cp-fill="loading"]'));
+    const samples=[];
+    while(await tab.evaluate(()=>document.querySelector('table[data-cp-fill]')?.dataset.cpFill==='loading')){
+      samples.push(await tab.evaluate(()=>({fill:document.querySelector('table[data-cp-fill]')?.dataset.cpFill,rows:document.querySelectorAll('tr[id^="Row"]').length,
+        height:document.querySelector('td.cp-frame-body').getBoundingClientRect().height,prepared:!!document.querySelector('.cp-page-size'),
+        visible:[...document.querySelectorAll('tr[id^="Row"]')].filter(tr=>getComputedStyle(tr).visibility!=='hidden'&&getComputedStyle(tr).display!=='none').length})));
+      await tab.waitForTimeout(50);
+    }
+    assert.ok(samples.length>3,'sampled the collection period');
+    assert.ok(samples.filter(sample=>sample.fill==='loading').every(sample=>sample.rows===20&&sample.visible===0),'later rows stay detached and first-page rows stay hidden until the complete list is ready: '+JSON.stringify(samples));
+
     await tab.waitForFunction(() => window.firstFrame);
     const first = await tab.evaluate(() => window.firstFrame);
     assert.equal(first.edit, false, 'Edit is already gone in the first frame');
     assert.equal(first.nativePager, false, 'CommPilot’s pager is already replaced');
-    assert.ok(first.shown > 5 && first.shown < 20, `already paged to the window (${first.shown} rows)`);
-    assert.ok(first.scroll <= 0, 'and the page does not scroll');
-    assert.match(first.pager, /^Loading more results/);
+    assert.ok(first.shown>=1&&first.shown<20,'the first complete search frame fits the window: '+first.shown);
+    assert.equal(await tab.getByLabel('Rows per page').inputValue(),'auto');
+    assert.ok(first.scroll<=0,'the first complete frame has no overflow: '+first.scroll);
+    assert.match(first.pager, /of 60/);
+    assert.equal(await tab.locator('.cp-results-heading .cp-results-total').textContent(),'60 results');
+    assert.equal(await tab.locator('.cp-list-wait').count(),0);
+    const readyHeight=await tab.locator('td.cp-frame-body').evaluate(el=>el.getBoundingClientRect().height);
+    assert.ok(samples.filter(sample=>sample.fill==='loading'&&sample.prepared).every(sample=>Math.abs(sample.height-readyHeight)<2),'the loading card reserves the final geometry within native table rounding: '+JSON.stringify({readyHeight,loadingHeights:[...new Set(samples.map(sample=>sample.height))]}));
     assert.equal(await tab.evaluate(() => document.documentElement.dataset.cpNav), undefined, 'the wait is over');
     await tab.waitForFunction(() => !document.getElementById('cp-progress').classList.contains('cp-progress-on'),
       null, { timeout: 2000 });   // the bar filled and faded
@@ -118,13 +134,7 @@ test('a search shows it is working, then paints its results once in their final 
       shown: [...document.querySelectorAll('tr[id^="Row"]')].filter(tr => getComputedStyle(tr).display !== 'none').map(tr => tr.id),
     }));
     const before = await layout();
-    const during = [];
-    while (await tab.evaluate(() => document.querySelector('table[data-cp-fill]')?.dataset.cpFill) === 'loading') {
-      during.push(await layout());
-      await tab.waitForTimeout(60);
-    }
-    assert.ok(during.length > 3, 'sampled while the other pages loaded');
-    for (const sample of during) assert.deepEqual(sample, before, 'nothing moved while the other pages loaded');
+    await tab.waitForTimeout(250);
     const after = await layout();
     assert.deepEqual(after, before, 'nor when they finished');
     assert.match(await tab.locator('.cp-pager').innerText(), new RegExp(`1–${before.shown.length} of 60`));

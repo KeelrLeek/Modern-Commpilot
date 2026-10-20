@@ -1,12 +1,8 @@
-#cp-bulk-number-launch, #cp-bulk-profile-launch, #cp-bulk-activation-launch {
-  margin-left: 10px;
-  padding: 3px 12px;
-  border: 1px solid #9aa4ba;
-  border-radius: 4px;
-  background: #30394f;
-  color: #fff;
-  cursor: pointer;
-  font: inherit;
+/* Bulk launchers use the shared native button rules, including after pageFrame moves them into
+   the title row. Inheriting a font here would inherit the title's size and weight. */
+:is(#cp-bulk-number-launch, #cp-bulk-profile-launch, #cp-bulk-activation-launch, #cp-user-bulk-launch) {
+  font: 500 13px/1.35 var(--cp-font, "Inter", sans-serif);
+  letter-spacing: normal;
 }
 .cp-bulk-overlay {
   position: fixed;

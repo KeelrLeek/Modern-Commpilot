@@ -19,12 +19,21 @@
   const toneOf = text => /^(on|enabled?|active|activated)$/i.test(clean(text)) ? 'on'
     : /^(off|disabled?|inactive|deactivated)$/i.test(clean(text)) ? 'off' : '';
 
-  /* ---- List search criteria: one toolbar line (mockup pick C) ---------------------------------------- */
+  /* ---- List search criteria: selected User Search design A ---------------------------------------- */
+  function searchHints(table) {
+    for(const input of table.querySelectorAll('input[name^="findValue"]')){
+      if(input.placeholder)continue;
+      const field=input.closest('tr')?.querySelector('select[name^="findKey"]');
+      const label=clean(field?.selectedOptions[0]?.textContent);
+      if(label)input.placeholder=label==='User ID'?'Enter a user ID…':`Enter ${label.toLowerCase()}…`;
+    }
+  }
   function searchBar(cell) {
     const search = cell.querySelector('#search0');
     const table = search?.closest('table');
     if (!table || table.classList.contains('cp-searchbar') || !table.querySelector('tr#tr0 [name^="findValue"]')) return;
     table.classList.add('cp-searchbar');
+    (cell.querySelector('form[name="mainForm"] > table > tbody > tr > td.enduserbody') || table.closest('td.enduserbody'))?.classList.add('cp-search-design-a');
     const wrap = make('div', 'cp-searchbar-wrap');
     table.parentNode.insertBefore(wrap, table);
     wrap.appendChild(table);
@@ -32,9 +41,31 @@
     const add = make('button', 'cp-searchbar-add', '+ Add criteria');
     add.type = 'button';
     const plus = () => [...table.querySelectorAll('input[type="button"]')].filter(b => b.value.trim() === '+').pop();
-    add.addEventListener('click', () => { plus()?.click(); add.hidden = !plus(); });
+    add.addEventListener('click', () => { plus()?.click(); add.hidden = !plus(); searchHints(table); });
     add.hidden = !plus();
-    wrap.appendChild(add);
+    const actions = make('div','cp-searchbar-actions');
+    const reset = make('button','cp-searchbar-reset','Reset');
+    reset.type = 'button';
+    reset.addEventListener('click',()=>{
+      // Drive the native row-removal and field-change handlers. form.reset() would restore a spent token.
+      for (let count=0;count<30;count++) {
+        const minus=[...table.querySelectorAll('input[type="button"]')].filter(button=>button.value.trim()==='-').pop();
+        if (!minus) break;
+        const before=table.querySelectorAll('tr[id^="tr"]').length;minus.click();
+        if (table.querySelectorAll('tr[id^="tr"]').length>=before) break;
+      }
+      const field=table.querySelector('select[name="findKey0"]');
+      if (field) {field.selectedIndex=0;field.dispatchEvent(new Event('change',{bubbles:true}));}
+      table.querySelectorAll('[name^="findValue"]').forEach(input=>{
+        if (input.tagName==='SELECT') input.selectedIndex=0; else input.value='';
+        input.dispatchEvent(new Event('input',{bubbles:true}));
+      });
+      const operator=table.querySelector('select[name="findOp0"]');if(operator)operator.selectedIndex=0;
+      add.hidden=!plus();
+      (table.querySelector('input[name="search"]') || search).click();
+    });
+    actions.append(reset,add);wrap.appendChild(actions);
+    searchHints(table);
   }
 
   // Changing a criteria row's field (User ID → Last Name) keeps what was typed. CommPilot's getChoice builds the row a
@@ -66,6 +97,7 @@
         newOps.value = memo.op;
         newOps.dispatchEvent(new Event('change', { bubbles: true }));   // the dropdown over it shows the choice
       }
+      if(key.closest('.cp-searchbar'))searchHints(key.closest('.cp-searchbar'));
     };
     document.addEventListener('change', after);
     setTimeout(carry);
@@ -92,6 +124,7 @@
   }
   const controlsIn = el => [...el.querySelectorAll(CONTROL)];
   const isList = table => !!table.querySelector(':scope > tbody > tr > td.listHeader');
+  const isPager = table => !table.querySelector('table') && /\[\s*Page\s+\d+\s+of\s+\d+\s*\]/i.test(clean(table.textContent));
   const isLabel = text => /:\s*$/.test(text);
   const labelOf = text => {
     const label = clean(text).replace(/:\s*$/, '');
@@ -224,7 +257,7 @@
   function readTable(table, items) {
     if (isList(table)) { items.push({ type: 'raw', node: table, list: true }); return; }
     // The pager line ("[ Page 1 of 3 ]") stays as served: lists.js and the bulk tools read it.
-    if (!table.querySelector(CONTROL) && /\[\s*Page\s+\d+\s+of\s+\d+\s*\]/.test(table.textContent)) { items.push({ type: 'raw', node: table }); return; }
+    if (isPager(table)) { items.push({ type: 'raw', node: table }); return; }
     // CommPilot's tabs (General Settings | Internal Calls Settings) keep their own strip.
     if (table.querySelector(':scope > tbody > tr > :is(td.tab, td.tabActive)')) { items.push({ type: 'raw', node: table }); return; }
     // Search criteria and pick lists keep CommPilot's markup: searchBar and pickLists turn them into their own widgets.
@@ -495,7 +528,8 @@
   }
 
   function formLayout(cell) {
-    if (cell.querySelector(':scope > .cp-console, .fx, .cp-ev')) return;
+    // Search criteria and native paging buttons belong to lists.js, even when the pager resembles a field row.
+    if (cell.querySelector(':scope > .cp-console, .fx, .cp-ev, .cp-searchbar-wrap')) return;
     const body = cell.querySelector('form[name="mainForm"] > table > tbody > tr > td.enduserbody');
     if (!body) return;
     const items = readForm(body);
@@ -568,6 +602,163 @@
     root.cpSync = sync;
   }
 
+  /* ---- Device profile editor: native section links, shared form styling ----------------------------- */
+  function deviceProfileLayout(cell) {
+    let path = document.documentElement.dataset.cpPath || location.pathname;
+    if (/^\/commpilot\/Common\/(?:find|findAll|page|sort)\.jsp$/.test(path)) {
+      const owner = history.state?.cpNav?.params?.returnPage;
+      if (owner) path = owner.startsWith('/commpilot/') ? owner : '/commpilot' + owner;
+    }
+    if (!/^\/commpilot\/(?:Group|ServiceProvider|Operator\/System)\/DeviceInventory\/Modify\//.test(path)) return;
+    const body = cell.querySelector('form[name="mainForm"] > table > tbody > tr > td.enduserbody');
+    if (!body || body.classList.contains('cp-device-editor')) return;
+    const tabs = [...body.querySelectorAll('a.tab, .tabActive')].filter(tab => !tab.parentElement.closest('.tabActive'));
+    const table = tabs[0]?.closest('table');
+    if (!table || tabs.length < 2 || !tabs.every(tab => tab.closest('table') === table)) return;
+    body.classList.add('cp-device-editor');
+    const nav = make('nav', 'cp-device-tabs');
+    nav.setAttribute('aria-label', 'Device profile sections');
+    for (const tab of tabs) {
+      if (tab.matches('.tabActive')) {
+        const current = make('span', 'cp-device-tab is-current', ownText(tab));
+        current.setAttribute('aria-current', 'page');
+        nav.appendChild(current);
+      } else {
+        tab.classList.add('cp-device-tab');
+        tab.setAttribute('role', 'link');
+        tab.tabIndex = 0;
+        tab.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); tab.click(); }
+        });
+        nav.appendChild(tab);   // preserve native IDs and listeners for PJAX's tab bridge
+      }
+    }
+    const nativeWrap = table.closest('.fx-raw');
+    (nativeWrap && !nativeWrap.querySelector(CONTROL) ? nativeWrap : table).classList.add('cp-device-native');
+    body.prepend(nav);
+    const root = body.querySelector('.fx');
+    if (root && !root.querySelector('.fx-facts')) {
+      const facts = [...root.querySelectorAll('.fx-static')].filter(field =>
+        /^(?:Identity\/Device Profile (?:Name|Type)|Device Type URL)$/i.test(clean(field.querySelector('.fx-label')?.textContent)));
+      if (facts.length >= 2) {
+        const strip = make('div', 'fx-facts');
+        for (const fact of facts) {
+          fact.className = 'fx-fact';
+          fact.querySelector('.fx-label').className = 'fx-fact-k';
+          fact.querySelector('.fx-ctl').className = 'fx-fact-v';
+          strip.appendChild(fact);
+        }
+        root.prepend(strip);
+      }
+    }
+    // Some deployments nest the host and port in another table. The general reader preserves that row whole;
+    // align its real controls here instead of retaining the native 50% right-aligned cells.
+    for (const raw of body.querySelectorAll('.fx-raw:not(.cp-device-native)')) {
+      const inputs = [...raw.querySelectorAll('input:not([type="hidden"])')];
+      const host = inputs.find(input => /^(?:ipAddress|hostName|deviceIpAddress)$/i.test(input.name));
+      const port = inputs.find(input => /^(?:port|portNumber)$/i.test(input.name));
+      if (!host || !port || inputs.length !== 2 || raw.querySelector('select, textarea')) continue;
+      const row = make('div', 'cp-device-endpoint');
+      for (const [input, text, size] of [[host,'Host Name/IP Address','m'],[port,'Port','xs']]) {
+        const field = make('div', 'fx-item fx-field');
+        field.dataset.size = size;
+        const label = make('label', 'fx-label', text);
+        if (!input.id) input.id = 'fx-f' + (++uid);
+        label.htmlFor = input.id;
+        const control = make('div', 'fx-ctl');
+        control.appendChild(input);
+        field.append(label, control);
+        row.appendChild(field);
+      }
+      raw.before(row);
+      raw.classList.add('cp-device-native');
+    }
+  }
+
+  /* ---- Shared Call Appearance: connected form (selected mockup B) ---------------------------------- */
+  // Reuse the form reader's actual controls and list, including their IDs and native handlers. In particular,
+  // Find still submits CommPilot's search and Delete still only marks an appearance until OK / Apply.
+  // Recognize the overview by its contents, too: Find can return it at /Common/find.jsp.
+  function sharedCallAppearance(cell) {
+    const root = cell.querySelector('.fx');
+    if (!root || root.classList.contains('cp-sca')) return;
+    if (!/^Shared Call Appearance$/i.test(clean(cell.querySelector('td.screenName')?.textContent))) return;
+    const checks = [...root.querySelectorAll('.fx-check')];
+    const patterns = [/^Alert all appearances for Click.to.Dial calls$/i, /^Alert all appearances for Group Paging calls$/i,
+      /^Allow Call Retrieve from another location$/i, /^Allow bridging between locations$/i, /^Enable Call Park notification$/i];
+    const options = patterns.map(pattern => checks.find(el => pattern.test(clean(el.querySelector('.fx-check-text')?.textContent))));
+    const tone = [...root.querySelectorAll('.fx-choice')].find(el => /^Bridge Warning tone:?$/i.test(clean(el.querySelector('.fx-label')?.textContent)));
+    const arrangement = [...root.querySelectorAll('.fx-choice')].find(el => /^Multiple Call Arrangement:?$/i.test(clean(el.querySelector('.fx-label')?.textContent)));
+    const policy = [...root.querySelectorAll('a, button, input[type="button"]')]
+      .find(el => /^Configure device policies$/i.test(clean(el.value || el.textContent)));
+    const list = [...root.querySelectorAll('.fx-list > table')].find(table => {
+      const heads = [...table.querySelectorAll(':scope > tbody > tr > td.listHeader')].map(ownText).filter(Boolean);
+      return ['Delete', 'Identity/Device Profile Type', 'Identity/Device Profile Name', 'Line/Port']
+        .every(label => heads.some(text => text.toLowerCase() === label.toLowerCase()));
+    });
+    // Legacy SCA lists render Find / Find All as headerLink anchors wired to doFind / doFindAll, not buttons.
+    const find = [...root.querySelectorAll('input, button, a')].find(el => /^Find$/i.test(clean(el.value || el.textContent)));
+    const search = find?.closest('.fx-raw');
+    if (options.some(el => !el) || !tone || !policy || !list || !search ||
+        !search.querySelector('[name^="findValue"]')) return;   // an unfamiliar variant keeps the general layout
+
+    root.classList.add('cp-sca');
+    const heading = (title, caption) => {
+      const head = make('div', 'cp-sca-heading');
+      head.append(make('h3', 'fx-sec-title', title), make('p', 'fx-hint', caption));
+      return head;
+    };
+    const settings = make('section', 'cp-sca-settings');
+    settings.setAttribute('aria-label', 'Call behavior');
+    settings.appendChild(heading('Call behavior', 'Applies to all appearances'));
+    const group = make('div', 'cp-sca-options');
+    group.append(...options);
+    settings.appendChild(group);
+    // This native On / Off choice belongs with the call settings, rather than being left below Find.
+    if (arrangement) {
+      arrangement.classList.add('cp-sca-arrangement');
+      settings.appendChild(arrangement);
+    }
+
+    tone.classList.add('cp-sca-tone');
+    const label = tone.querySelector('.fx-label');
+    label.textContent = 'Bridge warning tone';
+    label.appendChild(make('span', 'cp-sca-caption', 'Choose when a warning is played'));
+
+    const policies = make('div', 'cp-sca-policies');
+    const policyLabel = make('div');
+    policyLabel.append(make('span', 'cp-sca-policy-label', 'Device policies'),
+      make('span', 'cp-sca-caption', 'Manage rules for shared devices'));
+    policies.append(policyLabel, policy);
+
+    const devices = make('section', 'cp-sca-devices');
+    devices.setAttribute('aria-label', 'Shared appearances');
+    devices.appendChild(heading('Shared appearances', 'Device profiles sharing this user’s line'));
+    const listItem = list.closest('.fx-list');
+    listItem.classList.add('cp-sca-results');
+    list.classList.add('cp-sca-table');
+    // The list module discovers the native pager among the result table's siblings. Keep it there, so it can
+    // retain server paging when not all pages were fetched, and replace it only when the whole list is here.
+    for (const item of [...root.querySelectorAll('.fx-raw')]) {
+      if (item === listItem || item === search || item.querySelector(CONTROL)) continue;
+      const pager = item.querySelector(':scope > table');
+      if (pager && !pager.querySelector('table') && /\[\s*Page\s+\d+\s+of\s+\d+\s*\]/i.test(clean(pager.textContent))) {
+        listItem.appendChild(pager);
+        item.remove();
+      }
+    }
+    search.classList.add('cp-sca-find');
+    find.classList.add('cp-sca-find-button');
+    devices.append(listItem, search);
+    // Move only recognized pieces. Keep any extra native fields, notices, and validation messages visible.
+    for (const item of [...root.querySelectorAll('.fx-note, .fx-static, .fx-actionrow')]) {
+      if (!item.querySelector(CONTROL + ', a, button') && /^(Device Policies:?\s*[—-]?|[—-])$/i.test(clean(item.textContent))) item.remove();
+    }
+    root.prepend(settings, tone, policies, devices);
+    for (const line of root.querySelectorAll('.fx-line')) if (!line.childElementCount) line.remove();
+    for (const section of root.querySelectorAll('.fx-sec')) if (!section.querySelector('.fx-item')) section.remove();
+  }
+
   /* ---- After the frame: unsaved changes, section chips, empty lists (mockup extras, 2026-10-02) ---------- */
   const valueOf = el => el.type === 'checkbox' || el.type === 'radio' ? el.checked :
     el.tagName === 'SELECT' ? [...el.selectedOptions].map(o => o.value).join('\n') : el.value;
@@ -597,7 +788,7 @@
       // Titled sections, and the untitled one at the top as "Details".
       const sections = [...root.querySelectorAll(':scope > .fx-sec')].filter((s, i) => s.dataset.title || i === 0);
       const head = cell.querySelector('.cp-frame-head');
-      if (head && sections.length >= 2 && sections.some(s => s.dataset.title)) {
+      if (head && !root.closest('.cp-device-editor') && sections.length >= 2 && sections.some(s => s.dataset.title)) {
         const nav = make('nav', 'fx-jump');
         nav.setAttribute('aria-label', 'Sections on this page');
         const chips = sections.map(section => {
@@ -1052,14 +1243,15 @@
     // Results, the empty band CommPilot draws under them, and the pager, so the card can give them dividers
     // and one inset.
     for (const table of body.querySelectorAll('table')) {
-      if (table.querySelector(':scope > tbody > tr > td.listHeader') && table.querySelector(':scope > tbody > tr[id^="Row"]')) {
+      const hasColumns=[...table.querySelectorAll(':scope > tbody > tr > td.listHeader')].some(header=>ownText(header));
+      if (!table.classList.contains('cp-searchbar') && hasColumns && (table.querySelector(':scope > tbody > tr[id^="Row"]') || body.classList.contains('cp-search-design-a'))) {
         table.classList.add('cp-frame-results');
         table.querySelectorAll(':scope > tbody > tr:not([id^="Row"])').forEach(tr => { if (blank(tr)) tr.classList.add('cp-frame-spacer'); });
       } else if (blank(table) && table.querySelector(':scope > tbody > tr > td.listHeader')) table.classList.add('cp-frame-rule');
       // The older one-line "Find" form some lists keep under the pager.
       if (!table.querySelector('table') && !table.classList.contains('cp-searchbar') && table.querySelector('[name="findKey"]'))
         table.classList.add('cp-findline');
-      if (!table.querySelector('table') && /\[\s*Page\s+\d+\s+of\s+\d+\s*\]/.test(table.textContent))
+      if (isPager(table))
         table.classList.add('cp-frame-pager');
     }
   }
@@ -1106,7 +1298,7 @@
     if (!active()) return;
     const cell = content();
     if (!cell) return;
-    for (const transform of [searchBar, eventEditor, formLayout, pickLists, pageFrame, formExtras]) {
+    for (const transform of [searchBar, eventEditor, formLayout, pickLists, deviceProfileLayout, sharedCallAppearance, pageFrame, formExtras]) {
       try { transform(cell); } catch (error) { console.warn('[CommPilot forms]', transform.name, error); }
     }
   }

@@ -12,8 +12,7 @@
 
   const active = () => Boolean(document.documentElement.dataset.cpDirection) &&
     document.body?.id === 'initBody.menuTemplate';
-  const ROUTE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="19" r="3"/>' +
-    '<path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>';
+  const ROUTE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.7 7M3 4v7h7M12 7v5l3 2"/></svg>';
   const ARROW = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
   const ITEMS = 'a.headerAuthLevelLink, span.headerAuthLevel, button.cp-page-pill';
   const clean = text => String(text || '').replace(/^\s*:\s*/, '').replace(/\s+/g, ' ').trim();
@@ -46,8 +45,14 @@
         bar.setAttribute('aria-label', 'Breadcrumb');
         cell.insertBefore(bar, items[0]);
       }
-      const lead = document.createElement('span');
-      lead.className = 'cp-bc-lead';
+      const lead = document.createElement('button');
+      lead.type = 'button';
+      lead.className = 'cp-bc-lead cp-bc-history';
+      lead.setAttribute('aria-label', 'Recent locations');
+      lead.setAttribute('aria-haspopup', 'menu');
+      lead.setAttribute('aria-expanded', 'false');
+      lead.setAttribute('aria-controls', 'cp-bc-history-menu');
+      lead.title = 'Recent locations';
       lead.innerHTML = ROUTE;
       const parts = [lead];
       items.forEach((item, i) => {
@@ -141,15 +146,181 @@
     if (refocus) button?.focus();
     return true;
   }
+  let historyMenu = null, historyTrigger = null;
+  function closeHistory(refocus = false) {
+    if (!historyMenu || historyMenu.hidden) return false;
+    historyMenu.hidden = true;
+    historyTrigger?.setAttribute('aria-expanded', 'false');
+    if (refocus) historyTrigger?.focus();
+    return true;
+  }
+  function openHistory(button) {
+    closeMore(false);
+    if (historyMenu && !historyMenu.hidden) { closeHistory(); return; }
+    let rows = [];
+    try { rows = JSON.parse(sessionStorage.getItem('cp-recent-locations') || '[]'); } catch {}
+    if (!Array.isArray(rows)) rows = [];
+    if (!historyMenu?.isConnected) {
+      historyMenu = document.createElement('div');
+      historyMenu.id = 'cp-bc-history-menu';
+      historyMenu.setAttribute('role', 'menu');
+      historyMenu.setAttribute('aria-label', 'Recent locations');
+      document.body.appendChild(historyMenu);
+    }
+    historyMenu.replaceChildren();
+    const heading = document.createElement('div');
+    heading.className = 'cp-history-heading';
+    const title = document.createElement('strong');
+    title.textContent = 'Recent locations';
+    heading.appendChild(title);
+    if (rows.length) {
+      const clear = document.createElement('button');
+      clear.type = 'button';
+      clear.className = 'cp-history-clear';
+      clear.textContent = 'Clear';
+      clear.setAttribute('role', 'menuitem');
+      clear.addEventListener('click', () => { window.postMessage({__cpRecentClear:true}, location.origin); closeHistory(true); });
+      heading.appendChild(clear);
+    }
+    historyMenu.appendChild(heading);
+    const list = document.createElement('div');
+    list.className = 'cp-history-list';
+    historyMenu.appendChild(list);
+    const helper = globalThis.cpRecentHistory;
+    const cell = trailCell();
+    const currentPlace = helper?.place({nav:history.state?.cpNav,chain:history.state?.cpRecentChain,extension:cell?.querySelector('span.headerAuthLevel')?.getAttribute('data-cp-extension'),
+      context:[...(cell?.querySelectorAll('a.headerAuthLevelLink, span.headerAuthLevel') || [])].map(el=>clean(el.textContent)).join(' › ')});
+    const footer = document.createElement('div');
+    footer.className = 'cp-history-footer';
+    const toggle = document.createElement('label');
+    const include = document.createElement('input');
+    include.type = 'checkbox';
+    include.setAttribute('role', 'menuitemcheckbox');
+    include.setAttribute('aria-label', 'Include menu visits');
+    try { include.checked = sessionStorage.getItem('cp-recent-show-menus') === 'true'; } catch {}
+    toggle.append(include,document.createTextNode('Include menu visits'));
+    const hint = document.createElement('span');
+    hint.textContent = 'Repeat visits merged';
+    footer.append(toggle,hint);
+    historyMenu.appendChild(footer);
+    function renderGroups() {
+      list.replaceChildren();
+      include.setAttribute('aria-checked', String(include.checked));
+      for (const group of helper?.groups(rows.slice(0,30),currentPlace?.key,include.checked) || []) {
+        const section = document.createElement('section');
+        section.className = 'cp-history-location';
+        section.dataset.placeType = group.type;
+        section.dataset.placeKey = group.key;
+        section.setAttribute('role','group');
+        section.setAttribute('aria-label',`${group.type} ${group.full}`);
+        const homeRow = group.rows.find(row=>helper.homeIndex(row) >= 0);
+        const heading = document.createElement(homeRow ? 'button' : 'div');
+        heading.className = 'cp-history-location-heading';
+        if (homeRow) {
+          heading.type = 'button';
+          heading.setAttribute('role','menuitem');
+          heading.setAttribute('aria-label',`Open ${group.type.toLowerCase()} ${group.userName ? group.userName+' · ' : ''}${group.full}`);
+          heading.title = `Open ${group.type.toLowerCase()} main area · ${group.full}`;
+          heading.addEventListener('click',()=>{
+            closeHistory();
+            window.postMessage({__cpRecentOpen:homeRow.id,__cpRecentBase:helper.homeIndex(homeRow)},location.origin);
+          });
+        }
+        const symbol = document.createElement('span');
+        symbol.className = 'cp-history-symbol';
+        symbol.innerHTML = helper.icon(group.type === 'User' ? 'user' : group.type === 'Group' ? 'group' : group.type === 'Device profile' ? 'device' : 'provider');
+        symbol.setAttribute('aria-hidden','true');
+        const identity = document.createElement('div');
+        const name = document.createElement('strong');
+        name.className = 'cp-history-location-title';
+        name.textContent = group.userName || group.name;
+        name.title = group.full;
+        if (group.userName) {
+          const userId = document.createElement('span');
+          userId.className = 'cp-history-location-id';
+          userId.textContent = group.full;
+          identity.append(name,userId);
+        } else identity.appendChild(name);
+        const meta = document.createElement('span');
+        meta.className = 'cp-history-location-meta';
+        const extension = group.extension || (group.key === currentPlace?.key ? currentPlace.extension : '');
+        meta.textContent = [group.type,group.parent,extension ? 'ext '+extension : ''].filter(Boolean).join(' · ');
+        identity.appendChild(meta);
+        heading.append(symbol,identity);
+        section.appendChild(heading);
+        const pages = document.createElement('div');
+        pages.className = 'cp-history-pages';
+        for (const row of group.rows) {
+          if (typeof row.label !== 'string') continue;
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.setAttribute('role', 'menuitem');
+          item.dataset.recentId = row.id;
+          const glyph = document.createElement('span');
+          glyph.className = 'cp-history-page-icon';
+          glyph.innerHTML = helper.icon(helper.pageIcon(row));
+          const label = document.createElement('strong');
+          let text = row.label;
+          if (helper.isMenu(row) && !/\bmenu$/i.test(text)) text = /profile|location/i.test(text) ? group.type+' menu' : text+' menu';
+          label.textContent = text;
+          item.setAttribute('aria-label',`${text} · ${group.type} ${group.full}`);
+          item.title = `${text} · ${group.full}`;
+          item.append(glyph,label);
+          if (Number.isFinite(row.at) && row.at > 0) {
+            const time = document.createElement('span');
+            time.className = 'cp-history-time';
+            const minutes = Math.max(0,Math.floor((Date.now()-row.at)/60000));
+            time.textContent = minutes < 1 ? 'Now' : minutes < 60 ? minutes+'m' : minutes < 1440 ? Math.floor(minutes/60)+'h' : Math.floor(minutes/1440)+'d';
+            time.setAttribute('aria-hidden','true');
+            item.title += '\n'+new Date(row.at).toLocaleString();
+            item.appendChild(time);
+          }
+          item.addEventListener('click', () => { closeHistory(); window.postMessage({__cpRecentOpen:row.id}, location.origin); });
+          pages.appendChild(item);
+        }
+        section.appendChild(pages);
+        list.appendChild(section);
+      }
+      if (!list.children.length) {
+        const empty = document.createElement('p');
+        empty.className = 'cp-history-empty';
+        empty.textContent = rows.length ? 'No recent pages yet. Include menu visits to see your menu history.' : 'Pages you visit will appear here.';
+        list.appendChild(empty);
+      }
+    }
+    include.addEventListener('change',()=>{try {sessionStorage.setItem('cp-recent-show-menus',String(include.checked));}catch{} renderGroups();});
+    renderGroups();
+    historyTrigger = button;
+    historyMenu.hidden = false;
+    button.setAttribute('aria-expanded', 'true');
+    const r = button.getBoundingClientRect();
+    historyMenu.style.top = `${Math.round(r.bottom + 8)}px`;
+    historyMenu.style.left = `${Math.max(8, Math.min(r.left, innerWidth - historyMenu.offsetWidth - 8))}px`;
+    historyMenu.style.maxHeight = `${Math.max(120, innerHeight - r.bottom - 20)}px`;
+    (list.querySelector('button') || include).focus();
+  }
   document.addEventListener('click', event => {
+    const history = event.target.closest?.('td.headerBar button.cp-bc-history');
+    if (history) { openHistory(history); return; }
+    if (!event.target.closest?.('#cp-bc-history-menu')) closeHistory();
     const more = event.target.closest?.('td.headerBar button.cp-bc-more');
     if (more) { if (menu && !menu.hidden) closeMore(false); else openMore(more); }
     else if (!event.target.closest?.('#cp-bc-more-menu')) closeMore(false);
   });
-  document.addEventListener('keydown', event => { if (event.key === 'Escape' && closeMore(true)) event.preventDefault(); });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { if (closeHistory(true) || closeMore(true)) event.preventDefault(); return; }
+    if (event.target.closest?.('button.cp-bc-history') && event.key === 'ArrowDown') { event.preventDefault(); openHistory(event.target.closest('button')); return; }
+    if (!historyMenu || historyMenu.hidden || !historyMenu.contains(event.target)) return;
+    const items = [...historyMenu.querySelectorAll('button, input[type="checkbox"]')];
+    const index = items.indexOf(document.activeElement);
+    const next = event.key === 'ArrowDown' ? (index + 1) % items.length : event.key === 'ArrowUp' ? (index - 1 + items.length) % items.length : event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : -1;
+    if (next >= 0 && items[next]) {event.preventDefault(); items[next].focus();}
+    if (event.key === 'Tab') closeHistory();
+  });
   let fitQueued = false;
   window.addEventListener('resize', () => {
     closeMore(false);
+    closeHistory();
     if (fitQueued) return;
     fitQueued = true;
     requestAnimationFrame(() => {
@@ -223,5 +394,6 @@
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch, { once: true });
   else watch();
-  for (const name of ['cp:reskin', 'cp:morphed', 'cp:theme-change']) document.addEventListener(name, () => requestAnimationFrame(watch));
+  for (const name of ['cp:reskin', 'cp:morphed', 'cp:theme-change']) document.addEventListener(name, () => {closeHistory(); requestAnimationFrame(watch);});
+  document.dispatchEvent(new Event('cp:recent-record'));
 })();

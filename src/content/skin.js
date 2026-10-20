@@ -1992,7 +1992,7 @@ function suppressEmptyResults() {
     if (!box) return;
 
     var cells = box.querySelectorAll("td");
-    var isEmpty = Array.prototype.some.call(cells, function (td) {
+    var isEmpty = [].slice.call(cells).some(function (td) {
       return /^no entries present$/i.test(td.textContent.trim());
     });
     if (!isEmpty) return;
@@ -3679,7 +3679,7 @@ function cpEvtTimeSlot(timeI, ampmS) {
   var pop = document.createElement("div"); pop.className = "cp-evt-tlist"; slot.appendChild(pop);
   function setAmpm(isPm) {
     if (!ampmS) return;
-    [].some.call(ampmS.options, function (o) {
+    [].slice.call(ampmS.options).some(function (o) {
       if (/p/i.test(o.text) === isPm) { ampmS.value = o.value; return true; }
       return false;
     });
@@ -4772,7 +4772,7 @@ function cpBuildImrnAssignRows(rowsWrap, cell) {
   wrap.appendChild(rg.col); wrap.appendChild(b1); wrap.appendChild(av.col); wrap.appendChild(b2); wrap.appendChild(mt.col);
   rowsWrap.appendChild(wrap);
   var hasData = first.options.length + avail.options.length + asgn.options.length > 0 &&
-    Array.prototype.some.call(first.options, function (o) { return (o.text || "").trim(); });
+    [].slice.call(first.options).some(function (o) { return (o.text || "").trim(); });
   if (!hasData) {
     var note = document.createElement("div"); note.className = "cp-dl-note";
     note.textContent = "No IMRN ranges are defined on this system yet — the pool is empty.";
