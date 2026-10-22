@@ -30,7 +30,13 @@
     const attached = [...cell.querySelectorAll('.cp-bc-attach')];
     let bar = cell.querySelector(':scope > .cp-bc');
     const built = bar && [...bar.children].filter(el => el.matches(ITEMS));
-    if (built && built.length === items.length && built.every((el, i) => el === items[i])) {
+    // PJAX can append a page pill inside an already-built trail. Matching the
+    // links alone misses its absent arrow (or an orphan left after removal).
+    const separators = bar && [...bar.children].filter(el => el.matches('.cp-bc-sep') &&
+      !el.nextElementSibling?.matches('.cp-bc-more'));
+    const separated = separators?.length === items.length - 1 && items.every((el, i) => !i ||
+      el.previousElementSibling?.matches('.cp-bc-sep') && el.previousElementSibling.querySelector('svg'));
+    if (built && separated && built.length === items.length && built.every((el, i) => el === items[i])) {
       attach(items, attached);
       mark(bar, items);
       fit(bar, cell);

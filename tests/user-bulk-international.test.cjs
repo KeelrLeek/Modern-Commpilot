@@ -35,7 +35,7 @@ test('international lookup excludes assigned numbers and other departments, incl
   const browser=await chromium.launch({executablePath,headless:true});
   try{
     const page=await browser.newPage();await fixture(page,{prototype:true,numberRows:[
-      {cells:['+44 20 7946 0123 - +44 20 7946 0125','','Operations']},
+      {cells:['44-2079460123–44-2079460125','','Operations']},
       {cells:['0044 20 7946 0124','existing@phonenetwork.net','Operations']},
       {cells:['+44 20 7946 0126','','Other']},
       {cells:['+45 32 12 34 56','','Operations']},
@@ -46,6 +46,29 @@ test('international lookup excludes assigned numbers and other departments, incl
       const numbers=await engine.loadNumbers('Operations');lease.release();return numbers;
     });
     assert.deepEqual([...pool].sort(),['442079460123','442079460125','4532123456','3125550199'].sort());
+  }finally{await browser.close();}
+});
+
+test('an empty number lookup can refresh and unsupported native formats are not reported as empty',async()=>{
+  const browser=await chromium.launch({executablePath,headless:true});
+  try{
+    const page=await browser.newPage(),rows=[];
+    await fixture(page,{group:'RSG',numberRows:rows});
+    await page.locator('#cp-user-bulk-launch').click();
+    await page.locator('[data-setting=prefix]').waitFor();
+    await page.locator('[data-action=primary]').click();
+    await page.locator('[data-field=dept]').selectOption('Operations');
+    await page.locator('[data-pick]').click();
+    await page.getByText('No unassigned numbers found in this department.',{exact:true}).waitFor();
+    rows.push({cells:['44-2079460123–44-2079460125','','Operations']});
+    await page.getByRole('button',{name:'Refresh numbers',exact:true}).click();
+    await page.locator('[data-number="442079460123"]').waitFor();
+    assert.equal(await page.locator('[data-number]').count(),3);
+    rows[0].cells[0]='Unrecognized native format';
+    await page.getByRole('button',{name:'Refresh numbers',exact:true}).click();
+    await page.locator('.number-options [role=alert]').waitFor();
+    assert.match(await page.locator('.number-options').innerText(),/format that could not be read/);
+    assert.equal(await page.locator('[data-number]').count(),0);
   }finally{await browser.close();}
 });
 

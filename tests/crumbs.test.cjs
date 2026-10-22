@@ -112,6 +112,19 @@ test('the breadcrumb is the alpha pill trail, built from CommPilot’s own links
     });
     await page.waitForFunction(() => document.querySelector('#crumbs .cp-bc-cur')?.textContent.trim() === 'Profile');
     assert.deepEqual((await read()).pills.slice(-2), ['TriSandbox1002', 'Profile']);
+    assert.equal((await read()).arrows, 4, 'a page pill inserted into an existing trail gets its own arrow');
+
+    // PJAX removes and reinserts page pills without replacing the level links.
+    await page.evaluate(() => document.querySelector('#crumbs .cp-page-pill').remove());
+    await page.waitForFunction(() => document.querySelector('#crumbs .cp-bc-cur')?.textContent.trim() === 'TriSandbox1002');
+    assert.equal((await read()).arrows, 3, 'removing a page pill leaves no trailing arrow');
+    await page.evaluate(() => {
+      const pill = document.createElement('button');
+      pill.type = 'button'; pill.className = 'cp-page-pill'; pill.textContent = 'Identity/Device Profiles';
+      document.querySelector('#crumbs .cp-bc').appendChild(pill);
+    });
+    await page.waitForFunction(() => document.querySelector('#crumbs .cp-bc-cur')?.textContent.trim() === 'Identity/Device Profiles');
+    assert.equal((await read()).arrows, 4, 'repeated page insertion repairs the separator');
 
     // pjax.js rewrites the header for the next page: the trail follows.
     await page.evaluate(html => { document.getElementById('crumbs').innerHTML = html; }, trail('Other_Group').replace(/ &gt;&nbsp;<a class="headerAuthLevelLink">Users<\/a> :<span[^>]*> TriSandbox1002<\/span>/, ''));

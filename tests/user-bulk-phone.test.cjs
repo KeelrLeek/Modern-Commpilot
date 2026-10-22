@@ -17,6 +17,10 @@ test('phone identity preserves North American IDs and explicit international cou
   for(const input of ['None','1234','+0123456789','+442079460123abc','+1234567890123456'])assert.equal(phone.key(input),'');
 });
 test('international ranges preserve identity, leading zeros and bounds',()=>{
+  for(const input of ['44-2079460123–44-2079460125','44-2079460123—44-2079460125',
+    '44-2079460123-44-2079460125','44‑2079460123 - 44‑2079460125'])
+    assert.deepEqual(phone.expand(input),['442079460123','442079460124','442079460125']);
+  for(const input of ['44‑2079460123','44–2079460123'])assert.equal(phone.key(input),'442079460123');
   assert.deepEqual(phone.expand('+44 20 7946 0123 - +44 20 7946 0125'),['442079460123','442079460124','442079460125']);
   assert.deepEqual(phone.expand('+1-3125550197 – +1-3125550199'),['3125550197','3125550198','3125550199']);
   assert.deepEqual(phone.expand('02079460123 - 02079460124'),['02079460123','02079460124']);

@@ -270,6 +270,8 @@
       const rows=result.raw.flatMap(nativeRows);
       // An empty server result is fine. Never interpret an unparsed nonempty result as an available number.
       if (result.rows.length&&!rows.length) throw Error('The number availability table could not be inspected.');
+      for(const row of rows)if(!expandPhone(row.phone).length)
+        throw Error('CommPilot returned a phone number format that could not be read: '+row.phone+'. No numbers were marked available.');
       const assigned=new Set(rows.filter(r=>r.user).flatMap(r=>expandPhone(r.phone)));
       const eligible=rows.filter(r=>!r.user&&(unassignedDepartment?!r.dept||/^none$/i.test(r.dept):r.dept===dept));
       const pool=[...new Set(eligible.flatMap(r=>expandPhone(r.phone)))]

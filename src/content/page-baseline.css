@@ -339,6 +339,7 @@ body.cp-recovery-page {
   font-family: var(--cp-font, system-ui, sans-serif);
 }
 #cp-recovery-error .cp-alert-body { color: var(--d-muted, CanvasText) !important; }
+#cp-recovery-error .cp-recovery-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 #cp-recovery-error button {
   border-color: var(--d-line, GrayText) !important;
   background: var(--d-raised, ButtonFace) !important; color: var(--d-text, ButtonText) !important;

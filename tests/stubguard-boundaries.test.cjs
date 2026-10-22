@@ -158,6 +158,38 @@ test('a failed entity restore pauses recovery instead of posting the final page 
   } finally { await f.close(); }
 });
 
+for (const mode of ['entity', 'server', 'storage-unavailable'])
+test(`paused recovery offers a direct login escape without replaying the failed page: ${mode}`, async () => {
+  const f = await fixture({ url: destination, entry: { url: entry, params: { key: 'fixture-user' } } },
+    mode === 'server' ? { harvestError: 503 } : { entryError: true });
+  try {
+    await f.page.locator('#cp-recovery-error').waitFor();
+    const keys = ['cp-last-nav', 'cp-pending-return', 'cp-return-at', 'cp-replay-at',
+      'cp-reload-nav', 'cp-stub-tries', 'cp-stub-tries-at'];
+    await f.page.evaluate(({ keys, blocked }) => {
+      for (const key of keys) sessionStorage.setItem(key, 'stale-recovery');
+      sessionStorage.setItem('unrelated-preference', 'keep');
+      if (blocked) {
+        Storage.prototype.removeItem = function () { throw new DOMException('Storage blocked', 'SecurityError'); };
+        Storage.prototype.setItem = function () { throw new DOMException('Storage blocked', 'SecurityError'); };
+      }
+    }, { keys, blocked: mode === 'storage-unavailable' });
+    const before = f.requests.length;
+    const login = f.page.getByRole('button', { name: 'Go to login', exact: true });
+    await login.waitFor({ timeout: 2000 });
+    await Promise.all([f.page.waitForURL('**/commpilot/Login/'), login.click()]);
+    assert.deepEqual(f.requests.slice(before), [{ url: origin + '/commpilot/Login/', method: 'GET' }]);
+    if (mode !== 'storage-unavailable') {
+      const state = await f.page.evaluate(keys => ({ remaining: keys.filter(key => sessionStorage.getItem(key)),
+        unrelated: sessionStorage.getItem('unrelated-preference'), manualAt: Number(sessionStorage.getItem('bwManualLogoutAt')) }), keys);
+      assert.deepEqual(state.remaining, []);
+      assert.equal(state.unrelated, 'keep');
+      assert.ok(Math.abs(Date.now() - state.manualAt) < 10000, 'saved sign-in does not immediately undo the explicit login choice');
+    }
+    assert.deepEqual(f.errors, []);
+  } finally { await f.close(); }
+});
+
 for (const slow of ['harvest', 'entry']) test(`a hung ${slow} pauses recovery without a stale fallback POST or late replay`, async () => {
   const f = await fixture({ url: destination, entry: { url: entry, params: { key: 'SP>%Group>%User' } } }, { slow, clock: true });
   try {
@@ -193,11 +225,14 @@ test('recovery pause uses the shared font and palette and Retry reloads without 
         .getAnimations({ subtree: true }).every(animation => animation.playState !== 'running'));
       const style = await f.page.evaluate(() => {
         const panel = document.querySelector('#cp-recovery-error'), button = panel.querySelector('button');
+        const login = getComputedStyle(panel.querySelector('button:last-child'));
         const body = getComputedStyle(document.body), text = getComputedStyle(panel.querySelector('.cp-alert-body'));
         return { bodyFont: body.fontFamily, textFont: text.fontFamily, buttonFont: getComputedStyle(button).fontFamily,
           canvas: getComputedStyle(document.documentElement).backgroundColor, bodyBackground: body.backgroundColor,
           buttonColor: getComputedStyle(button).color, buttonBackground: getComputedStyle(button).backgroundColor,
           buttonSize: getComputedStyle(button).fontSize, buttonWeight: getComputedStyle(button).fontWeight,
+          loginFont: login.fontFamily, loginSize: login.fontSize, loginWeight: login.fontWeight,
+          loginColor: login.color, loginBackground: login.backgroundColor,
           background: getComputedStyle(panel).backgroundColor, color: text.color,
           titleSize: getComputedStyle(panel.querySelector('.cp-alert-title')).fontSize,
           textSize: text.fontSize, overflow: document.documentElement.scrollWidth > innerWidth };
@@ -207,6 +242,11 @@ test('recovery pause uses the shared font and palette and Retry reloads without 
       assert.equal(style.buttonFont, style.bodyFont);
       assert.equal(style.buttonSize, '12.5px');
       assert.equal(style.buttonWeight, '700');
+      assert.equal(style.loginFont, style.buttonFont);
+      assert.equal(style.loginSize, style.buttonSize);
+      assert.equal(style.loginWeight, style.buttonWeight);
+      assert.equal(style.loginColor, style.buttonColor);
+      assert.equal(style.loginBackground, style.buttonBackground);
       assert.equal(style.canvas, style.bodyBackground, 'scrollbar gutters match the recovery page palette');
       assert.equal(style.titleSize, '14px');
       assert.equal(style.textSize, '13px');

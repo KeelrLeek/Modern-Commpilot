@@ -12,12 +12,14 @@
   let root=null, lease, engine, users=[], passwords=new Map(), pools=new Map(), stage=0, busy=false, pause=false, running=false, nextId=1, chosen=null, pickerState=null, notice='', returnNav;
   let info=null,config=null,savedDefaults=null,credentials={web:'Easy1234',mailbox:'',device:''},startingExtension='';
   let diagnosticUser=null,diagnosticStep=null,batchId='';
+  let readinessProblems=[],showReadiness=false;
   const $=s=>root.querySelector(s), depts=()=>engine.departments.map(d=>d.name), used=()=>depts().filter(d=>users.some(u=>u.dept===d));
   const extension=u=>general?(u.extension||'—'):u.number?u.number.slice(-5):'—';
   const complete=u=>u.first.trim()&&u.last.trim()&&u.first.length<=30&&u.last.length<=30&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.email)&&
     pools.get(u.dept)?.includes(u.number)&&!users.some(x=>x!==u&&(x.email.toLowerCase()===u.email.toLowerCase()||x.number&&(x.number===u.number||extension(x)===extension(u))));
   function readyCount(){
-    if(!general)return users.filter(complete).length;
+    readinessProblems=[];
+    if(!general){const ready=users.filter(complete);users.forEach((u,i)=>{if(!ready.includes(u))readinessProblems.push('Row '+(i+1)+': check names, email, selected available number and duplicates.');});return ready.length;}
     if(!info)return 0;
     // Build duplicate counts once per update instead of rebuilding both users' device plans for
     // every pair. Keep this snapshot local so edits, profile overrides and number reloads stay fresh.
@@ -28,11 +30,13 @@
     let ready=0;
     for(let i=0;i<users.length;i++){
       const u=users[i];
-      if(model.validate(u,config,info).length||identifiers[i].some((key,j)=>key&&counts[j].get(key)>1))continue;
+      const problems=model.validate(u,config,info);
+      identifiers[i].forEach((key,j)=>{if(key&&counts[j].get(key)>1)problems.push('Duplicate '+['email / alternate ID','extension','phone number','User ID'][j]+' in this batch.');});
       if(u.number){
         if(!numberSets.has(u.dept))numberSets.set(u.dept,new Set(pools.get(u.dept)||[]));
-        if(!numberSets.get(u.dept).has(u.number))continue;
+        if(!numberSets.get(u.dept).has(u.number))problems.push('Choose an available number from this department again.');
       }
+      if(problems.length){readinessProblems.push('Row '+(i+1)+': '+problems.join(' '));continue;}
       ready++;
     }
     return ready;
@@ -169,8 +173,9 @@
     if (!root) return;
     const primary=$('[data-action="primary"]');
     const count=stage===0?readyCount():0;
-    primary.disabled=busy || (stage===0&&(!users.length||count!==users.length)) || (stage===1&&!used().every(d=>passwords.get(d)?.trim()));
-    const status=$('.notice');status.textContent=notice;
+    primary.disabled=busy || (stage===1&&!used().every(d=>passwords.get(d)?.trim()));
+    const status=$('.notice');status.textContent=stage===0&&showReadiness&&!busy?
+      (!users.length?'Add at least one user.':readinessProblems.join(' ')):notice;
     const summary=$('.batch-summary');if(summary)summary.textContent=count+' of '+users.length+' ready · '+(general?'review each user’s extension and setup':'choose every number manually');
     root.setAttribute('aria-busy',String(busy));
     const content=$('.batch-content');if(content)content.inert=busy;
@@ -299,10 +304,10 @@
     const y=r.bottom+5+height<=bottom?r.bottom+5:r.top-height-5;
     p.style.top=Math.max(top,Math.min(y,bottom-height))+'px';
   }
-  async function picker(u) {
+  async function picker(u,refresh=false) {
     if(busy||running||!u?.dept)return;
     if(chosen)hidePicker();
-    const state=pickerState={query:'',loading:!pools.has(u.dept),error:''};
+    const state=pickerState={query:'',loading:refresh||!pools.get(u.dept)?.length,error:''};
     chosen=u.id;const p=$('.picker');p.hidden=false;
     p.innerHTML=`<header><strong>${esc(u.dept)}</strong>${btn('hide-picker',icon('close'),'class="icon-button" aria-label="Close number picker"')}</header><div class="picker-search">${icon('search')}<input type="search" aria-label="Search available numbers" placeholder="Search phone numbers"></div><p>Only numbers with a blank User ID in this department are shown. ${general?'User ID and extension follow your group setup.':'User ID and extension follow your choice.'}</p><div class="number-options"></div>`;
     const a=$(`[data-pick="${u.id}"]`);a.setAttribute('aria-expanded','true');
@@ -336,6 +341,7 @@
       return btn('number',`<span>${format(n)}</span><small>${inUse?'Used in batch':(!general||config.extensionMode==='did')?'ext '+n.slice(-(general?config.length:5)):''}</small>`,`data-number="${n}" ${inUse?'disabled':''}`);
     }).join('');
     if(!candidates.length)$('.number-options').insertAdjacentHTML('beforeend','<p>'+((pools.get(u.dept)||[]).length?'No matching unassigned numbers.':'No unassigned numbers found in this department.')+'</p>');
+    $('.number-options').insertAdjacentHTML('beforeend',btn('retry-picker','Refresh numbers'));
     if(candidates.length>100) $('.number-options').insertAdjacentHTML('beforeend','<p>Showing 100 numbers. Type more digits to narrow the list.</p>');
     positionPicker();
   }
@@ -395,7 +401,12 @@
         stage=0;notice='';render();
       }catch(e){notice=safeError(e);headerState();}
     }
-    else if(stage===0) { users.forEach(u=>{u.first=u.first.trim();u.last=u.last.trim();u.email=u.email.trim();});stage=1;notice='';render(); }
+    else if(stage===0) {
+      users.forEach(u=>{u.first=u.first.trim();u.last=u.last.trim();u.email=u.email.trim();});
+      showReadiness=true;
+      if(!users.length||readyCount()!==users.length){headerState();return;}
+      showReadiness=false;stage=1;notice='';render();
+    }
     else if(stage===1) await work(async()=>{
       notice='Checking numbers, User IDs and device profile names…';headerState();
       const report=(u,msg)=>{notice=u.first+' '+u.last+': '+msg;headerState();};
@@ -493,7 +504,7 @@
       else if(a==='number'||general&&a==='no-number'){const u=users.find(u=>u.id===chosen);u.number=a==='no-number'?'':b.dataset.number;
         if(general){u.plan=null;try{suggestExtension(u);}catch(e){notice=safeError(e);}}render();}
       else if(a==='hide-picker')hidePicker();
-      else if(a==='retry-picker')await picker(users.find(u=>u.id===chosen));
+      else if(a==='retry-picker')await picker(users.find(u=>u.id===chosen),true);
     });
   }
   async function open() {
@@ -509,7 +520,7 @@
   }
   async function loadSetup() {
     if(busy||running)return;
-    busy=true;notice='';render();
+    busy=true;notice='';showReadiness=false;render();
     try {
       if(!lease){lease=await window.cpAcquireUserBulk();engine=general?window.cpCreateBulkEngine(lease):window.cpCreateRsgBulkEngine(lease);engine.observeDiagnostics?.(e=>logDiagnostic(diagnosticUser,e));}
       if(lease.needsRecovery)await lease.recover();

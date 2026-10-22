@@ -99,7 +99,24 @@
       try { sessionStorage.setItem('cp-stub-tries', '0'); } catch (e) {}
       location.reload();
     });
-    panel.append(title, body, retry);
+    var login = document.createElement('button');
+    login.type = 'button'; login.className = 'cp-alert-act'; login.textContent = 'Go to login';
+    login.addEventListener('click', function () {
+      retry.disabled = true; login.disabled = true;
+      // Abandon only this tab's recovery. Leaving cp-last-nav behind would make
+      // pjax schedule the same failed destination again after the next sign-in.
+      ['cp-last-nav', 'cp-pending-return', 'cp-return-at', 'cp-replay-at',
+        'cp-reload-nav', 'cp-stub-tries', 'cp-stub-tries-at'].forEach(function (key) {
+        try { sessionStorage.removeItem(key); } catch (e) {}
+      });
+      // Reuse the saved-sign-in pause so an automatic account does not immediately
+      // undo this explicit choice. Navigation still works if storage is unavailable.
+      try { sessionStorage.setItem('bwManualLogoutAt', String(Date.now())); } catch (e) {}
+      location.replace(LOGIN);
+    });
+    var actions = document.createElement('div');
+    actions.className = 'cp-recovery-actions'; actions.append(retry, login);
+    panel.append(title, body, actions);
     var parent = document.body || document.documentElement;
     if (document.body) { document.body.classList.add('cp-recovery-page'); document.body.replaceChildren(panel); }
     else parent.appendChild(panel);

@@ -9,7 +9,7 @@
     let s=String(value??'').trim();
     // An optional national trunk marker is not part of an international number.
     if(/^(?:\+|00)/.test(s))s=s.replace(/\(0\)/g,'');
-    s=s.replace(/[\s().-]/g,'').replace(/^00/,'+');
+    s=s.replace(/[\s().\-\u2010-\u2015\u2212]/g,'').replace(/^00/,'+');
     if(!/^\+?\d{6,15}$/.test(s))return {number:'',international:false};
     const explicit=s[0]==='+',n=s.replace(/^\+/,'');
     if(explicit&&n[0]==='0')return {number:'',international:false};
@@ -25,7 +25,20 @@
     return !international&&!p.international&&n.length===10&&n[0]!=='0'?'+1'+n:n;
   }
   function expand(value){
-    const parts=String(value).split(/\s+[-–—]\s+/).map(key);
+    const source=String(value).trim();
+    let pieces=source.split(/\s+[-\u2010-\u2015\u2212]\s+|\s*[–—]\s*/);
+    // A dash can also separate country code from national digits. Treat it as
+    // a range only when both sides are full numbers, never as a lost country code.
+    if(pieces.length===2&&pieces.some(p=>!key(p)))pieces=[source];
+    if(pieces.length===1&&!key(source)){
+      const candidates=[];
+      for(let i=0;i<source.length;i++)if(source[i]==='-'){
+        const a=key(source.slice(0,i)),b=key(source.slice(i+1));
+        if(a&&b&&a.length===b.length)candidates.push([a,b]);
+      }
+      if(candidates.length===1)pieces=candidates[0];
+    }
+    const parts=pieces.map(key);
     if(parts.length>2||parts.some(n=>!n))return [];
     if(parts.length===1)return parts;
     const [a,b]=parts;

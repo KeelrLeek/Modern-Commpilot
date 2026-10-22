@@ -59,15 +59,24 @@ test('large-batch readiness resolves each user once per update and retains dupli
     assert.equal(await primary.isDisabled(),false);
     const emails=page.locator('[data-field=email]');
     await emails.nth(1).fill('PERSON0@example.test');
-    assert.equal(await primary.isDisabled(),true,'email duplicates are case insensitive');
+    assert.equal(await primary.isDisabled(),false,'Continue remains available to explain validation errors');
+    await primary.click();
+    assert.match(await page.locator('#cp-user-bulk .notice').innerText(),/Row 2:.*Duplicate email/);
+    assert.equal(await page.locator('[data-field=email]').count(),199,'invalid rows cannot advance');
     assert.match(await page.locator('.batch-summary').innerText(),/^197 of 199 ready/);
     await emails.nth(1).fill('person1@example.test');
     assert.equal(await primary.isDisabled(),false,'clearing a duplicate refreshes readiness');
     const extensions=page.locator('[data-field=extension]');
     const original=await extensions.nth(1).inputValue();
     await extensions.nth(1).fill(await extensions.first().inputValue());
-    assert.equal(await primary.isDisabled(),true,'extension and derived ID conflicts remain blocked');
+    await primary.click();
+    assert.match(await page.locator('#cp-user-bulk .notice').innerText(),/Duplicate extension/);
+    assert.equal(await page.locator('[data-field=email]').count(),199,'extension conflicts cannot advance');
     await extensions.nth(1).fill(original);
     assert.equal(await primary.isDisabled(),false);
+    await emails.first().fill(' person0@example.test ');
+    await primary.click();
+    await page.getByText('Batch credentials',{exact:true}).waitFor();
+    assert.equal(await page.locator('[data-field=email]').count(),0,'valid rows advance after trimming pasted whitespace');
   }finally{await browser.close();}
 });
