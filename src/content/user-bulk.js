@@ -174,8 +174,12 @@
     const primary=$('[data-action="primary"]');
     const count=stage===0?readyCount():0;
     primary.disabled=busy || (stage===1&&!used().every(d=>passwords.get(d)?.trim()));
-    const status=$('.notice');status.textContent=stage===0&&showReadiness&&!busy?
-      (!users.length?'Add at least one user.':readinessProblems.join(' ')):notice;
+    // Name the first rows to fix; a full list for a large batch pushes the table out of view.
+    // Keep action results beside it, and only rewrite the live region when its text changes.
+    const shown=readinessProblems.slice(0,5),more=readinessProblems.length-shown.length;
+    const readiness=stage===0&&showReadiness&&!busy?(!users.length?'Add at least one user.':
+      shown.concat(more?[more+(more===1?' more row needs':' more rows need')+' attention.']:[]).join(' ')):'';
+    const status=$('.notice'),text=[notice,readiness].filter(Boolean).join(' ');if(status.textContent!==text)status.textContent=text;
     const summary=$('.batch-summary');if(summary)summary.textContent=count+' of '+users.length+' ready · '+(general?'review each user’s extension and setup':'choose every number manually');
     root.setAttribute('aria-busy',String(busy));
     const content=$('.batch-content');if(content)content.inert=busy;
@@ -375,11 +379,21 @@
     notice=pause?'Batch paused. Completed steps are preserved.':users.some(u=>u.error)?'Batch finished with users needing attention. Check details before retrying.':'All users configured. Registration and calling tests still need to be performed.';
     render();
   }
-  async function close() {
+  // Users this batch started in CommPilot cannot be resumed from a new batch.
+  const incomplete=u=>u.uncertainSecret||u.createAttempted&&u.steps.some(s=>s!=='done'),unfinished=()=>!running&&users.some(incomplete);
+  function confirmClose(){
+    const d=$('.subdialog'),count=users.filter(incomplete).length;
+    d.innerHTML=`<header><h3>Close this batch?</h3>${btn('dismiss',icon('close'),'class="icon-button" aria-label="Keep this batch open"')}</header><p>Setup is incomplete for ${count} ${count===1?'user':'users'} this batch already started in CommPilot. Closing discards their completed steps and diagnostics, and a new batch cannot resume them. Download the batch report first if you need it.</p><footer>${btn('download-log','Download batch report')}${btn('dismiss','Keep batch open')}${btn('confirm-close','Close batch','class="primary"')}</footer>`;
+    showSubdialog(d);
+  }
+  async function close(confirmed=false) {
     if (busy||running) return;
+    if (!confirmed&&unfinished()) {confirmClose();return;}
     await work(async()=>{
       if (lease) {
-        try {await lease.navigate(returnNav.url,returnNav.params);} catch(e) { /* Keep the native session notice visible after closing. */ }
+        // A lost response leaves the page holding a used form token. Check the session as Retry
+        // does before returning to the Users list; the unconfirmed save is never sent again.
+        try {if(lease.needsRecovery)await lease.recover();await lease.navigate(returnNav.url,returnNav.params);} catch(e) { /* Keep the native session notice visible after closing. */ }
         lease.release();
       }
       passwords.clear();users=[];pools.clear();credentials={web:'Easy1234',mailbox:'',device:''};config=null;info=null;savedDefaults=null;startingExtension='';
@@ -402,13 +416,15 @@
       }catch(e){notice=safeError(e);headerState();}
     }
     else if(stage===0) {
-      users.forEach(u=>{u.first=u.first.trim();u.last=u.last.trim();u.email=u.email.trim();});
-      showReadiness=true;
+      users.forEach(u=>{u.first=u.first.trim();u.last=u.last.trim();u.email=u.email.trim();u.customId=u.customId.trim();});
+      showReadiness=true;notice='';
       if(!users.length||readyCount()!==users.length){headerState();return;}
       showReadiness=false;stage=1;notice='';render();
     }
     else if(stage===1) await work(async()=>{
       notice='Checking numbers, User IDs and device profile names…';headerState();
+      // A lost check marks the session failed. Check it again, as Retry does, before reading.
+      if(lease.needsRecovery)await lease.recover();
       const report=(u,msg)=>{notice=u.first+' '+u.last+': '+msg;headerState();};
       if(general){
         await engine.preflightGroup(users,config,{...credentials,sip:Object.fromEntries(passwords)},report);
@@ -430,13 +446,17 @@
     root.addEventListener('keydown',e=>{
       const popup=$('.subdialog:not([hidden])');
       if(e.key==='Escape'&&(popup||chosen)) {e.preventDefault();if(popup)closeSubdialog();else hidePicker();return;}
+      // The browser may not let a repeated close request be cancelled. Ask before discarding started users.
+      if(e.key==='Escape'&&unfinished()) {e.preventDefault();if(!busy)close();return;}
       if(popup&&e.key==='Tab') {
         const focusable=[...popup.querySelectorAll('button,input,textarea,select')].filter(n=>!n.matches(':disabled')&&n.getClientRects().length),first=focusable[0],last=focusable.at(-1);
         if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}
         else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}
       }
       if(chosen&&e.target.type==='search'&&['Enter','ArrowDown'].includes(e.key)) {
-        const first=$('.number-options button:not(:disabled)');if(first){e.preventDefault();if(e.key==='Enter')first.click();else first.focus();}
+        // Enter commits only a matching number; No personal number and Refresh stay explicit choices.
+        const first=$(e.key==='Enter'?'.number-options button[data-action="number"]:not(:disabled)':'.number-options button:not(:disabled)');
+        if(first){e.preventDefault();if(e.key==='Enter')first.click();else first.focus();}
       }
     });
     root.addEventListener('input',e=>{
@@ -500,6 +520,7 @@
       else if(a==='paste')paste();else if(a==='import'){try{importRows();}catch(e){$('.paste-error').textContent=safeError(e);}}
       else if(a==='details')details(users.find(u=>u.id===+b.dataset.user));
       else if(a==='dismiss')closeSubdialog();
+      else if(a==='confirm-close'){closeSubdialog();await close(true);}
       else if(a==='reveal'){const input=$('#cp-ub-secret-'+b.dataset.secret);input.type=input.type==='password'?'text':'password';b.setAttribute('aria-label',(input.type==='password'?'Show':'Hide')+' SIP password');}
       else if(a==='number'||general&&a==='no-number'){const u=users.find(u=>u.id===chosen);u.number=a==='no-number'?'':b.dataset.number;
         if(general){u.plan=null;try{suggestExtension(u);}catch(e){notice=safeError(e);}}render();}
@@ -549,6 +570,9 @@
     const b=document.createElement('button');b.id='cp-user-bulk-launch';b.type='button';b.textContent='Bulk create users';b.addEventListener('click',open);add.insertAdjacentElement('afterend',b);
   }
   window.addEventListener('beforeunload',e=>{if(root&&(running||users.some(u=>u.createAttempted))){e.preventDefault();e.returnValue='';}});
+  // A re-render can leave focus on the page body, outside the batch's own key handler. Escape there
+  // is a close request the browser soon stops letting the dialog cancel, so handle it first.
+  window.addEventListener('keydown',e=>{if(e.key==='Escape'&&root&&!root.contains(e.target)&&unfinished()){e.preventDefault();if($('.subdialog:not([hidden])'))closeSubdialog();else if(!busy)close();}},true);
   window.addEventListener('resize',positionPicker);
   mount();document.addEventListener('cp:reskin',()=>setTimeout(mount,0));
 })();

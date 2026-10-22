@@ -206,6 +206,101 @@ test('returning groups reuse defaults, suggest a fresh next extension, and isola
   }finally{await browser.close();}
 });
 
+async function openBatch(page,numberMode){
+  await page.locator('#cp-user-bulk-launch').click();await page.locator('[data-setting=prefix]').waitFor();
+  await page.locator('[data-setting=prefix]').fill('AZindust');await page.locator('[data-prefix-confirm]').check();
+  await page.locator('[data-setting=devicePrefix]').fill('AZ');await page.locator('[data-setting=voicemail]').selectOption('off');
+  await page.locator('[data-setting=numberMode]').selectOption(numberMode);
+  await page.locator('[data-start]').fill('1234');await page.locator('[data-action=primary]').click();
+  for(const [field,value]of [['first','Alex'],['last','Example'],['email','alex@example.test']])await page.locator('[data-field='+field+']').fill(value);
+  await page.locator('[data-field=dept]').selectOption('Operations');
+}
+async function toReview(page){
+  await page.locator('[data-action=primary]').click();
+  await page.locator('[data-credential=device]').fill('Device-Test-A1');
+  await page.locator('[data-password=Operations]').fill('Sip-Test-A1');
+}
+const idle=page=>page.waitForFunction(()=>document.querySelector('#cp-user-bulk').getAttribute('aria-busy')==='false',null,{timeout:30000});
+
+for(const numberMode of ['mixed','all']){
+  test(`Enter in the ${numberMode} number search only picks a matching number`,async()=>{
+    const browser=await chromium.launch({executablePath,headless:true});
+    try{
+      const page=await browser.newPage(),state=await fixture(page,{numbers:['3125550198','3125550199']});
+      page.setDefaultTimeout(6000);
+      await openBatch(page,numberMode);
+      const pick=page.locator('[data-pick]'),search=page.locator('.picker input'),lookups=()=>state.requests.filter(r=>r.route===R.numbers).length;
+      await pick.click();await page.locator('[data-number="3125550198"]').click();
+      await pick.click();await search.fill('0199');await search.press('Enter');
+      assert.equal(await pick.innerText(),'3125550199','Enter chooses the only matching number');
+      const before=lookups();
+      await pick.click();await search.fill('7777');await search.press('Enter');
+      assert.equal(await search.inputValue(),'7777','Enter without a match keeps the search open');
+      assert.equal(lookups(),before,'Enter never starts a native number lookup');
+      await page.locator('[data-action=hide-picker]').click();
+      assert.equal(await pick.innerText(),'3125550199','Enter without a match keeps the chosen number');
+      if(numberMode==='mixed'){
+        await pick.click();await search.press('ArrowDown');
+        assert.equal(await page.evaluate(()=>document.activeElement.dataset.action),'no-number','ArrowDown still reaches every option');
+        await page.keyboard.press('Enter');
+        assert.equal(await pick.innerText(),'No personal number','an explicit choice can still clear the number');
+      }
+      assert.equal(state.writes.length,0);
+    }finally{await browser.close();}
+  });
+}
+
+test('Review checks the session again after a lost preflight navigation',async()=>{
+  const browser=await chromium.launch({executablePath,headless:true});
+  try{
+    const page=await browser.newPage(),state=await fixture(page);
+    await openBatch(page,'none');await toReview(page);
+    state.dropNavigation={route:R.users,user:null};
+    await page.locator('[data-action=primary]').click();await idle(page);
+    assert.match(await page.locator('.notice').textContent(),/could not be confirmed/);
+    assert.equal(state.dropNavigation,null,'only one navigation is lost');
+    await page.locator('[data-action=primary]').click();await idle(page);
+    assert.equal(await page.locator('.review-table').count(),1,await page.locator('.notice').textContent());
+    assert.equal(state.badTokens,0);assert.equal(state.writes.length,0);
+  }finally{await browser.close();}
+});
+
+test('a paused batch with a started user closes only after confirmation and leaves a fresh token',async()=>{
+  const browser=await chromium.launch({executablePath,headless:true});
+  try{
+    const page=await browser.newPage(),state=await fixture(page);
+    page.setDefaultTimeout(10000);
+    await openBatch(page,'none');await toReview(page);
+    await page.locator('[data-action=primary]').click();await page.locator('.review-table').waitFor();
+    state.dropRoute=R.auth;
+    await page.locator('[data-action=primary]').click();
+    await page.waitForFunction(()=>document.querySelector('#cp-user-bulk .notice')?.textContent.startsWith('Batch paused'),null,{timeout:30000});
+    const batch=page.locator('#cp-user-bulk'),confirm=page.locator('.subdialog [data-action=confirm-close]'),requests=state.requests.length;
+    await page.keyboard.press('Escape');
+    assert.equal(await confirm.isVisible(),true,'Escape asks before discarding users already started on the PBX');
+    await page.keyboard.press('Escape');
+    assert.equal(await confirm.isVisible(),false,'Escape dismisses the question');
+    for(let i=0;i<4;i++)await page.keyboard.press('Escape');
+    assert.equal(await confirm.isVisible(),false);
+    assert.equal(await batch.evaluate(n=>n.isConnected&&n.open),true,'repeated Escape keeps the paused batch open');
+    await page.locator('[data-action=details]').first().click();
+    assert.equal(await page.locator('[data-action=ack-secret]').count(),1,'the uncertain save can still be verified');
+    await page.keyboard.press('Escape');
+    await page.locator('[data-action=close]').click();await confirm.waitFor();
+    await page.locator('.subdialog footer [data-action=dismiss]').click();
+    assert.equal(await batch.evaluate(n=>n.isConnected&&n.open),true);
+    assert.equal(state.requests.length,requests,'nothing leaves the batch before confirmation');
+    await page.locator('[data-action=close]').click();await confirm.click();
+    await batch.waitFor({state:'detached'});
+    assert.equal(await page.evaluate(()=>document.documentElement.getAttribute('data-cp-path')||location.pathname),R.users);
+    assert.equal(await page.evaluate(()=>document.getElementsByName('formtokenserial')[0].value),'t'+state.serial,'the page keeps the current native token');
+    await page.evaluate(()=>redirectPost('/commpilot/Group/Members/',{}));
+    await page.locator('#cp-user-bulk-launch').waitFor();
+    assert.equal(state.badTokens,0);
+    assert.equal(state.writes.filter(w=>w.route===R.auth).length,1,'the lost save is never sent again');
+  }finally{await browser.close();}
+});
+
 test('existing Webex enables IM&P last, while no Webex preserves IM&P without a write',async()=>{
   const browser=await chromium.launch({executablePath,headless:true});
   try{
