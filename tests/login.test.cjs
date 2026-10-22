@@ -13,9 +13,9 @@ const chromePath = process.env.CHROME_PATH || [
 ].find(fs.existsSync);
 
 // CommPilot's Login page as it comes (the table, the message cell, the legal notice), with its own handlers: Enter
-// anywhere on the page and the Login link submit the form. Here "submitting" keeps what was sent. Served without a charset,
-// its © reads as Â©, as on the live site.
-const loginPage = message => `<html><head><title>Login</title></head><body id="loginBody" bgcolor="#FFFFFF"><br />
+// anywhere on the page and the Login link submit the form. Here "submitting" keeps what was sent, and with `posts` sends the
+// form for real as CommPilot does. Served without a charset, its © reads as Â©, as on the live site.
+const loginPage = (message, posts) => `<html><head><title>Login</title></head><body id="loginBody" bgcolor="#FFFFFF"><br />
   <form name="loginForm" method="post" action="/commpilot/servlet/Login">
     <input type="hidden" name="formtokenserial" value="1:2"><input type="hidden" name="domain" value=""><input type="hidden" name="UserID" value="">
     <table width="800" height="460" cellspacing="0" cellpadding="0" background="/commpilot/Graphics/login.gif">
@@ -32,7 +32,7 @@ const loginPage = message => `<html><head><title>Login</title></head><body id="l
   </form>
   <script>
     window.sent = [];
-    function submitForm() { window.sent.push({ user: document.loginForm.EnteredUserID.value, password: document.loginForm.Password.value }); }
+    function submitForm() { window.sent.push({ user: document.loginForm.EnteredUserID.value, password: document.loginForm.Password.value });${posts ? ' document.loginForm.submit();' : ''} }
     document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('loginBody').addEventListener('keypress', function (e) { if (e.keyCode == 13) submitForm(); });
       document.getElementById('link_1').addEventListener('click', function () { submitForm(); });
@@ -165,6 +165,81 @@ test('the Login page: CommPilot’s form in the Focus design, its message as a t
     { kind: 'warning', title: 'You were signed out', shook: false });
     assert.equal(await page.evaluate(() => loginShake.started), false, 'session expiry never triggers the error shake');
   } finally {
+    await context?.close();
+    fs.rmSync(profile, { recursive: true, force: true });
+  }
+});
+
+// A slow CommPilot: the sign-in is never answered, so the page stays until the browser's Stop (or Esc) cancels it.
+test('Enter outside the form signs in once, and a stopped sign-in can be sent again', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'bw-login-test-'));
+  const posts = [], held = [];
+  let context;
+  try {
+    context = await chromium.launchPersistentContext(profile, {
+      executablePath: chromePath,
+      headless: true,
+      viewport: { width: 1200, height: 900 },
+      args: [`--disable-extensions-except=${root}`, `--load-extension=${root}`]
+    });
+    await context.route('https://apps-sbx.avpaas.io/commpilot/Login/', route => route.fulfill({ contentType: 'text/html',
+      body: loginPage('Invalid user ID or password.', true) }));
+    await context.route(/\/commpilot\/(Graphics|conf)\//, route => route.fulfill({ status: 404, body: '' }));
+    await context.route('https://apps-sbx.avpaas.io/commpilot/servlet/Login', route => {
+      posts.push(new URLSearchParams(route.request().postData()).get('EnteredUserID'));
+      held.push(route);
+    });
+    // A sign-in that failed: the User ID typed last time is back and nothing has been typed yet.
+    await context.addInitScript(() => { try { localStorage.setItem('cpLoginUser', 'admin.one'); } catch (_) {} });
+    const page = await context.newPage();
+    const cdp = await context.newCDPSession(page);
+    const state = () => page.evaluate(() => ({ busy: document.querySelector('.cp-login').classList.contains('is-busy'),
+      text: document.querySelector('.cp-login-submit').textContent.trim(), progress: document.documentElement.dataset.cpProgress || null }));
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Login/');
+    await page.locator('#cp-toasts .cp-toast-close').waitFor();
+
+    // Enter on the message's Dismiss, reached with Tab from the Password field, only closes the message.
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'cp-login-password');
+    for (let i = 0; i < 8 && await page.evaluate(() => document.activeElement.getAttribute('aria-label')) !== 'Dismiss'; i++)
+      await page.keyboard.press('Tab');
+    assert.equal(await page.evaluate(() => document.activeElement.getAttribute('aria-label')), 'Dismiss');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(500);
+    assert.deepEqual(posts, [], 'Dismiss sends no sign-in');
+    assert.equal(await page.locator('#cp-toasts .cp-toast:not(.cp-toast-leaving)').count(), 0, 'the message goes');
+
+    // Enter with the page itself focused is CommPilot's sign-in: sent once however often it is pressed, and it waits.
+    await page.locator('#cp-login-password').fill('fixture-pw');
+    await page.mouse.click(30, 870);   // the empty canvas
+    assert.equal(await page.evaluate(() => document.activeElement === document.body), true);
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(500);
+    assert.deepEqual(posts, ['admin.one'], 'one sign-in for two presses');
+    await cdp.send('Page.stopLoading');   // the browser's Stop: the sign-in is cancelled and this page stays
+    assert.deepEqual(await state(), { busy: true, text: 'Signing in…', progress: 'on' });
+
+    // Stopped, a press soon after still waits for the first; Esc (the browser's Stop key) gives Sign in back at once.
+    await page.locator('#link_1').click({ noWaitAfter: true });
+    await page.waitForTimeout(300);
+    assert.equal(posts.length, 1, 'a second press soon after the first sends nothing');
+    await page.keyboard.press('Escape');
+    assert.deepEqual(await state(), { busy: false, text: 'Sign in', progress: null });
+    await page.locator('#link_1').click({ noWaitAfter: true });
+    await page.waitForTimeout(500);
+    assert.equal(posts.length, 2, 'signing in again after Esc');
+    await cdp.send('Page.stopLoading');
+
+    // The Stop button tells the page nothing: it still says Signing in…, and after a few seconds a press signs in again.
+    await page.waitForTimeout(8500);
+    assert.equal((await state()).busy, true);
+    await page.locator('#link_1').click({ noWaitAfter: true });
+    await page.waitForTimeout(500);
+    assert.equal(posts.length, 3, 'a deliberate retry after a stopped sign-in is sent');
+    await cdp.send('Page.stopLoading');
+  } finally {
+    for (const route of held) await route.abort().catch(() => {});
     await context?.close();
     fs.rmSync(profile, { recursive: true, force: true });
   }

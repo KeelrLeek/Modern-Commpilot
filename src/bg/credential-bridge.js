@@ -189,9 +189,14 @@ if (typeof importScripts === "function") importScripts("/src/bg/icon.js", "/src/
         account.pinHash = await pinDigest(pin, account.pinSalt);
       }
       var key = state.key || await getKey(true);
-      state.accounts.push(account);
+      // The same User ID saved again (a changed password, another sign-in mode) replaces its entry in place.
+      var existing = state.accounts.findIndex(function (a) { return a.origin === origin && a.user === user; });
+      if (existing >= 0) {
+        account.id = state.accounts[existing].id;
+        state.accounts[existing] = account;
+      } else state.accounts.push(account);
       await storeSet(VAULT, await encrypt(state.accounts, key));
-      return { ok: true, id: account.id };
+      return { ok: true, id: account.id, updated: existing >= 0 };
     }
     var id = String(message.id || "");
     if (!/^[0-9a-f]{32}$/.test(id)) return { ok: false, error: "Saved login not found." };

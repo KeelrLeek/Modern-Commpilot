@@ -194,7 +194,7 @@
     // The native link's listener runs before our bubble listener. Block a second
     // activation in capture, including keyboard-generated and programmatic clicks.
     root.addEventListener("click", function (e) {
-      if (root.classList.contains("is-busy") && login.contains(e.target)) {
+      if (pending() && login.contains(e.target)) {
         e.preventDefault();
         e.stopImmediatePropagation();
       }
@@ -204,7 +204,7 @@
     // the page (a saved sign-in's PIN, the legal notice) stays there.
     root.addEventListener("keypress", function (e) {
       if (e.key !== "Enter") return;
-      if (root.classList.contains("is-busy")) {
+      if (pending()) {
         e.preventDefault();
         e.stopPropagation();
         return;
@@ -212,6 +212,18 @@
       if (e.target === user || e.target === password) started(false);
       else e.stopPropagation();
     });
+    // Enter outside it reaches CommPilot's handler too, so this listens first (capture). On a toast's button it presses
+    // only that button; on the page itself it is CommPilot's sign-in, and waits like Enter in the fields.
+    document.addEventListener("keypress", function (e) {
+      if (e.key !== "Enter" || root.contains(e.target)) return;
+      if (e.target !== document.body && e.target !== document.documentElement) { e.stopPropagation(); return; }
+      if (pending()) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      started(false);
+    }, true);
     login.addEventListener("click", function () { started(fromSaved); fromSaved = false; });
     root.addEventListener("input", dismissToasts);   // a message goes once you type again
     // Enter in a saved sign-ins form presses its button.
@@ -237,10 +249,15 @@
 
     // Signing in: the button waits and the line runs in to the tile while CommPilot checks (as --cp-progress does on
     // every other page); CommPilot's answer replaces the page. Back to a page kept in the browser's cache resets it.
-    var fromSaved = false, creep = 0;
+    // A second press while it waits sends nothing for a few seconds; after that it is a new sign-in, as on CommPilot's
+    // own page, because a sign-in stopped with the browser's Stop button leaves this page here and says nothing.
+    var fromSaved = false, creep = 0, busySince = 0, REPEAT_MS = 8000;
+    function pending() {
+      return root.classList.contains("is-busy") && Date.now() - busySince < REPEAT_MS;
+    }
     function started(bySaved) {
       cancelUnlocks();
-      if (root.classList.contains("is-busy")) return;
+      if (pending()) return;
       if (password.type !== "password") setEye(false);
       if (!bySaved) {
         try { if (clean(user.value)) localStorage.setItem(USER_KEY, clean(user.value)); } catch (_) {}
@@ -258,6 +275,7 @@
         html.style.removeProperty("--cp-progress");
         return;
       }
+      busySince = Date.now();
       html.setAttribute("data-cp-progress", "on");
       html.style.setProperty("--cp-progress", String(value));
       creep = setInterval(function () {
@@ -270,6 +288,11 @@
       cancelUnlocks();
       busy(false);
       saved.querySelectorAll(".cp-login-acct.is-busy").forEach(function (row) { row.classList.remove("is-busy"); });
+    });
+    // Esc is the browser's Stop key, unless something on the page took it: the sign-in stops, this page stays, and
+    // Sign in is ready again.
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !e.defaultPrevented && root.classList.contains("is-busy")) busy(false);
     });
 
     function capsNote() {
@@ -379,14 +402,14 @@
     }
     // The vault gives the User ID and password to CommPilot's own fields, and CommPilot's Login link does the rest.
     function unlock(profile, pin, row, pinField) {
-      if (!row || !row.isConnected || row.classList.contains("is-busy") || root.classList.contains("is-busy")) return;
+      if (!row || !row.isConnected || row.classList.contains("is-busy") || pending()) return;
       cancelUnlocks();
       var revision = unlockRevision, initialUser = user.value, initialPassword = password.value;
       row.classList.add("is-busy");
       request("unlock", { id: profile.id, pin: pin }, function (result) {
         if (revision !== unlockRevision) return;
         row.classList.remove('is-busy');
-        if (!row.isConnected || root.classList.contains('is-busy') ||
+        if (!row.isConnected || pending() ||
             user.value !== initialUser || password.value !== initialPassword) return;
         if (!result || !result.ok) {
           row.classList.remove("is-busy");
@@ -511,7 +534,7 @@
           }
           secretField.value = "";
           pin.value = "";
-          toast({ severity: "info", body: "Saved: " + who + "." });
+          toast({ severity: "info", body: (result.updated ? "Updated: " : "Saved: ") + who + "." });
           refreshSavedView(box);
         });
       });

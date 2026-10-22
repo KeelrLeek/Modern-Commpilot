@@ -14,6 +14,7 @@ test('saved sign-ins: Continue as rows, a PIN box, Manage to add and remove, and
   const pinUser = 'codex-pin-' + Date.now();
   const autoUser = 'codex-auto-' + Date.now();
   const secret = 'disposable-test-password';
+  const changed = 'disposable-changed-password';
   let context;
   try {
     context = await chromium.launchPersistentContext(profile, {
@@ -62,13 +63,24 @@ test('saved sign-ins: Continue as rows, a PIN box, Manage to add and remove, and
     await form.locator('select').selectOption('auto');   // CommPilot-style list under the searchable dropdown
     await form.getByRole('button', { name: 'Save sign-in' }).click();
     await page.getByRole('button', { name: `Continue as ${autoUser}` }).waitFor();
+    // Saved again after a password change: the same sign-in, updated, not a second one beside it.
+    await page.getByRole('button', { name: 'Manage saved sign-ins' }).click();
+    await page.getByRole('button', { name: 'Add a saved sign-in' }).click();
+    form = page.locator('.cp-login-panel');
+    await form.getByLabel('User ID').fill(autoUser);
+    await form.getByLabel('Password', { exact: true }).fill(changed);
+    await form.locator('select').selectOption('auto');
+    await form.getByRole('button', { name: 'Save sign-in' }).click();
+    await page.locator('#cp-toasts .cp-toast-body', { hasText: `Updated: ${autoUser}.` }).waitFor();
+    await page.getByRole('button', { name: `Continue as ${autoUser}` }).waitFor();
+    assert.equal(await page.locator('.cp-login-acct').count(), 2, 'one row each');
 
     const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
     const stored = await worker.evaluate(() => new Promise(resolve =>
       chrome.storage.local.get('bwEncryptedVaultV2', resolve)));
     const diskValue = JSON.stringify(stored);
     assert.ok(stored.bwEncryptedVaultV2?.data, 'vault ciphertext must be persisted');
-    for (const value of [pinUser, autoUser, secret, '2468']) {
+    for (const value of [pinUser, autoUser, secret, changed, '2468']) {
       assert.equal(diskValue.includes(value), false, 'plaintext must not appear in storage');
     }
     const keyInfo = await worker.evaluate(() => new Promise((resolve, reject) => {
@@ -96,6 +108,7 @@ test('saved sign-ins: Continue as rows, a PIN box, Manage to add and remove, and
     // The only one left signs in by itself when the page opens.
     await page.reload();
     await page.waitForFunction(name => window.submitted?.user === name, autoUser);
+    assert.equal((await page.evaluate(() => window.submitted)).password, changed, 'with the password saved last');
     // A sign-out (or Go to login from a paused recovery) holds it for a minute, so the explicit choice is not undone.
     const reopen = async manualLogoutAgo => {
       await page.evaluate(ago => {
