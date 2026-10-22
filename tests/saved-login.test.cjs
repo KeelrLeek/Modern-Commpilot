@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
 
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(process.env.BW_TEST_EXTENSION_PATH || path.resolve(__dirname, '..'));
 const edge = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const origin = 'https://apps-sbx.avpaas.io';
 

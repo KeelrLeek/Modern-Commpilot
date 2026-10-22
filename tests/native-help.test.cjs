@@ -50,6 +50,31 @@ const help = {
   bySetting: { '/User/CallForwardingAlways/': { 'Play Ring Reminder when a call is forwarded': { title: 'Ring Reminder', body: 'A short ring for each forwarded call.' } } },
 };
 
+test('damaged saved debug preferences do not disable Help tips or the debug panel', async () => {
+  const browser = await chromium.launch({ executablePath: edge, headless: true });
+  try {
+    const tab = await browser.newPage(), errors = [];
+    tab.on('pageerror', error => errors.push(error.message));
+    await tab.route('**/*', route => route.fulfill({ contentType:route.request().url().endsWith('help-content.json')?'application/json':'text/html',
+      body:route.request().url().endsWith('help-content.json')?JSON.stringify(help):page }));
+    await tab.goto(origin + '/commpilot/User/CallForwardingAlways/');
+    await tab.evaluate(() => {
+      chrome.runtime = {getURL:p=>'/ext/'+p,getManifest:()=>({version:'0.3.82'})};
+      localStorage.setItem('cpDebugView','null');
+      document.documentElement.setAttribute('data-cp-debug','');
+    });
+    await tab.addStyleTag({path:path.join(root,'src/content/native-help.css')});
+    await tab.addScriptTag({path:path.join(root,'src/content/native-help.js')});
+    await tab.waitForTimeout(150);
+    assert.deepEqual(errors,[],'invalid saved JSON shape must not throw during startup');
+    await tab.locator('#cp-help-tips').waitFor({timeout:2000});
+    await tab.locator('#cp-debug').waitFor({timeout:2000});
+    await tab.locator('#cp-debug input[name="native"]').check();
+    assert.equal(await tab.evaluate(()=>JSON.parse(localStorage.getItem('cpDebugView')).native),true);
+    assert.deepEqual(errors,[]);
+  } finally { await browser.close(); }
+});
+
 test('Help tips: the top bar’s button in place of CommPilot’s Help, tips for menus, sections, pages and settings, and the debug view with its colours, inspector and draggable panel', async () => {
   assert.ok(edge, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: edge, headless: true });

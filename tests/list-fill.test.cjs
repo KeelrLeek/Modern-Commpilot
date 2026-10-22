@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
 
-const root = path.resolve(__dirname, '..');
+const root = process.env.BW_TEST_EXTENSION_PATH || path.resolve(__dirname, '..');
 const browserPath = [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
@@ -40,7 +40,7 @@ function listPage(pageNo, total, token) {
     <script>window.redirectPost = window.redirectPost || function () {};</script></body></html>`;
 }
 
-async function fixture({ total = 3, empty = 0, slow = 0, search = false } = {}) {
+async function fixture({ total = 3, empty = 0, slow = 0, search = false, corrupt = '' } = {}) {
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   const posts = [];
@@ -53,7 +53,11 @@ async function fixture({ total = 3, empty = 0, slow = 0, search = false } = {}) 
     if (url.pathname === '/commpilot/Common/page.jsp') {
       const value = Number(body.get('value'));
       if (slow && value === 1) await new Promise(r => setTimeout(r, slow));
-      const html = listPage(value + 1, total, `tok-${++serial}`);
+      let html = listPage(value === 1 && corrupt === 'repeated-page' ? 1 : value + 1,
+        value === 1 && corrupt === 'changed-total' ? total + 1 : total, `tok-${++serial}`);
+      if (value === 1 && corrupt === 'wrong-table') html = html.replaceAll('resellerGroupTable', 'anotherTable');
+      if (value === 1 && corrupt === 'no-descriptor') html = html.replace(/function doPage\(value\)[\s\S]*?<\/script>/, '</script>');
+      if (value === 1 && corrupt === 'native-error') html = html.replace('<td class="screenName">', '<td class="error">Failed to read the result list</td><td class="screenName">');
       return route.fulfill({ status: 200, contentType: 'text/html',
         body: value + 1 === empty ? html.replace(/<tr id="Row[\s\S]*?<\/tr>/g, '') : html });
     }
@@ -69,6 +73,28 @@ async function fixture({ total = 3, empty = 0, slow = 0, search = false } = {}) 
   return { browser, page, posts };
 }
 const fillState = page => page.evaluate(() => document.querySelector('table:has(> tbody > tr[id^="Row"])')?.dataset.cpFill);
+
+test('automatic list collection leaves an oversized search on native paging', async () => {
+  const { browser, page, posts } = await fixture({ total: 501, search: true });
+  try {
+    await page.waitForTimeout(500);
+    assert.equal(await fillState(page), undefined, 'do not allocate an unbounded automatic page walk');
+    assert.equal(posts.length, 0);
+    assert.equal(await page.locator('tr[id^="Row"]').count(), 2);
+    assert.match(await page.locator('td.enduserbody').first().innerText(), /Page 1 of 501/);
+  } finally { await browser.close(); }
+});
+
+for (const corrupt of ['repeated-page', 'changed-total', 'wrong-table', 'no-descriptor', 'native-error']) test(`automatic list collection refuses a ${corrupt} response`, async () => {
+  const { browser, page, posts } = await fixture({ corrupt });
+  try {
+    await page.waitForFunction(() => ['done', 'failed'].includes(document.querySelector('table[data-cp-fill]')?.dataset.cpFill), null, { timeout: 6000 });
+    assert.equal(await fillState(page), 'failed', 'inconsistent pages must never become a complete result set');
+    assert.deepEqual(await page.locator('tr[id^="Row"] a').allTextContents(), ['Group 1-1', 'Group 1-2']);
+    assert.deepEqual(posts.filter(post => post.path === '/commpilot/Common/page.jsp').map(post => post.value), ['1']);
+    assert.equal(await page.locator('[name="formtokenserial"]').inputValue(), 'tok-1');
+  } finally { await browser.close(); }
+});
 
 test('a paged list fetches its other pages in order, threading the token, and each added row opens its own page', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');

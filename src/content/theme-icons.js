@@ -53,23 +53,33 @@
     }
     // Sorted list columns carry CommPilot's black-boxed GIF arrow. Keep the GIF (the bulk tools read its src to
     // learn the sort direction) but hide it in CSS, and draw a chevron in the header's own color beside it.
-    for (const arrow of document.querySelectorAll('a.listSortHeader img[src*="uparrow.gif"], a.listSortHeader img[src*="downarrow.gif"]')) {
-      const link = arrow.closest('a.listSortHeader');
-      if (link.querySelector('.cp-sort-ico')) continue;
-      const mark = document.createElement('span');
-      mark.className = 'cp-sort-ico';
-      mark.setAttribute('aria-hidden', 'true');
+    for (const link of document.querySelectorAll('a.listSortHeader')) {
+      const arrow = link.querySelector('img[src*="uparrow.gif"], img[src*="downarrow.gif"]');
+      let mark = link.querySelector('.cp-sort-ico');
+      if (!arrow) { mark?.remove(); continue; }
+      if (!mark) {
+        mark = document.createElement('span');
+        mark.className = 'cp-sort-ico';
+        mark.setAttribute('aria-hidden', 'true');
+        link.appendChild(mark);
+      }
       const direction = /uparrow\.gif/i.test(arrow.getAttribute('src') || '') ? 'asc' : 'desc';
       mark.style.setProperty('--cp-sort-icon', `url("${chrome.runtime.getURL(`assets/icons/sort-${direction}.svg`)}")`);
-      link.appendChild(mark);
     }
   }
 
+  // A single navigation emits several of these events. Refresh once for the final DOM in that frame.
+  let pending = false;
+  function schedule() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => { pending = false; decorate(); });
+  }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', decorate, { once: true });
   } else decorate();
-  document.addEventListener('cp:theme-change', decorate);
-  document.addEventListener('cp:navigation-decorated', decorate);
-  document.addEventListener('cp:morphed', () => requestAnimationFrame(decorate));
-  document.addEventListener('cp:reskin', () => requestAnimationFrame(decorate));
+  document.addEventListener('cp:theme-change', schedule);
+  document.addEventListener('cp:navigation-decorated', schedule);
+  document.addEventListener('cp:morphed', schedule);
+  document.addEventListener('cp:reskin', schedule);
 })();

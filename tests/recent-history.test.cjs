@@ -21,6 +21,13 @@ test('history merges repeated searches and equivalent parent-entry encodings',()
  assert.equal(history.unique(rows)[0].id,'latest','newest navigation remains the replay target');
 });
 
+test('different calling-plan tabs remain distinct while reordered query flags merge',()=>{
+ const base='/commpilot/Group/Calling_Plan/Outgoing/index.jsp';
+ const rows=[row('forward',base+'?TransferForward=1&isEnh=true'),
+  row('alias',base+'?isEnh=true&TransferForward=1'),row('originating',base+'?isEnh=true')];
+ assert.deepEqual(Array.from(history.unique(rows),r=>r.id),['forward','originating']);
+});
+
 test('same-name users, groups and service providers stay distinct',()=>{
  const rows=[row('user','/commpilot/User/Profile/',{},'Reseller › Acme › Acme › Acme'),
   row('group','/commpilot/Group/Profile/',{},'Reseller › Acme › Acme'),
@@ -44,6 +51,14 @@ test('grouped history migrates old rows, merges aliases and separates different 
  const place=history.place(first);
  assert.equal(place.name,'alice');assert.equal(place.full,'alice@example.net');assert.equal(place.parent,'RSG');
  assert.equal(history.isMenu(menu),true);
+});
+
+test('a damaged current history chain cannot crash presentation or supply partial ancestry',()=>{
+ const current=row('current','/commpilot/User/Profile/',{},'Reseller › Acme › Sales › alice@example.net',
+  [{url:user,params:{key:'Acme>%Support>%bob@example.net'}},null]);
+ const result=history.place(current);
+ assert.equal(result.full,'alice@example.net');
+ assert.equal(result.parent,'Sales','use visible context instead of retaining part of a damaged chain');
 });
 
 test('current location sorts first without merging users from different groups',()=>{
@@ -104,4 +119,19 @@ test('a header changing before history commits cannot rename the previous user w
  state.cpRecentChain=second.chain;events['cp:user-name']();
  assert.equal(JSON.parse(saved).find(row=>row.id==='Group A').userName,'Original User');
  assert.equal(JSON.parse(saved).find(row=>row.id==='Group B').userName,'Different User');
+});
+
+test('corrupt saved history rows do not hide valid visits or supply broken ancestry',()=>{
+ const good=row('valid','/commpilot/User/Profile/');
+ const malformed=[null,{id:'no-nav'},{id:'text-nav',nav:'invalid'},
+  {...good,id:'number-url',nav:{url:123}},
+  {...good,id:'object-chain',chain:{}},
+  {...good,id:'null-entry',chain:[null]},
+  {...good,id:'invalid-entry',chain:[{url:123}]}];
+ assert.deepEqual(Array.from(history.unique([...malformed,good]),value=>value.id),['valid']);
+ assert.equal(history.groups([...malformed,good],'').length,1);
+ assert.equal(history.unique(null).length,0);
+ assert.equal(history.unique({}).length,0);
+ const legacy={...good,id:'legacy'};delete legacy.chain;
+ assert.equal(history.unique([legacy]).length,1,'old valid rows without ancestry remain visible');
 });

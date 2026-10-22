@@ -13,8 +13,8 @@ const group='/commpilot/ServiceProvider/Members/Modify/index.jsp';
 const user='/commpilot/Group/Members/Modify/index.jsp';
 const profile='/commpilot/User/Profile/';
 const home='/commpilot/Reseller/Profile/';
-async function setup({boards=false,wrongRestore=false,descriptions=false,userNames=false}={}){
- const options={executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true};
+async function setup({boards=false,wrongRestore=false,descriptions=false,userNames=false,holdFirstProfile=false}={}){
+ const options={executablePath:process.env.CHROME_PATH||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true};
  let browser,context;
  if(full){
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'bw-recent-'));
@@ -29,8 +29,14 @@ async function setup({boards=false,wrongRestore=false,descriptions=false,userNam
   context=await browser.newContext({viewport:{width:1100,height:800}});
  }
  const page=await context.newPage();
+ await page.addInitScript(()=>{
+  window.nativeFallbacks=[];
+  window.redirectPost=(url,params)=>window.nativeFallbacks.push({url,params});
+ });
  let level='R', selectedGroup='', selectedUser='', token=0, saves=0, reject=false, validContext=true, userEntries=0;
  const posts=[];
+ let releaseProfile, profileHeld=false;
+ const profileGate=new Promise(resolve=>{releaseProfile=resolve;});
  const html=(title,boardFolder)=>{
   const names=['Reseller'];
   if(level!=='R')names.push('Acme SP');
@@ -44,11 +50,12 @@ async function setup({boards=false,wrongRestore=false,descriptions=false,userNam
   const tip=descriptions?`<tr><td class="tip"><strong>${title}</strong>${title} allows you to view and maintain your profile information.</td></tr>`:'';
   return `<!doctype html><html data-cp-direction="graphite"><head><title>${title}</title></head><body id="initBody.menuTemplate"><table><tr><td class="headerBar">${names.map(n=>'<a class="headerAuthLevelLink">'+n+'</a>').join(' &gt; ')}${entity?'<span class="headerAuthLevel" data-cp-extension-state="done">'+entity+'</span>':''}</td></tr></table><form name="leftNavForm">${sidebar}</form><table><tr><td width="82%" valign="top"><form name="mainForm" method="post"><input name="formtokenserial" value="t-${++token}" type="hidden"><table><tr><td class="screenName">${title}</td></tr>${tip}<tr><td class="enduserbody">${menu||`<div id="selected">${selectedUser||selectedGroup||level}</div><input name="description" value="Draft"><input type="password" name="password" value="do-not-store"><input type="submit" name="apply" value="Apply">`}</td></tr></table></form></td></tr></table><script>window.redirectPost=window.redirectPost||function(){};</script></body></html>`;
  };
- await page.route(origin+'/**',route=>{
+ await page.route(origin+'/**',async route=>{
   const req=route.request(), url=new URL(req.url()), data=new URLSearchParams(req.postData()||'');
   if(req.method()==='POST'){
-   posts.push({url:url.pathname,params:Object.fromEntries(data)});
-   assert.equal(data.get('formtokenserial'),'t-'+token,'every POST threads the latest token');
+   posts.push({url:url.pathname,search:url.search,params:Object.fromEntries(data)});
+   assert.equal(data.get('formtokenserial'),'t-'+token,'every POST threads the latest token; recent fixture routes: '+
+    JSON.stringify(posts.slice(-8).map(post=>({path:post.url,folder:post.params.folder}))));
   }
   if(reject && url.pathname===profile)return route.fulfill({status:500,body:'Failed'});
   if(data.has('apply'))saves++;
@@ -64,7 +71,9 @@ async function setup({boards=false,wrongRestore=false,descriptions=false,userNam
   }
   if(url.pathname.startsWith('/commpilot/User/')){assert.equal(level,'U','user context restored before page opens');assert.equal(validContext,true,'folder reads must restore the user before opening another page');}
   const board=boards && ([sp,group,user].includes(url.pathname)||/^[SGU]/.test(folder));
-  return route.fulfill({status:200,contentType:'text/html',body:html(url.pathname===profile?'Profile':url.pathname===home?'Reseller Profile':'Location',board)});
+  const body=html(url.pathname===profile?'Profile':url.pathname===home?'Reseller Profile':'Location',board);
+  if(holdFirstProfile && url.pathname===profile && !profileHeld){profileHeld=true;await profileGate;}
+  return route.fulfill({status:200,contentType:'text/html',body});
  });
  await page.goto(origin+home);
  if(!full){
@@ -78,8 +87,70 @@ async function setup({boards=false,wrongRestore=false,descriptions=false,userNam
   await page.waitForFunction(({url,before})=>location.pathname===url && document.documentElement.dataset.cpNav!=='busy' && document.querySelector('input[name="formtokenserial"]')?.value!=='t-'+before,{url,before});
  };
  const visit=async(g,u)=>{await nav(sp,{key:'Acme SP',P_key:'Acme SP'});await nav(group,{key:'Acme SP>%'+g});await nav(user,{key:'Acme SP>%'+g+'>%'+u});await nav(profile);};
- return{browser,page,nav,visit,posts,getSaves:()=>saves,getContext:()=>({level,selectedUser,validContext}),setReject:v=>reject=v,close:()=>browser.close()};
+ return{browser,page,nav,visit,posts,releaseProfile,getSaves:()=>saves,getGroup:()=>selectedGroup,getContext:()=>({level,selectedUser,validContext}),setReject:v=>reject=v,close:()=>{releaseProfile();return browser.close();}};
 }
+test('leaving a user board retains the token from its cancelled background name read',async()=>{
+ const f=await setup({boards:true,userNames:true,holdFirstProfile:true});try{
+  f.page.setDefaultTimeout(6000);
+  await f.nav(sp,{key:'Acme SP'});await f.nav(group,{key:'Acme SP>%Group A'});
+  const read=f.page.waitForRequest(request=>new URL(request.url()).pathname===profile);
+  await f.nav(user,{key:'Acme SP>%Group A>%Alice'});await read;
+  const opening=f.nav(profile);
+  // Observe the queued navigation before releasing the already-consumed token.
+  await f.page.waitForTimeout(100);
+  assert.equal(f.posts.filter(post=>post.url===profile).length,1);
+  f.releaseProfile();await opening;
+  assert.equal(f.posts.filter(post=>post.url===profile).length,2);
+  await f.nav('/commpilot/User/DND/');
+  assert.equal(f.getContext().selectedUser,'Alice');
+  assert.equal(f.getSaves(),0);
+  assert.ok(f.posts.every(post=>!/(?:Login|Logout)/i.test(post.url)));
+ }finally{await f.close();}
+});
+for(const url of ['/commpilot/%4cogout/','/commpilot/Group/Members/%41dd/index.jsp',
+ '/commpilot/Group/Profile/?apply=1','/commpilot/Group/Profile/?unknownAction=delete'])
+test('recent locations reject an encoded mutation route: '+url,async()=>{
+ const f=await setup();try{
+  const before=f.posts.length;
+  await f.page.evaluate(url=>{
+   sessionStorage.setItem('cp-recent-locations',JSON.stringify([{id:'damaged',label:'Old location',nav:{url,params:{}},chain:[]} ]));
+   window.postMessage({__cpRecentOpen:'damaged'},location.origin);
+  },url);
+  await f.page.waitForTimeout(250);
+  assert.equal(await f.page.evaluate(()=>window.nativeFallbacks.length),0,'unsafe saved paths must not reach native navigation');
+  assert.equal(f.posts.length,before,'unsafe saved paths must not send a POST');
+ }finally{await f.close();}
+});
+
+test('recent locations record and restore a read-only calling-plan tab query',async()=>{
+ const f=await setup();try{
+  const target='/commpilot/Group/Calling_Plan/Outgoing/index.jsp?TransferForward=1&isEnh=true';
+  await f.nav(sp,{key:'Acme SP'});await f.nav(group,{key:'Acme SP>%Group A'});
+  await f.page.evaluate(target=>window.redirectPost(target,{}),target);
+  await f.page.waitForFunction(target=>location.pathname+location.search===target&&document.documentElement.dataset.cpNav!=='busy',target);
+  await f.page.waitForTimeout(100);
+  const saved=await f.page.evaluate(target=>JSON.parse(sessionStorage.getItem('cp-recent-locations')||'[]').find(r=>r.nav.url===target),target);
+  assert.ok(saved,'read-only tab is recorded instead of silently omitted');
+  await f.nav('/commpilot/Group/Profile/');
+  await f.page.evaluate(id=>window.postMessage({__cpRecentOpen:id},location.origin),saved.id);
+  await f.page.waitForFunction(target=>location.pathname+location.search===target&&document.documentElement.dataset.cpNav!=='busy',target);
+  assert.equal(f.posts.at(-1).search,'?TransferForward=1&isEnh=true');
+  assert.equal(f.getContext().level,'G');
+  assert.equal(f.getSaves(),0);
+ }finally{await f.close();}
+});
+
+test('history menu still opens when the current browser state has damaged ancestry',async()=>{
+ const f=await setup();try{
+  const errors=[];f.page.on('pageerror',error=>errors.push(error.message));
+  await f.visit('Group A','Alice');
+  await f.page.evaluate(()=>history.replaceState({...history.state,cpRecentChain:[null]},'',location.href));
+  await f.page.locator('button.cp-bc-history').click();
+  assert.ok(await f.page.locator('#cp-bc-history-menu button[data-recent-id]').count()>0);
+  assert.deepEqual(errors,[]);
+ }finally{await f.close();}
+});
+
 test('user boards load names through the serialized read queue and preserve the next user navigation',async()=>{
  const f=await setup({boards:true,userNames:true});try{
   if(!full)await f.page.addScriptTag({path:path.join(extension,'src/content/enhancer.js')});
@@ -297,6 +368,51 @@ test('grouped history carries old visits forward and distinguishes same-name gro
   await menu.screenshot({path:path.join(root,'dev-preview/history-designs/implemented-b-dark.png'),animations:'disabled'});
  }finally{await f.close();}
 });
+test('repeated entity navigation keeps one history menu and bounded page DOM without stale context',async t=>{
+ const visits=Number(process.env.BW_SOAK_VISITS||20);
+ assert.ok(Number.isInteger(visits)&&visits>=20&&visits<=500,'BW_SOAK_VISITS must be an integer from 20 to 500');
+ const boards=process.env.BW_SOAK_BOARDS==='1';
+ const f=await setup({boards});try{
+  const errors=[];f.page.on('pageerror',error=>errors.push(error.message));
+  await f.visit('Group 0','User 0');
+  const sizes=[];
+  const heap=process.env.BW_SOAK_HEAP==='1'?await f.page.context().newCDPSession(f.page):null;
+  const samples=[];
+  for(let i=0;i<visits;i++){
+   await f.visit('Group '+i,'User '+i);
+   await f.page.locator('button.cp-bc-history').click();
+   assert.equal(await f.page.locator('#cp-bc-history-menu').count(),1);
+   await f.page.keyboard.press('Escape');
+   sizes.push(await f.page.evaluate(()=>{
+    const menus=Object.keys(sessionStorage).filter(key=>key.startsWith('cp-page-menu:'));
+    return {nodes:document.querySelectorAll('*').length,scripts:document.scripts.length,
+     recent:JSON.parse(sessionStorage.getItem('cp-recent-locations')||'[]').length,
+     menuRecords:menus.length,menuChars:menus.reduce((sum,key)=>sum+(sessionStorage.getItem(key)||'').length,0)};
+   }));
+   assert.equal(f.getContext().selectedUser,'User '+i);
+   assert.equal(f.getGroup(),'Group '+i);
+   if(heap && ((i+1)%50===0 || i===visits-1)){
+    await heap.send('HeapProfiler.collectGarbage');
+    const memory=await heap.send('Runtime.getHeapUsage');
+    const dom=await heap.send('Memory.getDOMCounters');
+    const sample={visits:i+1,...memory,...dom,menuRecords:sizes.at(-1).menuRecords,menuChars:sizes.at(-1).menuChars};samples.push(sample);
+    t.diagnostic('heap '+JSON.stringify(sample));
+   }
+  }
+  t.diagnostic(JSON.stringify({visits,boards,requests:f.posts.length,first:sizes[0],last:sizes.at(-1),maxNodes:Math.max(...sizes.map(s=>s.nodes))}));
+  assert.ok(sizes.every(s=>s.recent<=30),'recent records remain bounded across distinct entities');
+  assert.ok(sizes.every(s=>s.menuRecords<=64),'page-menu caches remain bounded across distinct entities');
+  assert.equal(sizes.at(-1).scripts,sizes[0].scripts,'native scripts do not accumulate after swaps');
+  // History grows to its cap; compare after that rather than the first menu.
+  assert.ok(sizes.at(-1).nodes<=sizes[10].nodes+12,'page DOM remains bounded after history reaches its cap');
+  assert.equal(f.getSaves(),0);
+  assert.deepEqual(await f.page.evaluate(()=>window.nativeFallbacks),[],'navigation never falls out of the shell');
+  assert.ok(f.posts.every(post=>!/(?:Login|Logout)/i.test(post.url)),'ordinary visits do not invoke authentication endpoints');
+  assert.deepEqual(errors,[]);
+  if(heap)await heap.detach();
+ }finally{await f.close();}
+});
+
 test('a failed history return preserves the current page and can be retried',async()=>{
  const f=await setup();try{
   await f.visit('Group A','Alice');

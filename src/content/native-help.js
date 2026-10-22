@@ -289,7 +289,10 @@
     set: (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {} },
   };
   const OPTIONS = "cpDebugView";   // { native, inspect, hide: [kinds], left, top, folded }
-  const options = () => store.get(OPTIONS, {});
+  const options = () => {
+    const value = store.get(OPTIONS, {});
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  };
   const setOption = patch => store.set(OPTIONS, { ...options(), ...patch });
   const nativeOn = () => options().native === true;
   const inspectOn = () => options().inspect !== false;

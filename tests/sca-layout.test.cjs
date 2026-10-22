@@ -18,7 +18,7 @@ const initialDevices = [
 ];
 const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-function fixture({devices = initialDevices, flags = [], tone = 'none', arrangement = 'true', query = '', pages = 1, title = 'Shared Call Appearance', extra = '', legacy = false} = {}) {
+function fixture({devices = initialDevices, flags = [], tone = 'none', arrangement = 'true', query = '', pages = 1, title = 'Shared Call Appearance', extra = '', legacy = false, policyFieldset = ''} = {}) {
   const rows = devices.filter(d => !query || d.name.toLowerCase().includes(query.toLowerCase()));
   const findRow = legacy ? `<td><select name="findKey"><option value="name">Identity/Device Profile Name</option><option value="type">Identity/Device Profile Type</option></select></td>
     <td><select name="findOp"><option value="CONTAINS">Contains</option><option value="STARTS_WITH">Starts With</option></select></td><td><input name="findValue" type="text" value="${escape(query)}"></td>
@@ -34,19 +34,21 @@ function fixture({devices = initialDevices, flags = [], tone = 'none', arrangeme
     <input type="submit" name="ok" value="OK"><input type="submit" name="apply" value="Apply">
     <input type="button" name="add" value="Add" onclick="redirectPost('/commpilot/User/SCAP/Add/index.jsp',{})"><input type="button" name="cancel" value="Cancel" onclick="window.nativeCancel=true">
     </td></tr><tr><td class="enduserbody"><table class="enduserbody"><tr><td width="20"></td><td width="100%">
+    ${policyFieldset ? `<fieldset id="nativePolicy" ${policyFieldset === 'disabled' ? 'disabled' : ''}><legend>Call behavior</legend><input type="hidden" name="policyMetadata" value="native-policy">` : ''}
     <table><tbody>${labels.map((label,i) => `<tr><td></td><td><input type="checkbox" id="option${i}" name="option${i}" value="true"${flags.includes(i) ? ' checked' : ''}> ${label}</td></tr>`).join('')}
     <tr><td>Multiple Call Arrangement:</td><td><input type="radio" id="arrangementOn" name="multipleCallArrangement" value="true"${arrangement === 'true' ? ' checked' : ''}> On <input type="radio" id="arrangementOff" name="multipleCallArrangement" value="false"${arrangement === 'false' ? ' checked' : ''}> Off</td></tr>
     <tr><td>Bridge Warning tone</td><td><input type="radio" name="bridgeWarningTone" value="none"${tone === 'none' ? ' checked' : ''}> None</td></tr>
     <tr><td></td><td><input type="radio" name="bridgeWarningTone" value="barge"${tone === 'barge' ? ' checked' : ''}> Barge-in only</td></tr>
     <tr><td></td><td><input type="radio" name="bridgeWarningTone" value="repeat"${tone === 'repeat' ? ' checked' : ''}> Barge-in and repeat every 30 seconds</td></tr>
     <tr><td>Device Policies</td><td>— <a class="headerLink" id="policies" onclick="window.nativePolicies=(window.nativePolicies||0)+1;return false">Configure device policies</a></td></tr></tbody></table>
-    ${extra}
+    ${policyFieldset ? '</fieldset>' : ''}${extra}
     <table class="list" width="100%" id="native-results"><tbody><tr>${['Delete','Identity/Device Profile Type','Identity/Device Profile Name','Line/Port'].map((h,i) => `<td class="listHeader">${i === 1 ? `<a class="listSortHeader" href="#" onclick="return false">${h}</a>` : h}</td>`).join('')}</tr>
     ${rows.length ? rows.map((d,i) => `<tr id="Row${i}"><td><input type="checkbox" name="delete" value="${d.id}" aria-label="Delete ${escape(d.name)}"></td><td><a class="tableLink" href="#" onclick="window.nativeDetail='${d.id}';return false">${escape(d.type)}</a></td><td><a class="tableLink" href="#" onclick="window.nativeDetail='${d.id}';return false">${escape(d.name)}</a></td><td>${escape(d.line)}</td></tr>`).join('') : '<tr><td colspan="4">No Entries Present</td></tr>'}</tbody></table>
     <table id="native-pager"><tr><td>[ Page 1 of ${pages} ]</td></tr></table>
     <table id="native-find"><tr>${findRow}</tr></table>
     </td></tr></table></td></tr><tr id="buttonbarbottom"><td class="buttonbar"><input type="submit" name="apply" value="Apply"></td></tr></table></form></td></tr></table>
     <script>window.redirectPost=function(){};window.nativeInputs=Object.fromEntries([...document.querySelectorAll('input[id]')].map(e=>[e.id,e]));
+    window.originalSubmission=Object.fromEntries(new FormData(document.forms.mainForm));
     document.getElementById('option0').addEventListener('change',()=>window.nativeChanges=(window.nativeChanges||0)+1);
     function doFind(){const f=document.forms.mainForm;redirectPost('/commpilot/Common/find.jsp',{returnPage:'/User/SCAP/',tableName:'userScaTable',key:f.elements.findKey.value,op:f.elements.findOp.value,value:f.elements.findValue.value});}
     function doFindAll(){redirectPost('/commpilot/Common/findAll.jsp',{returnPage:'/User/SCAP/',tableName:'userScaTable'});}
@@ -79,6 +81,30 @@ async function open(config = {}) {
     return {page,posts,worker,close:async () => {await context.close();fs.rmSync(temp,{recursive:true,force:true});}};
   } catch(error) {await context.close();fs.rmSync(temp,{recursive:true,force:true});throw error;}
 }
+
+for (const policyFieldset of ['disabled', 'dynamic'])
+test(`SCA preserves native policy fieldset semantics: ${policyFieldset}`, async () => {
+  const f = await open({ policyFieldset, flags: [0] });
+  try {
+    const { page } = f;
+    const data = () => page.evaluate(() => Object.fromEntries([...new FormData(document.forms.mainForm)]
+      .filter(([key]) => /^(option\d+|bridgeWarningTone|multipleCallArrangement|policyMetadata)$/.test(key))));
+    const before = await page.evaluate(() => Object.fromEntries(Object.entries(originalSubmission)
+      .filter(([key]) => /^(option\d+|bridgeWarningTone|multipleCallArrangement|policyMetadata)$/.test(key))));
+    assert.deepEqual(await data(), before, 'SCA rearrangement preserves native submission eligibility');
+    for (const disabled of [true, false, true]) {
+      const immediate = await page.evaluate(disabled => {
+        document.querySelector('#nativePolicy').disabled = disabled;
+        return Object.fromEntries([...new FormData(document.forms.mainForm)]
+          .filter(([key]) => /^(option\d+|bridgeWarningTone|multipleCallArrangement|policyMetadata)$/.test(key)));
+      }, disabled);
+      assert.equal(await page.locator('#option0').isDisabled(), disabled);
+      assert.equal(Object.hasOwn(immediate, 'option0'), !disabled);
+      assert.equal(Object.hasOwn(immediate, 'policyMetadata'), !disabled);
+    }
+    assert.equal(f.posts.some(post => post.fields.some(([key]) => key === 'apply' || key === 'ok')), false);
+  } finally { await f.close(); }
+});
 
 test('selected SCA B keeps native controls and submits settings, deletion, and Find correctly', async () => {
   const f = await open();

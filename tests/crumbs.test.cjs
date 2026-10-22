@@ -19,6 +19,50 @@ const shell = `<!doctype html><html data-cp-direction="graphite"><head><title>Pr
   <script>window.clicked = []; document.getElementById('lvl-group').addEventListener('click', () => window.clicked.push('group'));</script>
 </body></html>`;
 
+test('mixed skin events coalesce breadcrumb layout work into one frame',async()=>{
+  const browser=await chromium.launch({executablePath:browserPath,headless:true});
+  try{
+    const page=await browser.newPage();
+    await page.route('https://apps-sbx.avpaas.io/**',route=>route.fulfill({contentType:'text/html',body:shell}));
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/User/Profile/');
+    await page.addScriptTag({path:path.join(root,'src/content/crumbs.js')});
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    const reads=await page.evaluate(()=>new Promise(resolve=>{
+      let count=0;
+      const cell=document.getElementById('crumbs');
+      Object.defineProperty(cell,'scrollWidth',{configurable:true,get(){count++;return 0;}});
+      for(let i=0;i<30;i++)for(const type of ['cp:reskin','cp:morphed','cp:theme-change'])document.dispatchEvent(new Event(type));
+      requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(count)));
+    }));
+    assert.equal(reads,1,'a single event burst should measure the breadcrumb once');
+    await page.locator('#lvl-group').click();
+    assert.deepEqual(await page.evaluate(()=>window.clicked),['group']);
+  }finally{await browser.close();}
+});
+
+test('copy controls coalesce identity and theme notifications while showing the latest extension',async()=>{
+  const browser=await chromium.launch({executablePath:browserPath,headless:true});
+  try{
+    const page=await browser.newPage();
+    await page.route('https://apps-sbx.avpaas.io/**',route=>route.fulfill({contentType:'text/html',body:shell}));
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/User/Profile/');
+    await page.addScriptTag({path:path.join(root,'src/content/enhancer.js')});
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    const reads=await page.evaluate(()=>new Promise(resolve=>{
+      let count=0;const original=document.querySelectorAll.bind(document);
+      document.querySelectorAll=selector=>{if(selector==='td.headerBar')count++;return original(selector);};
+      document.querySelector('span.headerAuthLevel').setAttribute('data-cp-extension','5678');
+      const trail=[...original('#crumbs a.headerAuthLevelLink')].map(el=>el.textContent.trim());
+      const id=document.querySelector('span.headerAuthLevel').textContent.trim();
+      sessionStorage.setItem('bw-extension:'+JSON.stringify([location.origin,...trail,id]),'5678');
+      for(let i=0;i<30;i++)for(const type of ['cp:user-extension','cp:user-name','cp:theme-change'])document.dispatchEvent(new Event(type));
+      requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(count)));
+    }));
+    assert.ok(reads<=2,`one event burst rescanned the user context ${reads} times`);
+    assert.match(await page.locator('.cp-ext-chip').innerText(),/5678/);
+  }finally{await browser.close();}
+});
+
 test('the breadcrumb is the alpha pill trail, built from CommPilot’s own links', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });

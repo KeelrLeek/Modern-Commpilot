@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
 
-const root = path.resolve(__dirname, '..');
+const root = process.env.BW_TEST_EXTENSION_PATH || path.resolve(__dirname, '..');
 const browserPath = [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
@@ -116,4 +116,36 @@ test('a return that ends back on the Login page, or CommPilot’s menu error the
     assert.equal(later.onLogin.pending, '1');
     assert.ok(later.requests.some(r => r.pathname === spEntry));
   } finally { await browser.close(); }
+});
+
+for (const [name, saved] of [
+  ['apply payload', {url:'/commpilot/Reseller/Profile/',params:{apply:'Apply',password:'fixture-private'}}],
+  ['delete payload', {url:'/commpilot/Reseller/Profile/',params:{buttonClicked:'delete',key:'Fixture'}}],
+  ['add route', {url:'/commpilot/Reseller/ServiceProviders/Add/',params:{}}],
+  ['query action', {url:'/commpilot/Reseller/Profile/?apply=1',params:{}}],
+  ['serialized form', {url:'/commpilot/Reseller/Profile/',params:{__cpFormEntries:[['apply','Apply'],['password','fixture-private']]}}],
+  ['mutating entry', {url:'/commpilot/ServiceProvider/Profile/',params:{},entry:{url:spEntry,params:{key:'Fixture',delete:'Delete'}}}]
+]) test(`signing back in refuses a saved ${name}`, async () => {
+  const browser = await chromium.launch({executablePath:browserPath,headless:true});
+  try {
+    const {page, requests} = await signBackIn(browser,{saved});
+    assert.deepEqual(requests,[], 'restoring a session must not send a saved mutation');
+    assert.equal(await page.evaluate(()=>sessionStorage.getItem('cp-last-nav')),null);
+  } finally { await browser.close(); }
+});
+
+test('signing back in strips stale form fields and tokens while retaining the entity key',async()=>{
+  const browser=await chromium.launch({executablePath:browserPath,headless:true});
+  try {
+    const saved={url:'/commpilot/ServiceProvider/Profile/',params:{description:'fixture-private',password:'fixture-private',formtokenserial:'old-token'},
+      entry:{url:spEntry,params:{key:'Fixture',password:'fixture-private',formtokenserial:'old-token'}}};
+    const {requests}=await signBackIn(browser,{saved});
+    assert.equal(requests.length,2);
+    assert.equal(requests[0].params.get('key'),'Fixture');
+    for(const request of requests){
+      assert.equal(request.params.has('password'),false);
+      assert.equal(request.params.has('description'),false);
+      assert.equal(request.params.get('formtokenserial'),'token-1');
+    }
+  }finally{await browser.close();}
 });

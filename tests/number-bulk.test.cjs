@@ -8,8 +8,9 @@ const edge = process.env.CHROME_PATH || [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 ].find(fs.existsSync);
-const pjax = path.resolve(__dirname, '../src/content/pjax.js');
-const bulk = path.resolve(__dirname, '../src/content/number-bulk.js');
+const runtime = process.env.BW_TEST_EXTENSION_PATH || path.resolve(__dirname, '..');
+const pjax = path.join(runtime, 'src/content/pjax.js');
+const bulk = path.join(runtime, 'src/content/number-bulk.js');
 
 test('bulk number preview expands ranges, marks missing numbers, and blocks Apply', async () => {
   assert.ok(edge, 'Set CHROME_PATH to Edge or Chrome');
@@ -101,6 +102,7 @@ test('large-group lookup finds international numbers stored with a country-code 
         ['+44-2045747110', 'Innovisk - UK']
       ];
       window.lookupCriteria = [];
+      window.lookupNavigations = [];
       window.cpListSearch = async criteria => {
         if (!criteria.length) return { tooMany: true };
         window.lookupCriteria.push(criteria[0]);
@@ -113,6 +115,7 @@ test('large-group lookup finds international numbers stored with a country-code 
         })) };
       };
       window.redirectPost = (url, params) => {
+        window.lookupNavigations.push(url);
         history.pushState(null, '', url);
         document.documentElement.setAttribute('data-cp-path', url);
         const options = ['None', ...new Set(values.map(row => row[1]))]
@@ -147,6 +150,8 @@ test('large-group lookup finds international numbers stored with a country-code 
     assert.equal(await page.locator('[data-action="apply"]').isDisabled(), true);
     assert.ok((await page.evaluate(() => window.lookupCriteria))
       .some(criteria => criteria.op === 'EQUAL_TO' && criteria.value === '+44-2030233343'));
+    assert.deepEqual(await page.evaluate(() => window.lookupNavigations), [edit, list],
+      'read the group department choices once per preview, not once per number');
   } finally { await browser.close(); }
 });
 

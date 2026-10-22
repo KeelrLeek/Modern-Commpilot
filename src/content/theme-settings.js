@@ -23,6 +23,43 @@
   let shellFrame = 0;
   let currentPalette = fallback;
   let panel, overlay;
+  let saveTicket = 0;
+  const palettePreference = preference(key, fallback, apply);
+  const settingsPreference = preference(settingsKey, { ...defaults }, applySettings);
+
+  // Keep a newer local choice visible while an older write finishes. Each storage key has one write in
+  // flight; intermediate changes are coalesced. An old startup read must not reset a choice from this
+  // tab or another tab, and failed saves restore only the last acknowledged preference.
+  function preference(name, initial, applyValue) {
+    let saved = initial, desired = initial, writing = false, changed = false, updated = false;
+    let revision = 0, ticket = 0, message = '';
+    const status = text => { const node = panel?.querySelector('.cp-appearance-status'); if (node) node.textContent = text; };
+    function write() {
+      const value = desired, version = revision, currentTicket = ticket, savedMessage = message;
+      writing = true;
+      const complete = error => {
+        writing = false;
+        if (!error) { saved = value; updated = true; }
+        if (revision !== version) { write(); return; }
+        if (error) applyValue(saved);
+        if (currentTicket === saveTicket) status(error ? 'Could not save. Try again.' : savedMessage);
+      };
+      try { chrome.storage.local.set({ [name]: value }, () => complete(chrome.runtime.lastError)); }
+      catch (error) { complete(error); }
+    }
+    return {
+      save(value, text) {
+        desired = value; message = text; changed = true; revision++; ticket = ++saveTicket;
+        applyValue(value); status('Saving…');
+        if (!writing) write();
+      },
+      receive(value, initialRead = false) {
+        if (initialRead && updated) return;
+        saved = value; updated = true;
+        if (!writing && (!initialRead || !changed)) applyValue(value);
+      }
+    };
+  }
 
   // CommPilot gives the page PJAX starts from <body id="initBody.menuTemplate">, but a content page opened
   // directly (the browser Reload button replays the page with a plain POST) comes back around the same shell
@@ -95,16 +132,7 @@
   }
 
   function saveSettings(patch, message) {
-    const previous = settings;
-    applySettings({ ...settings, ...patch });
-    const status = panel?.querySelector(".cp-appearance-status");   // the sidebar's fold button saves without the window
-    if (status) status.textContent = "Saving…";
-    chrome.storage.local.set({ [settingsKey]: settings }, () => {
-      if (chrome.runtime?.lastError) {
-        applySettings(previous);
-        if (status) status.textContent = "Could not save. Try again.";
-      } else if (status) status.textContent = message;
-    });
+    settingsPreference.save({ ...settings, ...patch }, message);
   }
 
   // The sidebar folded to its icons: by its button (settings.side) or always on a small window, where the names
@@ -219,9 +247,13 @@
     syncControls();
     // About is in the window, so this version's news has been seen: the logo's dot loses its ring (brand.js).
     const brand = globalThis.cpBrand;
-    if (brand) chrome.storage.local.set({ [brand.seenKey]: brand.version });
+    if (brand) {
+      try { chrome.storage.local.set({ [brand.seenKey]: brand.version }, () => { void chrome.runtime.lastError; }); }
+      catch (_) { /* An unavailable badge preference must not prevent Settings from opening. */ }
+    }
     panel.querySelector(".cp-appearance-status").textContent = "";
     overlay.hidden = false;
+    globalThis.cpUpdatesUI?.refresh();
     document.getElementById("cp-appearance-toggle")?.setAttribute("aria-expanded", "true");
     (panel.querySelector('input[name="cp-theme"]:checked') || panel.querySelector(".cp-settings-close")).focus();
   }
@@ -357,6 +389,7 @@
     panel.innerHTML = '<header class="cp-settings-head">' +
       (tile ? `<span class="cp-settings-icon cp-settings-pulse">${tile}</span>` : `<span class="cp-settings-icon">${GEAR}</span>`) +
       '<div class="cp-settings-heading"><h2 id="cp-settings-title">Settings</h2><span>Saved across CommPilot tabs</span></div>' +
+      '<button type="button" class="cp-update-button cp-settings-updates">Updates</button>' +
       '<button type="button" class="cp-settings-close" aria-label="Close settings">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">' +
       '<path d="M18 6 6 18M6 6l12 12"/></svg></button></header><div class="cp-settings-body">' +
@@ -384,7 +417,7 @@
       '<section class="cp-settings-section" aria-label="Debug"><h3>Debug</h3>' +
       row(toggle("debug"), "Debug view",
         "Outline what has no help tip yet, and show a panel with this page&rsquo;s details, for building the extension.") +
-      '</section>' + about() + '</div><footer class="cp-settings-foot"><span class="cp-appearance-status" role="status" aria-live="polite"></span>' +
+      '</section>' + (globalThis.cpUpdatesUI?.markup() || "") + about() + '</div><footer class="cp-settings-foot"><span class="cp-appearance-status" role="status" aria-live="polite"></span>' +
       '<button type="button" class="cp-settings-done">Done</button></footer>';
     // Each font previews in its own face (set here, not in markup: CommPilot's content policy blocks inline styles).
     for (const option of panel.querySelectorAll(".cp-font-option")) {
@@ -405,6 +438,11 @@
     overlay.addEventListener("click", event => { if (event.target === overlay) closePanel(); });
     overlay.append(panel);
     document.body.append(overlay);
+    globalThis.cpUpdatesUI?.mount(panel);
+    panel.querySelector(".cp-settings-updates").addEventListener("click", () => {
+      panel.querySelector(".cp-updates")?.scrollIntoView({block: "start"});
+      panel.querySelector(".cp-update-check")?.focus({preventScroll: true});
+    });
     syncControls();
     return panel;
   }
@@ -546,16 +584,7 @@
       palette = (current?.theme || themeOf(fallback).theme)[control.value];
     }
     if (!palette || !themeOf(palette)) return;
-    const previous = currentPalette;
-    apply(palette);
-    const status = panel.querySelector(".cp-appearance-status");
-    status.textContent = "Saving…";
-    chrome.storage.local.set({ [key]: palette }, () => {
-      if (chrome.runtime?.lastError) {
-        apply(previous);
-        status.textContent = "Could not save. Try again.";
-      } else status.textContent = `${themeLabel(palette)}: saved across CommPilot tabs.`;
-    });
+    palettePreference.save(palette, `${themeLabel(palette)}: saved across CommPilot tabs.`);
   });
   document.addEventListener("keydown", event => { if (event.key === "Escape" && closeAccount(true)) event.preventDefault(); });
   window.addEventListener("resize", () => closeAccount(false), { passive: true });
@@ -570,7 +599,7 @@
       return;
     }
     if (event.key !== "Tab") return;
-    const focusable = [...panel.querySelectorAll("button, input:not([type=\"radio\"]), input[type=\"radio\"]:checked, select")]
+    const focusable = [...panel.querySelectorAll("button, a[href], summary, input:not([type=\"radio\"]), input[type=\"radio\"]:checked, select")]
       .filter(el => !el.disabled && el.offsetParent !== null);
     const first = focusable[0], last = focusable[focusable.length - 1];
     if (!first) return;
@@ -594,15 +623,20 @@
   }
 
   applyRail();   // a small window gets the rail before the page paints, ahead of the saved settings
-  chrome.storage.local.get([key, settingsKey], values => {
-    apply(values?.[key]);
-    applySettings(values?.[settingsKey]);
-    if (values?.[key] === "midnight") chrome.storage.local.set({ [key]: "nord" });
-  });
+  try {
+    chrome.storage.local.get([key, settingsKey], values => {
+      if (chrome.runtime.lastError) return;
+      palettePreference.receive(values?.[key], true);
+      settingsPreference.receive(values?.[settingsKey], true);
+      if (values?.[key] === "midnight" && currentPalette === "nord") {
+        try { chrome.storage.local.set({ [key]: "nord" }, () => { void chrome.runtime.lastError; }); } catch (_) {}
+      }
+    });
+  } catch (_) { /* Keep the local defaults if the extension context was reloaded. */ }
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
-    if (Object.hasOwn(changes, key)) apply(changes[key].newValue);
-    if (Object.hasOwn(changes, settingsKey)) applySettings(changes[settingsKey].newValue);
+    if (Object.hasOwn(changes, key)) palettePreference.receive(changes[key].newValue);
+    if (Object.hasOwn(changes, settingsKey)) settingsPreference.receive(changes[settingsKey].newValue);
   });
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => { scheduleShellMeasure(); attachControl(); }, { once: true });

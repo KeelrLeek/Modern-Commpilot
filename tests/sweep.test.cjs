@@ -69,7 +69,9 @@ function list(rows, pageNo, pages) {
     `<td class="unselected"><a class="headerLink" id="edit${i + 1}">Edit</a>
       <script>document.addEventListener('DOMContentLoaded', function () { document.getElementById('Row${i + 1}Col0').addEventListener('click', function () {
         redirectPost('${MODIFY}', { userId: '${esc(u.id)}' }); }); });</script></td></tr>`).join('');
-  return `<table border="0" cellpadding="2" cellspacing="0" width="100%"><tbody><tr>${head}<td class="listHeader"> Edit</td></tr>${body}</tbody></table>
+  // Empty native searches include this marker; a bare header is an incomplete
+  // response and must not count as a successfully searched prefix.
+  return `<table border="0" cellpadding="2" cellspacing="0" width="100%"><tbody><tr>${head}<td class="listHeader"> Edit</td></tr>${body || '<tr><td colspan="9">No Entries Present</td></tr>'}</tbody></table>
     <table class="enduserbody"><tbody><tr><td width="33%"></td><td width="33%">[ Page ${pageNo} of ${pages} ]</td><td width="33%"></td></tr></tbody></table>`;
 }
 // The toast saying what the sweep loaded (toasts.js): its kind, title, body and button.
@@ -78,8 +80,11 @@ const note = page => page.evaluate(() => {
   return t && { kind: t.className.match(/cp-toast-(info|warning|error)/)?.[1], title: t.querySelector('.cp-toast-title')?.textContent,
     body: t.querySelector('.cp-toast-body')?.textContent, act: t.querySelector('.cp-toast-act')?.textContent || null };
 });
-const noteSays = (page, title) => page.waitForFunction(title => [...document.querySelectorAll('#cp-toasts .cp-toast:not(.cp-toast-leaving) .cp-toast-title')]
-  .some(t => t.textContent === title), title, { timeout: 120000 });
+const noteSays = async (page, title) => {
+  await page.waitForFunction(title => [...document.querySelectorAll('#cp-toasts .cp-toast:not(.cp-toast-leaving) .cp-toast-title')]
+    .some(t => t.textContent === title || t.textContent === 'CommPilot stopped answering'), title, { timeout: 120000 });
+  assert.equal((await note(page))?.title, title, 'unexpected sweep result: ' + JSON.stringify(await note(page)));
+};
 // The swept list, page by page through lists.js's pager (only the page on screen is in the page): each row's User ID
 // and first name, the page's size, and the pager's total.
 const listed = page => page.evaluate(async () => {

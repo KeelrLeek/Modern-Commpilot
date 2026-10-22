@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
 
-const extensionPath = path.resolve(__dirname, '..');
+const extensionPath = process.env.BW_TEST_EXTENSION_PATH || path.resolve(__dirname, '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(extensionPath, 'manifest.json'), 'utf8'));
 const hosts = [
   'apps.avpaas.io', 'apps01.avpaas.io', 'apps02.avpaas.io', 'apps-sbx.avpaas.io',

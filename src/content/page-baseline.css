@@ -130,10 +130,11 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] {
       margin-block: var(--pb-inset);
     }
 
-    /* Search criteria: one line at the top of the card. */
-    & td.cp-frame-body > .cp-searchbar-wrap { padding-block: var(--pb-inset); }
+    /* Extend the search background through the card's inset even before results exist. */
+    & td.cp-frame-body > .cp-searchbar-wrap {
+      margin-inline: calc(-1 * var(--pb-inset)); padding: var(--pb-inset);
+    }
     & td.cp-frame-body > .cp-searchbar-wrap:has(~ .cp-frame-results) {
-      margin-inline: calc(-1 * var(--pb-inset)); padding-inline: var(--pb-inset);
       border-bottom: 1px solid var(--d-line);
     }
 
@@ -325,3 +326,22 @@ html[data-cp-direction][data-cp-nav="busy"] body[id="initBody.menuTemplate"] td.
 
 @keyframes cp-export-bob { from { transform: translateY(-1px); } to { transform: translateY(2px); } }
 @media (prefers-reduced-motion: reduce) { body[id="initBody.menuTemplate"] button.cp-export-btn svg { animation: none !important; } }
+/* A failed reload recovery stays on the interstitial instead of replaying a stale token. */
+html.cp-recovery-page { background: var(--d-canvas, Canvas) !important; }
+body.cp-recovery-page {
+  box-sizing: border-box; min-height: 100vh; margin: 0; padding: 24px 16px;
+  background: var(--d-canvas, Canvas) !important; color: var(--d-text, CanvasText) !important;
+}
+#cp-recovery-error {
+  box-sizing: border-box; max-width: 640px; margin: 0 auto; padding: 20px;
+  border: 1px solid var(--d-line, GrayText); border-radius: 10px;
+  background: var(--d-surface, Canvas); color: var(--d-text, CanvasText);
+  font-family: var(--cp-font, system-ui, sans-serif);
+}
+#cp-recovery-error .cp-alert-body { color: var(--d-muted, CanvasText) !important; }
+#cp-recovery-error button {
+  border-color: var(--d-line, GrayText) !important;
+  background: var(--d-raised, ButtonFace) !important; color: var(--d-text, ButtonText) !important;
+}
+#cp-recovery-error button:hover { border-color: var(--d-accent, Highlight) !important; }
+#cp-recovery-error button:focus-visible { outline: 2px solid var(--d-ring, Highlight); outline-offset: 2px; }

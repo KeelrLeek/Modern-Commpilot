@@ -104,8 +104,8 @@ test('an external BroadWorks script wires its DOMContentLoaded pick-list handler
     await page.evaluate(() => { window.originalDocument = document;
       window.redirectPost('/commpilot/Group/GroupDnManagement/Nested/index.jsp', {}); });
     await page.locator('#PICKLIST_addNumbers').waitFor();
-    await page.waitForFunction(() => typeof window.added === 'undefined' &&
-      !!document.querySelector('script[src$="validate.js"]')._cpLoaded);
+    // A user's click waits for the native controls to become interactive.
+    // Verify the handler itself instead of an implementation-only script flag.
     await page.locator('#PICKLIST_addNumbers').click();
     assert.equal(await page.evaluate(() => window.added), 1);
     assert.equal(await page.evaluate(() => document === window.originalDocument), true);
@@ -964,7 +964,11 @@ test('Device Profile Users tab opens with profile identity only', async () => {
       <form name="mainForm"><input name="key" value="TEST 99999">
       <input name="P_key" value="TEST 99999"><input name="description" value="Do not save"></form>
       <a class="tab" id="anchor-users">Users</a>
-      <script>var wiring = "anchor-users TabSubmit('/Group/DeviceInventory/Modify/Users/')";</script>
+      <script>document.addEventListener('DOMContentLoaded',function(){
+        document.getElementById('anchor-users').addEventListener('click',function(){
+          TabSubmit('/Group/DeviceInventory/Modify/Users/');
+        });
+      });</script>
       </td></tr></table>
       </body></html>`;
     const usersHtml = `<html><body><form name="leftNavForm"></form>
@@ -996,6 +1000,7 @@ test('Device Profile Users tab opens with profile identity only', async () => {
     assert.equal(posts.length, 2);
     assert.equal(posts[1].pathname, users);
     assert.equal(posts[1].params.key, 'TEST 99999');
+    assert.equal(posts[1].params.P_key, 'TEST 99999');
     assert.equal(posts[1].params.description, undefined);
   } finally { await browser.close(); }
 });
@@ -2171,7 +2176,7 @@ test('Personal Assistant Delete replaces the stale invalid-criterion page with t
       const content = pathname === modifyPath ?
         '<form name="mainForm" method="POST"><input name="criteriaName" value="PJAX delete criterion">' +
           '<input type="submit" name="delete" value="Delete"></form>' :
-        `<h1>Personal Assistant</h1><input type="button" name="add" value="Add">${deleted ? '' :
+        `<h1>Personal Assistant</h1><input type="button" name="add" value="Add">${deleted ? '<table><tr><td>No Entries Present</td></tr></table>' :
           '<table><tr id="Row1"><td>PJAX delete criterion</td></tr></table>'}`;
       return route.fulfill({ status: 200, contentType: 'text/html',
         body: shell(pathname === modifyPath ? 'Personal Assistant Schedule Selective Criteria Modify' :

@@ -113,9 +113,16 @@
     var message = clean(form.querySelector("td.loginerror") && form.querySelector("td.loginerror").textContent);
     var signedOut = /session|log ?in again|sign ?in again|not authori[sz]ed|timed? ?out|expired/i.test(message);
     var userInteracted = false;
+    var unlockRevision = 0;
+    function cancelUnlocks() {
+      unlockRevision++;
+      if (saved) saved.querySelectorAll('.cp-login-acct.is-busy').forEach(function (row) {
+        row.classList.remove('is-busy');
+      });
+    }
     [user, password, login].forEach(function (control) {
-      control.addEventListener("input", function () { userInteracted = true; }, true);
-      control.addEventListener("click", function () { userInteracted = true; }, true);
+      control.addEventListener("input", function () { userInteracted = true; cancelUnlocks(); }, true);
+      control.addEventListener("click", function () { userInteracted = true; cancelUnlocks(); }, true);
     });
 
     // The page.
@@ -127,6 +134,7 @@
     meta.innerHTML = "<span><i></i></span>";
     meta.firstChild.append(site + " · v" + version);
     var saved = el("section", "cp-login-saved");
+    var savedView = "accounts", savedViewRevision = 0, profileRequest = 0;
     saved.setAttribute("aria-label", "Saved sign-ins");
     saved.hidden = true;
     var or = el("p", "cp-login-or", "or sign in with your User ID");
@@ -183,10 +191,24 @@
     root.append(mark, el("h1", "cp-login-title", "Sign in to CommPilot"), meta, saved, or, fields, login, saveNote, legal());
     form.prepend(root);
 
+    // The native link's listener runs before our bubble listener. Block a second
+    // activation in capture, including keyboard-generated and programmatic clicks.
+    root.addEventListener("click", function (e) {
+      if (root.classList.contains("is-busy") && login.contains(e.target)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    }, true);
+
     // Enter in the User ID or the Password is CommPilot's own submit (its handler on the page). Enter anywhere else on
     // the page (a saved sign-in's PIN, the legal notice) stays there.
     root.addEventListener("keypress", function (e) {
       if (e.key !== "Enter") return;
+      if (root.classList.contains("is-busy")) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       if (e.target === user || e.target === password) started(false);
       else e.stopPropagation();
     });
@@ -217,6 +239,7 @@
     // every other page); CommPilot's answer replaces the page. Back to a page kept in the browser's cache resets it.
     var fromSaved = false, creep = 0;
     function started(bySaved) {
+      cancelUnlocks();
       if (root.classList.contains("is-busy")) return;
       if (password.type !== "password") setEye(false);
       if (!bySaved) {
@@ -244,6 +267,7 @@
     }
     addEventListener("pageshow", function (e) {
       if (!e.persisted) return;
+      cancelUnlocks();
       busy(false);
       saved.querySelectorAll(".cp-login-acct.is-busy").forEach(function (row) { row.classList.remove("is-busy"); });
     });
@@ -284,6 +308,8 @@
 
     // Saved sign-ins. The rows: an automatic one signs in at once; a PIN one opens its PIN box.
     function showAccounts(profiles) {
+      savedView = "accounts";
+      savedViewRevision++;
       saved.replaceChildren();
       saved.hidden = !profiles.length;
       or.hidden = !profiles.length;
@@ -314,6 +340,7 @@
       pin.inputMode = "numeric";
       pin.maxLength = 8;
       pin.setAttribute("aria-label", "PIN for " + (profile.user || "saved sign-in"));
+      pin.addEventListener('input', cancelUnlocks);
       var go2 = btn("Continue", "cp-login-button is-primary");
       var note = capsNote();
       box.append(pin, go2, note);
@@ -340,6 +367,7 @@
       return row;
     }
     function close(row) {
+      if (row.classList.contains('is-busy')) cancelUnlocks();
       row.classList.remove("is-open");
       var box = row.querySelector(".cp-login-pin");
       if (box) box.hidden = true;
@@ -351,9 +379,15 @@
     }
     // The vault gives the User ID and password to CommPilot's own fields, and CommPilot's Login link does the rest.
     function unlock(profile, pin, row, pinField) {
-      if (row.classList.contains("is-busy") || root.classList.contains("is-busy")) return;
+      if (!row || !row.isConnected || row.classList.contains("is-busy") || root.classList.contains("is-busy")) return;
+      cancelUnlocks();
+      var revision = unlockRevision, initialUser = user.value, initialPassword = password.value;
       row.classList.add("is-busy");
       request("unlock", { id: profile.id, pin: pin }, function (result) {
+        if (revision !== unlockRevision) return;
+        row.classList.remove('is-busy');
+        if (!row.isConnected || root.classList.contains('is-busy') ||
+            user.value !== initialUser || password.value !== initialPassword) return;
         if (!result || !result.ok) {
           row.classList.remove("is-busy");
           toast({ severity: "error", title: "Couldn’t open the saved sign-in", body: result && result.error || "Try again, or sign in with your User ID." });
@@ -368,7 +402,9 @@
       });
     }
     function loadProfiles(done) {
+      var revision = savedViewRevision, sequence = ++profileRequest;
       request("list", null, function (result) {
+        if (!root.isConnected || revision !== savedViewRevision || sequence !== profileRequest) return;
         if (!result || !result.ok) {
           showAccounts([]);
           if (done) done(null, result && result.error || "Saved sign-ins are unavailable");
@@ -381,8 +417,17 @@
       });
     }
 
+    // A completed vault operation still takes effect, but its response must not
+    // replace a different draft opened while the operation was pending.
+    function refreshSavedView(originBox) {
+      if (savedView === "manage") loadProfiles(function (list) { if (list) showManage(list); });
+      else if (savedView === "accounts" || originBox?.isConnected) loadProfiles();
+    }
+
     // Managing them: remove one, add one, or move the old vault's across.
     function panel(title, backLabel, back) {
+      savedViewRevision++;
+      cancelUnlocks();
       saved.replaceChildren();
       saved.hidden = false;
       or.hidden = false;
@@ -401,6 +446,7 @@
     }
     function showManage(profiles) {
       var box = panel("Saved sign-ins", "Done", function () { loadProfiles(); });
+      savedView = "manage";
       if (!profiles.length) box.append(el("p", "cp-login-empty", "None saved in this browser yet."));
       profiles.forEach(function (profile) {
         var row = el("div", "cp-login-mrow");
@@ -412,7 +458,7 @@
           remove.disabled = true;
           request("remove", { id: profile.id }, function (result) {
             if (result && result.ok) {
-              loadProfiles(function (list) { if (list) showManage(list); });
+              refreshSavedView(box);
               return;
             }
             remove.disabled = false;
@@ -423,13 +469,16 @@
       });
       var actions = el("div", "cp-login-row-actions");
       var add = btn("Add a saved sign-in", "cp-login-button");
-      add.addEventListener("click", function () { showAdd(function () { showManage(profiles); }); });
+      add.addEventListener("click", function () {
+        showAdd(function () { loadProfiles(function (list) { if (list) showManage(list); }); });
+      });
       actions.append(add);
       box.append(actions, el("p", "cp-login-help",
         "Kept in this browser, encrypted. An automatic one signs in when this page opens if it is the only one saved."));
     }
     function showAdd(back) {
       var box = panel("Save a sign-in", "Cancel", back);
+      savedView = "add";
       var id = field("text", "", "off");
       id.value = user.value;
       var secretField = field("password", "", "new-password");
@@ -463,13 +512,14 @@
           secretField.value = "";
           pin.value = "";
           toast({ severity: "info", body: "Saved: " + who + "." });
-          loadProfiles();
+          refreshSavedView(box);
         });
       });
       id.focus();
     }
     function showMigration() {
       var box = panel("Update saved sign-ins");
+      savedView = "migration";
       var secretField = field("password", "", "current-password");
       var update = btn("Update", "cp-login-button is-primary");
       var actions = el("div", "cp-login-row-actions");
@@ -482,7 +532,7 @@
         request("migrate", { passphrase: secretField.value }, function (result) {
           update.disabled = false;
           secretField.value = "";
-          if (result && result.ok) loadProfiles();
+          if (result && result.ok) refreshSavedView(box);
           else toast({ severity: "error", title: "Couldn’t update saved sign-ins", body: result && result.error || "Try again in a moment." });
         });
       });

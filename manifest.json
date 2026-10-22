@@ -12,6 +12,7 @@
   },
   "permissions": [
     "storage",
+    "alarms",
     "declarativeNetRequest"
   ],
   "action": {
@@ -23,6 +24,7 @@
     }
   },
   "host_permissions": [
+    "https://api.github.com/*",
     "https://apps.avpaas.io/*",
     "https://apps01.avpaas.io/*",
     "https://apps02.avpaas.io/*",
@@ -43,7 +45,7 @@
   },
   "background": {
     "service_worker": "src/bg/credential-bridge.js",
-    "scripts": ["src/bg/icon.js", "src/bg/credential-bridge.js"]
+    "scripts": ["src/bg/icon.js", "src/bg/updates.js", "src/bg/credential-bridge.js"]
   },
   "content_scripts": [
     {
@@ -72,6 +74,9 @@
         "https://phone2.tripbx.com/commpilot/*"
       ],
       "js": [
+        "src/content/user-bulk-phone.js",
+        "src/content/user-bulk-model.js",
+        "src/content/user-bulk-storage.js",
         "src/content/recovery-bridge.js",
         "src/content/logout-confirm.js"
       ],
@@ -89,7 +94,7 @@
         "https://phone2.tripbx.com/commpilot/*"
       ],
       "js": ["src/content/fonts.js",
-        "src/content/themes.js", "src/content/theme-settings.js", "src/content/brand.js"],
+        "src/content/themes.js", "src/content/updates.js", "src/content/theme-settings.js", "src/content/brand.js"],
       "run_at": "document_start",
       "all_frames": true
     },
@@ -125,6 +130,8 @@
         "src/content/number-bulk.js",
         "src/content/profile-bulk.js",
         "src/content/number-activation-bulk.js",
+        "src/content/user-bulk-phone.js",
+        "src/content/user-bulk-model.js",
         "src/content/user-bulk-engine.js",
         "src/content/user-bulk.js"
       ],

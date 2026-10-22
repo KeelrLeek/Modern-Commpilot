@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
 
-const root = path.resolve(__dirname, '..');
+const root = process.env.BW_TEST_EXTENSION_PATH || path.resolve(__dirname, '..');
 const browserPath = [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
@@ -52,15 +52,26 @@ function sheetCells(file) {
       .map(m => m[1] ?? m[2] ?? ''));
 }
 
-async function open(browser, total, pageLog) {
+async function open(browser, total, pageLog, corrupt = '', onPage) {
   const tab = await browser.newPage({ viewport: { width: 1366, height: 768 }, acceptDownloads: true });
   let serial = 0;
-  await tab.route('https://apps-sbx.avpaas.io/**', route => {
+  await tab.route('https://apps-sbx.avpaas.io/**', async route => {
     const url = new URL(route.request().url());
     const body = new URLSearchParams(route.request().postData() || '');
     if (url.pathname === '/commpilot/Common/page.jsp') {
-      pageLog?.push(Number(body.get('value')));
-      return route.fulfill({ status: 200, contentType: 'text/html', body: page(`tok-${++serial}`, Number(body.get('value')) + 1, total) });
+      const value = Number(body.get('value'));
+      pageLog?.push(value);
+      if (onPage) await onPage(value, body);
+      let html = page(`tok-${++serial}`, value === 1 && corrupt === 'repeated-page' ? 1 : value + 1,
+        value === 1 && corrupt === 'changed-total' ? total + 1 : total);
+      if (value === 1) {
+        if (corrupt === 'wrong-table') html = html.replaceAll('groupDnTable', 'anotherTable');
+        if (corrupt === 'wrong-return-page') html = html.replaceAll("returnPage: '/Group/DnManagement/'", "returnPage: '/Group/Users/'");
+        if (corrupt === 'no-descriptor') html = html.replace(/function doPage\(value\)[\s\S]*?<\/script>/, '</script>');
+        if (corrupt === 'native-error') html = html.replace('<td class="screenName">', '<td class="error">Cannot read this result page</td><td class="screenName">');
+        if (corrupt === 'empty-page') html = html.replace(/<tr id="Row[\s\S]*?<\/tr>/g, '');
+      }
+      return route.fulfill({ status: 200, contentType: 'text/html', body: html });
     }
     return route.fulfill({ status: 200, contentType: 'text/html', body: page('tok-0', 1, total) });
   });
@@ -94,6 +105,34 @@ test('a search with its pages all here exports every row, in the columns shown, 
   } finally { await browser.close(); }
 });
 
+test('leaving during the final export restoration discards the cancelled workbook', async () => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  let release, reached;
+  const hold = new Promise(resolve => { release = resolve; });
+  const restoring = new Promise(resolve => { reached = resolve; });
+  try {
+    const pages = [], downloads = [];
+    const tab = await open(browser, 51, pages, '', async () => {
+      if (pages.length === 52) { reached(); await hold; }
+    });
+    tab.on('download', download => downloads.push(download));
+    await tab.evaluate(() => {
+      window.fixtureExportResults = [];
+      document.addEventListener('cp:list-export-status', event => fixtureExportResults.push(JSON.parse(event.detail)));
+    });
+    await tab.locator('.cp-export-row button.cp-export-btn').click();
+    await restoring;
+    const next = tab.waitForRequest(request => request.method() === 'POST' && new URL(request.url()).pathname === '/commpilot/Group/Profile/');
+    await tab.evaluate(() => redirectPost('/commpilot/Group/Profile/', {}));
+    release();
+    await next;
+    await tab.waitForFunction(() => fixtureExportResults.some(result => ['failed', 'done'].includes(result.state)));
+    assert.equal(await tab.evaluate(() => fixtureExportResults.at(-1).state), 'failed');
+    assert.equal(downloads.length, 0);
+    assert.deepEqual(pages, [...Array(51).keys(), 0]);
+  } finally { release(); await browser.close(); }
+});
+
 test('a search too long to bring in is walked page by page for the export, and CommPilot’s list is left where it was', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });
@@ -109,5 +148,27 @@ test('a search too long to bring in is walked page by page for the export, and C
     assert.equal(cells[1][0], '+1-6308100101');
     assert.equal(cells[51 * 20][0], '+1-6308105120');
     assert.deepEqual(pages, [...Array(51).keys(), 0], 'pages 1 to 51 in order, then back to page 1');
+  } finally { await browser.close(); }
+});
+
+for (const corrupt of ['repeated-page', 'changed-total', 'wrong-table', 'wrong-return-page', 'no-descriptor', 'native-error', 'empty-page'])
+test(`paged export refuses a ${corrupt} response without downloading an incomplete workbook`, async () => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const pages = [], downloads = [];
+    const tab = await open(browser, 51, pages, corrupt);
+    tab.on('download', download => downloads.push(download));
+    await tab.evaluate(() => {
+      window.fixtureExportResults = [];
+      document.addEventListener('cp:list-export-status', event => fixtureExportResults.push(JSON.parse(event.detail)));
+    });
+    await tab.locator('.cp-export-row button.cp-export-btn').click();
+    await tab.waitForFunction(() => fixtureExportResults.some(result => ['failed', 'done'].includes(result.state)), null, { timeout: 60000 });
+    const last = await tab.evaluate(() => fixtureExportResults.at(-1));
+    assert.equal(last.state, 'failed', 'inconsistent results must not be announced as a completed export');
+    assert.deepEqual(pages, [0, 1], 'stop at the inconsistent page without reading further or replaying it');
+    assert.equal(downloads.length, 0);
+    assert.equal(await tab.locator('[name="formtokenserial"]').inputValue(), 'tok-2', 'keep the last response token for the next explicit action');
+    assert.equal(await tab.locator('tr[id^="Row"]').count(), 20, 'the visible native page is preserved');
   } finally { await browser.close(); }
 });

@@ -233,9 +233,13 @@ for(const action of ['ok','cancel']) test('failed context restore after '+action
     f.setPageResponse(userEntry,{status:500,body:'<html><head><title>Context error</title></head><body><table><tr><td width="82%"><input name="formtokenserial" value="context-error-token"><div class="error">The server could not restore the selected user. The current device editor must stay open until the user context can be restored safely.</div></td></tr></table></body></html>'});
     await f.page.locator('#description').fill('Unsaved draft');
     await f.page.locator('.cp-frame-actions input[name="'+action+'"]').click({noWaitAfter:true});
-    await f.page.locator('.cp-upload-notice').waitFor({state:'attached'});
+    // The frame transport now reports the actual HTTP failure instead of
+    // treating a 500 document as a successful but unverifiable restore.
+    await f.page.locator('[data-cp-nav-error]').waitFor({state:'attached'});
+    assert.match(await f.page.locator('[data-cp-nav-error]').innerText(),/HTTP 500/);
     assert.equal(new URL(f.page.url()).pathname,profile);
     assert.equal(await f.page.locator('#description').inputValue(),'Unsaved draft');
+    assert.equal(await f.page.locator('input[name="formtokenserial"]').first().inputValue(),'context-error-token');
     await f.page.waitForFunction(()=>!document.forms.mainForm.elements.ok.disabled);
     assert.equal(f.posts.filter(p=>p.path===appearance).length,0,'no final request after failed context restore');
     f.setPageResponse(userEntry,null);

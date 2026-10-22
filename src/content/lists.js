@@ -507,6 +507,10 @@
     state.spacer?.remove();
     const all = held.get(table);
     const rows = all || [...table.querySelectorAll(ROWS)];
+    // Re-measuring a shorter last page can change the fitted row count.
+    // Keep Last selected; other pages retain their visible row when resized.
+    const selectedPage = state.perPage ? Math.floor(state.start / state.perPage) : 0;
+    const selectedLast = state.start > 0 && selectedPage === Math.ceil(rows.length / state.perPage) - 1;
     // Only the rows that change place are touched: the page's rows and the ones it replaces. The first time, and
     // when rows came or went, every row is set. A held list swaps the page's rows in and the others out.
     const show = (from, count) => {
@@ -533,7 +537,7 @@
     const fixed=state.size&&state.size!=='auto';
     let perPage = fixed?Number(state.size):fit(cell, state.shown, searchDesign(table));
     let pages = Math.max(1, Math.ceil(rows.length / perPage));
-    let current = Math.min(pages - 1, Math.floor(state.start / perPage));
+    let current = selectedLast ? pages - 1 : Math.min(pages - 1, Math.floor(state.start / perPage));
     show(current * perPage, perPage);
     // Margins the measure cannot see (a quirks-mode form's bottom margin) can still push the page into a
     // scroll; take off the rows that overflow.
@@ -542,7 +546,7 @@
     if (!fixed && overflow > 0 && (perPage !== DEFAULT_PAGE || searchDesign(table)) && shownRow) {
       perPage = Math.max(searchDesign(table)?1:8, perPage - Math.ceil(overflow / (shownRow.getBoundingClientRect().height || 30)));
       pages = Math.max(1, Math.ceil(rows.length / perPage));
-      current = Math.min(pages - 1, Math.floor(state.start / perPage));
+      current = selectedLast ? pages - 1 : Math.min(pages - 1, Math.floor(state.start / perPage));
       show(current * perPage, perPage);
     }
     state.perPage = perPage;
@@ -592,17 +596,32 @@
 
   let observed = null;
   const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(() => requestAnimationFrame(refit)) : null;
+  function observeResults(cell) {
+    if (!observer || observed === cell) return;
+    observer.disconnect();
+    observed = cell;
+    if (cell) observer.observe(cell);
+  }
   function refit() {
+    if (!active()) return;
     const cell = content();
     if (!cell) return;
     for (const table of resultTables(cell)) if (pagers.has(table) && table.dataset.cpResultsReady!=='false') {pagers.get(table).reserveHeight=0;render(cell, table);}
   }
 
+  let applyFrame = 0;
+  function scheduleApply() {
+    if (applyFrame) return;
+    applyFrame = requestAnimationFrame(() => { applyFrame = 0; apply(); });
+  }
   function apply() {
-    if (!active()) return;
+    if (!active()) { observeResults(null); return; }
     const cell = content();
-    if (!cell || cell.querySelector(':scope > .cp-console')) return;
+    if (!cell || cell.querySelector(':scope > .cp-console')) { observeResults(null); return; }
     const tables = resultTables(cell);
+    // A retained observer target also keeps its detached, potentially large
+    // result list alive after navigation. Observe only the current list page.
+    observeResults(tables.length ? cell : null);
     for (const table of tables) {
       if(table.dataset.cpResultsReady==='true')continue;
       waiting(table);
@@ -629,11 +648,11 @@
         }catch(error){console.warn('[CommPilot lists] results',error);ready(table);}
       }));
     }
-    if (observer && observed !== cell) { observer.disconnect(); observer.observe(cell); observed = cell; }
   }
 
   document.addEventListener('cp:list-page',event=>{
     let request;try{request=JSON.parse(event.detail);}catch{return;}
+    if(!request||typeof request!=='object'||Array.isArray(request))return;
     const cell=content();if(!cell||!Number.isSafeInteger(request.offset)||request.offset<0)return;
     const table=resultTables(cell).find(table=>table.dataset.cpFill==='done'&&table.dataset.cpResultsReady==='true'&&
       table.dataset.cpReturnPage===request.returnPage&&table.dataset.cpTableName===request.tableName);
@@ -646,8 +665,8 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply, { once: true });
   else apply();
   // Same frame as forms.js (registered first), so a new page paints once, already in its final form.
-  document.addEventListener('cp:reskin', () => {for(const table of resultTables(content()||document.createElement('div')))if(table.dataset.cpResultsReady!=='true')waiting(table);requestAnimationFrame(apply);});
-  document.addEventListener('cp:list-fill', () => {for(const table of resultTables(content()||document.createElement('div')))waiting(table);requestAnimationFrame(apply);});
-  document.addEventListener('cp:theme-change', () => requestAnimationFrame(apply));
+  document.addEventListener('cp:reskin', () => {for(const table of resultTables(content()||document.createElement('div')))if(table.dataset.cpResultsReady!=='true')waiting(table);scheduleApply();});
+  document.addEventListener('cp:list-fill', () => {for(const table of resultTables(content()||document.createElement('div')))waiting(table);scheduleApply();});
+  document.addEventListener('cp:theme-change', scheduleApply);
   document.fonts?.ready.then(() => requestAnimationFrame(refit));
 })();

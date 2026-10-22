@@ -175,7 +175,7 @@ async function fixture(page,{failAuth=true,fullSkin=false,numberRows=null,number
     await route.fulfill({status:200,contentType:'text/html',body:render(target,error)});
   });
   await page.goto('https://apps-sbx.avpaas.io'+R.users);
-  for(const file of ['pjax.js','user-bulk-engine.js','user-bulk.js'])await page.addScriptTag({path:path.join(runtimeRoot,'src/content',file)});
+  for(const file of ['user-bulk-phone.js','pjax.js','user-bulk-engine.js','user-bulk.js'])await page.addScriptTag({path:path.join(runtimeRoot,'src/content',file)});
   for(const file of ['native-theme.css','theme-palettes.css','page-baseline.css','forms.css','user-bulk.css'])await page.addStyleTag({path:path.join(runtimeRoot,'src/content',file)});
   if(fullSkin)for(const file of ['enhancer.js','forms.js','lists.js'])await page.addScriptTag({path:path.join(runtimeRoot,'src/content',file)});
   return state;
@@ -498,7 +498,7 @@ test('verification rejects a wrong saved VVX or Teams Line/Port without sending 
     assert.match(primaryFailure,/saved primary VVX configuration did not match/);
     saved.vvx.line='3125550101';saved.teams.line='3125550101_Wrong';
     const teamsFailure=await page.evaluate(async()=>{try{await bulkLineTest.engine.step(bulkLineTest.user,5);return null;}catch(e){return e.message;}finally{bulkLineTest.lease.release();}});
-    assert.match(teamsFailure,/Teams line\/port does not match/);
+    assert.match(teamsFailure,/profile or line\/port did not match/);
     assert.equal(state.requests.filter(r=>r.params.ok||r.params.apply).length,saves);
     assert.equal(state.badTokens,0);
   }finally{await browser.close();}
@@ -597,7 +597,7 @@ test('Choose number opens during loading and remains anchored after a slow looku
     await page.screenshot({path:path.join(root,'dev-preview/bulk-user-designs/number-picker-scrolled.png')});
     assert.deepEqual(await page.locator('#cp-user-bulk [data-number]').evaluateAll(nodes=>nodes.map(n=>n.dataset.number)),['3125550102']);
     await page.locator('#cp-user-bulk [data-number="3125550102"]').click();
-    assert.equal(await page.locator('#cp-user-bulk [data-pick]').last().innerText(),'+1 312-555-0102');
+    assert.equal(await page.locator('#cp-user-bulk [data-pick]').last().innerText(),'3125550102');
     assert.equal(state.requests.filter(r=>r.params.ok||r.params.apply).length,0);
   } finally {release();await browser.close();}
 });

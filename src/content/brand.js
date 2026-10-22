@@ -48,9 +48,17 @@
   const headerCell = () => [...document.querySelectorAll("td.headerBar")]
     .find(cell => cell.querySelector("a.headerLink") && !cell.querySelector(".headerBarWelcome"));
 
+  let observedBrand = null;
+  function observeBrand(brand) {
+    if (observedBrand === brand) return;
+    if (observedBrand) fits.unobserve(observedBrand);
+    observedBrand = brand;
+    if (brand) fits.observe(brand);
+  }
   function attach() {
+    if (observedBrand && !observedBrand.isConnected) observeBrand(null);
     let brand = document.querySelector(".cp-brand");
-    if (document.body?.id !== "initBody.menuTemplate") { brand?.remove(); return; }
+    if (document.body?.id !== "initBody.menuTemplate") { observeBrand(null); brand?.remove(); return; }
     const header = headerCell();
     if (!header) return;
     if (brand?.parentElement !== header) {
@@ -67,7 +75,7 @@
       brand.classList.add("cp-brand-intro");   // the first sweep, once (theme-palettes.css)
       setTimeout(() => brand.classList.remove("cp-brand-intro"), 2200);
       header.prepend(brand);
-      fits.observe(brand);
+      observeBrand(brand);
       fit(brand);
     }
     brand.classList.toggle("cp-brand-new", seen !== null && seen !== version);

@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
 
-const root = path.resolve(__dirname, '..');
+const root = process.env.BW_TEST_EXTENSION_PATH || path.resolve(__dirname, '..');
 const browserPath = [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
@@ -37,6 +37,41 @@ const searchPage = shell(`<form name="mainForm"><table class="list" width="100%"
       button.value = '-'; tbody.appendChild(tr);
     }
   </script>`);
+
+test('form refresh notifications coalesce and decorate the current page after replacement', async t => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await open(browser, searchPage);
+    await page.locator('.cp-searchbar').waitFor();
+    await page.evaluate(() => {
+      window.formPasses = 0;
+      const query = Element.prototype.querySelector;
+      Element.prototype.querySelector = function (selector) {
+        if (selector === '#search0') window.formPasses++;
+        return query.call(this, selector);
+      };
+      for (let i = 0; i < 30; i++) {
+        for (const event of ['cp:reskin', 'cp:morphed', 'cp:theme-change'])
+          document.dispatchEvent(new Event(event));
+      }
+    });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const passes = await page.evaluate(() => window.formPasses);
+    t.diagnostic(`90 notifications produced ${passes} form decoration passes`);
+    assert.equal(passes, 1);
+    await page.evaluate(html => {
+      document.dispatchEvent(new Event('cp:reskin'));
+      const replacement = new DOMParser().parseFromString(html, 'text/html');
+      document.querySelector('td[width="82%"]')
+        .replaceWith(replacement.querySelector('td[width="82%"]'));
+      document.dispatchEvent(new Event('cp:morphed'));
+    }, searchPage);
+    await page.locator('.cp-searchbar').waitFor();
+    assert.equal(await page.locator('.cp-searchbar-wrap').count(), 1);
+    await page.locator('#search0').click();
+    assert.equal(await page.evaluate(() => window.searched), 1, 'native search still receives the click');
+  } finally { await browser.close(); }
+});
 
 // Call Forwarding Always as CommPilot renders it (trimmed), with a native rule: the number is only
 // editable while forwarding is On.
@@ -301,6 +336,68 @@ test('Available / Assigned lists become paired cards that drive CommPilot’s ow
   } finally { await browser.close(); }
 });
 
+test('picklist Add follows the native selection-dependent disabled state', async () => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const html = pickPage.replace('id="PICKLIST_addDomain"', 'id="PICKLIST_addDomain" disabled')
+      .replace('</body>', '<script>document.getElementById("availableList").addEventListener("change",function(){' +
+        'document.getElementById("PICKLIST_addDomain").disabled=!this.selectedOptions.length;});</script></body>');
+    const page = await open(browser, html);
+    const add = page.getByRole('button', { name: 'Add ›', exact: true });
+    assert.equal(await add.isDisabled(), true);
+    await page.getByRole('option', { name: 'b.example.com' }).click();
+    await page.waitForFunction(() => !document.querySelector('.cp-dl-move').disabled, null, { timeout: 2000 });
+    await add.click();
+    assert.equal(await page.evaluate(() => document.forms.mainForm.toAdd.value), 'b.example.com');
+  } finally { await browser.close(); }
+});
+
+test('picklist buttons follow native disabled changes made after layout', async () => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await open(browser, pickPage);
+    await page.locator('.cp-dl').waitFor();
+    for (const disabled of [true, false]) {
+      await page.evaluate(disabled => { document.querySelector('#PICKLIST_addDomain').disabled = disabled; }, disabled);
+      await page.waitForFunction(disabled => document.querySelector('.cp-dl-move').disabled === disabled,
+        disabled, { timeout: 2000 });
+    }
+  } finally { await browser.close(); }
+});
+
+for (const mode of ['option', 'select']) test(`picklist cannot select or move a natively disabled ${mode}`, async () => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const html = mode === 'option' ? pickPage.replace('<option value="b.example.com">', '<option disabled value="b.example.com">') :
+      pickPage.replace('id="availableList"', 'id="availableList" disabled');
+    const page = await open(browser, html);
+    await page.locator('.cp-dl').waitFor();
+    await page.getByRole('option', { name: 'b.example.com' }).evaluate(el => {
+      el.click();
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    assert.equal(await page.evaluate(() => document.querySelector('#availableList option[value="b.example.com"]')?.selected), false);
+    assert.equal(await page.evaluate(() => document.forms.mainForm.toAdd.value), '');
+    assert.equal(await page.getByRole('option', { name: 'b.example.com' }).getAttribute('aria-disabled'), 'true');
+    const style = await page.getByRole('option', { name: 'b.example.com' }).evaluate(el => {
+      const disabled = getComputedStyle(el), peer = getComputedStyle(document.querySelector('.cp-dl-pane:last-child .cp-dl-row'));
+      return { opacity: disabled.opacity, cursor: disabled.cursor, font: disabled.fontFamily, size: disabled.fontSize,
+        peerFont: peer.fontFamily, peerSize: peer.fontSize };
+    });
+    assert.equal(style.opacity, '0.5'); assert.equal(style.cursor, 'not-allowed');
+    assert.equal(style.font, style.peerFont); assert.equal(style.size, style.peerSize);
+    await page.evaluate(mode => {
+      const select = document.querySelector('#availableList');
+      (mode === 'option' ? select.querySelector('[value="b.example.com"]') : select).disabled = false;
+    }, mode);
+    await page.waitForFunction(() => [...document.querySelectorAll('.cp-dl-row')].some(el =>
+      el.textContent === 'b.example.com' && el.getAttribute('aria-disabled') === 'false'));
+    await page.getByRole('option', { name: 'b.example.com' }).click();
+    await page.getByRole('button', { name: 'Add ›', exact: true }).click();
+    assert.equal(await page.evaluate(() => document.forms.mainForm.toAdd.value), 'b.example.com', 'native enablement restores normal use');
+  } finally { await browser.close(); }
+});
+
 // A schedule event as CommPilot renders it (trimmed), with stand-ins for its own scripts: Repeats shows the
 // matching pattern row, All Day disables the times.
 const dayBox = (day, on) => `<td><input type="checkbox" name="recurWeekly${day}" id="recurWeekly${day}" value="checked"${on ? ' checked' : ''}></td><td>${day}</td>`;
@@ -337,6 +434,33 @@ const eventPage = shell(`<form name="mainForm"><input type="hidden" name="use24H
       for (const id of ['startTime', 'endTime', 'startAmpm', 'endAmpm']) document.getElementById(id).disabled = e.target.checked;
     });
   </script>`);
+
+for (const name of ['startDate', 'endDate', 'startTime', 'endTime']) {
+  for (const h24 of name.endsWith('Time') ? [false, true] : [false]) {
+    test(`clearing schedule ${name} clears native values and can be corrected (${h24 ? '24-hour' : '12-hour'})`, async () => {
+      const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+      try {
+        const html = h24 ? eventPage.replace('name="use24HourNotation" value="false"',
+          'name="use24HourNotation" value="true"').replace('id="endTime" value="5:00"', 'id="endTime" value="17:00"') : eventPage;
+        const page = await open(browser, html), errors = [];
+        page.on('pageerror', error => errors.push(error.message));
+        const date = name.endsWith('Date'), label = (name.startsWith('start') ? 'Start ' : 'End ') + (date ? 'date' : 'time');
+        const input = page.getByLabel(label, { exact: true });
+        const names = [name, ...(date ? ['month', 'day', 'year'] : ['hour', 'minute']).map(part => name + '_' + part)];
+        const values = () => page.evaluate(names => names.map(n => document.forms.mainForm.elements.namedItem(n).value), names);
+        await input.fill('');
+        await input.dispatchEvent('change');
+        assert.deepEqual(await values(), names.map(() => ''), 'the submitted native fields match the cleared picker');
+        assert.doesNotMatch(await page.locator('.cp-ev-sum').innerText(), /NaN|undefined|Invalid Date/);
+        await input.fill(date ? '2026-10-22' : '13:15');
+        await input.dispatchEvent('change');
+        assert.deepEqual(await values(), date ? ['10/22/2026', '10', '22', '2026'] :
+          [h24 ? '13:15' : '1:15', '13', '15'], 'correcting the empty field restores native date/time parts');
+        assert.deepEqual(errors, []);
+      } finally { await browser.close(); }
+    });
+  }
+}
 
 test('the schedule event editor shows a summary and pickers that write CommPilot’s own fields', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');

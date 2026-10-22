@@ -1,5 +1,5 @@
 // Chrome runs this file as the service worker; Firefox's event page lists icon.js itself.
-if (typeof importScripts === "function") importScripts("/src/bg/icon.js");
+if (typeof importScripts === "function") importScripts("/src/bg/icon.js", "/src/bg/updates.js");
 
 // Saved passwords are AES-GCM ciphertext in extension storage. A non-extractable
 // Web Crypto key is kept in the extension's IndexedDB so automatic sign-in can
@@ -81,6 +81,9 @@ if (typeof importScripts === "function") importScripts("/src/bg/icon.js");
       transaction.objectStore("keys").put(key, "main");
       transaction.oncomplete = resolve;
       transaction.onerror = function () { reject(transaction.error); };
+      // An explicit cancellation can fire abort without an error event. Reject so getKey releases its
+      // cached promise and the mutation queue can accept a later retry instead of hanging every save.
+      transaction.onabort = function () { reject(transaction.error || new Error('Encryption key transaction was cancelled.')); };
     });
   }
   function getKey(create) {

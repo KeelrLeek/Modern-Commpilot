@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
 
-const root = path.resolve(__dirname, '..');
+const root = process.env.BW_TEST_EXTENSION_PATH || path.resolve(__dirname, '..');
 const browserPath = [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
@@ -30,6 +30,10 @@ const page = `<!doctype html><html><head><title>Call Forwarding Always</title></
 
 async function open(browser, width, height, stored) {
   const tab = await browser.newPage({ viewport: { width, height } });
+  if (Number(process.env.BW_TEST_SIDEBAR_CPU_RATE) > 1) {
+    const session = await tab.context().newCDPSession(tab);
+    await session.send('Emulation.setCPUThrottlingRate', {rate: Number(process.env.BW_TEST_SIDEBAR_CPU_RATE)});
+  }
   await tab.addInitScript(saved => {
     let listener;
     const store = { cpThemePalette: 'graphite', cpSettings: saved };
@@ -92,10 +96,23 @@ test('the sidebar: a quiet list under a Menu header that folds it to icons, the 
     assert.deepEqual(full.bar, ['none', 'none', 'rgba(0, 0, 0, 0)'], 'no side bar, shadow or border on it');
 
     // Folding: animated (the column narrows over a moment), icons only, remembered, names beside the icons on hover.
-    await tab.getByRole('button', { name: 'Collapse the menu' }).click();
-    const midway = await tab.evaluate(() => new Promise(done => setTimeout(() =>
-      done(Math.round(document.querySelector('td.headandfoot[width="18%"]').getBoundingClientRect().width)), 110)));
-    assert.ok(midway > 68 && midway < full.width, `the sidebar narrows over a moment (${midway}px midway)`);
+    // Observe the actual CSS transition at its midpoint. A wall-clock sleep
+    // after a Playwright click can sample after the animation has already ended.
+    const midway = await tab.evaluate(() => {
+      const cell = document.querySelector('td.headandfoot[width="18%"]');
+      document.querySelector('.cp-side-toggle').click();
+      const animations = cell.getAnimations();
+      const widths = animations.filter(animation => ['width', 'flex-basis'].includes(animation.transitionProperty));
+      for (const animation of animations) {
+        animation.pause();
+        animation.currentTime = Number(animation.effect.getTiming().duration) / 2;
+      }
+      const width = Math.round(cell.getBoundingClientRect().width);
+      for (const animation of animations) animation.play();
+      return {width, transitions: widths.length};
+    });
+    assert.ok(midway.transitions > 0, 'folding has a real width transition');
+    assert.ok(midway.width > 68 && midway.width < full.width, `the sidebar narrows over a moment (${midway.width}px midway)`);
     const folded = await side(tab);
     assert.deepEqual([folded.rail, folded.forced, folded.width, folded.names, folded.label, folded.button],
       [true, false, 68, 'hidden', 'hidden', 'Expand the menu']);

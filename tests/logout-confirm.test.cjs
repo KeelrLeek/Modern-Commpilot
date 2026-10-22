@@ -5,13 +5,13 @@ const os = require('node:os');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
 
-const root = path.resolve(__dirname, '..');
+const root = process.env.BW_TEST_EXTENSION_PATH || path.resolve(__dirname, '..');
 const edge = [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 ].find(fs.existsSync);
 
-test('native Logout confirms once, posts through PJAX, and opens Login directly', async () => {
+test('native Logout confirms once, allows an explicit retry after HTTP failure, and opens Login directly', async () => {
   assert.ok(edge, 'Edge or Chrome is required');
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'bw-logout-test-'));
   let context;
@@ -21,7 +21,7 @@ test('native Logout confirms once, posts through PJAX, and opens Login directly'
       headless: true,
       args: [`--disable-extensions-except=${root}`, `--load-extension=${root}`]
     });
-    let logoutPosts = 0;
+    let logoutPosts = 0, logoutStatus = 503;
     const navigations = [];
     await context.route('https://apps-sbx.avpaas.io/commpilot/**', route => {
       const url = new URL(route.request().url());
@@ -44,7 +44,7 @@ test('native Logout confirms once, posts through PJAX, and opens Login directly'
       }
       if (url.pathname === '/commpilot/servlet/Logout') {
         if (route.request().method() === 'POST') logoutPosts++;
-        return route.fulfill({ status: 200, contentType: 'text/html', body:
+        return route.fulfill({ status: logoutStatus, contentType: 'text/html', body:
           '<!doctype html><title>Logout</title><body>Legacy logout page</body>' });
       }
       if (url.pathname === '/commpilot/Login/') {
@@ -82,8 +82,14 @@ test('native Logout confirms once, posts through PJAX, and opens Login directly'
     await trigger.click();
     await page.getByRole('dialog', { name: 'Sign out of CommPilot?' })
       .getByRole('button', { name: 'Sign out', exact: true }).click();
-    await page.waitForURL('**/commpilot/Login/', { timeout: 15000 });
+    await page.getByRole('button', { name: 'Retry sign out', exact: true }).waitFor();
     assert.equal(logoutPosts, 1);
+    assert.equal(new URL(page.url()).pathname, '/commpilot/Common/folder_contents.jsp');
+    assert.match(await page.locator('.cp-native-logout-copy').innerText(), /HTTP 503/);
+    logoutStatus = 200;
+    await page.getByRole('button', { name: 'Retry sign out', exact: true }).click();
+    await page.waitForURL('**/commpilot/Login/', { timeout: 15000 });
+    assert.equal(logoutPosts, 2);
     assert.equal(navigations.includes('/commpilot/servlet/Logout'), false);
     assert.equal(await page.title(), 'Login');
     assert.equal(await page.evaluate(() => sessionStorage.getItem('cp-signing-out')), null);

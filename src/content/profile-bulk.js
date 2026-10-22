@@ -81,7 +81,23 @@
         throw Error('This browser cannot read the workbook compression.');
       const stream = new Blob([item.data]).stream()
         .pipeThrough(new DecompressionStream('deflate-raw'));
-      return decoder.decode(await new Response(stream).arrayBuffer());
+      // Bound actual decompression, not just the size claimed by the ZIP directory.
+      const reader = stream.getReader(), text = new TextDecoder(), chunks = [];
+      let size = 0;
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          size += value.byteLength;
+          if (size > 12 * 1024 * 1024) {
+            await reader.cancel();
+            throw Error('Workbook sheet is too large.');
+          }
+          chunks.push(text.decode(value, { stream: true }));
+        }
+        chunks.push(text.decode());
+        return chunks.join('');
+      } finally { reader.releaseLock(); }
     };
     const xml = (source, label) => {
       const doc = new DOMParser().parseFromString(source, 'application/xml');
@@ -104,6 +120,13 @@
       if (!cell) continue;
       if (cell.getElementsByTagName('f').length) throw Error(`Formula in A${line}; enter text values.`);
       const type = cell.getAttribute('t');
+      if (type && !['n', 's', 'inlineStr', 'str'].includes(type))
+        throw Error(`Cell A${line} must contain text or a number, not a boolean, date, or error.`);
+      if (type === 's') {
+        const index = cellText(cell, 'v').trim();
+        if (!/^\d+$/.test(index) || !Number.isSafeInteger(Number(index)) || Number(index) >= shared.length)
+          throw Error(`Cell A${line} refers to a missing shared string. Re-save the workbook and try again.`);
+      }
       let value = type === 's' ? shared[Number(cellText(cell, 'v'))] :
         type === 'inlineStr' ? cellText(cell, 't') : cellText(cell, 'v');
       if (/^\d+(?:\.\d+)?[eE][+-]?\d+$/.test(value || '') && Number.isSafeInteger(Number(value)))
@@ -131,8 +154,11 @@
         if (error) reject(error); else setTimeout(resolve, 0);
       };
       const onReskin = () => finish();
-      const timer = setTimeout(() => finish(Error('CommPilot did not return a page. Check this profile before retrying.')),
-        timeout);
+      const deadline = () => {
+        if (window.cpHasPendingNativeRequest?.()) { timer = setTimeout(deadline, 250); return; }
+        finish(Error('CommPilot did not return a page. Check this profile before retrying.'));
+      };
+      let timer = setTimeout(deadline, timeout);
       document.addEventListener('cp:reskin', onReskin);
       try { action(); } catch (error) { finish(error); }
     });
@@ -148,8 +174,13 @@
     if (location.pathname !== LIST) await navigate(LIST, {}, LIST);
     const found = await window.cpListSearch([{ key: 'DeviceName', op, value }], {});
     if (found.tooMany) throw Error(`CommPilot returned too many profile names for ${value}.`);
-    return found.rows.filter(row => row.drill?.url === PROFILE &&
-      (op === 'CONTAINS' ? row.cells[0]?.includes(value) : row.cells[0] === value));
+    const matches = found.rows.filter(row =>
+      op === 'CONTAINS' ? row.cells[0]?.includes(value) : row.cells[0] === value);
+    // Presence is determined by the name. Losing its Edit link does not prove
+    // that a profile disappeared, particularly during deletion readback.
+    if (matches.some(row => row.drill?.url !== PROFILE))
+      throw Error('A matching profile has no usable Edit target. Reload the profile list and try again.');
+    return matches;
   }
 
   function profileIdentity() {
@@ -244,6 +275,7 @@
       throw Error('Profile name or assigned-line count changed before deletion.');
     const button = document.querySelector('td[width="82%"] form[name="mainForm"] input[name="delete"]');
     if (!button) throw Error('CommPilot Delete button is missing.');
+    if (button.matches(':disabled')) throw Error('CommPilot Delete button is disabled. No deletion was sent.');
     onStage('Requesting deletion');
     await waitForReskin(() => button.click());
     const response = content()?.innerText || '';
@@ -276,6 +308,7 @@
       <div class="cp-bulk-footer"><button type="button" data-action="apply" disabled>Delete unused profiles</button>
       <button type="button" data-action="close">Close</button></div></div>`;
     document.body.appendChild(overlay);
+    const releaseFocus = window.cpFocusBulkDialog(overlay);
     dialog = overlay;
     let preview = [];
     let working = false;
@@ -419,15 +452,16 @@
         setProgress(stopRequested || refused || errors ? 'Stopped with results' : 'Complete',
           processed, targets.length, 'Before and After results are shown below.');
       } finally {
-        working = false; close.textContent = 'Close';
+        const resultStatus = status.textContent;
         try { if (location.pathname !== LIST) await navigate(LIST, {}, LIST); }
         catch (error) { /* Keep the result visible. */ }
+        working = false; close.textContent = 'Close'; setStatus(resultStatus);
         render();
       }
     });
     close.addEventListener('click', () => {
       if (working) { stopRequested = true; setStatus('Stopping after the current profile…'); return; }
-      overlay.remove(); dialog = null; mountButton();
+      overlay.remove(); releaseFocus(); dialog = null; mountButton();
     });
   }
 

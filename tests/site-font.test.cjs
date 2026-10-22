@@ -97,7 +97,9 @@ test('Settings opens as a window and its font becomes the font of every part of 
     const dialog = tab.getByRole('dialog', { name: 'Settings' });
     await dialog.waitFor();
     const layout = await tab.evaluate(async () => {
-      await Promise.all(document.getAnimations().map(animation => animation.finished));   // the window's fade-in
+      // Font/style hydration can replace an animation, rejecting its finished
+      // promise with AbortError. Wait for settling, then verify actual geometry.
+      await Promise.allSettled(document.getAnimations().map(animation => animation.finished));
       const overlay = document.querySelector('.cp-settings-overlay').getBoundingClientRect();
       const box = document.getElementById('cp-appearance-panel').getBoundingClientRect();
       return { overlay: [overlay.left, overlay.top, overlay.width, overlay.height], view: [innerWidth, innerHeight],

@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
 
-const root = path.resolve(__dirname, '..');
+const root = process.env.BW_TEST_EXTENSION_PATH || path.resolve(__dirname, '..');
 const browserPath = [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
@@ -30,6 +30,43 @@ const menus = {
   R1: menu([['BASIC', 'link_domains', 'Domains', '/commpilot/Reseller/Domains/'],
     ['BASIC', 'link_numbers', 'Numbers', '/commpilot/Reseller/DnManagement/']])
 };
+
+for (const variant of ['inline', 'inline-complex', 'script-complex', 'script-after-other-binding', 'script-inert-json', 'script-inert-nomodule']) test(`a ${variant} native page-menu target retains its exact context parameters`, async () => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await browser.newPage(), requests = [];
+    const expectedKey=variant==='inline'?'SP>%Fixture':String.raw`SP>%O'Brien }),key:"wrong" literal\u0040`;
+    const payload=variant==='inline'?"{mode:'list', key:'SP\\u003E\\u0025Fixture', P_key:'SP\\u003E\\u0025Fixture'}":`{mode:'list',key:${JSON.stringify(expectedKey)},P_key:${JSON.stringify(expectedKey)}}`;
+    let inlineMenu = variant.startsWith('script-')?menu([['BASIC','link_admins','Administrators','/commpilot/Reseller/Admins/',payload]])
+      .replace('<script>',variant==='script-after-other-binding'?'<script>document.getElementById("unrelated-help")?.addEventListener("click",function(){return false;});':'<script>'):`<table><tr><td class="menuCategory">BASIC</td></tr><tr><td>
+      <a class="navMenuItem" id="link_admins" name="/Reseller/Admins/"
+        onclick="redirectPost('/commpilot/Reseller/Admins/', ${payload.replace(/&/g,'&amp;').replace(/"/g,'&quot;')})">Administrators</a>
+      </td></tr><tr><td>Manage administrators.</td></tr></table>`;
+    if(variant.startsWith('script-inert-'))inlineMenu+=`<script ${variant==='script-inert-json'?'type="application/json"':'nomodule'}>
+      window.inertWiringRan=true;document.getElementById('link_admins').onclick=function(){redirectPost('/commpilot/Reseller/Admins/',{key:'Wrong'});};</script>`;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request(), pathname = new URL(request.url()).pathname;
+      const params = new URLSearchParams(request.postData() || '');
+      if (request.method() === 'POST') requests.push({ pathname, params: Object.fromEntries(params) });
+      return route.fulfill({ contentType: 'text/html', body: shell(pathname === folderPath ?
+        (params.get('folder') === 'R1' ? menus.R1 : inlineMenu) : '<h1>Administrators</h1>', 'Profile') });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + folderPath);
+    await page.evaluate(() => { document.documentElement.dataset.cpDirection = 'atlas'; });
+    await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
+    await page.waitForFunction(() => Object.keys(sessionStorage).some(key => key.startsWith('cp-page-menu:')));
+    assert.equal(await page.evaluate(()=>window.inertWiringRan),undefined,'inactive script text must never become executable wiring');
+    const params = await page.evaluate(() => JSON.parse(sessionStorage.getItem(Object.keys(sessionStorage)
+      .find(key => key.startsWith('cp-page-menu:')))).folders[0].options.find(option => option.label === 'Administrators').params);
+    assert.deepEqual(params, { mode: 'list', key: expectedKey, P_key: expectedKey });
+    await page.locator('td.headerBar span.headerAuthLevel[data-cp-crumb-menu]').click();
+    await page.getByRole('dialog', { name: 'Pages at this level' }).getByRole('button', { name: 'Administrators', exact: true }).click();
+    await page.waitForFunction(() => location.pathname === '/commpilot/Reseller/Admins/');
+    const target = requests.filter(request => request.pathname === '/commpilot/Reseller/Admins/');
+    assert.equal(target.length, 1);
+    assert.deepEqual({ mode: target[0].params.mode, key: target[0].params.key, P_key: target[0].params.P_key }, params);
+  } finally { await browser.close(); }
+});
 function shell(body, title) {
   return `<!doctype html><html><head><title>${title}</title></head><body id="initBody.menuTemplate">
     <table><tr><td class="headerBar"><span class="headerAuthLevel">Reseller</span></td></tr></table>

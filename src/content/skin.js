@@ -12,45 +12,8 @@ cpDbg("[Modern CommPilot Skin] content script loaded");
 // legacy markup, and fires cp:skinlegacy → the list functions run (gate open) so the user is never stranded.
 function cpGridOn() { try { return document.documentElement.classList.contains("cp-grid-on"); } catch (e) { return false; } }
 
-// The reload-recovery store (cpRecoverNav + cpRecoverToken) is read back by cloak.js to re-POST the last page
-// after a DNR reload-redirect. chrome.storage.local is GLOBAL across origins, so a single shared key let one
-// host's nav/token bleed into another's recovery — visiting apps01 replayed the SANDBOX's absolute URL
-// (apps-sbx.../Admins/Add) with a cross-host token → /Login/. Key the store PER-ORIGIN so each host only ever
-// recovers its own page, and store the nav PATH-ONLY so a replay can never target another host.
-function cpRecoverKey(base) { try { return base + ":" + location.origin; } catch (e) { return base; } }
-
-function cpSaveRecoverToken(resetTries) {
-  try {
-    if (location.pathname.indexOf("/Login/") !== -1 || document.querySelector('input[type=password]')) return;
-    // Contentless redirect-stub pages carry a login-context token the server
-    // rejects for app POSTs — saving it would poison the recovery store.
-    if (!document.querySelector('td[width="82%"], a.navMenuItem, .navOptions')) return;
-    var t = document.getElementsByName("formtokenserial")[0];
-    if (t && t.value && chrome.storage) {
-      var o = {}; o[cpRecoverKey("cpRecoverToken")] = t.value;
-      if (resetTries) o[cpRecoverKey("cpRecoverTries")] = 0;
-      chrome.storage.local.set(o);
-    }
-  } catch (e) {}
-}
-cpSaveRecoverToken(true);
-document.addEventListener("cp:reskin", function () { cpSaveRecoverToken(false); });
-setInterval(function () { cpSaveRecoverToken(false); }, 15000);
-// Drop the legacy GLOBAL (non-namespaced) recovery keys that caused the apps01 <-> sandbox cross-host bleed.
-try { if (chrome.storage && chrome.storage.local) chrome.storage.local.remove(["cpRecoverNav", "cpRecoverToken", "cpRecoverTries"]); } catch (e) {}
-
-window.addEventListener("message", function (e) {
-  try {
-    if (e.source === window && e.data && e.data.__cpRecoverNav && chrome.storage) {
-      var nav = e.data.__cpRecoverNav;
-      // Strip any origin so the stored nav is a same-host PATH (defence against cross-host replay).
-      try { if (nav && typeof nav.url === "string") nav = { url: nav.url.replace(/^https?:\/\/[^\/]+/, ""), params: nav.params, entry: nav.entry || null }; } catch (e2) {}
-      try { if (nav && nav.entry && typeof nav.entry.url === "string") nav.entry = { url: nav.entry.url.replace(/^https?:\/\/[^\/]+/, ""), params: nav.entry.params }; } catch (e3) {}
-      var o = {}; o[cpRecoverKey("cpRecoverNav")] = nav;
-      chrome.storage.local.set(o);
-    }
-  } catch (err) {}
-});
+// Recovery persistence is owned by recovery-bridge.js. Do not periodically rewrite this tab's
+// unchanged token: another tab may have saved a newer token for the same session.
 
 /*
  * Inject asset-backed CSS rules at runtime.
@@ -5230,7 +5193,6 @@ function cpSkinDomPass() {
   restyleAlerts();
   cpRevealCloak();
   if (cpWireHelpBodyFn) cpWireHelpBodyFn();
-  cpSaveRecoverToken(false);
 }
 
 /* Re-skin on body morph (zero-navigation login — future phase). */

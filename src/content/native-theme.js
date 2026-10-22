@@ -52,6 +52,12 @@
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", decorate, { once: true });
   } else decorate();
-  document.addEventListener("cp:reskin", () => requestAnimationFrame(decorate));
-  document.addEventListener("cp:morphed", () => requestAnimationFrame(decorate));
+  let pending = false;
+  function schedule() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => { pending = false; decorate(); });
+  }
+  document.addEventListener("cp:reskin", schedule);
+  document.addEventListener("cp:morphed", schedule);
 })();

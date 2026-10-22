@@ -5,14 +5,14 @@ const os = require('node:os');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
 
-const root = path.resolve(__dirname,'..');
+const root = path.resolve(process.env.BW_TEST_EXTENSION_PATH || path.resolve(__dirname,'..'));
 const origin = 'https://apps-sbx.avpaas.io';
 const addresses = '/commpilot/User/Addresses/';
 const profilePath = '/commpilot/User/Profile/';
 const edge = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const esc = value => String(value).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 
-async function fixture(initial = {extension:'',number:''}) {
+async function fixture(initial = {extension:'',number:''}, renderDelay = 0) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(),'bw-address-crumb-'));
   const context = await chromium.launchPersistentContext(temp, {
     executablePath:edge, headless:true, viewport:{width:1280,height:800},
@@ -20,6 +20,8 @@ async function fixture(initial = {extension:'',number:''}) {
   });
   try {
     const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
+    // This mock server starts with a GET; native cold-GET recovery has its own tests.
+    await worker.evaluate(()=>chrome.declarativeNetRequest.updateEnabledRulesets({disableRulesetIds:['ruleset_1']}));
     await worker.evaluate(() => chrome.storage.local.set({cpThemePalette:'graphite',cpSettings:{peek:false}}));
     await context.grantPermissions(['clipboard-read','clipboard-write'],{origin});
     let saved = {...initial}, serial = 0;
@@ -49,7 +51,26 @@ async function fixture(initial = {extension:'',number:''}) {
     const page = await context.newPage();
     await page.goto(origin + profilePath);
     await page.locator('.cp-ext-chip').waitFor();
-    const nav = async url => { await page.evaluate(url => window.redirectPost(url,{}),url); await page.waitForFunction(url => document.documentElement.getAttribute('data-cp-path') === url,url); };
+    assert.equal(page.url(),origin+profilePath,'the mock starts on its requested Profile page');
+    if (renderDelay) {
+      const cdp=await context.newCDPSession(page),contexts=[];
+      cdp.on('Runtime.executionContextCreated',event=>contexts.push(event.context));
+      await cdp.send('Runtime.enable');
+      let patched=0;
+      for(const executionContext of contexts){
+        const check=await cdp.send('Runtime.evaluate',{contextId:executionContext.id,expression:'typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.id'});
+        if(!check.result.value)continue;
+        await cdp.send('Runtime.evaluate',{contextId:executionContext.id,expression:`(()=>{const request=window.requestAnimationFrame.bind(window);window.requestAnimationFrame=callback=>request(timestamp=>setTimeout(()=>callback(timestamp),${renderDelay}));})()`});
+        patched++;
+      }
+      assert.ok(patched>0,'exercise rendering in the isolated extension context');
+    }
+    const nav = async url => {
+      await page.evaluate(url => window.redirectPost(url,{}),url);
+      await page.waitForFunction(url => document.documentElement.getAttribute('data-cp-path') === url,url);
+      // Navigation commits before the isolated content script paints the header.
+      await page.locator('.cp-ext-chip b').waitFor({state:'attached'});
+    };
     return {page,nav,requests,close:async () => { await context.close(); fs.rmSync(temp,{recursive:true,force:true}); }};
   } catch(error) { await context.close(); fs.rmSync(temp,{recursive:true,force:true}); throw error; }
 }
@@ -80,13 +101,21 @@ for (const action of ['apply','ok']) test(`${action} refreshes a new user's brea
 });
 
 test('a rejected Addresses save keeps the saved breadcrumb, and clearing values removes them', async () => {
-  const f = await fixture({extension:'1042',number:'2055550142'});
+  const f = await fixture({extension:'1042',number:'2055550142'},120);
   try {
+    await f.page.evaluate(()=>{
+      window.rejectedIdentityPainted=false;
+      new MutationObserver(()=>{
+        if(document.querySelector('.cp-ext-chip b')?.textContent==='reject'||
+          document.querySelector('.cp-num-chip b')?.textContent==='205-555-0143')window.rejectedIdentityPainted=true;
+      }).observe(document.documentElement,{subtree:true,childList:true,characterData:true});
+    });
     await f.nav(addresses);
     await f.page.locator('#extension').fill('reject');
     await f.page.locator('#phoneNumber').selectOption('2055550143');
     await f.page.locator('input[name="apply"]').click();
     await f.page.locator('.Failure').waitFor({state:'attached'});
+    await f.page.locator('.cp-ext-chip b').waitFor({state:'attached'});
     assert.deepEqual(await values(f.page),{extension:'1042',number:'205-555-0142'},'a validation error does not change the saved identity');
     await f.nav(profilePath);
     assert.deepEqual(await values(f.page),{extension:'1042',number:'205-555-0142'});
@@ -97,5 +126,6 @@ test('a rejected Addresses save keeps the saved breadcrumb, and clearing values 
     await f.page.waitForFunction(() => document.querySelector('.cp-ext-chip b')?.textContent === '–' && !document.querySelector('.cp-num-chip'));
     await f.nav(profilePath);
     assert.deepEqual(await values(f.page),{extension:'–',number:''});
+    assert.equal(await f.page.evaluate(()=>window.rejectedIdentityPainted),false,'rejected fields never appear as the saved identity');
   } finally { await f.close(); }
 });

@@ -47,6 +47,73 @@
     try { return JSON.parse(sessionStorage.getItem("cp-last-nav") || "null"); } catch (e) { return null; }
   }
 
+  // Recovery data can outlive the code that saved it. Validate both the destination and its entity entry
+  // at the replay boundary; a malformed URL or an old form submission must never be posted on Reload.
+  function recoveryNav(value, isEntry) {
+    try {
+      if (!value || typeof value !== "object" || Array.isArray(value) || typeof value.url !== "string") return null;
+      var url = new URL(value.url, location.href);
+      if (url.origin !== location.origin || url.username || url.password || !url.pathname.startsWith("/commpilot/") ||
+          /\/(?:Login|Logout|servlet|Add|AddRange|AddModify|Import|Delete)(?:\/|$)/i.test(decodeURIComponent(url.pathname))) return null;
+      var source = value.params || {}, params = Object.create(null);
+      if (typeof source !== "object" || Array.isArray(source)) return null;
+      function mutation(name, val) {
+        return /^(?:ok|apply|delete|cancel|save|submit|__cpFormEntries)$/i.test(name) ||
+          /password|secret|passcode|^pin$/i.test(name) || /^buttonClicked$/i.test(name) && String(val || "").trim() !== "";
+      }
+      for (var pair of [...url.searchParams.entries()]) {
+        if (mutation(pair[0], pair[1])) return null;
+        if (/^formtokenserial$/i.test(pair[0])) url.searchParams.delete(pair[0]);
+      }
+      for (var key of Object.keys(source)) {
+        if (mutation(key, source[key]) || source[key] !== null && typeof source[key] === "object") return null;
+        if (/^(?:formtokenserial|__proto__|constructor|prototype)$/i.test(key)) continue;
+        params[key] = source[key];
+      }
+      var entry = !isEntry && value.entry ? recoveryNav(value.entry, true) : null;
+      if (!isEntry && value.entry && !entry) return null;
+      return { url: url.pathname + url.search, params: params, entry: entry };
+    } catch (e) { return null; }
+  }
+
+  function recoveryFailed(message) {
+    // A paused read/transport failure is not a failed native replay loop. A later
+    // manual reload must be allowed to check the session again; otherwise two
+    // network failures force Login even after the connection has recovered.
+    try { sessionStorage.removeItem('cp-stub-tries'); sessionStorage.removeItem('cp-stub-tries-at'); } catch (e) {}
+    document.documentElement.classList.remove('cp-stub-hold');
+    document.documentElement.classList.add('cp-recovery-page');
+    document.getElementById('cp-cloak')?.remove();
+    try { sessionStorage.removeItem('cp-replay-at'); sessionStorage.removeItem('cp-reload-nav'); } catch (e) {}
+    var panel = document.createElement('section');
+    panel.id = 'cp-recovery-error';
+    panel.setAttribute('role', 'alert');
+    var title = document.createElement('div');
+    title.className = 'cp-alert-title'; title.textContent = 'Page recovery paused';
+    var body = document.createElement('p');
+    body.className = 'cp-alert-body'; body.textContent = message;
+    var retry = document.createElement('button');
+    retry.type = 'button'; retry.className = 'cp-alert-act'; retry.textContent = 'Retry recovery';
+    retry.addEventListener('click', function () {
+      retry.disabled = true;
+      try { sessionStorage.setItem('cp-stub-tries', '0'); } catch (e) {}
+      location.reload();
+    });
+    panel.append(title, body, retry);
+    var parent = document.body || document.documentElement;
+    if (document.body) { document.body.classList.add('cp-recovery-page'); document.body.replaceChildren(panel); }
+    else parent.appendChild(panel);
+    function palette() {
+      if (document.documentElement.dataset.cpDirection) {
+        panel.dataset.cpPalette = document.documentElement.dataset.cpDirection;
+        document.documentElement.dataset.cpPalette = panel.dataset.cpPalette;
+        if (document.body) document.body.dataset.cpPalette = panel.dataset.cpPalette;
+      }
+    }
+    palette();
+    document.addEventListener('cp:theme-change', palette);
+  }
+
   // Preserve CommPilot's own inline styling on fetched pages.
   function cpStripInlineStyles(html) {
     return String(html);
@@ -76,11 +143,16 @@
   // live. A GET to the POST-only folder_contents only yields a "go to Login" stub (a login-context token, also
   // rejected). But servlet/Login is GET-allowed (DNR rule 5) and SESSION-AWARE: while the session is alive it
   // returns redirectPost(folder_contents, {fresh token}) — a freshly-issued VALID app token (the same bounce the
-  // live /Login/ page uses to send an already-logged-in user home). Returns that token, or null when the session
-  // is dead / it's the login form / network error → caller falls back to the stored token (no regression).
-  function cpHarvestOnce() {
-    return fetch("/commpilot/servlet/Login", { method: "GET", credentials: "same-origin", cache: "no-store", redirect: "manual" })
+  // live /Login/ page uses to send an already-logged-in user home). Returns the token and authenticated home, or null when the session
+  // is dead / it's the login form. Network and server errors reject: they do not establish session expiry.
+  function cpHarvestOnce(signal) {
+    return fetch("/commpilot/servlet/Login", { method: "GET", credentials: "same-origin", cache: "no-store", redirect: "manual", signal: signal })
       .then(function (r) {
+        if (r.status >= 400 && r.status !== 401) {
+          var error = new Error('Session check HTTP ' + r.status);
+          error.noRetry = true;
+          throw error;
+        }
         // redirect:"manual" — a dead session bounces servlet/Login to http:// Login; following it would CSP-fail
         // (mixed content) as a spurious connect-src violation. An opaqueredirect/3xx means "no fresh token" → null
         // (caller falls back to the stored token, identical to before). Only a real 200 body carries a harvestable stub.
@@ -91,38 +163,57 @@
         if (!html) return null;
         var stub = extractStub(new DOMParser().parseFromString(cpStripInlineStyles(html), "text/html"));
         // Only trust a token that arrives WITH an app redirect (folder_contents) — not the login form's own token.
-        return (stub && stub.target && stub.target.indexOf("folder_contents") !== -1 && stub.token) ? stub.token : null;
+        var home = stub && stub.target && stub.target.indexOf("folder_contents") !== -1 &&
+          recoveryNav({url:stub.target,params:stub.data}, true);
+        return home && stub.token ? {token:stub.token,home:home} : null;
       });
   }
-  function cpHarvestToken() {
+  function cpHarvestToken(signal) {
     // ONE-SHOT retry on a NETWORK error only: the harvest is the FIRST request after idle, so it can hit the same
     // dropped-socket "Failed to fetch" as the dead-click bug (0.2.264) — a second fetch opens a fresh socket. A
     // RESOLVED null (session dead / login form) is definitive and is NOT retried (it passes straight through). The
-    // final fallback stays null → caller uses the stored token, identical to before (no 0.2.270 regression).
-    return cpHarvestOnce().catch(function () {
-      return new Promise(function (res) { setTimeout(res, 250); }).then(cpHarvestOnce);
-    }).catch(function () { return null; });
+    // HTTP failures and two failed connections stop recovery; do not spend an unverified stored token.
+    return cpHarvestOnce(signal).catch(function (error) {
+      if (signal.aborted) return null;
+      if (error.noRetry) throw error;
+      return new Promise(function (res) { setTimeout(res, 250); }).then(function () {
+        return signal.aborted ? null : cpHarvestOnce(signal);
+      });
+    });
   }
 
   function replay(nav, token) {
-    // Never replay across origins. The recovery store is per-host + path-only now, but guard against any absolute
-    // foreign URL (e.g. stale legacy global-store data) so apps01 can't be POSTed to the sandbox host.
-    try { if (/^https?:\/\//i.test(nav.url) && nav.url.indexOf(location.origin + "/") !== 0) { location.replace("/commpilot/Login/"); return; } } catch (e) {}
+    nav = recoveryNav(nav, false);
+    var useHome = !nav;
+    if (!nav) {
+      nav = HOME;
+      try { sessionStorage.removeItem("cp-last-nav"); } catch (e) {}
+    }
     // Mark that a recovery replay is in flight, so a FAILED replay landing on /Login/ or the "temporarily
     // unavailable" error page can be detected and auto-retried ONCE (instead of forcing a manual re-login).
     try { sessionStorage.setItem("cp-replay-at", String(Date.now())); } catch (e) {}
     // FETCH-VERIFY: harvest a fresh token first, then native-POST with it. A native POST of a possibly-stale
     // STORED token is the recovery-flakiness root (→ 200 login-redirect). If the harvest yields a fresh token we
-    // commit with that; if it fails for ANY reason (session dead, login page, network error, timeout) we fall
-    // back to the stored token = the previous behaviour exactly (NO REGRESSION). Bounded by a timeout so a hung
-    // fetch can't strand recovery.
-    var committed = false;
+    // commit with that. A settled unauthenticated response keeps the native expiry fallback. A request still pending
+    // at the deadline must stop recovery instead: it may rotate the token after a fallback POST has started.
+    var committed = false, stopped = false;
+    var harvestController = new AbortController();
+    var harvestTimeout;
+    function stopRecovery(message) {
+      if (committed || stopped) return;
+      stopped = true;
+      clearTimeout(harvestTimeout);
+      harvestController.abort();
+      recoveryFailed(message);
+    }
     // Re-establish the ENTITY context before the final nav. The recovery lands on a session whose navigation
     // target was reset (the GET that triggered recovery / the harvest bounce), so replaying an SP/Group/User-
     // scoped nav alone answers "There is no target object to get viewable features" → 500s or a logout (live
     // repro: F5 on an SP Schedules grid, 2026-07-04). nav.entry = the nav that last CHANGED the sidebar level
     // (recorded by pjax): POST it in the background first and thread ITS fresh token into the final POST.
     function cpEnterEntity(entry, tok) {
+      var controller = new AbortController();
+      var timeout = setTimeout(function () { controller.abort(); }, 12000);
       var body = [];
       var p = entry.params || {};
       for (var k in p) if (Object.prototype.hasOwnProperty.call(p, k)) body.push(encodeURIComponent(k) + "=" + encodeURIComponent(p[k]));
@@ -132,6 +223,7 @@
         headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
         credentials: "same-origin",
         redirect: "manual",
+        signal: controller.signal,
         body: body.join("&")
       }).then(function (r) {
         if (r.type === "opaqueredirect" || r.status === 0 || r.status >= 300) return null;
@@ -140,14 +232,18 @@
         if (!html) return null;
         var doc = new DOMParser().parseFromString(cpStripInlineStyles(html), "text/html");
         var t = doc.getElementsByName("formtokenserial")[0];
-        if (t && t.value) return t.value;
+        if (t && t.value && doc.querySelector('td[width="82%"]')) return t.value;
         // A drill entry may answer with a redirect stub (context set + follow-on hop) — its token works too.
         var stub = extractStub(doc);
-        return (stub && stub.token) ? stub.token : null;
-      }).catch(function () { return null; });
+        return (stub && stub.token && recoveryNav({url:new URL(stub.target, new URL(entry.url, location.href)).href,params:stub.data}, true)) ? stub.token : null;
+      }).catch(function () { return null; }).finally(function () { clearTimeout(timeout); });
     }
-    function commit(tok, why) {
-      if (committed) return; committed = true;
+    function commit(tok, why, home) {
+      if (committed || stopped) return; committed = true;
+      clearTimeout(harvestTimeout);
+      // When no valid saved location exists, use the authenticated landing returned by CommPilot. A group
+      // or user administrator must not be sent to the reseller R0 menu just because recovery state is empty.
+      if (useHome && home) nav = home;
       var entry = nav && nav.entry;
       // One-shot hand-off to pjax.js on the landing page (cpReloadEntry): which entity entry this replay
       // re-established, so an SP/Group/User folder board can restore the context after its folder reads.
@@ -157,21 +253,25 @@
       } catch (e) {}
       if (entry && entry.url && entry.url !== nav.url && !/^https?:\/\//i.test(entry.url)) {
         cpDbg("[stubguard] recovery replay — " + why + " + entity re-entry first: " + entry.url);
-        cpEnterEntity(entry, tok).then(function (etok) { cpNativePost(nav, etok || tok); });
+        cpEnterEntity(entry, tok).then(function (etok) {
+          if (etok) cpNativePost(nav, etok);
+          else recoveryFailed('CommPilot could not restore the selected user or group. The destination was not opened. Wait a moment, then retry recovery.');
+        });
         return;
       }
       cpDbg("[stubguard] recovery replay — " + why);
       cpNativePost(nav, tok);
     }
     try {
-      cpHarvestToken().then(
-        function (fresh) { commit(fresh || token, fresh ? "fresh token harvested" : "harvest empty → stored token"); },
-        function () { commit(token, "harvest rejected → stored token"); }
+      cpHarvestToken(harvestController.signal).then(
+        function (fresh) { commit(fresh ? fresh.token : token, fresh ? "fresh token harvested" : "harvest empty → stored token", fresh && fresh.home); },
+        function () { stopRecovery('CommPilot could not refresh this session. Recovery stopped before reopening your last page. Wait a moment, then retry recovery.'); }
       );
-    } catch (e) { commit(token, "harvest threw → stored token"); }
-    // 8000ms (was 3500): a cold TLS re-handshake + server round-trip after an idle dropped socket routinely
-    // exceeds 3.5s; committing the STORED (possibly-consumed) token early was forcing a 200 /Login/ bounce.
-    setTimeout(function () { commit(token, "harvest timeout → stored token"); }, 8000);
+    } catch (e) { stopRecovery('CommPilot could not refresh this session. Wait a moment, then retry recovery.'); }
+    // A cold connection gets eight seconds. Do not race an unfinished harvest with a stored-token POST.
+    harvestTimeout = setTimeout(function () {
+      stopRecovery('CommPilot did not finish refreshing this session. Recovery stopped before reopening your last page. Wait a moment, then retry recovery.');
+    }, 8000);
   }
 
   // Parse a redirect-stub document: target URL, data object, fresh token.
@@ -194,8 +294,8 @@
 
   if (path.indexOf("/Logout/") !== -1) return;
 
-  // Query recovery-bridge.js (ISOLATED world) for the stored nav + token, then hand
-  // {nav, token} to finish() — nav falls back to sessionStorage, then HOME.
+  // Query recovery-bridge.js (ISOLATED world) for a fallback token. The saved destination must belong
+  // to this tab: host-wide navigation may have been written by a different tab viewing another user.
   // onNoToken runs when there is nothing usable to replay.
   function bridgeRecover(label, onNoToken) {
     var settled = false;
@@ -205,9 +305,8 @@
       settled = true;
       clearTimeout(fallback);
       if (ask) clearInterval(ask);
-      if (!(nav && nav.url)) nav = HOME;
       if (token) {
-        cpDbg("[stubguard] " + label + " → replay", nav.url);
+        cpDbg("[stubguard] " + label + " → replay", nav && nav.url || "home");
         replay(nav, token);
       } else {
         // No stored token (slow/failed storage bridge on a cold service-worker, OR the bridge answered with none).
@@ -229,7 +328,7 @@
       if (e.source !== window || !e.data || !("__cpStubNavReply" in e.data)) return;
       window.removeEventListener("message", onReply);
       var stored = e.data.__cpStubNavReply || {};
-      finish(sessionNav() || stored.nav, stored.token || null);
+      finish(sessionNav(), stored.token || null);
     });
     ask = setInterval(function () {
       if (settled) { clearInterval(ask); return; }

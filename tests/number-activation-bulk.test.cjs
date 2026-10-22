@@ -8,9 +8,10 @@ const edge = process.env.CHROME_PATH || [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 ].find(fs.existsSync);
-const bulk = path.resolve(__dirname, '../src/content/number-activation-bulk.js');
+const bulk = path.join(process.env.BW_TEST_EXTENSION_PATH || path.resolve(__dirname, '..'),
+  'src/content/number-activation-bulk.js');
 
-async function fixture(badPage = false, rangeAsOne = false, mismatch = false, advertisedPages = 3) {
+async function fixture(badPage = false, rangeAsOne = false, mismatch = false, advertisedPages = 3, editNumbers = null, locked = '', holdReturn = false) {
   assert.ok(edge, 'Set CHROME_PATH to Edge or Chrome');
   const browser = await chromium.launch({ executablePath: edge, headless: true });
   const page = await browser.newPage();
@@ -20,17 +21,19 @@ async function fixture(badPage = false, rangeAsOne = false, mismatch = false, ad
     body: '<!doctype html><html><body><table><tr><td width="82%"></td></tr></table></body></html>'
   }));
   await page.goto(`https://apps-sbx.avpaas.io${list}`);
-  await page.evaluate(({ badPage, rangeAsOne, mismatch, advertisedPages }) => {
+  // Load shared dialog behavior before installing this fixture's native transport.
+  await page.addScriptTag({ path: path.join(path.dirname(bulk), 'pjax.js') });
+  await page.evaluate(({ badPage, rangeAsOne, mismatch, advertisedPages, editNumbers, locked, holdReturn }) => {
     const LIST = '/commpilot/Group/DnActivation/';
     const MODIFY = '/commpilot/Group/DnActivation/Modify/index.jsp';
     const cell = document.querySelector('td[width="82%"]');
     const data = [
       { label: '+1-1111111111', numbers: ['+1-1111111111'], active: true },
       { label: '+1-2222222222 - +1-2222222223',
-        numbers: rangeAsOne ? ['+1-2222222222 - +1-2222222223'] :
-          ['+1-2222222222', '+1-2222222223'], active: false },
+        numbers: editNumbers || (rangeAsOne ? ['+1-2222222222 - +1-2222222223'] :
+          ['+1-2222222222', '+1-2222222223']), active: false },
       { label: '+1-3333333333', numbers: ['+1-3333333333'], active: true },
-      { label: '+1-4444444444', numbers: ['+1-4444444444'], active: false },
+      { label: '+1-4444444444', numbers: ['+1-4444444444'], active: holdReturn },
       { label: '+1-5555555555', numbers: ['+1-5555555555'], active: true }
     ];
     let pageIndex = 0, found = null, current = null, staged = false, sorted = false;
@@ -53,8 +56,19 @@ async function fixture(badPage = false, rangeAsOne = false, mismatch = false, ad
       cell.innerHTML = `<form name="mainForm"><input name="action" type="hidden">
         <input name="toAdd" type="hidden"><select name="deactivatedList" multiple>
         ${options(left)}</select><select name="activatedList" multiple>${options(right)}</select>
-        <input id="PICKLIST_addNumbers" type="button" value="Add >">
+        <input id="${locked === 'selection' ? 'PICKLIST_addNumbers' : 'PICKLIST_selectAllNumber'}" type="button" value="Add >">
         <input name="ok" type="button" value="OK"></form>`;
+      if (locked === 'fieldset') {
+        const form = cell.querySelector('form'), fieldset = document.createElement('fieldset');
+        fieldset.disabled = true;
+        fieldset.append(...form.childNodes);
+        form.appendChild(fieldset);
+      } else if (locked === 'selection') {
+        const add = cell.querySelector('#PICKLIST_addNumbers'), select = cell.querySelector('[name=deactivatedList]');
+        add.disabled = true;
+        select.addEventListener('change', () => { add.disabled = !select.selectedOptions.length; });
+      } else if (locked) cell.querySelector(locked === 'add' ? '#PICKLIST_selectAllNumber' :
+        locked === 'select' ? '[name=deactivatedList]' : '[name=ok]').disabled = true;
       // Model a PJAX page where the native Add > click handler never attached.
       cell.querySelector('form').submit = () => {
         const form = cell.querySelector('form');
@@ -78,6 +92,12 @@ async function fixture(badPage = false, rangeAsOne = false, mismatch = false, ad
         P_key: item.label, activated: String(item.active), P_activated: String(item.active) } }
     })) });
     window.redirectPost = (url, params = {}) => {
+      if (holdReturn && !window.returnReleased && url === LIST &&
+          window.calls.filter(call => call === MODIFY).length >= 2 && window.calls.some(call => call.startsWith('save:'))) {
+        window.returnHeld = true;
+        window.releaseReturn = () => { window.returnReleased = true; window.redirectPost(url, params); };
+        return;
+      }
       window.calls.push(url + (params.value != null ? ':' + params.value : ''));
       if (url === '/commpilot/Common/page.jsp') {
         pageIndex = Number(params.value); found = null;
@@ -93,7 +113,7 @@ async function fixture(badPage = false, rangeAsOne = false, mismatch = false, ad
       } else listView();
       document.dispatchEvent(new Event('cp:reskin'));
     };
-  }, { badPage, rangeAsOne, mismatch, advertisedPages });
+  }, { badPage, rangeAsOne, mismatch, advertisedPages, editNumbers, locked, holdReturn });
   await page.addScriptTag({ path: bulk });
   return { browser, page };
 }
@@ -168,5 +188,83 @@ test('activation stops at the first active row even when 206 pages are advertise
     const calls = await page.evaluate(() => window.calls);
     assert.equal(calls.filter(c => c.startsWith('/commpilot/Common/page.jsp')).length, 1);
     assert.equal(calls.filter(c => c === '/commpilot/Group/DnActivation/Modify/index.jsp').length, 0);
+  } finally { await browser.close(); }
+});
+
+for (const [name, numbers] of [
+  ['different numbers with the same count', ['+1-8888888888', '+1-8888888889']],
+  ['a different compact range with the same count', ['+1-8888888888 - +1-8888888889']],
+  ['duplicate members with the same count', ['+1-2222222222', '+1-2222222222']]
+]) test(`activation rejects ${name} before staging`, async () => {
+  const { browser, page } = await fixture(false, false, false, 3, numbers);
+  try {
+    await page.locator('#cp-bulk-activation-launch').click();
+    await page.locator('[data-action="scan"]').click();
+    await page.waitForFunction(() => !document.querySelector('[data-action="scan"]').disabled);
+    await page.locator('[data-action="apply"]').click();
+    await page.waitForFunction(() => !document.querySelector('[data-action="scan"]').disabled);
+    assert.equal((await page.evaluate(() => window.calls)).filter(c => c.startsWith('submit-add:')).length, 0);
+    assert.match(await page.locator('.cp-bulk-preview').innerText(), /do not match the preview/);
+  } finally { await browser.close(); }
+});
+
+test('activation accepts the exact preview members in a different order and number formatting', async () => {
+  const { browser, page } = await fixture(false, false, false, 3, ['12222222223', '12222222222']);
+  try {
+    await page.locator('#cp-bulk-activation-launch').click();
+    await page.locator('[data-action="scan"]').click();
+    await page.waitForFunction(() => !document.querySelector('[data-action="scan"]').disabled);
+    await page.locator('[data-action="apply"]').click();
+    await page.waitForFunction(() => !document.querySelector('[data-action="scan"]').disabled);
+    assert.match(await page.locator('.cp-bulk-status').innerText(), /2 rows saved and verified · 0 errors/);
+  } finally { await browser.close(); }
+});
+
+for (const locked of ['add', 'save', 'select', 'fieldset'])
+test(`activation respects disabled native ${locked} before staging`, async () => {
+  const { browser, page } = await fixture(false, false, false, 3, null, locked);
+  page.setDefaultTimeout(6000);
+  try {
+    await page.locator('#cp-bulk-activation-launch').click();
+    await page.locator('[data-action="scan"]').click();
+    await page.waitForFunction(() => !document.querySelector('[data-action="scan"]').disabled);
+    await page.locator('[data-action="apply"]').click();
+    await page.waitForFunction(() => window.calls.some(c => c.startsWith('submit-add:')) ||
+      !document.querySelector('[data-action="scan"]').disabled);
+    assert.equal((await page.evaluate(() => window.calls)).filter(c => c.startsWith('submit-add:') || c.startsWith('save:')).length, 0,
+      'disabled native actions cannot be bypassed by the bulk tool');
+    assert.match(await page.locator('.cp-bulk-preview').innerText(), /disabled|unavailable|not enabled/i);
+  } finally { await browser.close(); }
+});
+
+test('activation lets native selection enable an Add button before staging', async () => {
+  const { browser, page } = await fixture(false, false, false, 3, null, 'selection');
+  try {
+    await page.locator('#cp-bulk-activation-launch').click();
+    await page.locator('[data-action="scan"]').click();
+    await page.waitForFunction(() => !document.querySelector('[data-action="scan"]').disabled);
+    await page.locator('[data-action="apply"]').click();
+    await page.waitForFunction(() => !document.querySelector('[data-action="scan"]').disabled);
+    assert.match(await page.locator('.cp-bulk-status').innerText(), /2 rows saved and verified · 0 errors/);
+  } finally { await browser.close(); }
+});
+
+test('activation retains its dialog until the final navigation settles', async () => {
+  const { browser, page } = await fixture(false, false, false, 3, null, '', true);
+  page.setDefaultTimeout(6000);
+  try {
+    await page.locator('#cp-bulk-activation-launch').click();
+    await page.locator('[data-action="scan"]').click();
+    await page.waitForFunction(() => !document.querySelector('[data-action="scan"]').disabled);
+    await page.locator('[data-action="apply"]').click();
+    await page.waitForFunction(() => window.returnHeld);
+    await page.locator('[data-action="close"]').click();
+    assert.equal(await page.locator('.cp-bulk-overlay').count(), 1,
+      'the pending token-bearing navigation must not outlive its operation dialog');
+    await page.evaluate(() => releaseReturn());
+    await page.waitForFunction(() => document.querySelector('[data-action="close"]')?.textContent === 'Close');
+    await page.locator('[data-action="close"]').click();
+    assert.equal(await page.locator('.cp-bulk-overlay').count(), 0);
+    assert.equal(new URL(page.url()).pathname, '/commpilot/Group/DnActivation/');
   } finally { await browser.close(); }
 });

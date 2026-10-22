@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
 
-const root = path.resolve(__dirname, '..');
+const root = process.env.BW_TEST_EXTENSION_PATH || path.resolve(__dirname, '..');
 const browserPath = [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
@@ -64,6 +64,56 @@ async function open(browser, html, viewport = { width: 1280, height: 720 }) {
 const shown = page => page.evaluate(() => [...document.querySelectorAll('tr[id^="Row"]')]
   .filter(tr => getComputedStyle(tr).display !== 'none').map(tr => tr.id));
 const settled = page => page.waitForFunction(()=>[...document.querySelectorAll('table[data-cp-page-phase]')].every(table=>table.dataset.cpPagePhase==='idle'));
+
+test('a completed 5000-row list sorts and pages with bounded connected rows and no native search', async t => {
+  const browser=await chromium.launch({executablePath:browserPath,headless:true});
+  try {
+    const began=Date.now();
+    // PJAX keeps the native first page connected and collects later pages in a
+    // template. Exercise that actual large-search representation.
+    const rows=Array.from({length:5000},(_,i)=>row(i+1,`Group ${String(i+1).padStart(2,'0')}`));
+    const page=await open(browser,listPage(rows.slice(0,20).join(''),{fill:'done',heldRows:rows.slice(20).join('')}));
+    await page.locator('table[data-cp-results-ready="true"]').waitFor();
+    const readyMs=Date.now()-began;
+    assert.match(await page.locator('.cp-pager-count').innerText(),/5,000/);
+    const sortBegan=Date.now();
+    await page.locator('#sortId').click();
+    await settled(page);
+    const sortMs=Date.now()-sortBegan;
+    assert.equal((await shown(page))[0],'Row5000');
+    assert.ok(await page.locator('tr[id^="Row"]').count()<100,'only the current page stays connected');
+    await page.getByRole('button',{name:'Last page'}).click();
+    await settled(page);
+    assert.equal((await shown(page)).at(-1),'Row1');
+    await page.locator('#sortId').click();
+    await settled(page);
+    assert.equal((await shown(page))[0],'Row1');
+    assert.equal(await page.evaluate(()=>window.serverSorts),0);
+    t.diagnostic(JSON.stringify({rows:5000,fixtureReadyWallMs:readyMs,sortAndSettleWallMs:sortMs,
+      connectedRows:await page.locator('tr[id^="Row"]').count()}));
+  } finally {await browser.close();}
+});
+
+test('a burst of theme notifications scans the result tables once per frame', async t => {
+  const browser = await chromium.launch({executablePath:browserPath,headless:true});
+  try {
+    const tab = await open(browser,listPage(names(80)));
+    const scans = await tab.evaluate(async()=>{
+      await document.fonts.ready;
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      const cell=document.querySelector('td[width="82%"]'),original=cell.querySelectorAll;
+      let scans=0;
+      cell.querySelectorAll=function(selector){if(selector==='table')scans++;return original.call(this,selector);};
+      for(let i=0;i<100;i++)document.dispatchEvent(new Event('cp:theme-change'));
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      cell.querySelectorAll=original;
+      return scans;
+    });
+    t.diagnostic(`100 theme notifications produced ${scans} result-table scans`);
+    assert.equal(scans,1);
+    assert.equal(await tab.locator('.cp-pager').count(),1);
+  } finally { await browser.close(); }
+});
 
 test('a whole result row opens its page, by click or keyboard, and Edit goes where it repeats the row', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');

@@ -237,24 +237,26 @@ test('missing canvas support or failing action calls never throw out of a listen
   assert.deepEqual(rejected, []);
 });
 
-test('Chrome imports icon.js into the vault worker and Firefox lists it beside the vault', () => {
+test('Chrome and Firefox load the icon, update checker and vault listeners together', () => {
   assert.equal(manifest.background.service_worker, 'src/bg/credential-bridge.js');
-  assert.deepEqual(manifest.background.scripts, ['src/bg/icon.js', 'src/bg/credential-bridge.js']);
+  assert.deepEqual(manifest.background.scripts, ['src/bg/icon.js', 'src/bg/updates.js', 'src/bg/credential-bridge.js']);
   const imported = [];
-  const worker = background({ stored: warm, globals: { importScripts: url => {
-    imported.push(url);
-    worker.run(fs.readFileSync(path.join(root, url), 'utf8'));
+  const worker = background({ stored: warm, globals: { importScripts: (...urls) => {
+    for (const url of urls) {
+      imported.push(url);
+      worker.run(fs.readFileSync(path.join(root, url), 'utf8'));
+    }
   } } });
   worker.run(bridgeCode);
-  assert.deepEqual(imported, ['/src/bg/icon.js']);
+  assert.deepEqual(imported, ['/src/bg/icon.js', '/src/bg/updates.js']);
   // The Firefox event page: both files in one page, with no importScripts.
   const eventPage = background({ stored: warm });
-  for (const code of [iconCode, bridgeCode]) eventPage.run(code);
+  for (const code of [iconCode, fs.readFileSync(path.join(root, 'src/bg/updates.js'), 'utf8'), bridgeCode]) eventPage.run(code);
   for (const page of [worker, eventPage]) {
     page.settle();
-    assert.equal(page.listeners.length, 2);
+    assert.equal(page.listeners.length, 3);
     assert.equal(page.icons().length, 1);
-    assert.deepEqual(page.send({ kind: 'cpEnv', env: 'sandbox' }), [false, false]);
+    assert.deepEqual(page.send({ kind: 'cpEnv', env: 'sandbox' }), [false, false, false]);
     assert.deepEqual(page.replies, [], 'the vault ignores the badge message');
     page.send({ kind: 'bwCredential', op: 'list' });
     assert.deepEqual(plain(page.replies), [{ ok: false, error: 'Unauthorized credential request' }],
@@ -314,8 +316,8 @@ test('a palette added to the stylesheet is picked up from its first token block'
     '{ --d-action:var(--y); --d-action-text:#fff; --d-accent:#fff; }'), /literal colours/);
 });
 
-test('manifest names the Pulse PNGs at their sizes without new permissions', () => {
-  assert.deepEqual(manifest.permissions, ['storage', 'declarativeNetRequest']);
+test('manifest names the Pulse PNGs and only the expected storage, update-alarm and request-rule permissions', () => {
+  assert.deepEqual(manifest.permissions, ['storage', 'alarms', 'declarativeNetRequest']);
   assert.deepEqual(Object.keys(manifest.icons), ['16', '32', '48', '128']);
   assert.deepEqual(Object.keys(manifest.action.default_icon), ['16', '32']);
   for (const icons of [manifest.icons, manifest.action.default_icon]) {

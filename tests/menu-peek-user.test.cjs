@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
 
-const root = path.resolve(__dirname, '..');
+const root = process.env.BW_TEST_EXTENSION_PATH || path.resolve(__dirname, '..');
 const browserPath = [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
@@ -62,6 +62,44 @@ function checkbox(name, current) {
   return `<input type="checkbox" name="${name}" value="on"${current ? ' checked' : ''}>`;
 }
 
+for (const blocked of ['radio', 'fieldset', 'apply']) test(`a service shortcut respects a native disabled ${blocked}`,
+  async () => {
+    const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+    try {
+      const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+      page.setDefaultTimeout(10000);
+      const applies = [];
+      const userMenu = menu([['Do Not Disturb - <span class="serviceOff">Off</span>', routes.dnd]]);
+      await page.route('**/*', route => {
+        const request = route.request(), pathname = new URL(request.url()).pathname;
+        const params = new URLSearchParams(request.postData() || '');
+        let body = '';
+        const user = pathname === userEntry || pathname === '/commpilot' + routes.dnd || /^U/.test(params.get('folder') || '');
+        if (pathname === '/commpilot' + routes.dnd) {
+          if (params.has('apply')) applies.push(Object.fromEntries(params));
+          const controls = radio('active', false).replace('value="true"', 'value="true"' + (blocked === 'radio' ? ' disabled' : ''));
+          body = '<form name="mainForm">' + (blocked === 'fieldset' ? '<fieldset disabled>' + controls + '</fieldset>' : controls) +
+            '<input type="submit" name="apply" value="Apply"' + (blocked === 'apply' ? ' disabled' : '') + '></form>';
+        } else if (user) body = userMenu;
+        else body = menu([['Users', '/Reseller/Users/']]);
+        return route.fulfill({ contentType: 'text/html', body: shell(body, { user }) });
+      });
+      await page.goto(origin + folderPath);
+      for (const file of ['native-theme.css', 'theme-palettes.css', 'menu-board.css'])
+        await page.addStyleTag({ path: path.join(root, 'src/content', file) });
+      await page.evaluate(() => { document.documentElement.dataset.cpDirection = 'nord'; });
+      await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
+      await page.waitForFunction(() => document.querySelector('.cp-console-section[data-cp-folder="R0"] .cp-console-body')?.dataset.cpLoaded === '1');
+      await page.waitForTimeout(400);
+      await page.evaluate(url => window.redirectPost(url, { key: 'FixtureSP>%FixtureGroup>%FixtureUser' }), userEntry);
+      await page.waitForFunction(() => document.querySelector('.cp-console-section[data-cp-folder="U0"] .cp-svc-switch:not(:disabled)'));
+      await page.locator('.cp-console-section[data-cp-folder="U0"] .cp-svc-switch .cp-seg-on').click();
+      await page.locator('.cp-console-section[data-cp-folder="U0"] .cp-svc-note').waitFor();
+      assert.equal(applies.length, 0, 'the shortcut must not bypass native disabled controls');
+      assert.equal(await page.locator('.cp-console-section[data-cp-folder="U0"] .cp-svc-switch').getAttribute('aria-checked'), 'false');
+    } finally { await browser.close(); }
+  });
+
 function formFor(route, values) {
   const state = values[route];
   let fields = '';
@@ -89,6 +127,54 @@ function formFor(route, values) {
   return `<form name="mainForm" method="post">${fields}
     <input type="submit" name="apply" value="Apply"></form>`;
 }
+
+for (const failure of ['before-save', 'save-response', 'verification-read']) test(`service shortcut reports an uncertain ${failure} accurately`, async () => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    page.setDefaultTimeout(6000);
+    let armed = false, active = false, applies = 0;
+    const userMenu = menu([['Do Not Disturb - <span class="serviceOff">Off</span>', routes.dnd]]);
+    await page.route('**/*', route => {
+      const request = route.request(), pathname = new URL(request.url()).pathname;
+      const params = new URLSearchParams(request.postData() || '');
+      const user = pathname === userEntry || pathname === '/commpilot' + routes.dnd || /^U/.test(params.get('folder') || '');
+      let body;
+      if (pathname === '/commpilot' + routes.dnd) {
+        if (params.has('apply')) {
+          applies++; active = params.get('active') === 'true';
+          if (failure === 'save-response') return route.abort('failed');
+        } else if (armed && (failure === 'before-save' || failure === 'verification-read' && applies)) return route.abort('failed');
+        body = '<form name="mainForm">' + radio('active', active) + '<input type="submit" name="apply" value="Apply"></form>';
+      } else body = user ? userMenu : menu([['Users', '/Reseller/Users/']]);
+      return route.fulfill({ contentType: 'text/html', body: shell(body, { user }) });
+    });
+    await page.goto(origin + folderPath);
+    for (const file of ['native-theme.css', 'theme-palettes.css', 'menu-board.css'])
+      await page.addStyleTag({ path: path.join(root, 'src/content', file) });
+    await page.evaluate(() => { document.documentElement.dataset.cpDirection = 'nord'; });
+    await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
+    await page.waitForFunction(() => document.querySelector('.cp-console-section[data-cp-folder="R0"] .cp-console-body')?.dataset.cpLoaded === '1');
+    await page.waitForTimeout(450);
+    await page.evaluate(url => redirectPost(url, { key: 'FixtureSP>%FixtureGroup>%FixtureUser' }), userEntry);
+    const toggle = page.locator('.cp-console-section[data-cp-folder="U0"] .cp-svc-switch:not(:disabled)');
+    await toggle.waitFor();
+    armed = true;
+    await toggle.locator('.cp-seg-on').click();
+    const note = page.locator('.cp-console-section[data-cp-folder="U0"] .cp-svc-note');
+    await note.waitFor();
+    if (failure === 'before-save') {
+      assert.equal(applies, 0);
+      assert.equal(active, false);
+      assert.match(await note.innerText(), /not changed/);
+    } else {
+      assert.equal(applies, 1, 'a lost response must never replay the save');
+      assert.equal(active, true, 'the fixture server applied the setting');
+      assert.match(await note.innerText(), /could not (?:be confirmed|confirm)/i);
+      assert.doesNotMatch(await note.innerText(), /not changed/);
+    }
+  } finally { await browser.close(); }
+});
 
 test('User options switch their service on and off, and Peek keeps the rest of the compact settings', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');

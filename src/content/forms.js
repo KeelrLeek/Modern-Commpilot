@@ -117,10 +117,16 @@
   const offUpTo = (el, stop) => { for (let n = el; n && n !== stop; n = n.parentElement) if (offInline(n)) return true; return false; };
   // A cell's own words: without its controls, their option lists, the extension's select buttons and hidden parts.
   function ownText(td) {
-    const copy = td.cloneNode(true);
-    copy.querySelectorAll('input, select, textarea, button, .bw-select-shell, script, style, [style*="display: none"], [style*="display:none"]')
-      .forEach(n => n.remove());
-    return clean(copy.textContent);
+    // Reject controls before traversing their children. Cloning a cell first also
+    // clones every option in a large department list just to discard that select.
+    const walk = document.createTreeWalker(td, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+      acceptNode: node => node.nodeType === Node.TEXT_NODE ? NodeFilter.FILTER_ACCEPT :
+        node.matches('input, select, textarea, button, .bw-select-shell, script, style, [style*="display: none"], [style*="display:none"]')
+          ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_SKIP
+    });
+    let text = '', node;
+    while ((node = walk.nextNode())) text += node.data;
+    return clean(text);
   }
   const controlsIn = el => [...el.querySelectorAll(CONTROL)];
   const isList = table => !!table.querySelector(':scope > tbody > tr > td.listHeader');
@@ -134,7 +140,8 @@
   function fieldSize(ctl) {
     if (!ctl) return 'm';
     if (ctl.tagName === 'SELECT') {
-      const longest = Math.max(0, ...[...ctl.options].map(o => clean(o.textContent).length));
+      let longest = 0;
+      for (const option of ctl.options) longest = Math.max(longest, clean(option.textContent).length);
       return longest <= 6 ? 'xs' : longest <= 18 ? 's' : longest <= 34 ? 'm' : 'l';
     }
     if (ctl.tagName === 'TEXTAREA') return 'xl';
@@ -282,6 +289,12 @@
     }
   }
   function readFieldset(fs, items, tr) {
+    // A first legend can contain controls exempt from the fieldset's disabled state.
+    // Keep that native structure rather than moving those controls out of their legend.
+    if (fs.querySelector(':scope > legend')?.querySelector(CONTROL)) {
+      items.push({ type: 'raw', node: fs, line: tr });
+      return;
+    }
     const section = { type: 'section', title: clean(fs.querySelector(':scope > legend')?.textContent), items: [], node: fs, row: tr };
     for (const child of fs.children) {
       if (child.tagName === 'TABLE') readTable(child, section.items);
@@ -336,16 +349,23 @@
     const mirrors = [];    // { el, from: [elements whose inline display decides it] }
     const fills = [];      // { cell, into, nodes }: a CommPilot cell whose controls moved, and where to
     const facts = [];
-    let started = false, grid = null;
+    let started = false, grid = null, activeFieldset = null;
     const follow = (el, ...from) => mirrors.push({ el, from: from.filter(Boolean) });
     const fill = (cell, into) => { const nodes = [...cell.childNodes]; into.append(...nodes); fills.push({ cell, into, nodes }); };
-    const group = (title, item) => {
-      const section = make('section', 'fx-sec');
+    const group = (title, item, parentGrid) => {
+      // Keep the real fieldset and its ancestry. Native scripts can disable it and
+      // immediately submit in the same task; an asynchronously mirrored wrapper
+      // would briefly submit fields that the PBX had just disabled.
+      const section = item ? item.node : make('section', 'fx-sec');
+      const parent = section.parentElement;
+      section.classList.add('fx-sec');
+      if (item) for (const child of [...section.children])
+        if (/^(TABLE|LEGEND)$/.test(child.tagName)) child.classList.add('fx-native');
       if (title) { section.dataset.title = title; section.appendChild(make('h3', 'fx-sec-title', title)); }
       grid = make('div', 'fx-grid');
       section.appendChild(grid);
-      root.appendChild(section);
-      if (item) follow(section, item.node, item.node.parentElement?.tagName === 'DIV' ? item.node.parentElement : null, item.row);
+      (parentGrid || root).appendChild(section);
+      if (item) follow(section, section, parent?.tagName === 'DIV' ? parent : null, item.row);
       return section;
     };
     const place = (item, el) => {
@@ -364,9 +384,13 @@
     };
     const add = item => {
       if (item.type === 'section') {
-        group(item.title, item);
+        const previous = activeFieldset;
+        const previousGrid = grid;
+        activeFieldset = item;
+        group(item.title, item, previous ? previousGrid : null);
         item.items.forEach(add);
-        grid = null;   // what follows a fieldset starts a fresh, untitled group
+        activeFieldset = previous;
+        grid = previous ? previousGrid : null;
         return;
       }
       if (!['fact', 'link', 'note'].includes(item.type)) started = true;
@@ -400,7 +424,9 @@
       root.prepend(strip);
     }
     root.querySelectorAll('.fx-line').forEach(l => { l.dataset.n = String(l.children.length); });
-    root.querySelectorAll('.fx-sec').forEach(s => { if (!s.querySelector('.fx-grid > *')) s.remove(); });
+    root.querySelectorAll('.fx-sec').forEach(s => {
+      if (s.tagName !== 'FIELDSET' && !s.querySelector('.fx-grid > *')) s.remove();
+    }); // Original fieldsets can still contain submitted hidden metadata.
     return { root, mirrors, fills };
   }
   const saves = a => /\(([^)]*\bsaves\b[^)]*)\)/i.test(a.textContent);
@@ -433,6 +459,7 @@
       return el;
     }
     if (item.type === 'raw') {
+      item.node.classList.remove('fx-native');
       const el = make('div', 'fx-item fx-raw' + (item.list ? ' fx-list' : ''));
       if (item.row) {
         // A whole row CommPilot's scripts may still address: it moves inside a table of its own.
@@ -560,9 +587,9 @@
     // A control CommPilot puts somewhere else in its (hidden) tables, e.g. a cell that was empty when the page opened:
     // it joins its row's field, or the row comes into the layout whole, so it is never hidden from you.
     const strays = () => {
-      for (const native of body.querySelectorAll(':scope > .fx-native')) {
+      for (const native of body.querySelectorAll('.fx-native')) {
         for (const ctl of native.querySelectorAll(CONTROL)) {
-          if (ctl.closest('.fx')) continue;
+          if (ctl.closest('.fx-native') !== native) continue;
           const tr = ctl.closest('tr');
           const owner = tr && mirrors.find(m => m.from.includes(tr) && m.el.matches('.fx-item'));
           const into = owner?.el.querySelector(':scope > .fx-ctl, :scope > .fx-check-line');
@@ -573,14 +600,16 @@
             else { const nodes = [...cell.childNodes]; into.append(...nodes); fills.push({ cell, into, nodes }); }
             continue;
           }
-          if (!tr) continue;
+          const fieldset = ctl.closest('fieldset');
+          const host = fieldset ? fieldset.querySelector(':scope > .fx-grid') || fieldset : root;
+          if (!tr || tr.contains(host)) continue;
           const el = make('div', 'fx-item fx-raw');
           const table = document.createElement('table');
           const tbody = document.createElement('tbody');
           tbody.appendChild(tr);
           table.appendChild(tbody);
           el.appendChild(table);
-          root.appendChild(el);
+          host.appendChild(el);
         }
       }
     };
@@ -588,15 +617,18 @@
       if (!root.isConnected) { observer.disconnect(); return; }
       let changed = false, added = false;
       for (const r of records) {
-        if (r.type === 'attributes') { if (!root.contains(r.target)) changed = true; continue; }
+        if (r.type === 'attributes') {
+          if (!root.contains(r.target) || r.target.matches('fieldset.fx-sec') || r.target.closest('.fx-native')) changed = true;
+          continue;
+        }
         const f = r.addedNodes.length && fills.find(x => x.cell === r.target);
         if (f) refill(f);
-        else if (r.addedNodes.length && !root.contains(r.target)) added = true;
+        else if (r.addedNodes.length && (!root.contains(r.target) || r.target.closest?.('.fx-native'))) added = true;
       }
       if (added) strays();
       if (changed || added) sync();
     });
-    observer.observe(body, { attributes: true, attributeFilter: ['style'], subtree: true, childList: true });
+    observer.observe(body, { attributes: true, attributeFilter: ['style', 'disabled'], subtree: true, childList: true });
     strays();   // anything the reader left behind shows from the start
     sync();
     root.cpSync = sync;
@@ -701,6 +733,9 @@
     const search = find?.closest('.fx-raw');
     if (options.some(el => !el) || !tone || !policy || !list || !search ||
         !search.querySelector('[name^="findValue"]')) return;   // an unfamiliar variant keeps the general layout
+    // Some variants place these settings inside native policy fieldsets. Keep the
+    // general layout there so regrouping cannot detach controls from that policy.
+    if ([...options, tone, arrangement, policy, list, search].some(el => el?.closest('fieldset'))) return;
 
     root.classList.add('cp-sca');
     const heading = (title, caption) => {
@@ -756,7 +791,8 @@
     }
     root.prepend(settings, tone, policies, devices);
     for (const line of root.querySelectorAll('.fx-line')) if (!line.childElementCount) line.remove();
-    for (const section of root.querySelectorAll('.fx-sec')) if (!section.querySelector('.fx-item')) section.remove();
+    for (const section of root.querySelectorAll('.fx-sec'))
+      if (section.tagName !== 'FIELDSET' && !section.querySelector('.fx-item')) section.remove();
   }
 
   /* ---- After the frame: unsaved changes, section chips, empty lists (mockup extras, 2026-10-02) ---------- */
@@ -786,7 +822,8 @@
       };
       // Section chips: a page with titled sections gets chips under its title that jump to each one.
       // Titled sections, and the untitled one at the top as "Details".
-      const sections = [...root.querySelectorAll(':scope > .fx-sec')].filter((s, i) => s.dataset.title || i === 0);
+      const sections = [...root.querySelectorAll(':scope > .fx-sec')]
+        .filter(s => !s.classList.contains('fx-empty-sec')).filter((s, i) => s.dataset.title || i === 0);
       const head = cell.querySelector('.cp-frame-head');
       if (head && !root.closest('.cp-device-editor') && sections.length >= 2 && sections.some(s => s.dataset.title)) {
         const nav = make('nav', 'fx-jump');
@@ -921,21 +958,25 @@
 
     // Real options, minus CommPilot's blank placeholder in an empty list.
     const options = select => [...select.options].filter(o => o.value !== '' || clean(o.textContent));
+    const unavailable = (select, option) => select.matches(':disabled') || !option || option.disabled ||
+      option.parentElement?.matches('optgroup:disabled');
     function choose(side, index, event) {
       const { select } = panes[side];
       const list = options(select);
+      if (unavailable(select, list[index])) return;
       if (event.shiftKey && panes[side].anchor >= 0) {
         const [from, to] = [panes[side].anchor, index].sort((a, b) => a - b);
-        list.forEach((o, i) => { o.selected = i >= from && i <= to; });
+        list.forEach((o, i) => { if (!unavailable(select, o)) o.selected = i >= from && i <= to; });
       } else {
         list[index].selected = !list[index].selected;
         panes[side].anchor = index;
       }
       select.dispatchEvent(new Event('change', { bubbles: true }));   // CommPilot's own change handlers
-      render(side);
+      // The change listener refreshes both panes and the native button states.
     }
     function moveOne(side, index) {
-      const list = options(panes[side].select);
+      const select = panes[side].select, list = options(select);
+      if (unavailable(select, list[index])) return;
       list.forEach((o, i) => { o.selected = i === index; });
       const move = buttons.find(b => b.label === (side === 'avail' ? 'Add ›' : '‹ Remove'));
       move?.native.click();
@@ -944,6 +985,7 @@
     function render(side) {
       const { select, filter, list, count } = panes[side];
       const all = options(select);
+      list.setAttribute('aria-disabled', String(select.matches(':disabled')));
       const term = filter.value.trim().toLowerCase();
       count.textContent = String(all.length);
       const focused = document.activeElement?.closest?.('.cp-dl-list') === list ? document.activeElement.dataset.index : null;
@@ -954,6 +996,7 @@
         const item = make('div', 'cp-dl-row');
         item.setAttribute('role', 'option');
         item.setAttribute('aria-selected', String(option.selected));
+        item.setAttribute('aria-disabled', String(!!unavailable(select, option)));
         item.tabIndex = -1;
         item.dataset.index = String(index);
         item.append(make('span', 'cp-dl-box'), make('span', 'cp-dl-text', text));
@@ -964,26 +1007,34 @@
           else if (event.key === 'Enter') { event.preventDefault(); moveOne(side, index); }
           else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault();
-            const next = event.key === 'ArrowDown' ? item.nextElementSibling : item.previousElementSibling;
+            const direction = event.key === 'ArrowDown' ? 'nextElementSibling' : 'previousElementSibling';
+            let next = item[direction];
+            while (next?.getAttribute('aria-disabled') === 'true') next = next[direction];
             if (next) { item.tabIndex = -1; next.tabIndex = 0; next.focus(); }
           }
         });
         list.appendChild(item);
       });
       if (!list.children.length) list.appendChild(make('div', 'cp-dl-empty', term ? 'No matches' : 'Nothing here'));
-      const first = list.querySelector('.cp-dl-row');
-      const again = focused != null && list.querySelector(`.cp-dl-row[data-index="${focused}"]`);
+      const first = list.querySelector('.cp-dl-row[aria-disabled="false"]');
+      const again = focused != null && list.querySelector(`.cp-dl-row[aria-disabled="false"][data-index="${focused}"]`);
       (again || first)?.setAttribute('tabindex', '0');
       if (again) again.focus();
     }
     function refresh() {
       render('avail'); render('asgn');
-      for (const b of buttons) if (b.button) b.button.disabled = b.native.disabled;
+      for (const b of buttons) if (b.button) b.button.disabled = b.native.matches(':disabled');
     }
     // CommPilot moves options with its own script; redraw whenever either list changes.
     const observer = new MutationObserver(refresh);
-    observer.observe(avail, { childList: true, subtree: true });
-    observer.observe(asgn, { childList: true, subtree: true });
+    for (const select of [avail, asgn]) {
+      observer.observe(select, { childList: true, subtree: true, attributes: true,
+        attributeFilter: ['disabled', 'selected'] });
+      select.addEventListener('change', refresh);
+    }
+    for (const b of buttons) observer.observe(b.native, { attributes: true, attributeFilter: ['disabled'] });
+    for (let parent = row.parentElement; parent; parent = parent.parentElement)
+      if (parent.tagName === 'FIELDSET') observer.observe(parent, { attributes: true, attributeFilter: ['disabled'] });
 
     const holder = document.createElement('tr');
     holder.className = 'cp-dl-holder';
@@ -1012,6 +1063,7 @@
     if (!tables.length || !details) return;
     const h24 = f('use24HourNotation')?.value === 'true';
     const pad = n => String(n).padStart(2, '0');
+    const editable = control => !!control && !control.matches(':disabled') && !control.readOnly;
 
     // CommPilot keeps each date as m/d/yyyy text plus hidden month/day/year parts.
     const readDate = name => {
@@ -1019,10 +1071,10 @@
       return y ? `${y}-${pad(m)}-${pad(d)}` : '';
     };
     const writeDate = (name, iso) => {
-      const [y, m, d] = iso.split('-').map(Number);
-      if (!y) return;
+      const [y, m, d] = iso ? iso.split('-').map(Number) : ['', '', ''];
+      if (iso && !y) return;
       const text = f(name);
-      text.value = `${m}/${d}/${y}`;
+      text.value = iso ? `${m}/${d}/${y}` : '';
       for (const [part, value] of [['month', m], ['day', d], ['year', y]]) {
         const hidden = f(`${name}_${part}`);
         if (hidden) hidden.value = String(value);
@@ -1032,16 +1084,19 @@
     };
     // …and each time as h:mm text with an AM/PM list (or 24-hour text), plus hidden hour/minute parts.
     const readTime = name => {
-      const [h, m] = (f(name)?.value || '').split(':').map(Number);
-      if (Number.isNaN(h) || Number.isNaN(m)) return '';
+      const raw = f(name)?.value || '';
+      if (!raw) return '';
+      const [h, m] = raw.split(':').map(Number);
+      if (!Number.isFinite(h) || !Number.isFinite(m)) return '';
       const pm = !h24 && f(name.replace('Time', 'Ampm'))?.value === 'PM';
       return `${pad(h24 ? h : (h % 12) + (pm ? 12 : 0))}:${pad(m)}`;
     };
     const writeTime = (name, hhmm) => {
-      const [H, M] = hhmm.split(':').map(Number);
-      if (Number.isNaN(H)) return;
+      const [H, M] = hhmm ? hhmm.split(':').map(Number) : ['', ''];
+      if (hhmm && (!Number.isFinite(H) || !Number.isFinite(M))) return;
       const text = f(name);
-      if (h24) text.value = `${H}:${pad(M)}`;
+      if (!hhmm) text.value = '';
+      else if (h24) text.value = `${H}:${pad(M)}`;
       else {
         text.value = `${H % 12 || 12}:${pad(M)}`;
         const ampm = f(name.replace('Time', 'Ampm'));
@@ -1053,6 +1108,7 @@
       text.dispatchEvent(new Event('blur'));
     };
     const label = time => {
+      if (!time) return '';
       const [H, M] = time.split(':').map(Number);
       return Number.isNaN(H) ? '' : h24 ? `${pad(H)}:${pad(M)}` : `${H % 12 || 12}:${pad(M)} ${H >= 12 ? 'PM' : 'AM'}`;
     };
@@ -1086,7 +1142,11 @@
       input.type = type;
       input.setAttribute('aria-label', name === 'startDate' ? 'Start date' : name === 'endDate' ? 'End date' :
         name === 'startTime' ? 'Start time' : 'End time');
-      input.addEventListener('change', () => { (type === 'date' ? writeDate : writeTime)(name, input.value); sync(); });
+      input.addEventListener('change', () => {
+        if (editable(f(name))) (type === 'date' ? writeDate : writeTime)(name, input.value);
+        else input.value = (type === 'date' ? readDate : readTime)(name);
+        sync();
+      });
       return input;
     };
     const startDate = picker('date', 'startDate'), startTime = picker('time', 'startTime');
@@ -1108,6 +1168,7 @@
       button.type = 'button';
       button.setAttribute('role', 'radio');
       button.addEventListener('click', () => {
+        if (!editable(f('recurType')) || option.matches(':disabled')) { sync(); return; }
         f('recurType').value = option.value;
         f('recurType').dispatchEvent(new Event('change', { bubbles: true }));   // CommPilot shows its pattern rows
         sync();
@@ -1129,8 +1190,29 @@
     });
     const weeklyEvery = make('span', 'cp-ev-muted', 'every');
     const weeklyUnit = make('span', 'cp-ev-muted', 'week(s)');
-    const weekly = row('On', chips, weeklyEvery, ...(f('recurWeeklyInterval') ? [f('recurWeeklyInterval')] : []), weeklyUnit);
-    const daily = row('Every', ...(f('recurDailyInterval') ? [f('recurDailyInterval')] : []), make('span', 'cp-ev-muted', 'day(s)'));
+    const intervals = [];
+    const interval = (name, label) => {
+      const native = f(name);
+      if (!native) return [];
+      // As with dates, leave the successful form control inside its native fieldset.
+      // Moving it here would change submission when that fieldset is disabled.
+      const input = make('input', 'cp-ev-interval');
+      input.type = 'text';
+      input.setAttribute('aria-label', label);
+      if (native.hasAttribute('maxlength')) input.maxLength = native.maxLength;
+      if (native.hasAttribute('size')) input.size = native.size;
+      for (const type of ['input', 'change']) input.addEventListener(type, () => {
+        if (editable(native)) {
+          native.value = input.value;
+          native.dispatchEvent(new Event(type, { bubbles: true }));
+        } else input.value = native.value;
+        sync();
+      });
+      intervals.push({ input, native });
+      return [input];
+    };
+    const weekly = row('On', chips, weeklyEvery, ...interval('recurWeeklyInterval', 'Weekly interval'), weeklyUnit);
+    const daily = row('Every', ...interval('recurDailyInterval', 'Daily interval'), make('span', 'cp-ev-muted', 'day(s)'));
 
     function sync() {
       if (document.activeElement !== startDate) startDate.value = readDate('startDate');
@@ -1139,20 +1221,24 @@
       if (document.activeElement !== endTime) endTime.value = readTime('endTime');
       const allDayOn = !!f('allDayEvent')?.checked;
       allDay.setAttribute('aria-checked', String(allDayOn));
-      allDay.disabled = !f('allDayEvent') || f('allDayEvent').disabled;
-      startTime.disabled = allDayOn || f('startTime').disabled;
-      endTime.disabled = allDayOn || !f('endTime') || f('endTime').disabled;
-      startDate.disabled = f('startDate').disabled;
-      endDate.disabled = f('endDate').disabled;
+      allDay.disabled = !editable(f('allDayEvent'));
+      startTime.disabled = allDayOn || !editable(f('startTime'));
+      endTime.disabled = allDayOn || !editable(f('endTime'));
+      startDate.disabled = !editable(f('startDate'));
+      endDate.disabled = !editable(f('endDate'));
       const recur = recurText();
       recurButtons.forEach(({ button, option }) => {
         button.setAttribute('aria-checked', String(option.selected));
-        button.disabled = f('recurType').disabled;
+        button.disabled = !editable(f('recurType')) || option.matches(':disabled');
       });
       dayButtons.forEach(({ chip, box }) => {
         chip.setAttribute('aria-pressed', String(!!box?.checked));
-        chip.disabled = !box || box.disabled;
+        chip.disabled = !editable(box);
       });
+      for (const { input, native } of intervals) {
+        if (document.activeElement !== input) input.value = native.value;
+        input.disabled = !editable(native);
+      }
       weekly.hidden = recur !== 'Weekly';
       daily.hidden = recur !== 'Daily';
       // One plain sentence for the whole event.
@@ -1171,6 +1257,20 @@
     form.addEventListener('change', sync);
     form.addEventListener('input', sync);
     form.addEventListener('click', () => setTimeout(sync, 0));
+    // Native scripts also change permissions without firing input/change events.
+    // Observe only native controls/ancestors, not the proxy buttons updated by sync.
+    const stateObserver = new MutationObserver(sync);
+    const observed = new Set();
+    for (const name of ['startDate', 'endDate', 'startTime', 'endTime', 'allDayEvent', 'recurType',
+      'recurWeeklyInterval', 'recurDailyInterval', ...DAYS.map(day => 'recurWeekly' + day)]) {
+      const control = f(name);
+      if (!control) continue;
+      observed.add(control);
+      for (let parent = control.parentElement; parent && parent !== form; parent = parent.parentElement)
+        if (parent.tagName === 'FIELDSET') observed.add(parent);
+    }
+    for (const node of observed) stateObserver.observe(node, { attributes: true,
+      attributeFilter: ['disabled', 'readonly'], subtree: node.tagName === 'SELECT' });
 
     // Hide what the card replaces; everything else (Monthly / Yearly rows, the range) stays CommPilot's.
     tables[0].classList.add('cp-ev-native');
@@ -1305,7 +1405,15 @@
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply, { once: true });
   else apply();
-  document.addEventListener('cp:reskin', () => requestAnimationFrame(apply));
-  document.addEventListener('cp:morphed', () => requestAnimationFrame(apply));
-  document.addEventListener('cp:theme-change', apply);
+  // Navigation can announce both a morph and a reskin in the same frame.
+  // Read the current content when the callback runs, including a replacement page.
+  let applyQueued = false;
+  function scheduleApply() {
+    if (applyQueued) return;
+    applyQueued = true;
+    requestAnimationFrame(() => { applyQueued = false; apply(); });
+  }
+  document.addEventListener('cp:reskin', scheduleApply);
+  document.addEventListener('cp:morphed', scheduleApply);
+  document.addEventListener('cp:theme-change', scheduleApply);
 })();

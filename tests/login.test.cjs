@@ -6,7 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { chromium } = require('playwright-core');
 
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(process.env.BW_TEST_EXTENSION_PATH || path.resolve(__dirname, '..'));
 const chromePath = process.env.CHROME_PATH || [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
@@ -49,11 +49,26 @@ test('the Login page: CommPilot’s form in the Focus design, its message as a t
       executablePath: chromePath,
       headless: true,
       viewport: { width: 1200, height: 900 },
+      reducedMotion: 'no-preference',
       args: [`--disable-extensions-except=${root}`, `--load-extension=${root}`]
     });
     await context.route('https://apps-sbx.avpaas.io/commpilot/Login/', route => route.fulfill({ contentType: 'text/html', body: loginPage(message) }));
     await context.route(/\/commpilot\/(Graphics|conf)\//, route => route.fulfill({ status: 404, body: '' }));
     const page = await context.newPage();
+    // Observe the animation lifecycle in the document. A delayed assertion
+    // must not require a 600ms transient class to still be present.
+    await page.addInitScript(() => {
+      window.loginShake = { started: false, ended: false };
+      new MutationObserver(records => {
+        for (const record of records) {
+          if (!record.target.classList?.contains('cp-login')) continue;
+          const shaking = record.target.classList.contains('is-shaking');
+          if (shaking) window.loginShake.started = true;
+          if (/(?:^|\s)is-shaking(?:\s|$)/.test(record.oldValue || '') && !shaking)
+            window.loginShake.ended = true;
+        }
+      }).observe(document, { subtree: true, attributes: true, attributeFilter: ['class'], attributeOldValue: true });
+    });
     await page.goto('https://apps-sbx.avpaas.io/commpilot/Login/');
     await page.locator('.cp-login').waitFor();
     await page.waitForFunction(() => document.documentElement.dataset.cpDirection);
@@ -115,18 +130,29 @@ test('the Login page: CommPilot’s form in the Focus design, its message as a t
       text: document.querySelector('.cp-login-submit').textContent.trim(), busy: document.querySelector('.cp-login').classList.contains('is-busy') }));
     assert.deepEqual(busy, { progress: 'on', text: 'Signing in…', busy: true });
 
+    // A slow response must not let repeated keyboard activation submit credentials twice.
+    await page.keyboard.press('Enter');
+    await page.locator('#cp-login-password').press('Enter');
+    await page.locator('#link_1').evaluate(el => el.click());
+    assert.equal(await page.evaluate(() => window.sent.length), 1, 'one native submit while sign-in is pending');
+    await page.evaluate(() => dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
+    await page.locator('#cp-login-password').press('Enter');
+    assert.equal(await page.evaluate(() => window.sent.length), 2, 'returning from browser history permits a new sign-in');
+
     // CommPilot says no: the page again, its message a toast, the form shakes, the User ID is back, and typing clears it.
     message = 'Invalid user ID or password.';
     await page.reload();
     await page.locator('#cp-toasts .cp-toast').waitFor();
+    await page.waitForFunction(() => window.loginShake.ended);
     const failed = await page.evaluate(() => ({
       kind: document.querySelector('#cp-toasts .cp-toast').className.match(/cp-toast-(error|warning|info)/)[1],
       title: document.querySelector('#cp-toasts .cp-toast-title').textContent, body: document.querySelector('#cp-toasts .cp-toast-body').textContent,
       user: document.querySelector('#cp-login-user').value, focus: document.activeElement.id,
-      shook: document.querySelector('.cp-login').classList.contains('is-shaking'), progress: document.documentElement.dataset.cpProgress || null,
+      shook: window.loginShake.started, progress: document.documentElement.dataset.cpProgress || null,
       messageShown: !!document.querySelector('td.loginerror').offsetParent }));
     assert.deepEqual(failed, { kind: 'error', title: 'Couldn’t sign in', body: 'Invalid user ID or password.', user: 'admin.one',
       focus: 'cp-login-password', shook: true, progress: null, messageShown: false });
+    assert.equal(await page.locator('.cp-login.is-shaking').count(), 0, 'the animation also finishes');
     await page.keyboard.type('x');
     await page.waitForFunction(() => !document.querySelector('#cp-toasts .cp-toast:not(.cp-toast-leaving)'), null, { timeout: 3000 });
 
@@ -137,6 +163,7 @@ test('the Login page: CommPilot’s form in the Focus design, its message as a t
     assert.deepEqual(await page.evaluate(() => ({ kind: document.querySelector('#cp-toasts .cp-toast').className.match(/cp-toast-(error|warning|info)/)[1],
       title: document.querySelector('#cp-toasts .cp-toast-title').textContent, shook: document.querySelector('.cp-login').classList.contains('is-shaking') })),
     { kind: 'warning', title: 'You were signed out', shook: false });
+    assert.equal(await page.evaluate(() => loginShake.started), false, 'session expiry never triggers the error shake');
   } finally {
     await context?.close();
     fs.rmSync(profile, { recursive: true, force: true });

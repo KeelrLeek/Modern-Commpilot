@@ -16,6 +16,12 @@
     return digits;
   };
   const normalizedLabel = value => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  function numberDepartment(row) {
+    // A blank native cell means None; an absent cell is incomplete evidence.
+    if (!Array.isArray(row?.cells) || typeof row.cells[5] !== 'string')
+      throw Error('The Numbers result is missing its Department column. Reload the Numbers page and try again.');
+    return row.cells[5].trim() || 'None';
+  }
   const cellText = (parent, name) => [...parent.getElementsByTagName(name)]
     .map(element => element.textContent || '').join('');
 
@@ -91,7 +97,24 @@
         throw Error('This browser cannot read the workbook compression.');
       const stream = new Blob([entry.data]).stream()
         .pipeThrough(new DecompressionStream('deflate-raw'));
-      return decoder.decode(await new Response(stream).arrayBuffer());
+      // The ZIP directory's uncompressed size can be incorrect. Bound the actual output before XML
+      // parsing so a tiny upload cannot expand into an unbounded allocation and stall this tab.
+      const reader = stream.getReader(), text = new TextDecoder(), chunks = [];
+      let size = 0;
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          size += value.byteLength;
+          if (size > 12 * 1024 * 1024) {
+            await reader.cancel();
+            throw Error('Workbook sheet is too large.');
+          }
+          chunks.push(text.decode(value, { stream: true }));
+        }
+        chunks.push(text.decode());
+        return chunks.join('');
+      } finally { reader.releaseLock(); }
     };
   }
 
@@ -121,6 +144,13 @@
         if (!column) continue;
         if (cell.getElementsByTagName('f').length) throw Error(`Formula in ${reference}; enter text values.`);
         const type = cell.getAttribute('t');
+        if (type && !['n', 's', 'inlineStr', 'str'].includes(type))
+          throw Error(`Cell ${reference} must contain text or a number, not a boolean, date, or error.`);
+        if (type === 's') {
+          const index = cellText(cell, 'v').trim();
+          if (!/^\d+$/.test(index) || !Number.isSafeInteger(Number(index)) || Number(index) >= shared.length)
+            throw Error(`Cell ${reference} refers to a missing shared string. Re-save the workbook and try again.`);
+        }
         let value = type === 's' ? shared[Number(cellText(cell, 'v'))] :
           type === 'inlineStr' ? cellText(cell, 't') : cellText(cell, 'v');
         if (/^\d+(?:\.\d+)?[eE][+-]?\d+$/.test(value || '')) {
@@ -231,7 +261,11 @@
           if (countryCode) knownCountryCodes.add(countryCode);
           return matches;
         }
-      } catch (error) { /* Try the next search form. */ }
+      } catch (error) {
+        // Only a successful empty search warrants trying another number format.
+        // A failed read must remain an error, not become "not found" after more POSTs.
+        throw Error('CommPilot could not complete the number lookup. ' + (error.message || 'Try again after checking the connection.'));
+      }
     }
     if (tooMany) throw Error('CommPilot returned too many matches for this number. Use its full system format.');
     if (!successfulSearch) throw Error('CommPilot could not complete a number lookup.');
@@ -241,6 +275,7 @@
   async function preflightDirect(sourceRows, setStatus, setProgress) {
     const preview = [];
     const repeated = new Set();
+    let departments;
     for (let i = 0; i < sourceRows.length; i++) {
       const input = sourceRows[i];
       const number = normalizedPhone(input.phone);
@@ -255,20 +290,24 @@
         try {
           const matches = await lookupNumberRows(input.phone);
           if (!matches.length) throw Error('Number was not found in this group.');
-          const departmentsSeen = new Set(matches.map(row => normalizedLabel(row.cells[5] || 'None')));
+          const departmentsSeen = new Set(matches.map(row => normalizedLabel(numberDepartment(row))));
           const drillKeys = new Set(matches.map(row => JSON.stringify(row.drill.params)));
           if (departmentsSeen.size !== 1 || drillKeys.size !== 1)
             throw Error('Number has conflicting department assignments.');
           const match = matches[0];
-          await navigate(match.drill.url, match.drill.params, EDIT);
-          const departments = formOptions();
+          // These choices belong to the group. Read them once per preview;
+          // applyOne still reopens and checks the live selector before each save.
+          if (!departments) {
+            await navigate(match.drill.url, match.drill.params, EDIT);
+            departments = formOptions();
+          }
           const targets = departments.filter(entry =>
             normalizedLabel(entry.name) === normalizedLabel(input.department) ||
             entry.value === input.department);
           if (targets.length !== 1) throw Error(targets.length ?
             'Department name is ambiguous.' : 'Department was not found.');
           item.canonical = match.cells[0];
-          item.current = match.cells[5] || 'None';
+          item.current = numberDepartment(match);
           item.targetValue = targets[0].value;
           item.targetName = targets[0].name;
           item.drill = match.drill;
@@ -322,7 +361,7 @@
       const matches = byNumber.get(number) || [];
       if (!item.error && !matches.length) item.error = 'Number was not found in this group.';
       const keys = new Set(matches.map(row => JSON.stringify(row.drill.params)));
-      const current = new Set(matches.map(row => normalizedLabel(row.cells[5])));
+      const current = new Set(matches.map(row => normalizedLabel(numberDepartment(row))));
       if (!item.error && (keys.size > 1 || current.size > 1))
         item.error = 'Number has multiple different assignments; use the individual Edit page.';
       const options = departments.filter(option =>
@@ -332,7 +371,7 @@
         item.error = options.length ? 'Department name is ambiguous.' : 'Department was not found.';
       if (item.error) item.status = 'error';
       else {
-        item.current = matches[0].cells[5] || 'None';
+        item.current = numberDepartment(matches[0]);
         item.targetValue = options[0].value;
         item.targetName = options[0].name;
         item.canonical = matches[0].cells[0];
@@ -354,11 +393,11 @@
     if (location.pathname !== LIST) await navigate(LIST, {}, LIST);
     const matches = await lookupNumberRows(item.canonical);
     if (!matches.length) throw Error('Number was not found during the save-time check.');
-    const departments = new Set(matches.map(row => normalizedLabel(row.cells[5] || 'None')));
+    const departments = new Set(matches.map(row => normalizedLabel(numberDepartment(row))));
     const drillKeys = new Set(matches.map(row => JSON.stringify(row.drill.params)));
     if (departments.size !== 1 || drillKeys.size !== 1)
       throw Error('Number has conflicting assignments during the save-time check.');
-    const liveCurrent = matches[0].cells[5] || 'None';
+    const liveCurrent = numberDepartment(matches[0]);
     if (normalizedLabel(liveCurrent) === normalizedLabel(item.targetName)) {
       item.after = liveCurrent;
       return 'unchanged';
@@ -435,7 +474,7 @@
           matches = await lookupNumberRows(item.canonical);
         }
         matches = matches || [];
-        const departments = new Set(matches.map(row => row.cells[5] || 'None'));
+        const departments = new Set(matches.map(numberDepartment));
         if (!matches.length || departments.size !== 1) {
           item.status = 'error';
           item.error = matches.length ? 'CommPilot returned conflicting departments after save.' :
@@ -483,6 +522,7 @@
       <div class="cp-bulk-footer"><button type="button" data-action="apply" disabled>Apply assignments</button>
       <button type="button" data-action="close">Close</button></div></div>`;
     document.body.appendChild(overlay);
+    const releaseFocus = window.cpFocusBulkDialog(overlay);
     dialog = overlay;
     let preview = [];
     let working = false;
@@ -646,6 +686,7 @@
     close.addEventListener('click', () => {
       if (working) { stopRequested = true; setStatus('Stopping after the current number…'); return; }
       overlay.remove();
+      releaseFocus();
       dialog = null;
       mountButton();
     });

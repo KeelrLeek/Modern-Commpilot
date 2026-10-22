@@ -159,7 +159,8 @@
   function adoptListedExtension(context) {
     try {
       const listed = JSON.parse(sessionStorage.getItem(LISTED_KEY) || "null");
-      if (!listed || listed.origin !== location.origin || normalize(listed.userId) !== normalize(context.userId) ||
+      if (!listed || listed.origin !== location.origin || listed.nameScope !== context.nameScope ||
+          normalize(listed.userId) !== normalize(context.userId) ||
           Date.now() - listed.at >= 10 * 60 * 1000) return;
       if (cachedExtension(context) === null) rememberExtension(context, listed.extension);
       if (cachedNumber(context) === null && typeof listed.number === "string") rememberNumber(context, listed.number);
@@ -404,6 +405,12 @@
   // page swap goes. On CommPilot's own shell the theme is always coming (theme-settings.js), so the toolbar is only
   // built if it still has not arrived a moment later.
   let themeWait = 0;
+  let copyQueued = false;
+  function scheduleCopyControls() {
+    if (copyQueued) return;
+    copyQueued = true;
+    requestAnimationFrame(() => { copyQueued = false; syncCopyControls(); });
+  }
   function syncCopyControls() {
     if (window !== window.top) return;
     if (themed()) document.querySelectorAll(".bw-copy-controls[data-bw-owned='1']").forEach(el => el.remove());
@@ -622,7 +629,13 @@
     select.setAttribute("aria-hidden", "true");
     select.style.pointerEvents = "none";
 
-    const attributeObserver = new MutationObserver(() => syncSelect(select, info));
+    const attributeObserver = new MutationObserver(() => {
+      syncSelect(select, info);
+      if (openSelect === select) {
+        pendingOptionRefresh = true;
+        scheduleScan();
+      }
+    });
     info = {
       shell, trigger, attributeObserver, original, options: [],
       needsMeasurement: bounds.width === 0 || bounds.height === 0
@@ -633,23 +646,31 @@
     resizeObserver.observe(select);
     attributeObserver.observe(select, {
       attributes: true,
-      attributeFilter: ["class", "style", "hidden", "disabled", "aria-label", "name", "required"]
+      subtree: true,
+      attributeFilter: ["class", "style", "hidden", "disabled", "aria-label", "name", "required", "label", "selected"]
     });
+    // A fieldset disables its descendant select without changing the select's
+    // own attributes. Observe those ancestors too; :disabled handles legends.
+    for (let parent = select.parentElement; parent; parent = parent.parentElement) {
+      if (parent.tagName === "FIELDSET") attributeObserver.observe(parent, {
+        attributes: true, attributeFilter: ["disabled"]
+      });
+    }
     trigger.addEventListener("click", event => {
       event.preventDefault();
       event.stopPropagation();
-      if (!trigger.disabled && !shell.hidden) openPopover(select);
+      if (!select.matches(":disabled") && !shell.hidden) openPopover(select);
     });
     trigger.addEventListener("keydown", event => {
       const opens = ["Enter", " ", "Spacebar", "ArrowDown", "ArrowUp", "F4"];
       if (opens.includes(event.key) || (event.altKey && event.key === "ArrowDown")) {
         event.preventDefault();
         event.stopPropagation();
-        if (!trigger.disabled && !shell.hidden) openPopover(select);
+        if (!select.matches(":disabled") && !shell.hidden) openPopover(select);
       } else if (event.key.length === 1 && !event.altKey && !event.ctrlKey && !event.metaKey) {
         event.preventDefault();
         event.stopPropagation();
-        if (!trigger.disabled && !shell.hidden) {
+        if (!select.matches(":disabled") && !shell.hidden) {
           openPopover(select);
           searchInput.value = event.key;
           renderResults();
@@ -1135,6 +1156,7 @@
     for (const menu of menuInfo.keys()) if (!menu.isConnected) menuInfo.delete(menu);
     if (pendingOptionRefresh && openSelect) {
       collectOptions(openSelect);
+      renderCreate(openSelect);
       renderResults();
     }
     pendingOptionRefresh = false;
@@ -1204,7 +1226,7 @@
     scanRoot(document.documentElement);
     // pjax.js marks the user's extension read on the id element; the palette can be switched on or off.
     for (const name of ["cp:user-extension", "cp:user-name", "cp:theme-change"]) {
-      document.addEventListener(name, () => requestAnimationFrame(syncCopyControls));
+      document.addEventListener(name, scheduleCopyControls);
     }
     document.addEventListener("click", noteListedExtension, true);
     document.addEventListener("pointerdown", event => {

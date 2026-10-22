@@ -12,8 +12,8 @@
 
   // A previous interrupted sign-out must never affect another PJAX action.
   try { sessionStorage.removeItem(FLAG); } catch (_) {}
-  // The native POST is the fallback if a background sign-out request fails.
-  // Once its response is loaded, skip CommPilot's redundant two-link landing.
+  // A direct native logout (for example when PJAX is unavailable) still skips
+  // CommPilot's redundant two-link landing after its response loads.
   if (/^\/commpilot\/(?:servlet\/Logout|Logout)(?:\/|$)/i.test(location.pathname)) {
     location.replace("/commpilot/Login/");
     return;
@@ -50,8 +50,9 @@
     // this flag, sends the same logout POST, then goes directly to Login.
     // Clear it immediately after that call so an unrelated later action cannot
     // be mistaken for logout if the navigation is interrupted.
+    // Storage is an optimization hint for PJAX, not a prerequisite for the user's native sign-out.
+    try { sessionStorage.setItem(FLAG, String(Date.now())); } catch (_) {}
     try {
-      sessionStorage.setItem(FLAG, String(Date.now()));
       passingNativeClick = true;
       trigger.click();
     } finally {
@@ -59,6 +60,27 @@
       try { sessionStorage.removeItem(FLAG); } catch (_) {}
     }
   }
+
+  document.addEventListener("cp:logout-failed", (event) => {
+    if (!active || !active.signingOut) return;
+    let message = "The request could not be completed.";
+    try {
+      const detail = JSON.parse(event.detail);
+      if (typeof detail?.message === "string") message = detail.message;
+    } catch (_) {}
+    const { overlay, keyHandler } = active;
+    active.signingOut = false;
+    overlay.querySelector(".cp-native-logout-dialog").removeAttribute("aria-busy");
+    overlay.querySelector(".cp-native-logout-title").textContent = "Sign-out not confirmed";
+    overlay.querySelector(".cp-native-logout-copy").textContent =
+      `${message} Sign-out was not confirmed. Retry to end your session.`;
+    overlay.querySelector(".cp-native-logout-actions").hidden = false;
+    overlay.querySelector(".cp-native-logout-cancel").textContent = "Close";
+    const retry = overlay.querySelector(".cp-native-logout-confirm");
+    retry.textContent = "Retry sign out";
+    document.addEventListener("keydown", keyHandler, true);
+    retry.focus();
+  });
 
   function showModal(trigger) {
     if (active) return;

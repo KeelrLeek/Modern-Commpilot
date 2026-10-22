@@ -34,3 +34,6 @@ session-handoff/
 # Console layout design mockups (visual reference / scratch — not shipped)
 Testing HTML Files/console-layout-mockup*.html
 Testing HTML Files/groups-redesign*.html
+
+# Local hardening evidence, preserved working-tree patches and frozen test copies.
+dev-preview/overnight-hardening-*/

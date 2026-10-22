@@ -39,8 +39,11 @@
         if (error) reject(error); else setTimeout(resolve, 0);
       };
       const onReskin = () => finish();
-      const timer = setTimeout(() => finish(Error('CommPilot did not return a page. Check the current number before retrying.')),
-        timeout);
+      const deadline = () => {
+        if (window.cpHasPendingNativeRequest?.()) { timer = setTimeout(deadline, 250); return; }
+        finish(Error('CommPilot did not return a page. Check the current number before retrying.'));
+      };
+      let timer = setTimeout(deadline, timeout);
       document.addEventListener('cp:reskin', onReskin);
       try { action(); } catch (error) { finish(error); }
     });
@@ -121,19 +124,39 @@
     return { deactivated: values(deactivated), activated: values(activated) };
   }
 
+  function numberBounds(value) {
+    const range = /^(\+?[\d-]+)\s+-\s+(\+?[\d-]+)$/.exec(value);
+    if (!range && !/^\+?\d[\d-]*$/.test(value))
+      throw Error(`CommPilot returned an invalid phone number: ${value}.`);
+    const first = (range ? range[1] : value).replace(/\D/g, '');
+    const last = (range ? range[2] : value).replace(/\D/g, '');
+    if (!first || first.length !== last.length || BigInt(last) < BigInt(first))
+      throw Error(`CommPilot returned an invalid number range: ${value}.`);
+    return { first: BigInt(first), last: BigInt(last), length: first.length };
+  }
+
   function countNumbers(values) {
     return values.reduce((total, value) => {
-      const range = /^(\+?[\d-]+)\s+-\s+(\+?[\d-]+)$/.exec(value);
-      if (!range) return total + 1;
-      const first = range[1].replace(/\D/g, '');
-      const last = range[2].replace(/\D/g, '');
-      if (!first || first.length !== last.length || BigInt(last) < BigInt(first))
-        throw Error(`CommPilot returned an invalid number range: ${value}.`);
-      const size = BigInt(last) - BigInt(first) + 1n;
+      const { first, last } = numberBounds(value);
+      const size = last - first + 1n;
       if (size > BigInt(Number.MAX_SAFE_INTEGER - total))
         throw Error('CommPilot returned a range too large to count safely.');
       return total + Number(size);
     }, 0);
+  }
+
+  function matchesPreview(values, label) {
+    const expected = numberBounds(label);
+    const intervals = values.map(numberBounds).sort((a, b) =>
+      a.first < b.first ? -1 : a.first > b.first ? 1 : 0);
+    let next = expected.first;
+    // Compare complete membership without expanding potentially large ranges.
+    for (const interval of intervals) {
+      if (interval.length !== expected.length || interval.first !== next || interval.last > expected.last)
+        return false;
+      next = interval.last + 1n;
+    }
+    return next === expected.last + 1n;
   }
 
   async function scan(setStatus, setProgress) {
@@ -203,10 +226,25 @@
     const before = members();
     if (!before.deactivated.length ||
         before.deactivated.some(value => before.activated.includes(value)) ||
-        countNumbers(before.deactivated) !== item.count)
+        !matchesPreview(before.deactivated, item.label))
       throw Error('The numbers in this row do not match the preview. Scan again.');
     item.numbers = before.deactivated;
     const form = document.forms.mainForm;
+    const available = form.elements.namedItem('deactivatedList');
+    const addAll = form.querySelector('#PICKLIST_selectAllNumber');
+    const add = addAll || form.querySelector('#PICKLIST_addNumbers');
+    const enabled = control => !!control && !control.matches(':disabled');
+    if (![available, form.elements.namedItem('toAdd'), form.elements.namedItem('action'),
+      form.elements.namedItem('ok')].every(enabled) || !add ||
+      [...available.options].some(option => option.value.trim() && option.matches(':disabled')))
+      throw Error('The native activation controls are disabled or unavailable. No activation was sent.');
+    if (!addAll) {
+      // A selected-items Add button can be disabled until its native change handler
+      // sees a selection. Select the checked members before testing that button.
+      for (const option of available.options) option.selected = !!option.value.trim();
+      available.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if (!enabled(add)) throw Error('The native activation action is disabled. No activation was sent.');
     form.elements.toAdd.value = item.numbers.join(',');
     form.elements.action.value = 'add';
     onStage(`Moving ${item.count} number${item.count === 1 ? '' : 's'} to Activated`);
@@ -219,7 +257,9 @@
         !item.numbers.every(value => staged.activated.includes(value)))
       throw Error('CommPilot did not move all numbers to Activated.');
     onStage('Saving activation');
-    await waitForReskin(() => document.forms.mainForm.querySelector('input[name="ok"]').click());
+    const save = document.forms.mainForm.querySelector('input[name="ok"]');
+    if (!enabled(save)) throw Error('The native activation save is disabled or unavailable. Check the staged state before retrying.');
+    await waitForReskin(() => save.click());
     onStage('Reading back saved activation');
     const saved = await findExact(item.label);
     if (saved.length !== 1 || rowStatus(saved[0]) !== 'active')
@@ -249,6 +289,7 @@
       <div class="cp-bulk-footer"><button type="button" data-action="apply" disabled>Activate numbers</button>
       <button type="button" data-action="close">Close</button></div></div>`;
     document.body.appendChild(overlay);
+    const releaseFocus = window.cpFocusBulkDialog(overlay);
     dialog = overlay;
     let preview = [];
     let scanned = false;
@@ -347,8 +388,9 @@
         preview = []; setStatus(error.message);
         setProgress('Scan stopped', 0, 0, error.message);
       } finally {
-        working = false; close.textContent = 'Close';
+        const resultStatus = status.textContent;
         try { if (path() !== LIST) await navigate(LIST, {}, LIST); } catch (_) { /* Result remains visible. */ }
+        working = false; close.textContent = 'Close'; setStatus(resultStatus);
         render();
       }
     });
@@ -397,14 +439,15 @@
         setProgress(stopRequested || errors ? 'Stopped with results' : 'Complete',
           done, targets.length, 'Before and After results are shown below.');
       } finally {
-        working = false; close.textContent = 'Close';
+        const resultStatus = status.textContent;
         try { if (path() !== LIST) await navigate(LIST, {}, LIST); } catch (_) { /* Result remains visible. */ }
+        working = false; close.textContent = 'Close'; setStatus(resultStatus);
         render();
       }
     });
     close.addEventListener('click', () => {
       if (working) { stopRequested = true; setStatus('Stopping after the current request…'); return; }
-      overlay.remove(); dialog = null; mountButton();
+      overlay.remove(); releaseFocus(); dialog = null; mountButton();
     });
   }
 

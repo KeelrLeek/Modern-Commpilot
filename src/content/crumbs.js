@@ -378,10 +378,14 @@
   // pjax.js rewrites the header on every page and adds the page pill a moment later: follow both.
   let watched = null, queued = false;
   const observer = new MutationObserver(() => {
-    if (building || queued) return;
-    queued = true;
-    requestAnimationFrame(() => { queued = false; build(); });
+    if (building) return;
+    queueWatch();
   });
+  function queueWatch() {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; watch(); });
+  }
   function watch() {
     const cell = trailCell();
     if (cell && cell !== watched) {
@@ -394,6 +398,6 @@
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch, { once: true });
   else watch();
-  for (const name of ['cp:reskin', 'cp:morphed', 'cp:theme-change']) document.addEventListener(name, () => {closeHistory(); requestAnimationFrame(watch);});
+  for (const name of ['cp:reskin', 'cp:morphed', 'cp:theme-change']) document.addEventListener(name, () => {closeHistory(); queueWatch();});
   document.dispatchEvent(new Event('cp:recent-record'));
 })();

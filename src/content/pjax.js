@@ -3,10 +3,65 @@
   // only the top-level page; running here would rewrite the frame's joint
   // history state and can turn Back into a full document navigation.
   if (window !== window.top) return;
+  // Bulk tools retain their native context while an overlay is open. Read-only
+  // exports share keyboard handling but may opt out of holding browser history.
+  window.cpFocusBulkDialog = function (overlay, options) {
+    options = options || {};
+    var previous = document.activeElement;
+    var ownUrl = location.href, ownState = history.state;
+    function rememberPage() { ownUrl = location.href; ownState = history.state; }
+    function holdBack(event) {
+      if (!overlay.isConnected) return;
+      event.stopImmediatePropagation();
+      // The preview belongs to the group that opened it. Browser history must
+      // not post a different entity behind the still-open batch dialog.
+      history.pushState(ownState, '', ownUrl);
+    }
+    var box = overlay.querySelector('[role="dialog"]') || overlay;
+    box.tabIndex = -1;
+    function focusable() {
+      return [].slice.call(box.querySelectorAll('button, input, select, textarea, a[href], [tabindex]')).filter(function (el) {
+        return el.tabIndex >= 0 && !el.matches(':disabled') && el.getClientRects().length;
+      });
+    }
+    function focusInside() { (focusable()[0] || box).focus(); }
+    function keepFocus(event) {
+      if (overlay.isConnected && !overlay.contains(event.target)) focusInside();
+    }
+    function keys(event) {
+      if (!overlay.isConnected) return;
+      if (event.key === 'Escape') {
+        event.preventDefault(); event.stopImmediatePropagation();
+        if (options.onEscape) { options.onEscape(); return; }
+        var close = overlay.querySelector('[data-action="close"]');
+        if (close && !close.disabled) close.click();
+      } else if (event.key === 'Tab') {
+        var controls = focusable(), index = controls.indexOf(document.activeElement);
+        event.preventDefault(); event.stopImmediatePropagation();
+        if (!controls.length) box.focus();
+        else controls[index < 0 ? (event.shiftKey ? controls.length - 1 : 0) :
+          (index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length].focus();
+      }
+    }
+    document.addEventListener('focusin', keepFocus, true);
+    document.addEventListener('keydown', keys, true);
+    if (options.history !== false) {
+      document.addEventListener('cp:reskin', rememberPage);
+      window.addEventListener('popstate', holdBack, true);
+    }
+    focusInside();
+    return function () {
+      document.removeEventListener('focusin', keepFocus, true);
+      document.removeEventListener('keydown', keys, true);
+      document.removeEventListener('cp:reskin', rememberPage);
+      window.removeEventListener('popstate', holdBack, true);
+      if (previous && previous.isConnected) previous.focus();
+    };
+  };
   // Version stamp — logged on EVERY page load (login included) so a reload is trivially verifiable
   // in the console (read for "[pjax] v…"). Bump per build alongside manifest.json so a stale/failed
   // reload is caught immediately instead of chasing a phantom bug. Keep in sync with manifest version.
-  var CP_PJAX_VERSION = "0.3.81-native";
+  var CP_PJAX_VERSION = "0.3.82-native";
 
   // CP_DEBUG gates the ROUTINE per-nav [pjax] logs (fetching/response-200/re-executed/reskin/etc.) so a HEALTHY
   // navigation leaves the console near-silent. Flip on with localStorage.cpDebug="1" (read once at load). Every
@@ -27,11 +82,12 @@
       if (e && (now - e.last) < 1500) {
         e.count++; e.last = now;
         if (e.timer) clearTimeout(e.timer);
-        e.timer = setTimeout(function () { if (e.count > 1) console.warn(msg + " (x" + e.count + ")"); cpCoMap[key] = null; }, 1600);
+        e.timer = setTimeout(function () { if (e.count > 1) console.warn(msg + " (x" + e.count + ")"); delete cpCoMap[key]; }, 1600);
         return;
       }
+      if (e && e.timer) clearTimeout(e.timer);
       console.warn(msg);
-      cpCoMap[key] = { count: 1, last: now, timer: setTimeout(function () { cpCoMap[key] = null; }, 1600) };
+      cpCoMap[key] = { count: 1, last: now, timer: setTimeout(function () { delete cpCoMap[key]; }, 1600) };
     } catch (x) { try { console.warn(msg); } catch (y) {} }
   }
   // Version stamp stays ALWAYS-ON: one line at load, and the reload-verification dance needs it visible to
@@ -116,7 +172,7 @@
       cpInitialPath === "/commpilot/Common/folder_contents.jsp" ?
       { url: cpInitialPath, params: { folder: "R0", menuId: "8" } } :
       cpInitialPath.indexOf("/commpilot/") === 0 && cpInitialPath.indexOf("/Login/") === -1 ?
-      { url: cpInitialPath, params: {} } :
+      { url: cpInitialPath + location.search, params: {} } :
       { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
     history.replaceState({ cpNav: cpInitialNav, cpDeviceOrigin: cpDeviceProfileOrigin }, "", location.href);
   } catch (e) {}
@@ -159,7 +215,7 @@
   var cpPjaxInited = false;
   var cpSeq = 0;
   var cpDclSpin = false;   // true while cpListSearch's harvest re-dispatches DOMContentLoaded (see cpHook guard)
-  var cpLastNav = { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
+  var cpLastNav = cpInitialNav || { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
   var cpPopReplaying = false;
   var cpPopScroll = null;
   var cpReexecutingScripts = false;
@@ -170,8 +226,10 @@
   var cpSrcCollector = null;
   var cpExternalDclRestore = null;
   var cpBulkScriptsReady = Promise.resolve(null);
+  var cpNativeScriptsLoading = false;
+  var cpNativeScriptRequests = new Set();
   // Scripts already parsed by the initial native document need no second install.
-  // Later bulk pages can introduce head libraries absent from that landing page.
+  // Later native forms can introduce head libraries absent from that landing page.
   var cpNativeHeadSources = new Set([].slice.call(document.querySelectorAll('head script[src]')).map(function (s) { return s.src; }));
   var cpSectionQueue = [];
   var cpSectionRunning = false;
@@ -248,11 +306,6 @@
   // is built; powers the breadcrumb current-pill MEGA menu. PERSISTED to sessionStorage so it survives a reload
   // — otherwise landing on a sub-page after reload/recovery (no console rebuilt) leaves the menu empty.
   var cpLevelPages = (function () { try { return JSON.parse(sessionStorage.getItem("cp-level-pages")) || {}; } catch (e) { return {}; } })();
-  // Consecutive server-5xx streak across navs (reset on any successful swap). Two in a row on this
-  // host almost always means the session is DEAD (once killed, it echoes 500s on every POST —
-  // measured repeatedly 2026-07-07) — surface ONE "session expired" banner with a sign-in action
-  // instead of stacking identical server-error banners.
-  var cpErr5xxStreak = 0;
   // A rejected follow can replay page scripts that immediately try the same navigation again.
   // Once token recovery has failed, make a single sign-in transition instead of posting in a loop.
   var cpSessionRedirecting = false;
@@ -285,19 +338,47 @@
   var cpEntryFolder = null;   // the captured anchor folder id (e.g. "R0")
   var cpEntryHtml = null;     // its menu HTML; consumed once by cpFetchSection, then nulled
 
+  // Match the browser's script classification, including legacy MIME aliases.
+  // https://html.spec.whatwg.org/multipage/scripting.html#prepare-the-script-element
+  function cpNativeScriptKind(script) {
+    var raw = script.getAttribute('type');
+    if (raw === null) {
+      var language = script.getAttribute('language');
+      raw = language ? 'text/' + language : 'text/javascript';
+    } else if (raw === '') raw = 'text/javascript';
+    raw = raw.toLowerCase();
+    var asciiTrim = function (text) { return text.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, ''); };
+    var mime = script.hasAttribute('type') ? asciiTrim(raw) : raw;
+    if (/^(?:(?:application|text)\/(?:x-)?(?:java|ecma)script|text\/(?:javascript1\.[0-5]|jscript|livescript))$/.test(mime)) {
+      if (script.noModule) return null;
+      if (script.hasAttribute('for') && script.hasAttribute('event') &&
+          (asciiTrim(script.getAttribute('for')).toLowerCase() !== 'window' ||
+           !/^onload(?:\(\))?$/.test(asciiTrim(script.getAttribute('event')).toLowerCase()))) return null;
+      return 'classic';
+    }
+    return /^(?:module|importmap|speculationrules)$/.test(raw) ? raw : null;
+  }
+
+  function cpNativeInlineScript(script) {
+    var kind = cpNativeScriptKind(script);
+    return (kind === 'classic' || kind === 'module') && !script.hasAttribute('src');
+  }
+
   // Re-execute scripts inside a container by replacing each <script>
   // with a fresh copy that carries the live nonce.
   function reexecScripts(container) {
     var olds = Array.prototype.slice.call(container.querySelectorAll("script"));
     for (var j = 0; j < olds.length; j++) {
       var old = olds[j];
+      var kind = cpNativeScriptKind(old);
+      if (!kind) continue; // Preserve data blocks and scripts the browser ignores.
       var s = document.createElement("script");
       var attrs = old.attributes;
       for (var k = 0; k < attrs.length; k++) {
         if (attrs[k].name !== "nonce") s.setAttribute(attrs[k].name, attrs[k].value);
       }
       if (LIVE_NONCE) s.nonce = LIVE_NONCE;
-      if (old.src) {
+      if (old.src && (kind === 'classic' || kind === 'module')) {
         s.src = old.src;
         s.addEventListener("load", function () { this._cpLoaded = true; }, { once: true });
         s.addEventListener("error", function () { this._cpLoaded = true; }, { once: true });
@@ -314,7 +395,7 @@
     return olds.length;
   }
 
-  // Bulk saves call the native validator explicitly. Replaying only body scripts
+  // Native save-and-forward links and bulk saves call the validator explicitly. Replaying only body scripts
   // leaves its head dependencies (e.g. trim) undefined after list -> Add navigation.
   // Use native script elements/CSP nonce, preserving parser order across head and
   // body. Do not synthesize helpers or continue with a partially loaded validator.
@@ -328,12 +409,12 @@
       'antiCrossFraming.parentNode.removeChild(antiCrossFraming)}else{top.location=self.location}';
   }
 
-  async function cpBulkPageScripts(doc, url, containers) {
-    var head = [].slice.call(doc.head.querySelectorAll('script'));
+  async function cpNativePageScripts(doc, url, containers, refreshPageHead, isCurrent, includeHead) {
+    var head = includeHead === false ? [] : [].slice.call(doc.head.querySelectorAll('script'));
     var body = containers.flatMap(function (c) { return [].slice.call(c.querySelectorAll('script')); });
     for (var old of head.concat(body)) {
-      var type = (old.getAttribute('type') || '').trim().toLowerCase();
-      if (type && !/^(?:text|application)\/(?:java|ecma)script$/.test(type)) continue;
+      if (isCurrent && !isCurrent()) return;
+      if (cpNativeScriptKind(old) !== 'classic') continue;
       var inHead = head.indexOf(old) !== -1;
       var inContent = !inHead && containers[0].contains(old);
       var dclStart = window.__cpDclFns.length;
@@ -342,10 +423,18 @@
       var sourceLabel = src ? new URL(src, new URL(url, location.href)).pathname :
         (inHead ? 'head script ' + (head.indexOf(old) + 1) : 'page script ' + (body.indexOf(old) + 1));
       if (src) {
-        src = new URL(src, new URL(url, location.href)).href;
+        var scriptUrl = new URL(src, new URL(url, location.href));
+        // Some native Voice Management responses spell the application root
+        // /CommPilot/. The deployed root is /commpilot/ (the former returns 403).
+        // Preserve the case of the script's own path and the same-origin check.
+        scriptUrl.pathname = scriptUrl.pathname.replace(/^\/commpilot\//i, '/commpilot/');
+        src = scriptUrl.href;
         if (new URL(src).origin !== location.origin)
           throw new Error('A native script could not load from the CommPilot origin.');
-        if (inHead && cpNativeHeadSources.has(src)) continue;
+        // Shared libraries survive a PJAX swap, but a page's validate.js may
+        // have been replaced by another page's globals since the last visit.
+        if (inHead && cpNativeHeadSources.has(src) &&
+            (!refreshPageHead || /^\/commpilot\/Scripts\//i.test(new URL(src).pathname))) continue;
       }
       var script = document.createElement('script');
       for (var attr of old.attributes) {
@@ -358,24 +447,36 @@
       if (src) script.src = src;
       else script.textContent = old.textContent;
       await new Promise(function (resolve, reject) {
-        var timer, runtimeError = null;
+        var timer, runtimeError = null, finished = false;
         var onError = function (event) {
           if (event.target === script || document.currentScript === script || (src && event.filename === src))
             runtimeError = new Error('Native script failed (' + sourceLabel + '): ' +
               ((event.error && event.error.message) || event.message || 'JavaScript initialization failed.'));
         };
-        var finish = function (error) {
+        var finish = function (error, timedOut) {
+          // Removing a requested script does not cancel its eventual execution.
+          // Retain its completion handlers after timeout so navigation can tell
+          // whether a late response can still overwrite another page's globals.
+          if (!timedOut) {
+            cpNativeScriptRequests.delete(script);
+            script.onload = script.onerror = null;
+          }
+          if (finished) return;
+          finished = true;
           clearTimeout(timer);
           window.removeEventListener('error', onError, true);
-          script.onload = script.onerror = null;
-          if (error || runtimeError) { script.remove(); reject(error || runtimeError); }
+          if (error || runtimeError) {
+            if (script.parentNode) script.parentNode.removeChild(script);
+            reject(error || runtimeError);
+          }
           else { if (src && inHead) cpNativeHeadSources.add(src); resolve(); }
         };
         window.addEventListener('error', onError, true);
         if (src) {
+          cpNativeScriptRequests.add(script);
           script.onload = function () { finish(); };
           script.onerror = function () { finish(new Error('Native script could not load (' + sourceLabel + ').')); };
-          timer = setTimeout(function () { finish(new Error('Native script timed out while loading (' + sourceLabel + ').')); }, 15000);
+          timer = setTimeout(function () { finish(new Error('Native script timed out while loading (' + sourceLabel + ').'), true); }, 15000);
         }
         try {
           if (inHead) document.head.appendChild(script);
@@ -383,9 +484,11 @@
           if (!src) finish();
         } catch (error) { finish(new Error('Native script failed (' + sourceLabel + '): ' + error.message)); }
       });
-      // Inline definitions live on window after execution; retaining copies in
-      // head would duplicate them in later snapshots and recovery replays.
-      if (inHead && !src) script.remove();
+      // Definitions survive on window after execution. Remove the temporary
+      // head node for external validators too: revisiting native forms must
+      // reload their globals without retaining another script in each snapshot.
+      // cpNativeHeadSources still records shared libraries installed once.
+      if (inHead) script.remove();
       // Only content handlers should be replayed by the list row-fill helper.
       if (!inContent) window.__cpDclFns.splice(dclStart);
     }
@@ -603,18 +706,96 @@
 
     function cpExtractStub(doc) {
       var ss = doc.querySelectorAll("script");
-      var src = "";
-      for (var i = 0; i < ss.length; i++) src += (ss[i].textContent || "") + "\n";
-      var m = /redirectPost\s*\(\s*['"]([^'"]+)['"]\s*,\s*(\{[\s\S]*?\})\s*\)/.exec(src);
+      var redirect = null;
+      for (var i = 0; i < ss.length && !redirect; i++) {
+        // Data blocks and fallback text in external scripts do not execute.
+        if (!cpNativeInlineScript(ss[i])) continue;
+        redirect = cpParseNativeScriptRedirect(ss[i].textContent || "");
+      }
+      if (!redirect) return null;
+      var tEl = doc.getElementsByName("formtokenserial")[0];
+      return { target: redirect.url, data: redirect.params, token: tEl ? tEl.value : null };
+    }
+
+    function cpParseNativeScriptRedirect(src) {
+      // Read literal native redirect calls, never example text or comments.
+      // This scanner does not evaluate the server's JavaScript.
+      var re = /'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*|\bredirectPost\s*\(/g, match;
+      while ((match = re.exec(src))) {
+        if (!/^redirectPost\b/.test(match[0])) continue;
+        var range = {}, redirect = cpParseNativeRedirect(src.slice(match.index), range);
+        if (redirect && range.start === 0) return redirect;
+      }
+      return null;
+    }
+
+    function cpParseNativeRedirect(src, parsedRange) {
+      // Native identifiers can contain either quote and escaped Unicode. Keep
+      // quoted braces inside their string rather than ending the payload early.
+      var m = /redirectPost\s*\(\s*(?:'((?:\\.|[^'\\])*)'|"((?:\\.|[^"\\])*)")\s*(?:,\s*(\{(?:[^{}'"\\]|\\.|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")*\}))?\s*\)/.exec(src);
       if (!m) return null;
       var data = {};
-      var re = /(\w+)\s*:\s*['"]([^'"]*)['"]/g, mm;
-      while ((mm = re.exec(m[2]))) data[mm[1]] = mm[2];
-      var tEl = doc.getElementsByName("formtokenserial")[0];
-      return { target: m[1].replace(/\\u002F/g, "/"), data: data, token: tEl ? tEl.value : null };
+      var re = /(\w+)\s*:\s*(?:'((?:\\.|[^'\\])*)'|"((?:\\.|[^"\\])*)")/g, mm;
+      while ((mm = re.exec(m[3] || ''))) data[mm[1]] = cpUnescapeJs(mm[2] === undefined ? mm[3] : mm[2]);
+      if (parsedRange) { parsedRange.start = m.index; parsedRange.end = m.index + m[0].length; }
+      return { url: cpUnescapeJs(m[1] === undefined ? m[2] : m[1]), params: data };
+    }
+
+    function cpBulkRequestDiagnostic(url) {
+      var diagnostic = cpBulkOwner && cpBulkOwner.diagnostic;
+      if (!diagnostic) return null;
+      var record = {path:new URL(url, location.href).pathname, method:'POST', status:null, responseType:null};
+      diagnostic.requests.push(record);
+      return record;
+    }
+    function cpIsSignInDocument(doc) {
+      if (!doc || doc.querySelector('td[width="82%"]')) return false;
+      return /^(?:CommPilot\s*[-:]?\s*)?(?:Login|Log in|Sign in)$/i.test((doc.title || '').trim()) ||
+        /Please login again|not authorized to access the system/i.test(doc.body && doc.body.textContent || '') ||
+        !!doc.querySelector('form[action*="Login"] input[type="password"], form[action*="login"] input[type="password"]');
+    }
+
+    function cpHttpFailure(status, doc) {
+      // A rejected request can still rotate the session token. Retain it, but
+      // never expose an error document as usable menu/form content to callers.
+      // A sign-in form's token belongs to authentication, not this app session.
+      if (doc && !cpIsSignInDocument(doc)) {
+        var token = doc.getElementsByName('formtokenserial')[0];
+        if (token) cpWriteToken(token.value);
+      }
+      return { err: status };
+    }
+
+    function cpPersonalAssistantVerified(doc, name, shouldExist) {
+      var cell = doc && doc.querySelector('td[width="82%"]');
+      if (!cell || !cell.querySelector('[name="add"]') || cpSearchTooMany(doc)) return false;
+      if ([].slice.call(cell.querySelectorAll('.error, .errorMsg, .Failure')).some(function (el) {
+        return (el.textContent || '').trim();
+      })) return false;
+      var rows = cpSearchParseRows(doc);
+      var found = rows.some(function (row) { return row.cells[0] === String(name).trim(); });
+      if (shouldExist) return found;
+      // Absence on one page, or in an unfinished list, does not prove deletion.
+      var page = cpSearchPageOf(doc);
+      return !found && (!page || (page.cur === 1 && page.total === 1)) &&
+        (rows.length > 0 || cpSearchHasEmptyMarker(doc));
+    }
+
+    function cpNavigationAddressError(url) {
+      try {
+        if (typeof url !== 'string' || !url) throw new Error('Missing address');
+        var target = new URL(url, location.href);
+        if (target.origin !== location.origin || target.username || target.password)
+          return 'The CommPilot navigation address is outside this site or contains credentials. No request was sent.';
+      } catch (e) {
+        return 'The CommPilot navigation address is invalid. No request was sent.';
+      }
+      return null;
     }
 
     function cpFollow(u, p, token, depth) {
+      var addressError = cpNavigationAddressError(u);
+      if (addressError) return Promise.resolve({ navigationError: addressError });
       var body = new URLSearchParams();
       if (p && Array.isArray(p.__cpFormEntries)) {
         var tokenPlaced = false;
@@ -628,7 +809,11 @@
         if (token) body.append('formtokenserial', token);
       }
       cpInflightPosts++;   // mark a token-bearing POST in flight (drained by the reload handler)
-      var _settled = false, _done = function () { if (_settled) return; _settled = true; cpInflightPosts = Math.max(0, cpInflightPosts - 1); };
+      // Match the conservative iframe deadline. A stalled response/body must not
+      // hold the token-drain lock forever; expiry is not proof a save was rejected.
+      var requestController = new AbortController(), requestExpired = false;
+      var requestDeadline = setTimeout(function () { requestExpired = true; requestController.abort(); }, 90000);
+      var _settled = false, _done = function () { if (_settled) return; _settled = true; clearTimeout(requestDeadline); cpInflightPosts = Math.max(0, cpInflightPosts - 1); };
       // redirect:"manual" — a server 3xx is this app's LOGIN/SESSION BOUNCE (the server hard-codes an
       // http:// Login redirect). Under the default redirect:"follow" the browser tries to follow that hop,
       // block-all-mixed-content (page CSP) blocks the http:// target, and fetch REJECTS with
@@ -638,29 +823,45 @@
       // false network error. We route it as {auth:false} so cpHook's fresh-token re-attempt / recovery runs
       // instead of a silent dead click. Normal navs are 200 with content — this POST-based app never uses a 3xx
       // for real navigation. See [[gotcha-idle-connection-drop-dead-click]] / [[gotcha-csp-inline-style-attr-blocked]].
+      var requestDiagnostic = cpBulkRequestDiagnostic(u);
       return fetch(u, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: body.toString(),
         credentials: "same-origin",
-        redirect: "manual"
+        redirect: "manual",
+        signal: requestController.signal
       })
         .then(function (r) {
+          if (requestDiagnostic) { requestDiagnostic.status = r.status; requestDiagnostic.responseType = r.type; }
           if (r.type === "opaqueredirect" || (r.status >= 300 && r.status < 400)) {
             cpWarnCo("bounce|" + u, "[pjax] session bounce (server redirect) on " + u + " (hop " + depth + ") — auth-fail, no socket drop");
             return { auth: false };
           }
-          if (r.status >= 500) {
+          if (r.status === 401) return { auth: false, sessionRejected: true };
+          if (r.status >= 400) {
             // Server error — return a DISTINCT failure and DO NOT parse/follow the error page's embedded
             // redirect stub. The old flow hopped the stub back into the failing endpoint (up to depth 4 →
             // 5 token-bearing POSTs into a 500ing page), which is how one broken menu item (DeviceInventory
             // Find-All, Xsi at reseller) escalated a single 500 into a KILLED SESSION → logout (live
             // 2026-07-02). Callers route {err} to an in-place notice / grid error state — no more requests.
             cpWarnCo("resp|" + u + "|" + r.status, "[pjax] response " + r.status + " " + u + " (hop " + depth + ") — aborting (no stub-follow on a server error)");
-            return { err: r.status };
+            return Promise.resolve().then(function () { return r.text(); }).then(function (html) {
+              return cpHttpFailure(r.status, new DOMParser().parseFromString(cpStripInlineStyles(html), 'text/html'));
+            }).catch(function () {
+              // The HTTP failure is already known. An unreadable body must
+              // not turn it into a network error that could replay this POST.
+              return { err: r.status };
+            });
           }
           cpDbg("[pjax] response", r.status, r.url, "(hop " + depth + ")");
           return r.text().then(function (html) {
+            clearTimeout(requestDeadline); // Any redirect hop has its own request deadline.
+            html = cpStripInlineStyles(html);
+            var doc = new DOMParser().parseFromString(html, "text/html");
+            if (cpIsSignInDocument(doc)) return { auth: false };
+            var responseToken = doc.getElementsByName('formtokenserial')[0];
+            var readbackToken = responseToken ? responseToken.value : token;
             // Personal Assistant's Add saves the criterion but answers with a
             // tiny script calling top.location.replace('../'). It has no
             // content cell or redirectPost stub. Read the owner list and
@@ -668,12 +869,12 @@
             if ((!html || /top\.location\.replace\(\s*["']\.\.\/["']\s*\)/.test(html)) &&
                 /^\/commpilot\/User\/PersonalAssistant\/Add\/index\.jsp$/.test(new URL(u, location.href).pathname) &&
                 p && p.criteriaName && p.ok != null) {
-              return cpFollow('/commpilot/User/PersonalAssistant/', {}, token, depth + 1).then(function (listResult) {
-                var cell = listResult && listResult.doc &&
-                  listResult.doc.querySelector('td[width="82%"]');
-                if (cell && (cell.textContent || '').indexOf(String(p.criteriaName)) !== -1)
+              cpWriteToken(readbackToken);
+              return cpFollow('/commpilot/User/PersonalAssistant/', {}, readbackToken, depth + 1).then(function (listResult) {
+                if (cpPersonalAssistantVerified(listResult && listResult.doc, p.criteriaName, true))
                   return listResult;
-                return { unverifiedSave: 'CommPilot redirected after saving, but the new Personal Assistant rule could not be verified. Check the list before trying again.' };
+                return { doc: listResult && listResult.doc || doc,
+                  unverifiedSave: 'CommPilot redirected after saving, but the new Personal Assistant rule could not be verified. Check the list before trying again.' };
               });
             }
             // Delete succeeds, then this controller tries to render the now
@@ -682,23 +883,19 @@
             if (/^\/commpilot\/User\/PersonalAssistant\/Modify\/index\.jsp$/.test(new URL(u, location.href).pathname) &&
                 p && p.delete != null && (p.criteriaName || p.key || p.P_key)) {
               var deletedCriterion = String(p.criteriaName || p.key || p.P_key);
-              return cpFollow('/commpilot/User/PersonalAssistant/', {}, token, depth + 1).then(function (listResult) {
-                var cell = listResult && listResult.doc &&
-                  listResult.doc.querySelector('td[width="82%"]');
-                if (cell && (cell.textContent || '').indexOf(deletedCriterion) === -1)
+              cpWriteToken(readbackToken);
+              return cpFollow('/commpilot/User/PersonalAssistant/', {}, readbackToken, depth + 1).then(function (listResult) {
+                if (cpPersonalAssistantVerified(listResult && listResult.doc, deletedCriterion, false))
                   return listResult;
-                return { unverifiedSave: 'CommPilot returned an error after Delete, and the Personal Assistant rule could not be verified as removed. Check the list before trying again.' };
+                return { doc: listResult && listResult.doc || doc,
+                  unverifiedSave: 'CommPilot returned an error after Delete, and the Personal Assistant rule could not be verified as removed. Check the list before trying again.' };
               });
             }
-            if (html.indexOf("Please login again") !== -1 || html.indexOf("not authorized to access the system") !== -1) {
-              cpWarnCo("authfail|" + u, "[pjax] AUTH-FAIL response from " + u + " (hop " + depth + ")");
-              return { auth: false };
-            }
-            html = cpStripInlineStyles(html);   // drop nonce-mismatched legacy inline styles (blocked anyway) → no CSP noise
-            var doc = new DOMParser().parseFromString(html, "text/html");
-            if (doc.querySelector('td[width="82%"]')) return { doc: doc, html: html };
+            if (doc.querySelector('td[width="82%"]')) return { doc: doc, html: html, responseUrl: new URL(u, location.href).href };
             var stub = cpExtractStub(doc);
-            if (stub && stub.target && depth < 4) {
+            if (stub && stub.target) {
+              if (depth >= 4)
+                return { doc: doc, navigationError: 'CommPilot returned too many redirects. Your current page is still open; the request was not repeated.' };
               // Resolve a RELATIVE stub target against the REQUEST url, not the document. In the legacy
               // full-page flow the stub document's location IS the POSTed url, so its redirectPost relatives
               // resolve against it — fetch() instead resolves against OUR page. Live 2026-07-06: a successful
@@ -710,35 +907,62 @@
               if (st === "/index.jsp" &&
                   /^\/commpilot\/Group\/CCScheduledReports\/(?:index\.jsp)?$/.test(new URL(u, location.href).pathname))
                 st = "/commpilot/Group/CCScheduledReports/index.jsp";
-              try { st = new URL(st, new URL(u, location.href)).pathname; } catch (e) {}
+              try {
+                var resolvedStub = new URL(st, new URL(u, location.href));
+                if (resolvedStub.origin !== location.origin || resolvedStub.username || resolvedStub.password)
+                  return { doc: doc, navigationError: 'CommPilot returned a redirect outside this site or containing credentials. Your current page is still open.' };
+                st = resolvedStub.pathname + resolvedStub.search;
+              } catch (e) {
+                return { doc: doc, navigationError: 'CommPilot returned an invalid navigation address. Your current page is still open.' };
+              }
               cpDbg("[pjax] following stub ->", st);
               return cpFollow(st, stub.data, stub.token, depth + 1);
             }
-            return { doc: doc, html: html };
+            return { doc: doc, html: html, responseUrl: new URL(u, location.href).href };
           });
         })
-        .then(function (v) { _done(); return v; }, function (e) { _done(); throw e; });
+        .then(function (v) { _done(); return v; }, function (e) {
+          if (requestExpired) {
+            e = new Error('CommPilot did not respond within 90 seconds.');
+            e.name = 'TimeoutError';
+            if (requestDiagnostic) requestDiagnostic.failure = 'Request timed out';
+          } else if (requestDiagnostic && requestDiagnostic.status === null) requestDiagnostic.failure = 'Network request failed';
+          _done(); throw e;
+        });
     }
 
     // Harvest a FRESH valid app token in-place (the one GET-allowed, session-aware endpoint) — mirrors
     // stubguard's cpHarvestOnce trust rule EXACTLY: trust the token ONLY when servlet/Login hands back an
-    // app redirect (redirectPost -> folder_contents), never the login form's own token. Resolves null when
-    // the session is genuinely dead (bounce/opaqueredirect/no-stub) → caller opens sign-in once.
+    // app redirect (redirectPost -> folder_contents), never the login form's own token. Transport/server
+    // failures reject separately from an unauthenticated response; they do not establish session expiry.
     // redirect:"manual" so a dead-session http:// Login bounce resolves as opaqueredirect (null) with NO
     // connect-src violation. Used by cpHook to recover a still-alive-but-token-stale nav in place instead of
     // hard-logging-out. See [[gotcha-idle-connection-drop-dead-click]].
     function cpHarvestFreshToken() {
-      return fetch("/commpilot/servlet/Login", { method: "GET", credentials: "same-origin", cache: "no-store", redirect: "manual" })
+      var controller = new AbortController();
+      var deadline = setTimeout(function () { controller.abort(); }, 8000);
+      // Although this is a GET, its response rotates the same session token as a POST. Other navigation
+      // must drain it, and retain its fresh token even if a newer click supersedes the original page.
+      cpInflightPosts++;
+      return fetch("/commpilot/servlet/Login", { method: "GET", credentials: "same-origin", cache: "no-store", redirect: "manual", signal: controller.signal })
         .then(function (r) {
+          if (r.status >= 400 && r.status !== 401) throw new Error('Session check failed (HTTP ' + r.status + ').');
           if (r.type === "opaqueredirect" || r.status === 0 || r.status >= 300) return null;
           return r.text();
         })
         .then(function (html) {
-          if (!html) return null;
-          var stub = cpExtractStub(new DOMParser().parseFromString(cpStripInlineStyles(html), "text/html"));
-          return (stub && stub.target && stub.target.indexOf("folder_contents") !== -1 && stub.token) ? stub.token : null;
+          if (html === null) return null;
+          var doc = new DOMParser().parseFromString(cpStripInlineStyles(html), "text/html");
+          var stub = cpExtractStub(doc);
+          var token = (stub && stub.target && stub.target.indexOf("folder_contents") !== -1 && stub.token) ? stub.token : null;
+          if (!token && !cpIsSignInDocument(doc)) throw new Error('The session check returned an incomplete page.');
+          if (token && !controller.signal.aborted) cpWriteToken(token);
+          return token;
         })
-        .catch(function () { return null; });
+        .catch(function () {
+          throw new Error('CommPilot could not finish checking the session. Your current page is still open; try again in a moment.');
+        })
+        .finally(function () { clearTimeout(deadline); cpInflightPosts = Math.max(0, cpInflightPosts - 1); });
     }
 
     // Iframe transport. At Service-Provider / Group / User levels, folder_contents.jsp returns a
@@ -750,8 +974,10 @@
     // folder_contents 2-step), so cpHook's swap logic is identical regardless of transport.
     var CP_FRAME_WAIT_MS = 90000;
     function cpFollowFrame(url, params, token, depth, timeoutMs) {
+      var addressError = cpNavigationAddressError(url);
+      if (addressError) return Promise.resolve({ navigationError: addressError });
       return new Promise(function (resolve) {
-        var ifr;
+        var ifr, pendingForm, deadline;
         function newFrame() {
           ifr = document.createElement("iframe");
           ifr.name = "cpFrame" + (++cpFrameSeq);
@@ -762,17 +988,37 @@
         newFrame();
         cpInflightPosts++;   // a token-bearing navigation POST in flight (drained by the reload handler)
         var settled = false;
+        function removeForm(form) {
+          if (!form) return;
+          // Native field names can shadow form.parentNode and form.remove.
+          var parent = Object.getOwnPropertyDescriptor(Node.prototype, 'parentNode').get.call(form);
+          if (parent) Node.prototype.removeChild.call(parent, form);
+        }
         function done(val) {
           if (settled) return;
           settled = true;
+          clearTimeout(deadline);
           cpInflightPosts = Math.max(0, cpInflightPosts - 1);
+          // Prototype replaces Element.remove with a helper that throws for a
+          // detached node. Cleanup must never strand the navigation promise.
+          removeForm(pendingForm);
+          pendingForm = null;
+          ifr.onload = null;
           try { ifr.remove(); } catch (e) {}
           resolve(val);
         }
+        function postSafely(u, p, tok, d, freshFrame) {
+          try {
+            if (freshFrame) { try { ifr.remove(); } catch (e) {} newFrame(); }
+            post(u, p, tok, d);
+          } catch (e) {
+            done({ navigationError: 'CommPilot could not finish this navigation. The request was not repeated. Your current page is still open.' });
+          }
+        }
         function post(u, p, tok, d) {
-          var f = document.createElement("form");
+          var f = pendingForm = document.createElement("form");
           f.method = "POST"; f.action = u; f.target = ifr.name;
-          function add(n, v) { var inp = document.createElement("input"); inp.type = "hidden"; inp.name = n; inp.value = v; f.appendChild(inp); }
+          function add(n, v) { var inp = document.createElement("input"); inp.type = "hidden"; inp.name = n; inp.value = v; Node.prototype.appendChild.call(f, inp); }
           if (p && Array.isArray(p.__cpFormEntries)) {
             var tokenPlaced = false;
             p.__cpFormEntries.forEach(function (entry) {
@@ -786,38 +1032,67 @@
           }
           document.body.appendChild(f);
           ifr.onload = function () {
-            var html = "";
+            var html = "", responseUrl, responseStatus = 0;
             try {
-              if ((ifr.contentWindow.location.href || "") === "about:blank") return;  // initial load, ignore
+              responseUrl = ifr.contentWindow.location.href;
+              if ((responseUrl || "") === "about:blank") return;  // initial load, ignore
               html = ifr.contentDocument.documentElement.outerHTML;
-            } catch (e) { try { f.remove(); } catch (e2) {} done({ auth: false }); return; }
-            try { f.remove(); } catch (e) {}
-            if (!html || html.length < 300) return;
-            if (html.indexOf("Please login again") !== -1 || html.indexOf("not authorized to access the system") !== -1) { done({ auth: false }); return; }
+            } catch (e) {
+              // Browser network-error pages and cross-origin responses are unreadable here.
+              // That alone does not establish session expiry or authorize replaying this POST.
+              done({ navigationError: 'CommPilot could not load this page. The response was interrupted or could not be read. Your current page is still open.' });
+              return;
+            }
+            // Supporting browsers expose the frame's HTTP status without an
+            // extra request. Missing timing support retains the document checks.
+            try {
+              var navigationTiming = ifr.contentWindow.performance.getEntriesByType('navigation')[0];
+              if (navigationTiming && typeof navigationTiming.responseStatus === 'number') responseStatus = navigationTiming.responseStatus;
+            } catch (e) {}
+            removeForm(f);
+            if (pendingForm === f) pendingForm = null;
             html = cpStripInlineStyles(html);
             var fdoc = new DOMParser().parseFromString(html, "text/html");
+            if (responseStatus === 401) { done({ auth: false, sessionRejected: true }); return; }
+            if (responseStatus >= 400 && responseStatus <= 599) { done(cpHttpFailure(responseStatus, fdoc)); return; }
             if (fdoc.querySelector('td[width="82%"]')) { done({ doc: fdoc, html: html }); return; }
+            if (cpIsSignInDocument(fdoc)) { done({ auth: false }); return; }
             var stub = cpExtractStub(fdoc);
-            if (stub && stub.target && d < 4) {
-              cpDbg("[pjax] frame stub ->", stub.target);
+            if (stub && stub.target) {
+              if (d >= 4) {
+                done({ doc: fdoc, navigationError: 'CommPilot returned too many redirects. Your current page is still open; the request was not repeated.' });
+                return;
+              }
+              var target;
+              try {
+                var frameTarget = new URL(stub.target, responseUrl);
+                if (frameTarget.origin !== location.origin || frameTarget.username || frameTarget.password) {
+                  done({ doc: fdoc, navigationError: 'CommPilot returned a redirect outside this site or containing credentials. Your current page is still open.' });
+                  return;
+                }
+                target = frameTarget.href;
+              }
+              catch (e) {
+                done({ doc: fdoc, navigationError: 'CommPilot returned an invalid navigation address. Your current page is still open.' });
+                return;
+              }
+              cpDbg("[pjax] frame stub ->", target);
               // Each POST is the first navigation of a fresh frame. Reusing a
               // frame for the redirect chain adds joint session-history entries.
               // Those entries can intercept Back and discard the Forward page.
-              try { ifr.remove(); } catch (e) {}
-              newFrame();
-              post(stub.target, stub.data, stub.token, d + 1);
+              postSafely(target, stub.data, stub.token, d + 1, true);
               return;
             }
             done({ doc: fdoc, html: html });
           };
-          f.submit();
+          cpNativeFormSubmit.call(f);
         }
-        post(url, params || {}, token, depth || 0);
         // Wait as long as the browser would for the page. Giving up early (this was 8 s) left CommPilot still
         // working on the request: the reply's new single-use token never arrived, the next request went out with
         // the old one, and CommPilot signed the session out ("Error loading the menu … no target object"). A big
         // customer's pages take that long on the main site.
-        setTimeout(function () { done({ auth: false, timedOut: true }); }, timeoutMs || CP_FRAME_WAIT_MS);
+        deadline = setTimeout(function () { done({ auth: false, timedOut: true }); }, timeoutMs || CP_FRAME_WAIT_MS);
+        postSafely(url, params || {}, token, depth || 0, false);
       });
     }
 
@@ -981,10 +1256,18 @@
 
     // Pagination descriptor from the results block's doPage()/doSort() scripts.
     function cpSearchDescriptor(doc) {
-      var ss = doc.querySelectorAll("script"), src = "";
-      for (var i = 0; i < ss.length; i++) src += (ss[i].textContent || "") + "\n";
-      var m = /returnPage:\s*['"]([^'"]+)['"]\s*,\s*tableName:\s*['"]([^'"]+)['"]/.exec(src);
-      return m ? { returnPage: m[1], tableName: m[2] } : null;
+      // PJAX replaces the content cell while the initial page's head remains.
+      // Current list wiring takes precedence; native head-only pages still work.
+      var cell = doc.querySelector('td[width="82%"]'), scopes = cell ? [cell, doc] : [doc];
+      for (var scope = 0; scope < scopes.length; scope++) {
+        var ss = scopes[scope].querySelectorAll("script"), src = "";
+        for (var i = 0; i < ss.length; i++) {
+          if (cpNativeInlineScript(ss[i])) src += (ss[i].textContent || "") + "\n";
+        }
+        var m = /returnPage:\s*['"]([^'"]+)['"]\s*,\s*tableName:\s*['"]([^'"]+)['"]/.exec(src);
+        if (m) return { returnPage: m[1], tableName: m[2] };
+      }
+      return null;
     }
     function cpSearchPageOf(doc) {
       var t = (doc.body ? doc.body.textContent : "") || "";
@@ -1044,15 +1327,7 @@
           }).filter(function (t) { return t; });
         }
         if (!cells.length) return;
-        var m = /redirectPost\s*\(\s*['"]([^'"]+)['"]\s*,\s*(\{[\s\S]*?\})\s*\)/.exec(tr.innerHTML);
-        var drill = null;
-        if (m) {
-          var params = {}, re = /(\w+)\s*:\s*['"]([^'"]*)['"]/g, mm;
-          while ((mm = re.exec(m[2]))) params[mm[1]] = mm[2]
-            .replace(/\\u([0-9a-f]{4})/gi, function (_, hex) { return String.fromCharCode(parseInt(hex, 16)); });
-          drill = { url: m[1].replace(/\\u002F/g, "/"), params: params };
-        }
-        rows.push({ cells: cells, drill: drill });
+        rows.push({ cells: cells, drill: cpRowDrill(tr) });
       });
       return rows;
     }
@@ -1086,6 +1361,7 @@
     }
     function cpListSearchRun(criteria, opts) {
       opts = opts || {};
+      if (opts.signal && opts.signal.aborted) return Promise.reject(new Error('[search] Search was cancelled.'));
       var tokEl = document.getElementsByName("formtokenserial")[0];
       var tok = tokEl ? tokEl.value : null;
 
@@ -1110,10 +1386,13 @@
             return cell.indexOf(needle) === 0;                     // Starts With (default)
           });
         };
-        return new Promise(function (resolve) {
+        return new Promise(function (resolve, reject) {
           var tries = 0;
           (function harvest() {
-            if (opts.signal && opts.signal.aborted) { resolve({ headers: cpSearchHeaders(document), rows: [], totalPages: 1, desc: descLive }); return; }
+            if (opts.signal && opts.signal.aborted) { reject(new Error('[search] Search was cancelled.')); return; }
+            if ([].slice.call(document.querySelectorAll('td.error, span.Failure')).some(function (el) { return (el.textContent || '').trim(); })) {
+              reject(new Error('[search] CommPilot could not read the result list.')); return;
+            }
             var all = cpSearchParseRows(document);
             var hasData = all.length && all.some(function (r) { return r.cells.some(function (c) { return c && c.trim(); }); });
             // A legitimately EMPTY list (legacy "No Entries Present" cell) must NOT be mistaken for a pending async
@@ -1131,9 +1410,11 @@
                 try { document.dispatchEvent(new Event("DOMContentLoaded")); } catch (e) {}
               } finally { cpDclSpin = false; }
               if (++tries <= 60) { setTimeout(harvest, 50); return; }   // up to ~3s for the (async) fill data
+              reject(new Error('[search] The result list did not finish loading.')); return;
             }
             var rows = aFilter(all);
             if (opts.onPage) { try { opts.onPage(rows.slice(), 0, 1); } catch (e) {} }
+            if (opts.signal && opts.signal.aborted) { reject(new Error('[search] Search was cancelled.')); return; }
             resolve({ headers: cpSearchHeaders(document), rows: rows, totalPages: 1, desc: descLive });
           })();
         });
@@ -1175,26 +1456,44 @@
         if (opts.onDoc) { try { opts.onDoc(res.doc); } catch (e) {} }   // raw fetched doc (the export's own cell parse — [[cpExportUsers]])
         var tooMany = cpSearchTooMany(res.doc);
         if (tooMany) return { headers: headers, rows: [], totalPages: 1, desc: desc, tooMany: true, matchCount: tooMany.count };
+        if (opts.signal && opts.signal.aborted) throw new Error('[search] Search was cancelled.');
+        var readError = [].slice.call(res.doc.querySelectorAll('td.error, span.Failure')).some(function (el) {
+          return (el.textContent || '').trim();
+        });
+        if (readError || (!all.length && !cpSearchHasEmptyMarker(res.doc)))
+          throw new Error('[search] CommPilot did not return a complete result list.');
+        if (po && (po.cur !== 1 || !Number.isSafeInteger(totalPages) || totalPages < 1))
+          throw new Error('[search] CommPilot returned an invalid first result page.');
+        if (totalPages > 500 || (totalPages > 1 && (!desc || !all.length)))
+          throw new Error('[search] The complete search could not be read. Narrow the search and try again.');
         if (opts.onPage) { try { opts.onPage(all.slice(), 0, totalPages); } catch (e) {} }
 
         var seq = Promise.resolve();
-        var cap = Math.min(totalPages, 500);   // safety bound for a pathological set
-        for (var p = 1; p < cap && desc; p++) (function (p) {
+        for (var p = 1; p < totalPages; p++) (function (p) {
           seq = seq.then(function () {
-            if (opts.signal && opts.signal.aborted) return;
+            if (opts.signal && opts.signal.aborted) throw new Error('[search] Search was cancelled.');
             return cpFollow(location.origin + "/commpilot/Common/page.jsp",
               { returnPage: desc.returnPage, tableName: desc.tableName, value: String(p) }, tok, 0)
               .then(function (r2) {
-                if (!r2 || !r2.doc) { console.warn("[search] page", p, "failed"); return; }
+                if (!r2 || r2.auth === false || !r2.doc) throw new Error('[search] The complete search could not be read. A result page is unavailable.');
                 var pr = cpSearchParseRows(r2.doc);
                 var nt2 = r2.doc.getElementsByName("formtokenserial")[0]; if (nt2 && nt2.value) { tok = nt2.value; cpWriteToken(tok); }
+                if (opts.signal && opts.signal.aborted) throw new Error('[search] Search was cancelled.');
+                var nextPage = cpSearchPageOf(r2.doc), nextDesc = cpSearchDescriptor(r2.doc);
+                if (!pr.length || !nextPage || nextPage.cur !== p + 1 || nextPage.total !== totalPages ||
+                    (nextDesc && (nextDesc.returnPage !== desc.returnPage || nextDesc.tableName !== desc.tableName)) ||
+                    [].slice.call(r2.doc.querySelectorAll('td.error, span.Failure')).some(function (el) { return (el.textContent || '').trim(); }))
+                  throw new Error('[search] CommPilot changed or omitted a result page. Search again before using these results.');
                 if (opts.onDoc) { try { opts.onDoc(r2.doc); } catch (e) {} }
                 all = all.concat(pr);
                 if (opts.onPage) { try { opts.onPage(pr, p, totalPages); } catch (e) {} }
               });
           });
         })(p);
-        return seq.then(function () { return { headers: headers, rows: all, totalPages: totalPages, desc: desc }; });
+        return seq.then(function () {
+          if (opts.signal && opts.signal.aborted) throw new Error('[search] Search was cancelled.');
+          return { headers: headers, rows: all, totalPages: totalPages, desc: desc };
+        });
       });
     }
     // Expose for the grid builder + live diagnostics.
@@ -1217,18 +1516,9 @@
       if (s) s.abort = true;
       return Promise.all([(s && s.busy) || null, (x && x.busy) || null]).then(function () {}, function () {});
     }
-    function cpJsString(v) {
-      return String(v).replace(/\\u([0-9a-fA-F]{4})/g, function (m, h) { return String.fromCharCode(parseInt(h, 16)); })
-        .replace(/\\x([0-9a-fA-F]{2})/g, function (m, h) { return String.fromCharCode(parseInt(h, 16)); })
-        .replace(/\\([\\'"\/])/g, "$1");
-    }
     // The row's click target, from the redirectPost its own script wires (one per row).
     function cpRowDrill(tr) {
-      var m = /redirectPost\s*\(\s*(['"])((?:\\.|(?!\1)[^\\])*)\1\s*,\s*(\{[\s\S]*?\})\s*\)/.exec(tr.innerHTML);
-      if (!m) return null;
-      var params = {}, re = /(\w+)\s*:\s*(['"])((?:\\.|(?!\2)[^\\])*)\2/g, mm;
-      while ((mm = re.exec(m[3]))) params[mm[1]] = cpJsString(mm[3]);
-      return { url: cpJsString(m[2]), params: params };
+      return cpParseNativeRedirect(tr.innerHTML);
     }
     function cpListFillStart() {
       if (cpBulkOwner) return;
@@ -1243,7 +1533,8 @@
       if (table.hasAttribute('data-cp-fill')) return;
       var po = /Page\s+(\d+)\s+of\s+(\d+)/i.exec(cell.textContent || "");
       var search = cell.querySelector('#search0') && cell.querySelector('[name^="findValue"]');
-      if (!po || +po[1] !== 1 || +po[2] < 2 || (!search && +po[2] > CP_LIST_FILL_MAX_PAGES)) return;
+      if (!po || +po[1] !== 1 || !Number.isSafeInteger(+po[2]) || +po[2] < 2 || +po[2] > 500 ||
+          (!search && +po[2] > CP_LIST_FILL_MAX_PAGES)) return;
       var desc = cpSearchDescriptor(document);
       if (!desc) return;
       cpListFillStop();
@@ -1278,6 +1569,11 @@
             if (!res || res.auth === false || res.err || !res.doc) throw new Error("page " + value + " failed");
             var nt = res.doc.getElementsByName("formtokenserial")[0];
             if (nt && nt.value) cpWriteToken(nt.value);
+            var returnedPage = cpSearchPageOf(res.doc), returnedDesc = cpSearchDescriptor(res.doc);
+            if (!returnedPage || returnedPage.cur !== value + 1 || returnedPage.total !== total || !returnedDesc ||
+                returnedDesc.returnPage !== desc.returnPage || returnedDesc.tableName !== desc.tableName ||
+                [].slice.call(res.doc.querySelectorAll('td.error, span.Failure')).some(function (el) { return (el.textContent || '').trim(); }))
+              throw new Error("page " + value + " did not match the requested results");
             return res.doc;
           }, function (e) { state.busy = null; throw e; });
         return state.busy;
@@ -1395,6 +1691,15 @@
             if (!res || res.auth === false || res.err || !res.doc) throw new Error("page " + (value + 1) + " failed");
             var nt = res.doc.getElementsByName("formtokenserial")[0];
             if (nt && nt.value) cpWriteToken(nt.value);
+            if (run.abort) throw new Error("stopped");
+            // A successful transport is not proof that CommPilot returned this
+            // result page. Refuse partial/mismatched exports just as list fill does.
+            var returnedPage = cpSearchPageOf(res.doc), returnedDesc = cpSearchDescriptor(res.doc);
+            if (!returnedPage || returnedPage.cur !== value + 1 || returnedPage.total !== Number(req.pages) ||
+                !returnedDesc || returnedDesc.returnPage !== desc.returnPage || returnedDesc.tableName !== desc.tableName ||
+                !res.doc.querySelector('tr[id^="Row"]') ||
+                [].slice.call(res.doc.querySelectorAll('td.error, span.Failure')).some(function (el) { return (el.textContent || '').trim(); }))
+              throw new Error("page " + (value + 1) + " did not match the requested results");
             return res.doc;
           }, function (e) { run.busy = null; throw e; });
         return run.busy;
@@ -1503,8 +1808,8 @@
     // searched by prefix.
     function cpSweepPlan(form) {
       var keySel = form.querySelector('select[name="findKey0"]');
-      if (!keySel) return null;
-      var fields = [].slice.call(keySel.options).map(function (o) {
+      if (!keySel || keySel.matches(':disabled')) return null;
+      var fields = [].slice.call(keySel.options).filter(function (o) { return !o.matches(':disabled'); }).map(function (o) {
         return { value: o.value, label: (o.textContent || "").replace(/\s+/g, " ").trim() };
       }).filter(function (f) { return f.value && !/^Exact|Trunk/i.test(f.value); });
       var label = function (key) { var f = [].slice.call(keySel.options).filter(function (o) { return o.value === key; })[0]; return f ? (f.textContent || "").replace(/\s+/g, " ").trim() : key; };
@@ -1749,6 +2054,16 @@
       } else if (gap > 0) {
         kind = "warning"; title = "Some results are missing";
         body = cpSweepNum(got) + " of " + cpSweepNum(total) + " loaded. " + cpSweepNum(gap) + " could not be reached by " + s.partLabel + ".";
+      } else if (total == null) {
+        // Some native 4027 responses omit the count. Exhausting the prefixes
+        // cannot prove completeness, particularly after a failed search range.
+        if (s.missed.length) {
+          kind = "warning"; title = "Some searches did not finish";
+          body = cpSweepNum(got) + " loaded. " + cpSweepNum(s.missed.length) + " search ranges could not be fully checked.";
+        } else {
+          title = "Search finished";
+          body = cpSweepNum(got) + " loaded in " + took + ". CommPilot did not provide a total count.";
+        }
       } else {
         title = "All results loaded";
         body = cpSweepNum(got) + " loaded in " + took + ", " + cpSweepNum(state.searches) + " searches.";
@@ -1758,6 +2073,8 @@
         cpSweepStart(state, false);
       } };
       else if (gap > 0 && state.plan.idField && !s.idPass) act = { text: "Find the other " + cpSweepNum(gap) + " by " + state.plan.idLabel,
+        run: function () { cpSweepStart(state, true); } };
+      else if (total == null && state.plan.idField && !s.idPass) act = { text: "Search by " + state.plan.idLabel,
         run: function () { cpSweepStart(state, true); } };
       var note = document.createElement("div");
       note.className = "cp-alert cp-alert-" + kind;
@@ -1814,14 +2131,8 @@
       table.setAttribute("data-cp-rows", String(rows.length));
       state.card.after(table);
       document.dispatchEvent(new CustomEvent("cp:list-fill"));   // lists.js pages and sorts it like any list
-      // The first page drops in, row by row.
-      if (!matchMedia("(prefers-reduced-motion: reduce)").matches) requestAnimationFrame(function () {
-        [].slice.call(body.querySelectorAll(':scope > tr[id^="Row"]')).filter(function (tr) { return !tr.classList.contains("cp-row-off"); })
-          .slice(0, 24).forEach(function (tr, i) {
-            try { tr.animate([{ opacity: 0, transform: "translateY(-6px)" }, { opacity: 1, transform: "none" }],
-              { duration: 260, delay: 30 + i * 22, easing: "cubic-bezier(.22, .7, .3, 1)", fill: "backwards" }); } catch (e) {}
-          });
-      });
+      // lists.js owns the complete-results reveal; do not stagger individual
+      // rows after the finished table has been formatted and paged.
     }
 
     // Start (or, idPass, continue by the ID field for what the name sweep left behind).
@@ -2262,18 +2573,53 @@
     // (the "Add does nothing in-shell" bug). Reading the target from the script and calling redirectPost directly
     // keeps Add/Import working in-shell regardless (Add = relative "Add/index.jsp" → cpHook resolves it against the
     // list landing; Import = the absolute Operator/System Import url). See [[feedback-everything-through-pjax]].
-    function cpGridActionTarget(el) {
-      if (!el || !el.id) return null;
-      var scripts = [].slice.call(document.querySelectorAll('script:not([src])')).map(function (s) { return s.textContent || ""; }).join("\n");
-      var i = scripts.indexOf(el.id);
-      if (i < 0) return null;
-      var chunk = scripts.slice(i, i + 400);
-      var m = /redirectPost\s*\(\s*['"]([^'"]+)['"]\s*,\s*(\{[\s\S]*?\})\s*\)/.exec(chunk);
-      if (!m) return null;
-      var url = m[1].replace(/\\u002F/g, "/");
-      var params = {}, re = /(\w+)\s*:\s*['"]([^'"]*)['"]/g, mm;
-      while ((mm = re.exec(m[2]))) params[mm[1]] = mm[2].replace(/\\u003E/g, ">").replace(/\\u0025/g, "%").replace(/\\u002F/g, "/");
-      return { url: url, params: params };
+    function cpElementWiring(el, doc) {
+      if (!el) return [];
+      var chunks = [], inline = el.getAttribute && el.getAttribute('onclick');
+      if (inline) chunks.push(inline);
+      if (!el.id) return chunks;
+      var root = doc || document;
+      var current = el.closest && el.closest('td[width="82%"]');
+      var scopes = current && current !== root && root.contains(current) ? [current, root] : [root];
+      // The initial page's head can retain wiring for an ID reused after a
+      // content swap. Prefer this control's current content, with page-wide
+      // wiring still available when the native handler lives outside it.
+      scopes.forEach(function (scope, index) {
+        scope.querySelectorAll('script:not([src])').forEach(function (script) {
+          if (index && current.contains(script)) return;
+          var text = script.textContent || '';
+          // Most list scripts belong to another row. Avoid tokenizing all of
+          // them, but still inspect IDs written with JavaScript escapes.
+          if (text.indexOf(el.id) === -1 &&
+              !/\bgetElementById\s*\(\s*(?:'[^'\\]*\\|"[^"\\]*\\)/.test(text)) return;
+          if (!cpNativeInlineScript(script)) return;
+          cpScriptBindings(text).forEach(function (binding) {
+            if (binding.id === el.id) chunks.push(binding.script);
+          });
+        });
+      });
+      return chunks;
+    }
+    function cpScriptBindings(text) {
+      // Native handlers use one getElementById binding per action. A binding
+      // without navigation must not inherit the next control's target.
+      var bindings = [], match;
+      var re = /'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*|\bgetElementById\s*\(\s*(?:'((?:\\.|[^'\\])*)'|"((?:\\.|[^"\\])*)")\s*\)/g;
+      while ((match = re.exec(text))) {
+        if (match[1] !== undefined || match[2] !== undefined)
+          bindings.push({ id: cpUnescapeJs(match[1] === undefined ? match[2] : match[1]), start: match.index, end: re.lastIndex });
+      }
+      return bindings.map(function (binding, index) {
+        return { id: binding.id, script: text.slice(binding.end, bindings[index + 1] ? bindings[index + 1].start : text.length) };
+      });
+    }
+    function cpGridActionTarget(el, doc) {
+      var chunks = cpElementWiring(el, doc);
+      for (var i = 0; i < chunks.length; i++) {
+        var target = cpParseNativeRedirect(chunks[i]);
+        if (target) return target;
+      }
+      return null;
     }
     // BroadWorks table cells often rely on a DOMContentLoaded listener bound
     // to RowNColN. On some list responses that listener is absent after a
@@ -2295,39 +2641,68 @@
     // extract its args from the inline wiring and run our own equivalent (cpExportComponent). See
     // [[feedback-everything-through-pjax]], [[gotcha-export-blob-download]].
     function cpGridExportTarget(el) {
-      if (!el || !el.id) return null;
-      var scripts = [].slice.call(document.querySelectorAll('script:not([src])')).map(function (s) { return s.textContent || ""; }).join("\n");
-      var i = scripts.indexOf(el.id);
-      if (i < 0) return null;
-      var m = /exportComponent\s*\(\s*['"]([^'"]*)['"]\s*,\s*['"]([^'"]*)['"]\s*,\s*['"]([^'"]*)['"]\s*,\s*['"]([^'"]*)['"]\s*\)/.exec(scripts.slice(i, i + 450));
-      if (!m) return null;
-      var dec = function (s) { return (s || "").replace(/\\u002F/g, "/").replace(/\\u0025/g, "%"); };
-      return { component: dec(m[1]), contextPath: dec(m[2]), pagePath: dec(m[3]), tokenName: dec(m[4]) };
+      var chunks = cpElementWiring(el);
+      for (var i = 0; i < chunks.length; i++) {
+        // Keep each argument's own quote delimiter and decode escapes once.
+        // A device type may contain an apostrophe, quote or literal backslash.
+        var m = /\bexportComponent\s*\(\s*(?:'((?:\\.|[^'\\])*)'|"((?:\\.|[^"\\])*)")\s*,\s*(?:'((?:\\.|[^'\\])*)'|"((?:\\.|[^"\\])*)")\s*,\s*(?:'((?:\\.|[^'\\])*)'|"((?:\\.|[^"\\])*)")\s*,\s*(?:'((?:\\.|[^'\\])*)'|"((?:\\.|[^"\\])*)")\s*\)/.exec(chunks[i]);
+        if (m) return {
+          component: cpUnescapeJs(m[1] === undefined ? m[2] : m[1]),
+          contextPath: cpUnescapeJs(m[3] === undefined ? m[4] : m[3]),
+          pagePath: cpUnescapeJs(m[5] === undefined ? m[6] : m[5]),
+          tokenName: cpUnescapeJs(m[7] === undefined ? m[8] : m[7])
+        };
+      }
+      return null;
     }
     // Replicates legacy exportComponent (deviceManagementExport.js) but downloads via a BLOB instead of
     // `location.href = proxy`. The proxy is a /commpilot/ URL, so the legacy GET nav would be caught by our DNR
     // recovery redirect (GET main_frame) → styles.css → no download. Fetch+blob+<a download> never touches
     // main_frame, so DNR can't interfere. Server contract (verified): POST <pagePath>/index.jsp?key=<component>
     // &export=&<tokenName>=<token> → body has <proxy>URL</proxy>; GET that URL → the file (Content-Disposition).
+    var cpComponentExportActive = false;
     function cpExportComponent(component, contextPath, pagePath, tokenName) {
+      if (cpComponentExportActive) return;
+      if (cpInflightPosts || cpNavPending || cpBulkOwner) {
+        cpUploadNotice('Wait for the current operation to finish before exporting.'); return;
+      }
+      cpComponentExportActive = true;
+      cpInflightPosts++;
+      var controller = new AbortController();
+      var deadline = setTimeout(function () { controller.abort(); }, 300000);
+      function release() {
+        clearTimeout(deadline);
+        cpComponentExportActive = false;
+        cpInflightPosts = Math.max(0, cpInflightPosts - 1);
+      }
+      function failed(err) {
+        cpUploadNotice(controller.signal.aborted ? 'The export timed out. No download was saved. Try exporting again.' :
+          'The export could not be downloaded. ' + (err && err.message || 'Check the connection and try again.'));
+      }
+      function checked(response) {
+        if (response.type === 'opaqueredirect' || !response.status || response.status >= 300)
+          throw new Error(response.status ? 'The server returned HTTP ' + response.status + '.' : 'The server redirected the download.');
+        return response;
+      }
       try {
         var tokEl = (document.mainForm && document.mainForm.elements[tokenName]) || document.getElementsByName(tokenName)[0];
         var tok = tokEl ? tokEl.value : "";
         var postUrl = contextPath + pagePath + "/index.jsp?key=" + encodeURIComponent(component) + "&export=";
+        var addressError = cpNavigationAddressError(postUrl);
+        if (addressError) throw new Error(addressError);
         if (tok) postUrl += "&" + tokenName + "=" + encodeURIComponent(tok);
-        fetch(postUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" }, credentials: "same-origin", redirect: "manual" })
+        fetch(postUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" }, credentials: "same-origin", redirect: "manual", signal: controller.signal })
           .then(function (r) {
-            // redirect:"manual" — a session bounce (http:// Login) would otherwise CSP-fail as "Failed to fetch"
-            // + a connect-src violation; an opaqueredirect resolves so we fail soft with a clear message.
-            if (r.type === "opaqueredirect" || r.status === 0 || r.status >= 300) { console.warn("[pjax] export: session bounce — please sign in again"); return null; }
-            return r.text();
+            return checked(r).text();
           })
           .then(function (txt) {
-            if (txt == null) return;
             var s = txt.indexOf("<proxy>"), e = txt.indexOf("</proxy>");
-            if (s < 0 || e <= s) { console.warn("[pjax] export: no proxy in response"); return; }
+            if (s < 0 || e <= s) throw new Error('The server did not return a download link.');
             var proxy = txt.substring(s + 7, e);
-            return fetch(proxy, { credentials: "same-origin" }).then(function (pr) {
+            return fetch(proxy, { credentials: "same-origin", redirect: "manual", signal: controller.signal }).then(function (pr) {
+              checked(pr);
+              if (/\b(?:text\/html|application\/xhtml\+xml)\b/i.test(pr.headers.get('content-type') || ''))
+                throw new Error('The server returned a web page instead of an export file.');
               var cd = pr.headers.get("content-disposition") || "";
               var fm = /filename="?([^";]+)"?/.exec(cd);
               var fname = fm ? fm[1].trim() : (component + ".zip");
@@ -2340,8 +2715,8 @@
               });
             });
           })
-          .catch(function (err) { console.warn("[pjax] export failed:", err); });
-      } catch (e) { console.warn("[pjax] cpExportComponent:", e); }
+          .catch(failed).finally(release);
+      } catch (e) { try { failed(e); } finally { release(); } }
     }
     // FORM-page Export (e.g. Identity/Device Profile Type Modify): same exportComponent wiring as the grid
     // Export action, but the button sits in a settings form's button bar (skin.js forward-clicks the real
@@ -2374,15 +2749,11 @@
     // a /commpilot/ GET nav (the DNR recovery redirect eats those — [[gotcha-export-blob-download]]).
     var cpUxpEl = null;
     function cpUxpClose() {
-      document.removeEventListener("keydown", cpUxpKey, true);
-      if (cpUxpEl) { try { cpUxpEl.remove(); } catch (e) {} }
+      if (cpUxpEl) {
+        try { cpUxpEl.remove(); } catch (e) {}
+        if (cpUxpEl._cpReleaseFocus) cpUxpEl._cpReleaseFocus();
+      }
       cpUxpEl = null;
-    }
-    function cpUxpKey(e) {
-      if (e.key !== "Escape") return;
-      e.stopPropagation();
-      var c = cpUxpEl && cpUxpEl._cpCancel;
-      if (c) { try { c(); } catch (x) {} } else cpUxpClose();
     }
     // The criteria fields the export engine can drive, by label. first+id ⇒ the PROVEN deep-sweep combo
     // (First-Name prefix buckets + a User-ID cross-check pass — the same method the Users grid's "Load all"
@@ -2482,14 +2853,16 @@
       files.forEach(function (f) {
         var nb = enc.encode(f.name), data = (typeof f.data === "string") ? enc.encode(f.data) : f.data;
         var crc = cpCrc32(data);
-        var lh = new Uint8Array([].concat([80, 75, 3, 4], u16(20), u16(0), u16(0), u16(0), u16(0), u32(crc), u32(data.length), u32(data.length), u16(nb.length), u16(0)));
+        // TextEncoder emits UTF-8 names. Mark both ZIP records accordingly so
+        // readers do not interpret international group names as legacy CP437.
+        var lh = new Uint8Array([].concat([80, 75, 3, 4], u16(20), u16(0x800), u16(0), u16(0), u16(0), u32(crc), u32(data.length), u32(data.length), u16(nb.length), u16(0)));
         parts.push(lh, nb, data);
         cd.push({ nb: nb, crc: crc, sz: data.length, off: off });
         off += lh.length + nb.length + data.length;
       });
       var cdParts = [], cdSize = 0;
       cd.forEach(function (c) {
-        var h = new Uint8Array([].concat([80, 75, 1, 2], u16(20), u16(20), u16(0), u16(0), u16(0), u16(0), u32(c.crc), u32(c.sz), u32(c.sz), u16(c.nb.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(c.off)));
+        var h = new Uint8Array([].concat([80, 75, 1, 2], u16(20), u16(20), u16(0x800), u16(0), u16(0), u16(0), u32(c.crc), u32(c.sz), u32(c.sz), u16(c.nb.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(c.off)));
         cdParts.push(h, c.nb); cdSize += h.length + c.nb.length;
       });
       var end = new Uint8Array([].concat([80, 75, 5, 6], u16(0), u16(0), u16(files.length), u16(files.length), u32(cdSize), u32(off), u16(0)));
@@ -2601,7 +2974,10 @@
     var CP_UXP_REPORT_URL = "/commpilot/servlet/ClientBGListServlet";
     function cpUxpDecodeEnt(s) {
       return String(s).replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'").replace(/&apos;/g, "'").replace(/&#(\d+);/g, function (m, n) { return String.fromCharCode(+n); })
+        .replace(/&apos;/g, "'").replace(/&#(x[0-9a-f]+|\d+);/gi, function (m, n) {
+          var point = /^x/i.test(n) ? parseInt(n.slice(1), 16) : Number(n);
+          return Number.isInteger(point) && point >= 0 && point <= 0x10ffff ? String.fromCodePoint(point) : m;
+        })
         .replace(/&amp;/g, "&");
     }
     function cpUxpParseReport(txt) {
@@ -2617,7 +2993,9 @@
       if (!out.headings.length && /&lt;colHeading&gt;/.test(txt)) out = scan(cpUxpDecodeEnt(txt));
       return out;
     }
-    function cpUxpReportFetch(deptValue) {
+    function cpUxpReportFetch(deptValue, signal) {
+      if (cpInflightPosts || cpNavPending || cpBulkOwner)
+        return Promise.reject(new Error('Wait for the current operation to finish before exporting the directory.'));
       var form = document.querySelector('form[name="mainForm"]');
       var params = new URLSearchParams();
       if (form) new URLSearchParams(new FormData(form)).forEach(function (v, k) {
@@ -2630,17 +3008,35 @@
       params.set("findValue0", deptValue != null ? deptValue : "");
       var tokEl = document.getElementsByName("formtokenserial")[0];
       if (tokEl) params.set("formtokenserial", tokEl.value);
-      return fetch(location.origin + CP_UXP_REPORT_URL, {
+      var controller = new AbortController(), expired = false;
+      var cancelReport = function () { controller.abort(); };
+      if (signal) {
+        if (signal.aborted) controller.abort();
+        else signal.addEventListener("abort", cancelReport, { once: true });
+      }
+      var deadline = setTimeout(function () { expired = true; controller.abort(); }, 300000);
+      cpInflightPosts++;
+      return Promise.resolve().then(function () { return fetch(location.origin + CP_UXP_REPORT_URL, {
         method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        credentials: "same-origin", redirect: "manual", body: params.toString()
-      }).then(function (r) {
-        if (r.type === "opaqueredirect" || r.status === 0 || r.status >= 300) return { auth: false };
+        credentials: "same-origin", redirect: "manual", body: params.toString(), signal: controller.signal
+      }); }).then(function (r) {
+        if (r.status === 401) return { auth: false };
+        if (r.type === "opaqueredirect" || r.status === 0 || r.status >= 300 && r.status < 400)
+          throw new Error("The directory report was redirected; its result could not be confirmed");
+        if (!r.ok) throw new Error("Directory report returned HTTP " + r.status);
         return r.text().then(function (txt) {
           if (/Please login again|not authorized to access the system|<form[^>]+(?:login|password)/i.test(txt)) return { auth: false };
           var report = cpUxpParseReport(txt);
           if (!report.headings.length) throw new Error("CommPilot did not return the directory report");
           return report;
         });
+      }).catch(function (error) {
+        if (expired) throw new Error("The directory report timed out. No request was replayed");
+        throw error;
+      }).finally(function () {
+        clearTimeout(deadline);
+        cpInflightPosts = Math.max(0, cpInflightPosts - 1);
+        if (signal) signal.removeEventListener("abort", cancelReport);
       });
     }
     // Row TYPE: a populated "Service Name" ⇒ a service instance (Hunt Group / Call Center / Auto Attendant /
@@ -2681,13 +3077,13 @@
       };
       // Classify + optionally filter.
       var typed = data.rows.map(function (r) { var t = cpUxpRowType(r, iSvc, iLast, iName); return { r: r, type: t.type, isService: t.isService }; });
-      var counts = { total: typed.length, users: 0, service: 0, byType: {} };
+      var counts = { total: typed.length, users: 0, service: 0, byType: Object.create(null) };
       typed.forEach(function (x) { if (x.isService) counts.service++; else counts.users++; counts.byType[x.type] = (counts.byType[x.type] || 0) + 1; });
       var kept = (mode === "users") ? typed.filter(function (x) { return !x.isService; }) : typed;
       // Sort by first name then last (A→Z).
       kept.sort(function (a, b) { var ka = firstLast(a.r).toLowerCase(), kb = firstLast(b.r).toLowerCase(); return ka < kb ? -1 : ka > kb ? 1 : 0; });
       // Group by department.
-      var byDept = {}, deptNames = [];
+      var byDept = Object.create(null), deptNames = [];
       kept.forEach(function (x) { var d = ((iDept >= 0 ? x.r[iDept] : "") || "").trim() || "No Department"; if (!byDept[d]) { byDept[d] = []; deptNames.push(d); } byDept[d].push(x); });
       deptNames.sort(function (a, b) { a = a.toLowerCase(); b = b.toLowerCase(); return a < b ? -1 : a > b ? 1 : 0; });
 
@@ -2703,9 +3099,9 @@
       // room so the customer can type without expanding it. (Both files: whichever has a "Notes" column.)
       var wideNotes = function (headers, widths) { var i = headers.indexOf("Notes"); if (i >= 0) widths[i] = 60; };
       wideNotes(fullHeaders, fullW); wideNotes(custHeaders, custW);
-      var used1 = {}, sheetsFull = [{ name: cpXlsxSheetName("All Users", used1), headers: fullHeaders, rows: allFullRows, widths: fullW, tabColor: "FFF58025" }];
+      var used1 = Object.create(null), sheetsFull = [{ name: cpXlsxSheetName("All Users", used1), headers: fullHeaders, rows: allFullRows, widths: fullW, tabColor: "FFF58025" }];
       deptNames.forEach(function (d) { sheetsFull.push({ name: cpXlsxSheetName(d, used1), headers: fullHeaders, rows: byDept[d].map(fullRow), widths: fullW, tabColor: "FF5A2D82" }); });
-      var used2 = {}, sheetsCust = [];
+      var used2 = Object.create(null), sheetsCust = [];
       deptNames.forEach(function (d) { sheetsCust.push({ name: cpXlsxSheetName(d, used2), headers: custHeaders, rows: byDept[d].map(custRow), widths: custW, tabColor: "FF5A2D82" }); });
 
       var d2 = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; };
@@ -2732,7 +3128,7 @@
       if (state._sweepAbort) { try { state._sweepAbort.abort(); } catch (e) {} }
       state._sweepAbort = ac;
       var mode = "users";
-      var acc = { headings: null, rows: [], seenUid: {} };
+      var acc = { headings: null, rows: [], seenUid: Object.create(null) };
       var CP_UXP_CAPWARN = 950;   // a single department report at/over this may be server-capped
       var capWarns = [];
 
@@ -2743,7 +3139,7 @@
       var back = document.createElement("div");
       back.className = "cp-modal-back";
       back.innerHTML =
-        '<div class="cp-modal cp-uxp">' +
+        '<div class="cp-modal cp-uxp" role="dialog" aria-modal="true" aria-label="Export directory">' +
           '<div class="cp-modal-head"><span class="cp-uxp-ico">' + CP_SVG_DL + '</span><span>Export directory</span>' +
             '<span class="cp-uxp-x" title="Cancel and close">' + CP_SVG_X + '</span></div>' +
           '<div class="cp-uxp-body">' +
@@ -2769,7 +3165,6 @@
         '</div>';
       document.body.appendChild(back);
       cpUxpEl = back;
-      document.addEventListener("keydown", cpUxpKey, true);
       var hEl = back.querySelector(".cp-uxp-h"), nEl = back.querySelector(".cp-uxp-n"),
           subEl = back.querySelector(".cp-uxp-sub"), warnEl = back.querySelector(".cp-uxp-warns"),
           fillEl = back.querySelector(".cp-srch-sweep-fill"), dlBtn = back.querySelector(".cp-uxp-dl"),
@@ -2785,6 +3180,7 @@
       var settle = function () { running = false; if (state._sweepAbort === ac) state._sweepAbort = null; };
       var cancel = function () { if (running) { try { ac.abort(); } catch (e) {} settle(); } cpUxpClose(); };
       back._cpCancel = cancel;
+      back._cpReleaseFocus = window.cpFocusBulkDialog(back, { history: false, onEscape: cancel });
       back.querySelector(".cp-uxp-x").addEventListener("click", cancel);
       cancelBtn.addEventListener("click", function () { if (running) cancel(); else cpUxpClose(); });
       var groupNameNow = function () {
@@ -2807,6 +3203,7 @@
         setTimeout(function () { try { finishBuild(); } catch (e) { addWarn("Workbook build failed: " + e); cancelBtn.textContent = "Close"; } }, 40);
       }
       function finishBuild() {
+        if (halted() || !back.isConnected) return;
         if (!ensureBuild()) { setH("Export stopped"); addWarn("No rows to export."); cancelBtn.textContent = "Close"; return; }
         downloadZip();
         var c = built.counts;
@@ -2852,7 +3249,7 @@
         var d = deptList[di++];
         setSub("Department " + di + " / " + deptList.length + "  ·  " + d.label);
         setBar(0.05 + 0.9 * (di / deptList.length));
-        cpUxpReportFetch(d.value).then(function (res) {
+        cpUxpReportFetch(d.value, ac.signal).then(function (res) {
           if (halted()) return;
           if (res && res.auth === false) { fail("Session bounce fetching “" + d.label + "” — please sign in again, then retry."); return; }
           absorb(res, d.label);
@@ -2862,7 +3259,7 @@
       }
       function runBroad() {
         setH("Fetching the directory…"); setBar(0.4);
-        cpUxpReportFetch(null).then(function (res) {
+        cpUxpReportFetch(null, ac.signal).then(function (res) {
           if (halted()) return;
           if (res && res.auth === false) { fail("Session bounce fetching the directory — please sign in again, then retry."); return; }
           absorb(res, "all");
@@ -3556,10 +3953,27 @@
       }
     }
     function cpRecentNav(nav) {
-      if (!nav || !/^\/commpilot\/[A-Za-z0-9_/.%-]+$/.test(nav.url || '') ||
-          /^\/commpilot\/Common\/(?:page|sort)\.jsp$/.test(nav.url) ||
-          /\/(?:Login|Logout|servlet|Add|AddRange|AddModify|Import|Delete)(?:\/|$)/i.test(nav.url)) return null;
+      // Native route names are literal; identifiers belong in the parameters.
+      // Encoded paths and dot segments can otherwise evade the mutation denylist
+      // and fall through to native full-page navigation (including Logout).
+      if (!nav || typeof nav !== 'object' || Array.isArray(nav) || typeof nav.url !== 'string') return null;
+      var route = nav.url.split('?')[0];
+      if (!/^\/commpilot\/[A-Za-z0-9_/.-]+$/.test(route) || nav.url.indexOf('#') !== -1 ||
+          /(?:^|\/)\.{1,2}(?:\/|$)/.test(route) ||
+          /^\/commpilot\/Common\/(?:page|sort)\.jsp$/.test(route) ||
+          /\/(?:Login|Logout|servlet|Add|AddRange|AddModify|Import|Delete)(?:\/|$)/i.test(route)) return null;
+      // These native flags select a read-only tab. Unknown query actions are not replayable.
+      if (route !== nav.url) {
+        var query = new URLSearchParams(nav.url.slice(route.length + 1)), queryNames = new Set();
+        for (var pair of query) {
+          if (!/^(?:TransferForward|isEnh|UserLevel|selectedTab|tabPage)$/.test(pair[0]) ||
+              !/^[A-Za-z0-9_.-]{0,80}$/.test(pair[1]) || queryNames.has(pair[0])) return null;
+          queryNames.add(pair[0]);
+        }
+        if (!queryNames.size) return null;
+      }
       var params = {}, source = nav.params || {};
+      if (typeof source !== 'object' || Array.isArray(source)) return null;
       if (['ok','apply','delete','cancel'].some(function (key) { return source[key] != null; }) ||
           /^(ok|apply|delete|cancel)$/i.test(source.buttonClicked || '')) return null;
       Object.keys(source).sort().forEach(function (key) {
@@ -3608,7 +4022,7 @@
       if (/\/(?:Login|Logout)\//.test(location.pathname) || cpPendingNav || cpContextNavActive || cpRecentNeedsContext || !document.querySelector('td[width="82%"]') ||
           document.querySelector('td[width="82%"] .error, td[width="82%"] .errorMsg, td[width="82%"] .Failure')) return;
       var raw = history.state && history.state.cpNav, nav = cpRecentNav(raw);
-      if (!nav || nav.url !== location.pathname) return;
+      if (!nav || nav.url !== location.pathname + location.search) return;
       // The page frame moves the description card and action buttons into the title cell. textContent
       // includes that hidden card too, so read a copy of just the title and strip its supporting UI.
       var title = document.querySelector('td[width="82%"] td.screenName');
@@ -3709,19 +4123,14 @@
         //    apps01 2026-07-02). tabPage+token alone switches cleanly with zero write risk.
         //    (NB the apps-sbx sandbox 500s this switch server-side even RAW — deployment bug, not ours.)
         var tabUrl = "", dialectLower = false;
-        var wiring = tabEl && tabEl.getAttribute('onclick') || '';
-        if (!wiring && tabEl && tabEl.id) {
-          var scripts = document.querySelectorAll('script:not([src])');
-          for (var si = 0; si < scripts.length; si++) {
-            var text = scripts[si].textContent || '', idx = text.indexOf(tabEl.id);
-            if (idx < 0) continue;
-            var tail = text.slice(idx), next = tail.indexOf('getElementById', tabEl.id.length);
-            if (next >= 0) tail = tail.slice(0,next);
-            if (/[Tt]abSubmit\s*\(/.test(tail)) { wiring = tail; break; }
-          }
+        var chunks = cpElementWiring(tabEl);
+        for (var ti = 0; ti < chunks.length; ti++) {
+          var tabMatch = /\b([Tt])abSubmit\s*\(\s*(?:'((?:\\.|[^'\\])*)'|"((?:\\.|[^"\\])*)")\s*\)/.exec(chunks[ti]);
+          if (!tabMatch) continue;
+          dialectLower = tabMatch[1] === 't';
+          tabUrl = cpUnescapeJs(tabMatch[2] === undefined ? tabMatch[3] : tabMatch[2]);
+          break;
         }
-        var tabMatch = wiring.match(/([Tt])abSubmit\s*\(\s*['"]((?:[^'"\\]|\\.)*)['"]/);
-        if (tabMatch) { dialectLower = tabMatch[1] === 't'; tabUrl = cpUnescapeJs(tabMatch[2]); }
         var devicePage = cpDeviceProfilePage(location.pathname,history.state?.cpNav?.params);
         if (!tabUrl && devicePage && tabEl) {
           var direct = tabEl.id && cpWiringTargets(document)[tabEl.id];
@@ -5110,9 +5519,8 @@
     // request as a background fetch while the "Signing out…" spinner stays on
     // THIS page, hold it for a minimum beat, then go once to the styled login.
     // Faithful to the real request: same url + params + the live formtokenserial
-    // (what redirectPost itself would post). On fetch failure we fall back to the
-    // real navigation logout (correctness over polish); the logout-page bridge
-    // then carries /Logout/ → /Login/.
+    // (what redirectPost itself would post). A failed or timed-out request leaves
+    // the confirmation recoverable; only an explicit retry sends another POST.
     function cpSignOutFetch(url, params) {
       var start = Date.now();
       var LOGIN = "/commpilot/Login/";
@@ -5148,8 +5556,22 @@
           setTimeout(nav, 160);
         }, wait);
       }
-      function fallback() { try { _orig.call(window, url, params); } catch (e) { go(); } }
+      var controller = new AbortController(), timedOut = false;
+      var deadline = setTimeout(function () { timedOut = true; controller.abort(); }, 30000);
+      function failed(error) {
+        clearTimeout(deadline);
+        var message = timedOut ? "The request timed out." :
+          error && error.cpLogoutAddress ? error.message :
+          error && error.cpLogoutStatus ? "The server returned HTTP " + error.cpLogoutStatus + "." :
+          "The request could not be completed.";
+        document.dispatchEvent(new CustomEvent("cp:logout-failed", { detail: JSON.stringify({ message: message }) }));
+      }
       try {
+        var addressError = cpNavigationAddressError(url);
+        if (addressError) {
+          var addressFailure = new Error(addressError); addressFailure.cpLogoutAddress = true;
+          failed(addressFailure); return;
+        }
         var body = new URLSearchParams();
         for (var k in params) if (Object.prototype.hasOwnProperty.call(params, k)) body.append(k, params[k]);
         var tEl = document.getElementsByName("formtokenserial")[0];
@@ -5157,16 +5579,21 @@
         cpDbg("[pjax] sign-out fetch", url);
         // redirect:"manual" — a sign-out POST that the server answers with an http:// Login/Logout bounce means
         // the session is already gone; letting the browser follow that hop would CSP-fail (mixed content) → a
-        // spurious connect-src violation + fallback. An opaqueredirect RESOLVES, so go() runs (navigates onward)
-        // exactly as on a clean 200. See [[gotcha-csp-inline-style-attr-blocked]].
+        // spurious connect-src violation. An opaqueredirect follows the existing successful logout contract.
         fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: body.toString(),
           credentials: "same-origin",
-          redirect: "manual"
-        }).then(go, fallback);
-      } catch (e) { fallback(); }
+          redirect: "manual",
+          signal: controller.signal
+        }).then(function (response) {
+          clearTimeout(deadline);
+          if (response.ok || response.type === "opaqueredirect" || response.status === 401) return go();
+          var error = new Error("Sign-out failed"); error.cpLogoutStatus = response.status;
+          failed(error);
+        }, failed);
+      } catch (e) { failed(e); }
     }
 
     // The loading bar. pjax.js swaps pages in place, so the browser shows no progress of its own; this does, from
@@ -5237,6 +5664,16 @@
       if (cpBulkOwner && !cpBulkPermit) return;
       if (cpBulkOwner) _retry = true; // A bulk save is never automatically replayed.
       try {
+        // Check before persisting a recovery target or changing navigation
+        // state. A PBX-looking path on another host is not this PBX.
+        if (isPjaxUrl(url)) {
+          var addressError = cpNavigationAddressError(url);
+          if (addressError) {
+            cpUploadNotice(addressError);
+            cpContextNavEnd(_contextNav);
+            return;
+          }
+        }
         // A deliberate sign-out should leave the native login page visible
         // briefly after a user-initiated sign-out.
         if (typeof url === "string" && /\/Logout(?:\/|$)/i.test(url)) {
@@ -5249,6 +5686,9 @@
         // endpoint and KILLED the session (live 2026-07-02). Handlers run synchronously inside the
         // re-dispatch, so navs arriving inside the flag window are ours — drop them.
         if (cpDclSpin) { cpDbg("[pjax] ignoring synthetic nav during client-fill spin:", url); return; }
+        // Report requests belong to the page that opened the export. Leaving it
+        // (including Back) cancels that loop before a different group can load.
+        if (cpUxpEl && cpUxpEl._cpCancel) cpUxpEl._cpCancel();
         // Resolve a RELATIVE redirectPost target (e.g. the admin Add button's "Add/index.jsp") to an absolute
         // /commpilot path so isPjaxUrl can match it — otherwise cpHook native-navigates → a full page load.
         // (Only relative targets are touched; absolute "/commpilot/..." urls pass through unchanged.)
@@ -5266,7 +5706,10 @@
           if (cpSearchLanding && /\/commpilot\/Common\/(find|findAll|page|sort)\.jsp/.test(location.pathname)) {
             _base = location.origin + cpSearchLanding;
           }
-          try { url = new URL(url, _base).pathname; } catch (e) {}
+          try {
+            var relativeTarget = new URL(url, _base);
+            url = relativeTarget.pathname + relativeTarget.search;
+          } catch (e) {}
         }
         // Service Pack Migration opens its wizard in a named popup and
         // temporarily targets redirectPost's form there. Keep that native
@@ -5289,6 +5732,25 @@
         }
         if (cpLocalListPage(url,params)) return;
         if (isPjaxUrl(url)) {
+          function nativeNavigationBlocked() {
+            cpNavBusyEnd(); cpPopReplaying = false; cpPopScroll = null;
+            cpContextNavEnd(_contextNav);
+            cpUploadNotice('A native script is still loading after its timeout. Wait for it to finish, then try again, or use your browser\'s Reload button.');
+          }
+          if (cpNativeScriptsLoading) {
+            // Queue the user's newest click before sending another token-bearing
+            // request. The outgoing page's scripts must settle while its DOM is
+            // still present; removing their nodes cannot cancel the requests.
+            var nativeWaitSeq = ++cpSeq;
+            cpNavBusy();
+            cpBulkScriptsReady.then(function () {
+              if (nativeWaitSeq !== cpSeq) return;
+              if (cpNativeScriptRequests.size) nativeNavigationBlocked();
+              else cpHook(url, params, _retry, _contextNav);
+            });
+            return;
+          }
+          if (cpNativeScriptRequests.size) { nativeNavigationBlocked(); return; }
           // A failed context-changing return leaves the old workspace on screen. Restore its entity before
           // any later ordinary navigation, and never let that workspace save into the failed target's context.
           if (!_contextNav && cpRecentNeedsContext && cpRecentCurrent) {
@@ -5322,7 +5784,11 @@
               cpDbg("[pjax] board nav ready", url, ready, boardNavSeq, cpSeq);
               if (cpSeq !== boardNavSeq) return;
               if (ready) cpHook(url, params, _retry, _contextNav);
-              else { cpNavBusyEnd(); cpContextNavEnd(_contextNav); cpUploadNotice("CommPilot could not finish loading this menu. Reload this page before opening an option."); }
+              else {
+                cpNavBusyEnd(); cpPopReplaying = false; cpPopScroll = null;
+                cpContextNavEnd(_contextNav);
+                cpUploadNotice("CommPilot could not finish loading this menu. Reload this page before opening an option.");
+              }
             });
             return;
           }
@@ -5371,11 +5837,13 @@
           if (cpInflightPosts > 0) {
             var drainTicks = 0;
             (function drainBeforeNav() {
-              if (drainSeq !== cpTokenDrainSeq) return; // a newer click wins
+              if (drainSeq !== cpTokenDrainSeq || mySeq !== cpSeq) return; // a newer click or board navigation wins
               if (cpInflightPosts === 0) { cpHook(url, params, _retry, _contextNav); return; }
               if (++drainTicks > 250) {
                 console.warn('[pjax] prior CommPilot request did not finish; navigation was not sent with a stale token');
                 cpNavBusyEnd();
+                cpPopReplaying = false; cpPopScroll = null;
+                if (cpAutoReplaceUrl === url) cpAutoReplaceUrl = null;
                 cpContextNavEnd(_contextNav);
                 cpUploadNotice('A previous CommPilot request is still running. Please try again.');
                 return;
@@ -5386,16 +5854,24 @@
           }
           // Classify the nav so reload-recovery never remembers a FORM submit or an Add-form open: cold-replaying
           // those bounces to /Login/ on a still-alive session (the idle-reload-logout). A SUBMIT carries an action
-          // button param (ok/apply/delete/cancel/buttonClicked); an Add form is a deep create page. NB we deliberately
+          // button param or serialized form controls; an Add form is a deep create page. NB we deliberately
           // do NOT exclude /Modify/ broadly — SP/Group/User console drill-ins use Modify and ARE valid recover-navs.
           // See [[gotcha-idle-connection-drop-dead-click]].
-          var _submitNav = !!(params && (params.ok != null || params.apply != null || params.delete != null || params.cancel != null || params.buttonClicked != null));
+          var _formNav = !!(params && Array.isArray(params.__cpFormEntries));
+          var _submitNav = _formNav || !!(params && (params.ok != null || params.apply != null || params.delete != null || params.cancel != null || params.save != null || params.submit != null || params.buttonClicked != null));
+          // A missing response cannot establish whether CommPilot already applied a submitted form.
+          // Only ordinary navigation may use automatic network/token recovery; never resend form data.
+          var cpCanRetry = !_submitNav;
           // A SAVE (OK / Apply / Delete) must never be replayed: Back or Forward onto an entry holding its POST
           // re-sent the save with the old values (found live 2026-09-28: Back after two Applies re-saved the
           // first). A save replaces the current history entry and keeps that page's own navigation instead, so
           // Back goes to where you were before the page. Searches (buttonClicked with no value) still push.
-          var _saveNav = !!(params && (params.ok != null || params.apply != null || params.delete != null ||
-            /^(ok|apply|delete)$/i.test(String(params.buttonClicked || ""))));
+          // Direct form.submit()/requestSubmit() need not carry a named action button. Treat those as
+          // writes too, except explicit search controllers and native configuration auto-forwards.
+          // Tab links use cpTabNav's navigation-only parameters instead of serializing the edited form.
+          var _saveNav = _formNav && !/^\/commpilot\/Common\/(?:find|findAll|page|sort)\.jsp(?:\?|$)/.test(url) && cpAutoReplaceUrl !== url ||
+            !!(params && (params.ok != null || params.apply != null || params.delete != null || params.save != null || params.submit != null ||
+            /^(ok|apply|delete|save|submit)$/i.test(String(params.buttonClicked || ""))));
           var _addressesUser = _saveNav && /\/User\/Addresses\/(?:index\.jsp)?(?:\?|$)/.test(url) &&
             params.extension != null && params.phoneNumber != null && params.delete == null &&
             !/^delete$/i.test(String(params.buttonClicked || "")) ? cpIdText(cpUserIdElement()) : "";
@@ -5418,7 +5894,7 @@
           // an Add-form OPEN is fine to remember (F5 just re-opens it in-shell).
           try { if (!_submitNav) cpLastNav = { url: url, params: params || {} }; } catch (e) {}
           // Remember the SP entry (Modify nav) — recorded for reload/replay + future Group/User work.
-          try { if (/\/ServiceProviders\/Modify\//.test(url)) cpSpEntry = { url: url, params: params || {} }; } catch (e) {}
+          try { if (!_submitNav && /\/ServiceProviders\/Modify\//.test(url)) cpSpEntry = { url: url, params: params || {} }; } catch (e) {}
           // Persisted browser-reload recover-nav (stubguard cold-POST-replays this). Exclude form submits + Add opens
           // (and page.jsp/sort.jsp) so recovery falls back to the last LIST/console nav, which replays cleanly.
           try { if (!cpBulkOwner && url.indexOf("/Common/page.jsp") === -1 && url.indexOf("/Common/sort.jsp") === -1 && !_submitNav && !_addForm) { var _nav = { url: url, params: params || {}, entry: (_contextNav && _contextNav.entry) || ((cpEntityEntry && cpEntityEntry.url !== url) ? cpEntityEntry : (cpIsLevelUpNav(url, params) && cpDeepEntry) || null) }; sessionStorage.setItem("cp-last-nav", JSON.stringify(_nav)); window.postMessage({ __cpRecoverNav: _nav }, location.origin); } } catch (e) {}
@@ -5434,6 +5910,10 @@
           var cpNavIdle = function () {
             if (mySeq === cpSeq && !cpRetryQueued) {
               cpNavBusyEnd();
+              // Successful history swaps clear this flag when they commit. A failed replay must also
+              // clear it, or the next normal click replaces a Back entry instead of adding its own.
+              if (cpPopReplaying) { cpPopReplaying = false; cpPopScroll = null; }
+              if (cpAutoReplaceUrl === url) cpAutoReplaceUrl = null;
               cpContextNavEnd(_contextNav);
               if (_contextNav) cpRecentRecord();
             }
@@ -5450,7 +5930,7 @@
               // Even a superseded context request spent the token. Refresh it before the newer navigation drains.
               if (token) cpWriteToken(token.value);
               if (mySeq !== cpSeq || cpContextNavActive !== _contextNav) return null;
-              if (!res || res.auth === false || res.err || res.timedOut) return res;
+              if (!res || res.auth === false || res.err || res.timedOut || res.navigationError) return res;
               if (!token || !res.doc.querySelector('td[width="82%"]') || res.doc.querySelector('.error, .errorMsg, .Failure'))
                 return {unverifiedSave:'CommPilot could not restore this location. The current page is still open; try returning again.'};
               cpEntityEntry = {url:returnEntry.url,params:returnEntry.params || {}};
@@ -5460,9 +5940,13 @@
             }
             loadPage = loadContext(0,firstTok);
           } else loadPage = cpLoader(url, params, firstTok, 0);
+          var cpResponseReceived = false;
           var cpThisNav = cpNavPending = loadPage
             .then(function (res) {
-              if (_contextNav) cpWriteToken(res && res.doc && res.doc.getElementsByName('formtokenserial')[0]?.value);
+              cpResponseReceived = true;
+              // A newer click supersedes the page, not the token consumed by this request. The queued
+              // navigation drains this response before posting; retain its token even when its swap is dropped.
+              cpWriteToken(res && res.doc && res.doc.getElementsByName('formtokenserial')[0]?.value);
               return res;
             })
             .then(async function (res) {
@@ -5474,39 +5958,34 @@
                 cpUploadNotice(res.unverifiedSave);
                 return;
               }
-              if (res && res.err >= 500) {
-                // The server 500'd this nav. Do NOT retry, harvest, or fall to a native POST — every further
-                // request into a 500ing endpoint risks killing the session (proven live 2026-07-02). Stay on
-                // the current page and tell the user.
+              if (res && res.navigationError) {
+                cpUploadNotice(res.navigationError);
+                return;
+              }
+              if (res && res.err >= 400) {
+                // An HTTP error does not prove an expired session. Keep the page and draft intact;
+                // do not harvest, replay the POST, or offer sign-in based solely on repeated errors.
                 console.warn("[pjax] server " + res.err + " on " + url + " — staying on the current page (no retry)");
                 // Styled in-page banner (reuses skin.css .cp-alert) instead of window.alert — the native alert
                 // BLOCKS the page (and automation) and looks off-theme. Auto-dismisses; page state untouched.
                 try {
-                  cpErr5xxStreak++;
                   var _bc = document.querySelector('td[width="82%"]');
-                  if (_bc && cpErr5xxStreak >= 2) {
-                    // Second 5xx in a row — the session is almost certainly dead (this host echoes
-                    // 500s on every request once it kills a session). One actionable banner instead
-                    // of a stack of identical server-error ones.
-                    Array.prototype.forEach.call(_bc.querySelectorAll(".cp-alert"), function (a) { try { a.remove(); } catch (e) {} });
-                    var _sb = document.createElement("div");
-                    _sb.className = "cp-alert cp-alert-warning";
-                    _sb.innerHTML =
-                      '<div class="cp-alert-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>' +
-                      '<div class="cp-alert-content"><div class="cp-alert-title">Session expired</div>' +
-                      '<div class="cp-alert-body">The server is rejecting requests — ' +
-                      (/^apps-sbx\./i.test(location.hostname) ? "the sandbox" : "CommPilot") +
-                      ' has most likely timed out your session. Sign in again to continue where you left off.</div></div>' +
-                      '<button type="button" class="cp-alert-act">Sign in</button>';
-                    _sb.querySelector(".cp-alert-act").addEventListener("click", function () { location.assign("/commpilot/Login/"); });
-                    _bc.insertBefore(_sb, _bc.firstChild);
-                  } else if (_bc) {
+                  if (_bc) {
+                    _bc.querySelectorAll('.cp-alert[data-cp-nav-error]').forEach(function (alert) { alert.remove(); });
                     var _bn = document.createElement("div");
                     _bn.className = "cp-alert cp-alert-error";
+                    _bn.setAttribute('data-cp-nav-error', '');
+                    var errorTitle = res.err === 403 ? 'Access denied' : res.err === 404 ? 'Page not found' :
+                      res.err === 429 ? 'Too many requests' : res.err >= 500 ? 'Server error' : 'Request failed';
+                    var errorMessage = !cpCanRetry ? 'The save could not be confirmed. Check the saved configuration before retrying.' :
+                      res.err === 403 ? 'CommPilot denied access to that page. Your current page is still open.' :
+                      res.err === 404 ? 'CommPilot could not find that page. Your current page is still open.' :
+                      res.err === 429 ? 'CommPilot is limiting requests. Wait before trying again; your current page is still open.' :
+                      'The server could not load that page. Your current page is still open; try again in a moment.';
                     _bn.innerHTML =
                       '<div class="cp-alert-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></div>' +
-                      '<div class="cp-alert-content"><div class="cp-alert-title">Server error</div>' +
-                      '<div class="cp-alert-body">The server couldn\'t load that page — you\'re still on the previous page. Try again in a moment.</div></div>' +
+                      '<div class="cp-alert-content"><div class="cp-alert-title">' + errorTitle + '</div>' +
+                      '<div class="cp-alert-body">' + errorMessage + '</div></div>' +
                       '<span class="cp-alert-chip">HTTP ' + res.err + '</span>';
                     _bc.insertBefore(_bn, _bc.firstChild);
                     setTimeout(function () { try { _bn.remove(); } catch (e) {} }, 9000);
@@ -5529,6 +6008,17 @@
                   cpUploadNotice('Bulk creation stopped: CommPilot did not return a usable page. Check the session before retrying.');
                   return;
                 }
+                if (!cpCanRetry) {
+                  cpUploadNotice('The save could not be confirmed. It was not sent again. Check the saved configuration before retrying.');
+                  return;
+                }
+                if (res && res.sessionRejected) {
+                  if (!cpSessionRedirecting) {
+                    cpSessionRedirecting = true;
+                    location.replace('/commpilot/Login/');
+                  }
+                  return;
+                }
                 // The follow came back unusable — EITHER the login page (auth:false) OR a non-content/error doc.
                 // A grid search rotating the single-use formtokenserial under us produces the SECOND case (no
                 // AUTH-FAIL is logged), and that path used to fall straight through to the real navigation below.
@@ -5548,8 +6038,8 @@
                   // session), first try to RECOVER IN PLACE: harvest a fresh app token from servlet/Login and retry
                   // the nav with it. Only if the harvest yields nothing (session genuinely dead) fall to _orig.
                   // Preserves the redirect:'manual' noise/CSP win while restoring "never hard-logout an alive session".
-                  cpRetryQueued = !!_contextNav;
-                  cpHarvestFreshToken().then(function (tok) {
+                  cpRetryQueued = true;
+                  return cpHarvestFreshToken().then(function (tok) {
                     if (mySeq !== cpSeq) { cpDbg("[pjax] superseded — dropping stale harvest"); return; }
                     if (tok) {
                       var _toks = document.getElementsByName("formtokenserial");
@@ -5563,17 +6053,43 @@
                         location.replace("/commpilot/Login/");
                       }
                     }
+                  }).catch(function (error) {
+                    if (mySeq !== cpSeq) return;
+                    cpRetryQueued = false;
+                    cpUploadNotice(error.message);
                   });
-                  return;
                 }
-                if (!cpSessionRedirecting) {
+                if (res && res.auth === false && !cpSessionRedirecting) {
                   cpSessionRedirecting = true;
-                  console.warn("[pjax] no content cell after follow — opening sign-in");
+                  console.warn("[pjax] sign-in response after retry — opening sign-in");
                   location.replace("/commpilot/Login/");
+                } else {
+                  cpUploadNotice('CommPilot returned an incomplete page. Your current page is still open; try again in a moment.');
                 }
                 return;
               }
+              // A script already requested by the previous native page can
+              // still execute after its node is removed. Finish that page's
+              // initialization before installing the destination's globals.
+              await cpBulkScriptsReady;
+              if (mySeq !== cpSeq) return;
               var doc = res.doc;
+              // Voice Management's Advanced link saves General, then forwards
+              // to General/Nested/index.jsp. That page has its own relative
+              // validator and form action; using General's URL loads the wrong
+              // password handlers and submits the mailbox to the wrong endpoint.
+              var cpVoiceForwarded = false;
+              if (/^\/commpilot\/User\/VM\//.test(url) && res.responseUrl) {
+                var voiceDestination = new URL(res.responseUrl, location.href);
+                if (voiceDestination.origin === location.origin &&
+                    /^\/commpilot\/User\/VM\//.test(voiceDestination.pathname) &&
+                    voiceDestination.pathname + voiceDestination.search !== url) {
+                  url = voiceDestination.pathname + voiceDestination.search;
+                  params = {};
+                  cpVoiceForwarded = true;
+                  cpLastNav = {url:url,params:{}};
+                }
+              }
               // A context redirect must never masquerade as the requested appearance. Keep the device editor
               // on screen if CommPilot returns a user home/list instead of the exact SCA Modify page.
               if (_contextNav && /\/User\/SCAP\/Modify\//.test(url) &&
@@ -5623,25 +6139,25 @@
                 if (/\/DeviceType\/Modify\/(index\.jsp)?$/.test(url)) {
                   var _ml = fetched.querySelectorAll('a[id^="link_"]');
                   if (_ml.length === 1 && _ml[0].id) {
-                    var _msrc = "";
-                    var _mss = doc.querySelectorAll("script");
-                    for (var _mi = 0; _mi < _mss.length; _mi++) _msrc += (_mss[_mi].textContent || "") + "\n";
-                    var _mj = _msrc.indexOf(_ml[0].id);
-                    var _mm = _mj >= 0 ? /redirectPost\s*\(\s*['"]([^'"]+)['"]\s*,\s*(\{[\s\S]*?\})\s*\)/.exec(_msrc.slice(_mj, _mj + 400)) : null;
-                    if (_mm) {
-                      var _mu = _mm[1].replace(/\\u002F/g, "/");
+                    var _mt = cpGridActionTarget(_ml[0], doc);
+                    if (_mt) {
+                      var _mu = _mt.url;
                       if (_mu.charAt(0) !== "/") _mu = "/commpilot/Operator/System/DeviceType/" + _mu;
                       if (_mu.indexOf("/DeviceType/Profile/") !== -1) {
-                        var _mp = {}, _mre = /(\w+)\s*:\s*['"]([^'"]*)['"]/g, _mkv;
-                        while ((_mkv = _mre.exec(_mm[2]))) _mp[_mkv[1]] = _mkv[2].replace(/\\u003E/g, ">").replace(/\\u0025/g, "%").replace(/\\u002F/g, "/");
                         cpDbg("[pjax] single-item drill skip ->", _mu);
-                        cpHook(_mu, _mp);
+                        cpHook(_mu, _mt.params);
                         return;
                       }
                     }
                   }
                 }
               } catch (e) {}
+              // A failed native initializer disables only that page's controls.
+              // A later reload or sidebar navigation must not inherit the lock.
+              if (liveCell.__cpNativeWasInert !== undefined) {
+                liveCell.inert = liveCell.__cpNativeWasInert;
+                delete liveCell.__cpNativeWasInert;
+              }
               liveCell.innerHTML = fetched.innerHTML;
 
               // Level change → swap the sidebar too. pjax normally KEEPS the sidebar and only syncs the
@@ -5662,10 +6178,14 @@
                   cpAggEnd();
                   liveNav.innerHTML = fNav.innerHTML;
                   cpLiveNav = liveNav;
-                  cpEntityEntry = _contextNav && _contextNav.entry ?
-                    {url:_contextNav.entry.url,params:_contextNav.entry.params || {}} :
-                    { url: url, params: params || {} };   // this nav set the server's target context
-                  if (url.indexOf("/Common/folder_contents.jsp") === -1) cpDeepEntry = cpEntityEntry;
+                  // A save can also replace the sidebar. Its submitted controls must never become
+                  // replayable entity ancestry on the next navigation; retain the last known entry.
+                  if (!_submitNav) {
+                    cpEntityEntry = _contextNav && _contextNav.entry ?
+                      {url:_contextNav.entry.url,params:_contextNav.entry.params || {}} :
+                      { url: url, params: params || {} };   // this nav set the server's target context
+                    if (url.indexOf("/Common/folder_contents.jsp") === -1) cpDeepEntry = cpEntityEntry;
+                  }
                 }
               } catch (e) { console.warn("[pjax] sidebar swap", e); cpLiveNav = null; }
 
@@ -5730,7 +6250,7 @@
               // when re-executed. Make the fetched page's URL current first, so
               // those actions resolve as they would after a native navigation.
               cpConfigFilesForwarded = false;
-              var cpPrevNav = history.state && history.state.cpNav;
+              var cpPrevNav = !cpVoiceForwarded && history.state && history.state.cpNav;
               var cpState = _saveNav ? { cpNav: cpPrevNav && cpPrevNav.url ? cpPrevNav : { url: url, params: {} } } :
                 { cpNav: { url: url, params: params || {},
                   entry: (cpEntityEntry && cpEntityEntry.url !== url) ?
@@ -5768,7 +6288,26 @@
               // that would accumulate stale handlers across navs.)
               if (cpExternalDclRestore) cpExternalDclRestore();
               window.__cpDclFns = [];
-              var bulkDclFns = cpBulkOwner ? [] : null, bulkLoadFns = [];
+              // Voice Management's save-and-forward links need the native
+              // head dependencies and page validator, not just body wiring.
+              // Ordinary pages also need parser order when body wiring depends
+              // on an external script. They retain their existing head globals.
+              var nativeVoiceForm = /^\/commpilot\/User\/VM\//i.test(url);
+              var replayNativeHead = !!cpBulkOwner || nativeVoiceForm;
+              var nativeContainers = [liveCell, cpLiveNav, cpLiveHeader].filter(Boolean);
+              var bodyScripts = replayNativeHead ? [] : nativeContainers.flatMap(function (container) {
+                return [].slice.call(container.querySelectorAll('script'));
+              });
+              var hasBodyDependency = bodyScripts.some(function (script) {
+                return script.hasAttribute('src') && cpNativeScriptKind(script) === 'classic';
+              });
+              // The ordered native loader handles classic CommPilot scripts.
+              // Preserve existing module execution on pages using that dialect.
+              var hasBodyModule = bodyScripts.some(function (script) {
+                return cpNativeScriptKind(script) === 'module';
+              });
+              var orderedNativeScripts = replayNativeHead || (hasBodyDependency && !hasBodyModule);
+              var bulkDclFns = orderedNativeScripts ? [] : null, bulkLoadFns = [];
               var origAdd = document.addEventListener;
               document.addEventListener = function (type, fn, opts) {
                 if (type === "DOMContentLoaded" && typeof fn === "function") {
@@ -5805,14 +6344,23 @@
                 cpExternalDclRestore = null;
               };
               cpExternalDclRestore = restoreDcl;
-              if (cpBulkOwner) {
+              if (orderedNativeScripts) {
                 var orderedContainers = [liveCell];
                 if (cpLiveNav) orderedContainers.push(cpLiveNav);
                 if (cpLiveHeader) orderedContainers.push(cpLiveHeader);
+                var nativeFormWasInert = liveCell.inert;
+                var holdNativeControls = !cpBulkOwner;
+                if (holdNativeControls) {
+                  liveCell.__cpNativeWasInert = nativeFormWasInert;
+                  liveCell.inert = true;
+                }
                 cpReexecutingScripts = true;
+                cpNativeScriptsLoading = true;
                 // Resolve with an error value so a load rejection cannot become
                 // an unhandled promise before the transport reaches its await.
-                cpBulkScriptsReady = cpBulkPageScripts(doc, url, orderedContainers).then(function () {
+                cpBulkScriptsReady = cpNativePageScripts(doc, url, orderedContainers, true,
+                  nativeVoiceForm ? function () { return mySeq === cpSeq; } : null, replayNativeHead).then(function () {
+                  if (nativeVoiceForm && mySeq !== cpSeq) return null;
                   // Match native page startup: all scripts, then DCL, then load.
                   // A thrown initializer must block the bulk step too.
                   for (var stage of [{handlers: bulkDclFns, target: document, type: 'DOMContentLoaded'}, {handlers: bulkLoadFns, target: window, type: 'load'}]) {
@@ -5825,15 +6373,34 @@
                 }).catch(function (error) {
                   // This can also be the response AFTER a successful save; do
                   // not claim that previous write was never sent.
-                  return new Error((error?.message || 'Native page initialization failed.') + ' Retry will check the saved setup before continuing.');
+                  return new Error((error?.message || 'Native page initialization failed.') +
+                    (cpBulkOwner ? ' Retry will check the saved setup before continuing.' : ' Refresh the page to reload its native controls.'));
                 }).finally(function () {
+                  cpNativeScriptsLoading = false;
                   cpReexecutingScripts = false;
                   restoreDcl();
                   if (window.redirectPost !== cpHook) { _orig = window.redirectPost; window.redirectPost = cpHook; }
                 });
                 // Keep native DOM intact until its event handlers are attached;
                 // reskin can otherwise move/remove nodes while scripts load.
-                if (await cpBulkScriptsReady) return;
+                var nativeScriptFailure = await cpBulkScriptsReady;
+                if (nativeVoiceForm && mySeq !== cpSeq) return;
+                if (nativeScriptFailure) {
+                  if (!cpBulkOwner) {
+                    var nativeNotice = document.createElement('div');
+                    nativeNotice.className = 'cp-alert cp-alert-error';
+                    nativeNotice.setAttribute('role', 'alert');
+                    nativeNotice.innerHTML = '<div class="cp-alert-content"><div class="cp-alert-title"></div><div class="cp-alert-body"></div></div>';
+                    nativeNotice.querySelector('.cp-alert-title').textContent = nativeVoiceForm ? 'Voice Management could not initialize' : 'Native page could not initialize';
+                    nativeNotice.querySelector('.cp-alert-body').textContent = nativeScriptFailure.message;
+                    liveCell.prepend(nativeNotice);
+                  }
+                  return;
+                }
+                if (holdNativeControls) {
+                  liveCell.inert = nativeFormWasInert;
+                  delete liveCell.__cpNativeWasInert;
+                }
               } else {
               cpSrcCollector = externalScripts;
               cpReexecutingScripts = true;
@@ -5852,15 +6419,36 @@
               if (externalScripts.length) {
                 var pendingScripts = externalScripts.filter(function (script) { return !script._cpLoaded; });
                 if (pendingScripts.length) {
-                  var scriptDone = function () {
-                    pendingScripts = pendingScripts.filter(function (script) { return !script._cpLoaded; });
-                    if (!pendingScripts.length) restoreDcl();
-                  };
-                  pendingScripts.forEach(function (script) {
-                    script.addEventListener("load", scriptDone, { once: true });
-                    script.addEventListener("error", scriptDone, { once: true });
+                  cpNativeScriptsLoading = true;
+                  cpBulkScriptsReady = new Promise(function (resolve) {
+                    var settled = false;
+                    var finish = function (error) {
+                      if (settled) return;
+                      settled = true;
+                      clearTimeout(scriptDeadline);
+                      cpNativeScriptsLoading = false;
+                      restoreDcl();
+                      resolve(error || null);
+                    };
+                    // Removing a script does not cancel its download. Retain
+                    // the actual requests after timeout so late execution cannot
+                    // overwrite the next page's native functions.
+                    var scriptDeadline = setTimeout(function () {
+                      finish(new Error('Native page script timed out.'));
+                    }, 15000);
+                    pendingScripts.forEach(function (script) {
+                      cpNativeScriptRequests.add(script);
+                      var scriptDone = function () {
+                        script.removeEventListener("load", scriptDone);
+                        script.removeEventListener("error", scriptDone);
+                        cpNativeScriptRequests.delete(script);
+                        pendingScripts = pendingScripts.filter(function (item) { return item !== script; });
+                        if (!pendingScripts.length) finish();
+                      };
+                      script.addEventListener("load", scriptDone);
+                      script.addEventListener("error", scriptDone);
+                    });
                   });
-                  setTimeout(restoreDcl, 4000);
                 } else restoreDcl();
               } else restoreDcl();
               }
@@ -5872,7 +6460,6 @@
               try { document.documentElement.setAttribute("data-cp-path", url); } catch (e) {}
               // Successful swap: the session is alive — reset the dead-session streak, stamp the
               // idle watchdog, and clear a stale idle-warning banner.
-              cpErr5xxStreak = 0;
               cpLastSwapAt = Date.now();
               try { var _iw = document.getElementById("cp-idle-warn"); if (_iw) _iw.remove(); } catch (e) {}
               document.dispatchEvent(new CustomEvent("cp:reskin"));
@@ -6032,25 +6619,23 @@
               } catch (e) {}
             })
             .catch(function (e) {
-              // GENUINE NETWORK-LEVEL failure (the request threw, vs a server response). Since cpFollow uses
-              // redirect:"manual", a server LOGIN BOUNCE (302 → http:// Login, CSP-blocked as mixed content) now
-              // resolves as an opaqueredirect → {auth:false} and NO LONGER reaches here — so a throw here is a
-              // real dropped socket, not a masquerading CSP block. The usual cause after idle: the server /
-              // load-balancer closed the persistent keep-alive socket, so the FIRST fetch on the stale connection
-              // throws "TypeError: Failed to fetch" — the POST never reached the server, so the nav silently died
-              // ("dead click after idle"). The raw site dodges this because its full-page form POSTs transparently
-              // reconnect; our fetch() does not. Retry ONCE on a fresh connection (a new
-              // fetch opens a new socket) before giving up. SAFE for saves too: a connection that failed before
-              // the request was processed can't have double-applied it. A real server response — including a
-              // genuine auth failure ({auth:false}) — resolves through .then above and never reaches here, so the
-              // retry can't mask a real logout. Guarded by _retry so it can never loop.
+              // Fetch can fail after the server applied a request but before its response arrived.
+              // Never infer that a save was not processed. Also distinguish transport errors from
+              // TypeErrors thrown while applying a response: replaying a UI exception cannot fix it.
               var _msg = String((e && e.message) || e || "");
               var isNetErr = !!e && (e.name === "TypeError" || /failed to fetch|networkerror|load failed/i.test(_msg));
-              if (isNetErr && !_retry) {
-                cpRetryQueued = !!_contextNav;
+              if (mySeq !== cpSeq) return;
+              if (!cpCanRetry) {
+                cpUploadNotice('The save could not be confirmed. It was not sent again. Check the saved configuration before retrying.');
+              } else if (e && e.name === 'TimeoutError') {
+                cpUploadNotice('CommPilot did not respond within 90 seconds. Your current page is still open. The request was not sent again.');
+              } else if (isNetErr && !cpResponseReceived && !_retry) {
+                cpRetryQueued = true;
                 console.warn("[pjax] fetch network error (dropped idle connection?) — retrying nav once on a fresh connection");
                 setTimeout(function () { try { if (mySeq === cpSeq) cpHook(url, params, true, _contextNav); } catch (e2) {} }, 200);
                 return;
+              } else if (isNetErr && !cpResponseReceived) {
+                cpUploadNotice('CommPilot could not load this page because the connection failed. Your current page is still open; try again in a moment.');
               }
               cpWarnCo("failed|" + url + "|" + _msg, "[pjax] fetch FAILED " + _msg + " (" + url + ")");
             });
@@ -6085,11 +6670,16 @@
       if (cpGridState && cpGridState._searchAbort) cpGridState._searchAbort.abort();
       if (cpGridState && cpGridState._sweepAbort) cpGridState._sweepAbort.abort();
       function owned() { if (cpBulkOwner !== owner) throw new Error('The bulk session is closed.'); }
-      async function idle() {
+      async function idle(waitForScripts) {
         var started = Date.now();
-        while (cpInflightPosts || cpNavPending) {
+        while (cpInflightPosts || cpNavPending || cpUploadActive) {
           if (Date.now() - started > 30000) throw new Error('A CommPilot request is still running. Wait for it to finish.');
           await new Promise(function (resolve) { setTimeout(resolve, 25); });
+        }
+        if (waitForScripts !== false) {
+          await cpBulkScriptsReady;
+          if (cpNativeScriptRequests.size)
+            throw new Error('A native script is still loading. Wait for it to finish or reload the page before opening a bulk session.');
         }
       }
       try { await Promise.all([cpListFillStop(), cpSweepStop()]); await idle(); }
@@ -6099,26 +6689,46 @@
         if (owner.failed) throw new Error('Retry this batch to check the CommPilot session before resuming.');
         if (executing) throw new Error('Another bulk step is still running.');
         executing = true;
+        var diagnostic = {phase:'waiting for session',actionDispatched:false,pageSwapped:false,navigationStarted:false,uploadStarted:false,requests:[]};
         try {
           await idle();
-          var swapped = false, onSwap = function () { swapped = true; };
+          owner.diagnostic = diagnostic;
+          var swapped = false, onSwap = function () { swapped = true; diagnostic.pageSwapped = true; };
           document.addEventListener('cp:reskin', onSwap);
           try {
             cpBulkScriptsReady = Promise.resolve(null);
             cpBulkPermit = true;
-            try { action(); } finally { cpBulkPermit = false; }
-            var nav = cpNavPending;
-            if (!nav) throw new Error('The native form did not navigate. Check its required fields.');
-            await nav;
-            await idle();
+            diagnostic.phase = 'native action and validation';
+            try { action(); diagnostic.actionDispatched = true; } finally { cpBulkPermit = false; }
+            var nav = cpNavPending, upload = cpUploadPending;
+            diagnostic.navigationStarted = !!nav; diagnostic.uploadStarted = !!upload;
+            if (upload) {
+              // Device Profile Modify posts multipart data to its native servlet,
+              // then opens the returned page. Own that entire save, not just the
+              // later navigation. Never send it again after a missing response.
+              diagnostic.phase = 'multipart response';
+              var uploadResult = await upload;
+              if (uploadResult) { owner.failed = true; throw new Error(uploadResult); }
+              nav = cpNavPending;
+            }
+            if (!nav && !swapped) throw new Error('The native form did not navigate. Check its required fields.');
+            diagnostic.phase = 'navigation response';
+            if (nav) await nav;
+            await idle(false);
             // A swap is not ready to edit/save until all native dependencies and
             // page handlers have executed. A timeout is a failure, never readiness.
+            diagnostic.phase = 'native script initialization';
             var scriptFailure = await cpBulkScriptsReady;
             if (scriptFailure) { owner.failed = true; throw scriptFailure; }
+            diagnostic.phase = 'page confirmation';
             if (!swapped) { owner.failed = true; throw new Error('The save or navigation could not be confirmed. It was not replayed. Retry will first check the session and existing setup.'); }
             rememberLocation();
           } finally { document.removeEventListener('cp:reskin', onSwap); }
-        } finally { executing = false; }
+        } catch (error) {
+          // Only operation state: never copy URL queries, request bodies or tokens.
+          error.bulkDiagnostic = diagnostic;
+          throw error;
+        } finally { owner.diagnostic = null; executing = false; }
       }
       return {
         get needsRecovery() { return owner.failed; },
@@ -6158,7 +6768,10 @@
     // Known multipart servlets accept POSTs and answer with a token-bearing
     // redirectPost stub. Keep the file POST in the current document, then let
     // cpHook follow that stub and repaint the resulting CommPilot page.
-    var cpUploadActive = false;
+    var cpUploadActive = false, cpUploadPending = null;
+    window.cpHasPendingNativeRequest = function () {
+      return !!(cpInflightPosts || cpNavPending || cpUploadPending);
+    };
     function cpImportUploadAction(form) {
       if (!form || !/multipart\/form-data/i.test(form.getAttribute('enctype') || '') ||
           (form.getAttribute('method') || 'GET').toUpperCase() !== 'POST') return null;
@@ -6192,8 +6805,20 @@
     function cpSubmitImportUpload(form, submitter) {
       var action = cpImportUploadAction(form);
       if (!action) return false;
+      if (cpBulkOwner && !cpBulkPermit) return true;
       if (cpUploadActive) return true;
       cpUploadActive = true;
+      var uploadOwner = cpBulkOwner, finishUpload;
+      var pendingUpload = cpUploadPending = new Promise(function (resolve) { finishUpload = resolve; });
+      function navigateUploadResult(callback) {
+        if (uploadOwner && cpBulkOwner !== uploadOwner) {
+          release('The save was sent, but its owning session ended. Check the saved configuration before retrying.');
+          return false;
+        }
+        var permit = cpBulkPermit;
+        if (uploadOwner) cpBulkPermit = true;
+        try { return callback(); } finally { cpBulkPermit = permit; }
+      }
       if (cpAggActive) { cpSectionAborted = true; cpAggEnd(); }
       try { if (cpGridState && cpGridState._searchAbort) cpGridState._searchAbort.abort(); } catch (e) {}
       try { if (cpGridState && cpGridState._sweepAbort) cpGridState._sweepAbort.abort(); } catch (e) {}
@@ -6203,20 +6828,34 @@
       if (submitter && submitter.name) body.append(submitter.name, submitter.value || '');
       var deviceAction = action.pathname === '/commpilot/servlet/DeviceInventoryProvisionServlet' ?
         String(submitter && submitter.name || body.get('buttonClicked') || '').toLowerCase() : '';
-      var buttons = [].slice.call(form.querySelectorAll('[type="submit"]'));
-      buttons.forEach(function (button) { button.disabled = true; });
+      var buttons = [].slice.call(form.querySelectorAll('[type="submit"]')).map(function (button) {
+        return { element: button, disabled: button.disabled };
+      });
+      buttons.forEach(function (button) { button.element.disabled = true; });
       form.setAttribute('aria-busy', 'true');
       var finished = false;
+      var uploadController = new AbortController(), uploadExpired = false;
+      // Manual file uploads may be larger than bulk credential saves. Give them five minutes,
+      // but never leave the form and single-use-token lock held indefinitely after a lost response.
+      var uploadTimer = setTimeout(function () {
+        uploadExpired = true;
+        uploadController.abort();
+        release('The native save response timed out. Check the saved configuration before retrying.');
+      },uploadOwner ? 45000 : 300000);
       function release(message) {
         if (finished) return;
         finished = true; cpUploadActive = false;
-        buttons.forEach(function (button) { button.disabled = false; });
+        if (uploadTimer) clearTimeout(uploadTimer);
+        if (cpUploadPending === pendingUpload) cpUploadPending = null;
+        buttons.forEach(function (button) { button.element.disabled = button.disabled; });
         form.removeAttribute('aria-busy');
         if (message) cpUploadNotice(message);
+        finishUpload(message || null);
       }
       var waited = 0;
       function sendWhenReady() {
-        if (cpSeq !== uploadSeq || !form.isConnected) { release(); return; }
+        if (finished) return;
+        if (cpSeq !== uploadSeq || !form.isConnected) { release(uploadOwner ? 'The native save was interrupted. Check before retrying.' : null); return; }
         if (cpInflightPosts > 0) {
           if (waited++ < 250) { setTimeout(sendWhenReady, 20); return; }
           release('Another page request is still running. Please try the upload again.');
@@ -6225,33 +6864,51 @@
         var liveToken = document.getElementsByName('formtokenserial')[0];
         if (liveToken) body.set('formtokenserial', liveToken.value);
         cpInflightPosts++;
-        fetch(action.href, { method: 'POST', body: body, credentials: 'same-origin', redirect: 'manual' })
+        var requestHeld = true;
+        function finishRequest() {
+          if (!requestHeld) return;
+          requestHeld = false;
+          cpInflightPosts = Math.max(0, cpInflightPosts - 1);
+        }
+        var requestDiagnostic = cpBulkRequestDiagnostic(action.href);
+        fetch(action.href, { method: 'POST', body: body, credentials: 'same-origin', redirect: 'manual', signal:uploadController?.signal })
           .then(function (response) {
+            if (requestDiagnostic) { requestDiagnostic.status = response.status; requestDiagnostic.responseType = response.type; }
             if (response.status >= 500) {
               release('The server could not process the upload. No automatic retry was sent.');
               return null;
             }
-            if (response.type === 'opaqueredirect' || response.status === 0 || response.status >= 300) {
+            if (response.status === 401) {
               release('The upload could not continue because the session ended. Please sign in again.');
+              return null;
+            }
+            if (response.type === 'opaqueredirect' || response.status === 0 || response.status >= 300) {
+              release('The upload response could not be confirmed. Check the result before trying again.');
               return null;
             }
             return response.text();
           })
           .then(function (html) {
-            if (html == null) return;
-            if (cpSeq !== uploadSeq) { release(); return; }
+            if (!uploadOwner && uploadTimer) { clearTimeout(uploadTimer); uploadTimer = null; }
+            // The servlet response (including its new token) has arrived. Its
+            // return navigation must not queue behind this already-finished
+            // request, then lose the bulk owner's one-action permit.
+            finishRequest();
+            if (html == null || finished) return;
             var doc = new DOMParser().parseFromString(html, 'text/html');
+            // An upload consumes the live token even if the user leaves before
+            // its reply or the reply is a validation page without a redirect.
+            // Preserve its replacement before dropping the obsolete result.
+            cpWriteToken(doc.getElementsByName('formtokenserial')[0]?.value);
+            if (cpSeq !== uploadSeq) { release(uploadOwner ? 'The native save response was superseded. Check before retrying.' : null); return; }
             var stub = cpExtractStub(doc);
             if (!stub || !stub.target || !isPjaxUrl(stub.target)) {
               release('The upload was sent, but its result could not be displayed. Reload to inspect it.');
               return;
             }
-            if (stub.token) {
-              var tokens = document.getElementsByName('formtokenserial');
-              for (var i = 0; i < tokens.length; i++) tokens[i].value = stub.token;
-            }
             if (/^\/commpilot\/(?:Group|ServiceProvider|Operator\/System)\/DeviceInventory\/(?:index\.jsp)?$/.test(stub.target) &&
-                !doc.querySelector('.error, .errorMsg, .Failure') && cpDeviceSaved(deviceAction)) {
+                !doc.querySelector('.error, .errorMsg, .Failure') &&
+                navigateUploadResult(function () { return cpDeviceSaved(deviceAction); })) {
               if (cpContextNavActive) {
                 // Release on this return's completion/failure, rather than an unrelated reskin or a fixed
                 // 15-second timer while a slow context request is still working. The save itself is finished.
@@ -6260,22 +6917,22 @@
               }
               document.addEventListener('cp:reskin', function () { release(); }, {once:true});
               setTimeout(function () {
-                if (cpUploadActive) release('The save was sent, but its return page did not appear. Check before trying again.');
+                if (!finished) release('The save was sent, but its return page did not appear. Check before trying again.');
               },15000);
               return;
             }
             document.addEventListener('cp:reskin', function () { release(); }, { once: true });
-            cpHook(stub.target, stub.data || {});
+            navigateUploadResult(function () { cpHook(stub.target, stub.data || {}); });
             setTimeout(function () {
-              if (cpUploadActive) release('The upload was sent, but its result did not appear. Check before trying again.');
+              if (!finished) release('The upload was sent, but its result did not appear. Check before trying again.');
             }, 15000);
           })
           .catch(function (error) {
+            if (requestDiagnostic && requestDiagnostic.status === null) requestDiagnostic.failure = uploadExpired ? 'Request timed out' : 'Network request failed';
             console.warn('[pjax] upload request failed:', error);
             release('The upload response was lost. Check the result before trying again.');
           })
-          .then(function () { cpInflightPosts = Math.max(0, cpInflightPosts - 1); },
-            function () { cpInflightPosts = Math.max(0, cpInflightPosts - 1); });
+          .then(finishRequest, finishRequest);
       }
       sendWhenReady();
       return true;
@@ -6528,6 +7185,9 @@
       if (e.shiftKey) return;
       e.preventDefault();
       e.stopImmediatePropagation();
+      // Bulk tools own the current native form/token until their dialog or transport lease ends.
+      // An ignored shortcut must not debounce a real refresh after that ownership is released.
+      if (cpBulkOwner || document.querySelector('.cp-bulk-overlay')) return;
       // DEDUPE: pjax is injected into every frame (all_frames) AND key-repeat fires this handler several times in
       // a row → multiple concurrent replays that race on the single-use formtokenserial and log the user out
       // (esp. after a token-rotating broad search). sessionStorage is shared across frames, so only the FIRST
@@ -6560,14 +7220,27 @@
       var nav = cpLastNav;
       if (!nav) { try { nav = JSON.parse(sessionStorage.getItem("cp-last-nav") || "null"); } catch (e) {} }
       if (!nav || !nav.url) nav = { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
+      nav = cpHistoryReplayNav(nav);
+      if (!nav) {
+        cpUploadNotice('This saved reload entry cannot be reopened safely. Open the page from its menu.');
+        return;
+      }
       cpDbg("[pjax] reload intercepted → replay", nav.url);
       // Even off the grid, a token-bearing POST may be mid-rotation (a console/aggregation fetch). DRAIN all
       // in-flight token-POSTs to 0 (max ~1.6s) before replaying, so the reload's POST can't race a fetch over the
       // single-use token. This counts an aborted-but-still-resolving prior search too — which the old
       // single-_searchPromise wait missed (abort stops the loop, not the in-flight fetch).
-      var _navGo = function () { try { window.redirectPost(nav.url, nav.params || {}); } catch (err) { console.warn("[pjax] reload replay failed", err); } };
+      var reloadSeq = cpSeq;
+      var _navGo = function () {
+        if (reloadSeq !== cpSeq) return; // A newer click owns navigation while refresh drains.
+        try {
+          cpAutoReplaceUrl = nav.url; // Refresh replaces the current entry, like native Reload.
+          window.redirectPost(nav.url, nav.params || {});
+        } catch (err) { console.warn("[pjax] reload replay failed", err); }
+      };
       var _t0 = Date.now();
       (function _drain() {
+        if (reloadSeq !== cpSeq) return;
         if (cpInflightPosts <= 0 || Date.now() - _t0 > 1600) { _navGo(); return; }
         setTimeout(_drain, 40);
       })();
@@ -6575,6 +7248,9 @@
 
     window.addEventListener("popstate", function (e) {
       try {
+        // A bulk dialog's own listener restores its held history entry. Do not
+        // start a group-changing POST before that listener can run.
+        if (cpBulkOwner || document.querySelector('.cp-bulk-overlay')) return;
         var nav = e.state && e.state.cpNav;
         if ((!nav || !nav.url) && cpSearchLandingNav &&
             location.pathname === cpSearchLanding &&
@@ -6583,6 +7259,18 @@
           cpDbg("[pjax] popstate missing state → replay search landing", nav.url);
         }
         if (!nav || !nav.url) return;
+        nav = cpHistoryReplayNav(nav);
+        if (!nav) {
+          cpPopReplaying = false; cpPopScroll = null;
+          // Keep the address aligned with the still-painted page when its
+          // known navigation is available; never replace it with rejected data.
+          var paintedUrl = document.documentElement.getAttribute('data-cp-path') || cpInitialNav && cpInitialNav.url;
+          var currentNav = cpHistoryReplayNav(cpLastNav);
+          if (currentNav && currentNav.url === paintedUrl)
+            history.replaceState({cpNav:currentNav,cpDeviceOrigin:cpDeviceProfileOrigin},'',currentNav.url);
+          cpUploadNotice('This saved history entry cannot be reopened safely. Open the page from its menu.');
+          return;
+        }
         cpPopReplaying = true;
         cpPopScroll = typeof e.state?.cpMainScroll === "number" ? e.state.cpMainScroll : 0;
         cpDbg("[pjax] popstate → replay", nav.url);
@@ -6609,7 +7297,9 @@
         sessionStorage.getItem("cp-pending-return") === "1"
       ) {
         sessionStorage.removeItem("cp-pending-return");
-        var last = JSON.parse(sessionStorage.getItem("cp-last-nav") || "null");
+        var savedLast = JSON.parse(sessionStorage.getItem("cp-last-nav") || "null");
+        var last = cpLoginReturnNav(savedLast);
+        if (savedLast && !last) sessionStorage.removeItem("cp-last-nav");
         // A new session starts at the account's home level, and CommPilot opens an entity only from the level
         // above it (a group from its service provider, a user from its group). Reopen the page only when its
         // entry (or, without one, the page itself) belongs to the home level; otherwise stay home.
@@ -6619,7 +7309,8 @@
           last = null;
         }
         if (last && last.url) {
-          cpDbg("[pjax] auto-return →", last.url, last.params);
+          sessionStorage.setItem("cp-last-nav", JSON.stringify(last));
+          cpDbg("[pjax] auto-return →", last.url);
           sessionStorage.setItem("cp-return-at", String(Date.now()));
           setTimeout(function () {
             try {
@@ -6659,6 +7350,71 @@
       var home = cpSidebarLevel(), from = cpNavLevel(nav.entry && nav.entry.url ? nav.entry : nav);
       return !!home && from === home;
     }
+    function cpHistoryReplayNav(value) {
+      // History can survive an extension update. Reject old actions at replay
+      // time as well as preventing new form saves from entering history.
+      function pageNav(item) {
+        if (!item || typeof item !== 'object' || Array.isArray(item) || cpNavigationAddressError(item.url)) return null;
+        var address = new URL(item.url,location.href), route;
+        try { route = decodeURIComponent(address.pathname); } catch (e) { return null; }
+        if (route.indexOf('/commpilot/') !== 0 || /\/(?:Login|Logout|servlet|Delete)(?:\/|$)/i.test(route)) return null;
+        function unsafe(name,val) {
+          return /^(?:ok|apply|delete|cancel|save|submit)$/i.test(name) || /password|secret|passcode|^pin$/i.test(name) ||
+            /^buttonClicked$/i.test(name) && /^(?:ok|apply|delete|cancel|save|submit)$/i.test(String(val || '').trim());
+        }
+        for (var pair of address.searchParams) if (unsafe(pair[0],pair[1]) || /^formtokenserial$/i.test(pair[0])) return null;
+        var source = item.params || {}, params = {};
+        if (typeof source !== 'object' || Array.isArray(source)) return null;
+        for (var key of Object.keys(source)) {
+          var val = source[key];
+          if (key === '__cpFormEntries') {
+            // Native search forms store their criteria as ordered form entries.
+            // Other serialized forms are saves, not navigation.
+            if (!/^\/commpilot\/Common\/(?:find|findAll|page|sort)\.jsp$/.test(route) || !Array.isArray(val)) return null;
+            var entries = [];
+            for (var field of val) {
+              if (!Array.isArray(field) || field.length !== 2 || typeof field[0] !== 'string' ||
+                  typeof field[1] !== 'string' || unsafe(field[0],field[1])) return null;
+              if (!/^formtokenserial$/i.test(field[0])) entries.push([field[0],field[1]]);
+            }
+            params[key] = entries;
+          } else {
+            if (unsafe(key,val) || val !== null && typeof val === 'object') return null;
+            if (!/^(?:formtokenserial|__proto__|constructor|prototype)$/i.test(key)) params[key] = val;
+          }
+        }
+        return {url:address.pathname+address.search,params:params};
+      }
+      var nav = pageNav(value);
+      if (!nav) return null;
+      if (value.entry) {
+        nav.entry = pageNav(value.entry);
+        if (!nav.entry) return null;
+      }
+      return nav;
+    }
+    function cpLoginReturnNav(value) {
+      // An old tab may retain records written before form submissions were
+      // excluded. Validate both hops before the first POST in the new session.
+      function pageNav(item) {
+        var nav = cpRecentNav(item);
+        if (!nav) return null;
+        var source = item.params || {};
+        if (Object.keys(source).some(function (key) {
+          return /^(?:ok|apply|delete|cancel|save|submit|__cpFormEntries)$/i.test(key) ||
+            /^buttonClicked$/i.test(key) && String(source[key] || '').trim() !== '' ||
+            source[key] !== null && typeof source[key] === 'object';
+        })) return null;
+        return nav;
+      }
+      var nav = pageNav(value);
+      if (!nav) return null;
+      if (value.entry) {
+        nav.entry = pageNav(value.entry);
+        if (!nav.entry) return null;
+      }
+      return nav;
+    }
 
     // ---- Unified Console (Phase 1) ----------------------------------
     function cpReexecWiringScripts(container) {
@@ -6682,7 +7438,7 @@
       var scripts = container.querySelectorAll("script");
       for (var si = 0; si < scripts.length; si++) {
         var old = scripts[si];
-        if (old.src) continue;
+        if (!cpNativeInlineScript(old)) continue;
         var txt = (old.textContent || "").trim();
         if (!txt || !/getElementById\(['"](?:link_|anchor_)/.test(txt) || !/redirectPost/.test(txt)) continue;
         var s = document.createElement("script");
@@ -6738,12 +7494,15 @@
           var token = liveTokEl ? liveTokEl.value : null;
           return cpFollow("/commpilot/Common/folder_contents.jsp", { folder: folder, menuId: menuId || "8" }, token, 0)
             .then(function (res) {
-              if (cpSectionAborted || !res || res.auth === false || !res.doc) { resolve(null); return; }
+              if (!res || res.auth === false || !res.doc) { resolve(null); return; }
               var newTok = res.doc.getElementsByName("formtokenserial")[0];
               if (newTok) {
                 var tokens = document.getElementsByName("formtokenserial");
                 for (var i = 0; i < tokens.length; i++) tokens[i].value = newTok.value;
               }
+              // Navigation cancels the board paint, not the token consumed by
+              // this completed read. Its replacement must reach the next POST.
+              if (cpSectionAborted) { resolve(null); return; }
               var td = res.doc.querySelector('td[width="82%"]');
               resolve(td ? td.innerHTML : null);
             })
@@ -6905,6 +7664,7 @@
       // Same ownership rule as cpFetchLeaf: once an option opens (or the board is gone), stop before the next
       // POST instead of sending it with the token the navigation now owns. A skipped step reports "not saved".
       var ownerBoard = document.querySelector(".cp-console");
+      var saveStarted = false;
       function owned() { return !cpSectionAborted && !cpNavPending && !!ownerBoard && ownerBoard.isConnected; }
       return new Promise(function (settle) {
         var resolve = function (value) {
@@ -6928,9 +7688,13 @@
             var sourceInputs = [].slice.call(form.getElementsByTagName("input")).filter(function (el) { return el.name === edit.name && el.type === type; });
             if ((type === "radio" && (sourceInputs.length < 2 || !sourceInputs.some(function (el) { return el.value === newValue; }))) ||
               (type !== "radio" && sourceInputs.length !== 1)) { resolve(false); return; }
+            var targetInput = type === 'radio' ? sourceInputs.filter(function (el) { return el.value === newValue; })[0] : sourceInputs[0];
+            if (targetInput.matches(':disabled') || targetInput.readOnly || form.querySelector('[name="apply"]').matches(':disabled')) {
+              resolve({ ok: false, reason: 'disabled' }); return;
+            }
             var params = {};
             [].slice.call(form.querySelectorAll("input, select, textarea")).forEach(function (el) {
-              if (!el.name) return;
+              if (!el.name || el.matches(':disabled')) return;
               var t = (el.type || "").toLowerCase();
               if (t === "button" || t === "submit" || t === "image") return;
               if ((t === "checkbox" || t === "radio") && !(el.checked || el.hasAttribute("checked"))) return;
@@ -6944,21 +7708,22 @@
             params.apply = "Apply";
             if (!owned()) { resolve(false); return; }
             var tok2 = document.getElementsByName("formtokenserial")[0];
+            saveStarted = true;
             return cpFollow(edit.path, params, tok2 ? tok2.value : null, 0).then(function (res2) {
-              if (!res2 || res2.auth === false || res2.err || !res2.doc) { resolve(false); return; }
+              if (!res2 || res2.auth === false || res2.err || !res2.doc) { resolve({ ok: false, reason: "uncertain" }); return; }
               var nt2 = res2.doc.getElementsByName("formtokenserial")[0];
               if (nt2) { var ts2 = document.getElementsByName("formtokenserial"); for (var j = 0; j < ts2.length; j++) ts2[j].value = nt2.value; }
               if (!cpLeafMatches(res2.doc, edit, newValue)) { resolve({ ok: false, reason: "refused" }); return; }
-              if (!owned()) { resolve(false); return; }
+              if (!owned()) { resolve({ ok: false, reason: "uncertain" }); return; }
               var tok3 = document.getElementsByName("formtokenserial")[0];
               return cpFollow(edit.path, {}, tok3 ? tok3.value : null, 0).then(function (res3) {
-                if (!res3 || res3.auth === false || res3.err || !res3.doc) { resolve(false); return; }
+                if (!res3 || res3.auth === false || res3.err || !res3.doc) { resolve({ ok: false, reason: "uncertain" }); return; }
                 var nt3 = res3.doc.getElementsByName("formtokenserial")[0];
                 if (nt3) { var ts3 = document.getElementsByName("formtokenserial"); for (var k = 0; k < ts3.length; k++) ts3[k].value = nt3.value; }
-                resolve(cpLeafMatches(res3.doc, edit, newValue));
+                resolve(cpLeafMatches(res3.doc, edit, newValue) ? true : { ok: false, reason: "uncertain" });
               });
             });
-          }).catch(function () { resolve(false); });
+          }).catch(function () { resolve({ ok: false, reason: saveStarted ? "uncertain" : "failed" }); });
         });
       });
     }
@@ -6979,12 +7744,13 @@
           var token = liveTokEl ? liveTokEl.value : null;
           return cpFollow(path, {}, token, 0)
             .then(function (res) {
-              if (cpSectionAborted || !res || res.auth === false || !res.doc) { resolve(null); return; }
+              if (!res || res.auth === false || !res.doc) { resolve(null); return; }
               var newTok = res.doc.getElementsByName("formtokenserial")[0];
               if (newTok) {
                 var tokens = document.getElementsByName("formtokenserial");
                 for (var i = 0; i < tokens.length; i++) tokens[i].value = newTok.value;
               }
+              if (cpSectionAborted || !ownerBoard.isConnected) { resolve(null); return; }
               resolve(res.doc);
             })
             .catch(function () { resolve(null); });
@@ -7147,6 +7913,9 @@
             var label = (tds[0].textContent || "").trim();
             if (!label || label.length > 40 || !/:\s*$/.test(label)) continue;  // label cells end with ":"
             var inp = tds[1].querySelector("input, select, textarea");
+            // A summary must preserve the native field's privacy: hidden values
+            // and masked credentials must never become readable glance text.
+            if (inp && /^(?:password|hidden|file)$/i.test(inp.type || "")) continue;
             var val = inp ? (inp.value || "") : (tds[1].textContent || "").trim();
             if (!val) continue;
             // defpill (lavender value pill) — the console-wide glance style (user: make Profile match the
@@ -7510,8 +8279,10 @@
         }
         cpShowServiceState(link, el, was);
         var message = result.reason === "needs" ? name + " needs a " + needs[1].toLowerCase() + " number before it can be turned on." :
+          result.reason === "disabled" ? "CommPilot has disabled this setting. Open " + name + " to review it." :
           result.reason === "complex" ? "Open " + name + " to turn it " + (on ? "on" : "off") + ": its page has more settings." :
           result.reason === "refused" ? "CommPilot did not turn " + name + " " + (on ? "on" : "off") + ". Open it to see why." :
+          result.reason === "uncertain" ? "The save could not be confirmed. Open " + name + " to check its current setting before retrying." :
           "Could not reach CommPilot. " + name + " was not changed.";
         cpServiceNote(link, message, result.reason === "needs");
         // Missing number: open Peek's editor for it, when the option shows one.
@@ -8032,6 +8803,7 @@
         for (var hop = 0; hop < 4 && el; hop++) {
           var scripts = el.querySelectorAll("script");
           for (var si = 0; si < scripts.length; si++) {
+            if (!cpNativeInlineScript(scripts[si])) continue;
             var txt = scripts[si].textContent || "";
             // Read menuId FIRST — the folder + menuId live in the SAME redirectPost({folder:'S1',menuId:'2'})
             // call, so breaking on the folder match before reading menuId left menuId at its "8" default.
@@ -8582,6 +9354,9 @@
     // cascade, just preloaded for seamless scroll-up). Robust to fast fetches (the dwell, not the
     // network, sets the cadence) and to slow ones (each still waits for its own load to finish).
     function cpRevealStep(secs, order, i) {
+      // A dwell callback can outlive its board. It must not end aggregation or
+      // restore context for a different board that opened in the meantime.
+      if (!secs.length || !document.contains(secs[0])) return;
       if (cpSectionAborted || !document.querySelector(".cp-console")) { cpRevealBusy = false; cpAggEnd(); return; }
       if (i >= order.length) {
         function settlePeekReads(ready) {
@@ -8745,6 +9520,7 @@
     // menu lists the level's folders and pages; choosing one navigates through PJAX with the option's own
     // redirectPost target, read from CommPilot's wiring script for that link.
     var CP_PAGE_MENU_PREFIX = "cp-page-menu:";
+    var cpPageMenuMemory = null;
     function cpPageMenuKey() {
       var nav = document.querySelector('form[name="leftNavForm"]');
       var trail = [].slice.call(document.querySelectorAll('td.headerBar a.headerAuthLevelLink, td.headerBar span.headerAuthLevel'))
@@ -8752,25 +9528,25 @@
       return CP_PAGE_MENU_PREFIX + cpSidebarSig(nav) + "|" + trail;
     }
     function cpUnescapeJs(text) {
-      return String(text).replace(/\\u([0-9a-fA-F]{4})/g, function (_, hex) { return String.fromCharCode(parseInt(hex, 16)); })
-        .replace(/\\(['"\\/])/g, "$1");
+      // Decode once: a literal escaped backslash followed by u0040 is text,
+      // not a second Unicode escape to turn into an at-sign.
+      return String(text).replace(/\\(?:u([0-9a-fA-F]{4})|x([0-9a-fA-F]{2})|(['"\\/]))/g, function (_, unicode, hex, escaped) {
+        return unicode || hex ? String.fromCharCode(parseInt(unicode || hex, 16)) : escaped;
+      });
     }
     // id → {url, params} from the menu's wiring scripts (redirectPost('…', {…}) inside the link's handler).
     function cpWiringTargets(root) {
       var targets = {};
-      var re = /getElementById\(\s*['"]([^'"]+)['"]\s*\)[\s\S]*?redirectPost\(\s*['"]((?:[^'"\\]|\\.)*)['"]\s*,\s*(\{[^}]*\})?/g;
       root.querySelectorAll("script").forEach(function (script) {
-        var src = script.textContent || "", m;
-        re.lastIndex = 0;
-        while ((m = re.exec(src))) {
-          var params = {}, pm, pre = /(\w+)\s*:\s*['"]((?:[^'"\\]|\\.)*)['"]/g;
-          while (m[3] && (pm = pre.exec(m[3]))) params[pm[1]] = cpUnescapeJs(pm[2]);
-          targets[m[1]] = { url: cpUnescapeJs(m[2]), params: params };
-        }
+        if (!cpNativeInlineScript(script)) return;
+        cpScriptBindings(script.textContent || "").forEach(function (binding) {
+          var target = cpParseNativeRedirect(binding.script);
+          if (target) targets[binding.id] = target;
+        });
       });
       root.querySelectorAll("a.navMenuItem[onclick]").forEach(function (a) {
-        var m = /redirectPost\(\s*['"]((?:[^'"\\]|\\.)*)['"]\s*,\s*(\{[^}]*\})?/.exec(a.getAttribute("onclick") || "");
-        if (m && a.id && !targets[a.id]) targets[a.id] = { url: cpUnescapeJs(m[1]), params: {} };
+        var target = cpParseNativeRedirect(a.getAttribute("onclick") || "");
+        if (target && a.id && !targets[a.id]) targets[a.id] = target;
       });
       return targets;
     }
@@ -8799,11 +9575,61 @@
         var name = ((sec.querySelector(".cp-console-head-name") || {}).textContent || "").trim();
         if (options.length) folders.push({ name: name || sec.getAttribute("data-cp-folder"), options: options });
       });
-      if (folders.length) sessionStorage.setItem(cpPageMenuKey(), JSON.stringify({ folders: folders }));
+      if (folders.length) cpStorePageMenu(cpPageMenuKey(), { folders: folders, cachedAt: Date.now() });
+    }
+    function cpStorePageMenu(key, data) {
+      // Menus repeat for every visited entity. Bound this expendable cache and
+      // keep the current menu usable even when browser storage refuses writes.
+      cpPageMenuMemory = {key:key,data:data,persisted:false};
+      try {
+        var older = [];
+        for (var i = 0; i < sessionStorage.length; i++) {
+          var storedKey = sessionStorage.key(i);
+          if (!storedKey || storedKey.indexOf(CP_PAGE_MENU_PREFIX) !== 0 || storedKey === key) continue;
+          var at = 0;
+          try {
+            var stored = JSON.parse(sessionStorage.getItem(storedKey) || 'null');
+            if (stored && Number.isFinite(stored.cachedAt)) at = stored.cachedAt;
+          } catch (e) {}
+          older.push({key:storedKey,at:at});
+        }
+        older.sort(function (a,b) { return a.at-b.at; });
+        while (older.length >= 64) sessionStorage.removeItem(older.shift().key);
+        var text = JSON.stringify(data);
+        for (;;) {
+          try { sessionStorage.setItem(key,text); cpPageMenuMemory.persisted = true; return; }
+          catch (e) {
+            if (!e || e.name !== 'QuotaExceededError' || !older.length) return;
+            sessionStorage.removeItem(older.shift().key);
+          }
+        }
+      } catch (e) {} // Other settings, recovery records and group defaults are never evicted.
     }
     function cpMenuPath(url) {
       var p = String(url || "").replace(/^https?:\/\/[^/]+/, "").split(/[?#]/)[0].replace(/index\.jsp$/, "");
       return p.charAt(p.length - 1) === "/" ? p : p + "/";
+    }
+    function cpReadPageMenu() {
+      var key = cpPageMenuKey();
+      var fallback = cpPageMenuMemory && cpPageMenuMemory.key === key ? cpPageMenuMemory : null;
+      var data = fallback && !fallback.persisted ? fallback.data : null;
+      if (!data) { try { data = JSON.parse(sessionStorage.getItem(key) || "null"); } catch (e) {} }
+      if (!data && fallback) data = fallback.data;
+      if (!data || !Array.isArray(data.folders)) return null;
+      // A partial or older cache must not disable the whole level's menu. Keep only
+      // complete records; never invent a navigation target or its native parameters.
+      var folders = [];
+      data.folders.forEach(function (folder) {
+        if (!folder || typeof folder.name !== "string" || !folder.name.trim() || !Array.isArray(folder.options)) return;
+        var options = folder.options.filter(function (option) {
+          return option && typeof option.label === "string" && option.label.trim() &&
+            typeof option.url === "string" && option.url.trim() &&
+            (option.params == null || (typeof option.params === "object" && !Array.isArray(option.params))) &&
+            (option.group == null || typeof option.group === "string");
+        });
+        if (options.length) folders.push({ name: folder.name, options: options });
+      });
+      return folders.length ? { folders: folders } : null;
     }
     function cpClosePageMenu() {
       var menu = document.querySelector(".cp-page-menu");
@@ -8824,9 +9650,8 @@
       var boardPill = document.querySelector("td.headerBar [data-cp-crumb-menu]");   // the board's menu stays on the board
       if (boardPill) cpUnmarkBoardMenu(boardPill);
       document.querySelectorAll(".cp-page-pill").forEach(function (p) { p.remove(); });
-      var data = null;
-      try { data = JSON.parse(sessionStorage.getItem(cpPageMenuKey()) || "null"); } catch (e) {}
-      if (!data || !data.folders) return;
+      var data = cpReadPageMenu();
+      if (!data) return;
       var here = cpMenuPath(location.pathname), best = null;
       data.folders.forEach(function (folder) {
         folder.options.forEach(function (option) {
@@ -8871,8 +9696,7 @@
       pill.__cpMenu = null;
     }
     function cpDecorateBoardMenu() {
-      var pill = cpBoardMenuPill(), marked = document.querySelector("td.headerBar [data-cp-crumb-menu]"), data = null;
-      try { data = JSON.parse(sessionStorage.getItem(cpPageMenuKey()) || "null"); } catch (e) {}
+      var pill = cpBoardMenuPill(), marked = document.querySelector("td.headerBar [data-cp-crumb-menu]"), data = cpReadPageMenu();
       var ready = !!(pill && document.querySelector(".cp-console") && data && data.folders && data.folders.length);
       if (marked && (!ready || marked !== pill)) cpUnmarkBoardMenu(marked);
       if (!ready) return;

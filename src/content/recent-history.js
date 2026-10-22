@@ -2,6 +2,7 @@
 (() => {
   if (window !== window.top) return;
   const clean = value => String(value || '').replace(/^\s*:\s*/, '').replace(/\s+/g, ' ').trim();
+  const validNav = nav => nav && typeof nav === 'object' && !Array.isArray(nav) && typeof nav.url === 'string' && nav.url.length > 0;
   const path = value => String(value || '').replace(/^https?:\/\/[^/]+/, '').split(/[?#]/)[0].replace(/index\.jsp$/, '').replace(/\/+$/, '') + '/';
   const entryType = value => /\/Group\/Members\/Modify\//.test(value) ? 'User' :
     /\/(?:ServiceProvider\/Members|Reseller\/Groups)\/Modify\//.test(value) ? 'Group' :
@@ -13,7 +14,9 @@
     return path(value);
   };
   function place(row) {
-    const url = owner(row), nav = row.nav || {}, chain = Array.isArray(row.chain) ? row.chain : [];
+    // Current history.state is read directly by the menu, outside stored-row cleanup.
+    // Discard damaged ancestry as a whole and use the visible context for its label.
+    const url = owner(row), nav = row.nav || {}, chain = Array.isArray(row.chain) && row.chain.every(validNav) ? row.chain : [];
     const folder = nav.params?.folder || '';
     let type = entryType(url) || (/\/User\//.test(url) ? 'User' : /\/Group\//.test(url) ? 'Group' : /\/ServiceProvider\//.test(url) ? 'Service provider' :
       /\/Reseller\//.test(url) ? 'Reseller' : /^U/.test(folder) ? 'User' : /^G/.test(folder) ? 'Group' : /^S/.test(folder) ? 'Service provider' : 'Reseller');
@@ -51,6 +54,8 @@
     let target = url;
     if (menu) target = 'menu:' + (params.folder && !/0$/.test(params.folder) ? params.folder : 'home');
     const detail = {};
+    const query = (row.nav?.url || '').split('?')[1]?.split('#')[0];
+    if (query) detail.query = query.split('&').sort().join('&');
     if (!menu && !/\/Common\//.test(row.nav?.url || '')) {
       for (const name of ['criteriaName','scheduleName','eventName','instanceId','serviceInstanceName','deviceName','tabPage']) if (params[name]) detail[name] = String(params[name]);
       const key = params.key || params.P_key || params.name || params.P_name;
@@ -60,7 +65,10 @@
   }
   function unique(rows) {
     const seen = new Set();
-    return rows.filter(row => row && typeof row.id === 'string' && row.nav).filter(row => {
+    // One damaged stored row must not break the entire menu. Drop incomplete ancestry as a whole;
+    // trimming broken parents could make a saved destination appear safe to restore in the wrong group.
+    return (Array.isArray(rows) ? rows : []).filter(row => row && typeof row.id === 'string' && validNav(row.nav) &&
+      (row.chain == null || Array.isArray(row.chain) && row.chain.every(validNav))).filter(row => {
       const key = destination(row);
       if (seen.has(key)) return false;
       seen.add(key); return true;
