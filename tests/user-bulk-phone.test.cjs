@@ -28,3 +28,25 @@ test('international ranges preserve identity, leading zeros and bounds',()=>{
   assert.deepEqual(phone.expand('not a number'),[]);
   assert.throws(()=>phone.expand('+442079460123 - +442079470125'),/too large/);
 });
+test('range country context comes from the raw range ends and ambiguous ten digits are not guessed',()=>{
+  for(const input of ['+45-32123456 - +45-32123458','+45-32123456–+45-32123458','+45-32123456-+45-32123458',
+    '+45-32123456 ‑ +45-32123458','+45 32123456 − +45 32123458','+4532123456-+4532123458']){
+    const entry=phone.expandEntry(input);
+    assert.deepEqual(entry,{numbers:['4532123456','4532123457','4532123458'],international:true},input);
+    assert.equal(phone.caller(entry.numbers[0],entry.international),'4532123456',input);
+  }
+  for(const input of ['+1-3125550197 – +1-3125550199','+13125550197-+13125550199','3125550197 - 3125550199']){
+    const entry=phone.expandEntry(input);
+    assert.deepEqual(entry,{numbers:['3125550197','3125550198','3125550199'],international:false},input);
+    assert.equal(phone.caller(entry.numbers[0],entry.international),'+13125550197',input);
+  }
+  for(const input of ['312-555-0100','1-3125550100','+1 (312) 555-0100']){
+    assert.deepEqual(phone.expandEntry(input),{numbers:['3125550100'],international:false},input);
+    assert.equal(phone.caller(input),'+13125550100',input);
+  }
+  assert.deepEqual(phone.expandEntry('44-2079460123–44-2079460125'),
+    {numbers:['442079460123','442079460124','442079460125'],international:true});
+  // Without + or 00, a country code and eight digits look like a US number.
+  for(const input of ['45-32123456','45‑32123456','45-32123456–45-32123458','45-32123456 - 45-32123458'])
+    assert.deepEqual(phone.expandEntry(input),{numbers:[],international:false},input);
+});

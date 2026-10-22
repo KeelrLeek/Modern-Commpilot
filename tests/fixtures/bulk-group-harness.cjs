@@ -33,7 +33,7 @@ async function fixture(page,options={}){
       title=route===R.add?'User Add':'Profile';body=a;
       if(route===R.add)body+=input('name')+select('domain',[['phonenetwork.net','phonenetwork.net']],'phonenetwork.net')+input('password','','password')+input('echoPassword','','password');
       for(const [n,v]of Object.entries({unicodeFirstName:u?.first,unicodeLastName:u?.last,firstName:u?.first,lastName:u?.last,email:u?.email,clidPhone:u?.caller||options.caller||'3125550100'}))body+=input(n,v||'');
-      body+=select('deptEncodedKey',[[deptKey,department]],deptKey);
+      body+=select('deptEncodedKey',[...(options.noneDept?[['','None']]:[]),[deptKey,department]],deptKey);
     }else if(route===R.alternate){title='Alternate ID';body=a+input('alt1',u?.alt||'');}
     else if(route===R.auth){title='Authentication';body=a+input('username',u?.auth||'')+input('newPassword','','password')+input('newPasswordConfirm','','password');}
     else if(route===R.addresses||route===R.scaAdd){

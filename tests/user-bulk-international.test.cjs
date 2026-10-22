@@ -118,6 +118,57 @@ test('ten-digit international numbers retain native country context for raw call
   }finally{await browser.close();}
 });
 
+test('ten-digit international ranges keep country context in every range spelling; ambiguous rows are not guessed',async()=>{
+  const browser=await chromium.launch({executablePath,headless:true});
+  try{
+    const create=async row=>{
+      const page=await browser.newPage(),state=await fixture(page,{group:'RSG',numbers:['+45 32 12 34 56'],numberRows:[{cells:[row,'','Operations']}]});
+      const error=await page.evaluate(async()=>{
+        const lease=await cpAcquireUserBulk(),engine=cpCreateBulkEngine(lease),info=await engine.initialize();
+        try{
+          const config=CpBulkModel.initial(info),credentials={web:'Easy1234',sip:{Operations:'Sip-Test-A1'}};
+          const user={first:'Danish',last:'Example',email:'danish@example.test',dept:'Operations',number:'4532123456',extension:'23456'};
+          await engine.preflightGroup([user],config,credentials);await engine.stepGroup(user,'user',credentials);
+          return '';
+        }catch(e){return e.message;}finally{lease.release();}
+      });
+      await page.close();return {error,state};
+    };
+    for(const row of ['+45-32123456 - +45-32123458','+45-32123456–+45-32123458','+45-32123456-+45-32123458',
+      '+4532123456-+4532123458','+45 32123456 − +45 32123458']){
+      const {error,state}=await create(row);
+      assert.equal(error,'',row);
+      assert.equal(state.writes.find(w=>w.route===R.add)?.params.clidPhone,'4532123456',row);
+      assert.equal(state.users.get('4532123456').caller,'4532123456',row);
+    }
+    // Plus-less country code plus eight digits could be North American; never write +1 on a guess.
+    for(const row of ['45-32123456','45-32123456–45-32123458']){
+      const {error,state}=await create(row);
+      assert.match(error,/format that could not be read/,row);
+      assert.equal(state.writes.length,0,row);
+    }
+  }finally{await browser.close();}
+});
+
+test('the whole-group None lookup checks only rows that can affect its pool',async()=>{
+  const browser=await chromium.launch({executablePath,headless:true});
+  try{
+    const lookup=async numberRows=>{
+      const page=await browser.newPage();await fixture(page,{noneDept:true,numberRows});
+      const result=await page.evaluate(async()=>{
+        const lease=await cpAcquireUserBulk(),engine=cpCreateBulkEngine(lease);
+        try{await engine.initialize();return await engine.loadNumbers('None');}
+        catch(e){return e.message;}finally{lease.release();}
+      });
+      await page.close();return result;
+    };
+    const none={cells:['+1-3125550199','','']},block={cells:['+1-3125500000 - +1-3125599999','','Operations']};
+    assert.deepEqual(await lookup([none,block,{cells:['Unrecognized native format','','Operations']}]),['3125550199']);
+    // An assigned number is excluded from every department, so an unreadable one still fails closed.
+    assert.match(await lookup([none,{cells:['Unrecognized native format','existing@phonenetwork.net','Operations']}]),/format that could not be read/);
+  }finally{await browser.close();}
+});
+
 test('a third-user navigation failure exports its exact step and transport state without secrets; retry retains history',async()=>{
   const browser=await chromium.launch({executablePath,headless:true});
   try{

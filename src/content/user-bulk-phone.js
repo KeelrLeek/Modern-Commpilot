@@ -24,7 +24,8 @@
     const p=parse(value),n=p.number;
     return !international&&!p.international&&n.length===10&&n[0]!=='0'?'+1'+n:n;
   }
-  function expand(value){
+  // The raw text of each range end, so its + or 00 country context survives.
+  function rangeParts(value){
     const source=String(value).trim();
     let pieces=source.split(/\s+[-\u2010-\u2015\u2212]\s+|\s*[–—]\s*/);
     // A dash can also separate country code from national digits. Treat it as
@@ -33,14 +34,24 @@
     if(pieces.length===1&&!key(source)){
       const candidates=[];
       for(let i=0;i<source.length;i++)if(source[i]==='-'){
-        const a=key(source.slice(0,i)),b=key(source.slice(i+1));
-        if(a&&b&&a.length===b.length)candidates.push([a,b]);
+        const a=source.slice(0,i),b=source.slice(i+1);
+        if(key(a)&&key(a).length===key(b).length)candidates.push([a,b]);
       }
       if(candidates.length===1)pieces=candidates[0];
     }
-    const parts=pieces.map(key);
-    if(parts.length>2||parts.some(n=>!n))return [];
-    if(parts.length===1)return parts;
+    return pieces;
+  }
+  // Without + or 00, a country code and eight digits (45-32123456) has the
+  // shape of a North American number. Do not guess either country.
+  const ambiguous=value=>{
+    const s=String(value).replace(/\s/g,'');
+    return /^[1-9]\d{0,2}[-\u2010-\u2015\u2212]\d{8,}$/.test(s)&&s.replace(/\D/g,'').length===10;
+  };
+  function expandEntry(value){
+    const pieces=rangeParts(value),parts=pieces.map(key);
+    if(parts.length>2||parts.some(n=>!n)||pieces.some(ambiguous))return {numbers:[],international:false};
+    const international=pieces.some(isInternational);
+    if(parts.length===1)return {numbers:parts,international};
     const [a,b]=parts;
     if(a.length!==b.length)throw Error('The native phone number range needs review.');
     const start=BigInt(a),end=BigInt(b),count=end-start+1n,width=a.length;
@@ -48,7 +59,8 @@
     // CommPilot Prototype replaces Array.from and ignores its mapping callback.
     const result=[];
     for(let n=start;n<=end;n++)result.push(String(n).padStart(width,'0'));
-    return result;
+    return {numbers:result,international};
   }
-  return {key,localId,caller,display,expand,isInternational};
+  const expand=value=>expandEntry(value).numbers;
+  return {key,localId,caller,display,expand,expandEntry,isInternational};
 });

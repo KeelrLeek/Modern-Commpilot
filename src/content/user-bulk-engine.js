@@ -270,15 +270,18 @@
       const rows=result.raw.flatMap(nativeRows);
       // An empty server result is fine. Never interpret an unparsed nonempty result as an available number.
       if (result.rows.length&&!rows.length) throw Error('The number availability table could not be inspected.');
-      for(const row of rows)if(!expandPhone(row.phone).length)
+      // The whole-group None lookup also returns other departments' unassigned rows.
+      // Only assigned rows and this department's unassigned rows change the pool.
+      const isEligible=r=>!r.user&&(unassignedDepartment?!r.dept||/^none$/i.test(r.dept):r.dept===dept);
+      for(const row of rows)if((row.user||isEligible(row))&&!expandPhone(row.phone).length)
         throw Error('CommPilot returned a phone number format that could not be read: '+row.phone+'. No numbers were marked available.');
       const assigned=new Set(rows.filter(r=>r.user).flatMap(r=>expandPhone(r.phone)));
-      const eligible=rows.filter(r=>!r.user&&(unassignedDepartment?!r.dept||/^none$/i.test(r.dept):r.dept===dept));
+      const eligible=rows.filter(isEligible);
       const pool=[...new Set(eligible.flatMap(r=>expandPhone(r.phone)))]
         .filter(number=>!assigned.has(number)).sort();
       // Remember native country context separately from the digits-only value.
       // A +45 number can contain ten digits too; it must never receive US +1.
-      internationalNumbers.set(dept,new Set(eligible.filter(r=>phone.isInternational(r.phone.split(/\s+[-–—]\s+/)[0])).flatMap(r=>expandPhone(r.phone))));
+      internationalNumbers.set(dept,new Set(eligible.map(r=>phone.expandEntry(r.phone)).flatMap(e=>e.international?e.numbers:[])));
       available.set(dept,pool); return pool;
     }
     async function profileExists(name) {
