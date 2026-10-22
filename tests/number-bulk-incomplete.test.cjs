@@ -25,8 +25,9 @@ async function fixture(options, check) {
       window.fixtureLookupAttempts = 0;
       window.fixtureDepartment = options.initial || '';
       window.cpListSearch = async criteria => {
-        if (options.direct && !criteria.length) return { tooMany: true };
-        if (options.searchErrorAt && criteria.length) {
+        const all = !criteria.some(item => item.value);
+        if (options.direct && all) return { tooMany: true };
+        if (options.searchErrorAt && !all) {
           window.fixtureLookupAttempts++;
           if (window.fixtureLookupAttempts === options.searchErrorAt) throw Error('Fixture number lookup interrupted.');
           return { tooMany: false, rows: [] };

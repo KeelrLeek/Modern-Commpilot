@@ -7,6 +7,9 @@
   const EDIT = '/commpilot/Group/GroupDnManagement/Nested/index.jsp';
   let dialog = null;
   let stopRequested = false;
+  // A request that returned no page may have spent the token the list would search with.
+  // Native navigation drains and recovers it, so reopen the list before searching again.
+  let noPageReturned = false;
   const knownCountryCodes = new Set();
 
   const currentPath = () => document.documentElement.getAttribute('data-cp-path') || location.pathname;
@@ -209,9 +212,13 @@
         document.removeEventListener('cp:reskin', onReskin);
         if (error) reject(error); else setTimeout(resolve, 0);
       };
-      const onReskin = () => finish();
-      const timer = setTimeout(() => finish(Error('CommPilot did not return a page. Check the result before retrying.')),
-        timeout);
+      const onReskin = () => { noPageReturned = false; finish(); };
+      const deadline = () => {
+        if (window.cpHasPendingNativeRequest?.()) { timer = setTimeout(deadline, 250); return; }
+        noPageReturned = true;
+        finish(Error('CommPilot did not return a page. Check the result before retrying.'));
+      };
+      let timer = setTimeout(deadline, timeout);
       document.addEventListener('cp:reskin', onReskin);
       try { action(); } catch (error) { finish(error); }
     });
@@ -313,7 +320,11 @@
           item.drill = match.drill;
           if (normalizedLabel(item.current) === normalizedLabel(targets[0].name))
             item.status = 'unchanged';
-        } catch (error) { item.error = error.message; item.status = 'error'; }
+        } catch (error) {
+          // Stop instead of sending the next lookup with a token that may already be spent.
+          if (noPageReturned) throw error;
+          item.error = error.message; item.status = 'error';
+        }
         if (location.pathname !== LIST) await navigate(LIST, {}, LIST);
       }
       preview.push(item);
@@ -323,13 +334,17 @@
     return preview;
   }
 
+  // Empty criteria keep whatever the Numbers search form holds. CommPilot's blank
+  // Phone Number search returns every group number.
+  const allNumbers = () => window.cpListSearch([{ key: 'Dn', op: 'STARTS_WITH', value: '' }], {});
+
   async function preflight(sourceRows, setStatus, setProgress) {
-    if (location.pathname !== LIST) await navigate(LIST, {}, LIST);
+    if (noPageReturned || location.pathname !== LIST) await navigate(LIST, {}, LIST);
     setStatus('Checking the group numbers…');
     setProgress('Loading group numbers', 0, 0, 'CommPilot is searching across the group.');
     if (typeof window.cpListSearch !== 'function') throw Error('Number search is unavailable.');
     let found;
-    try { found = await window.cpListSearch([], {}); }
+    try { found = await allNumbers(); }
     catch (error) { found = { tooMany: true }; }
     if (found.tooMany) {
       setStatus('The group list is too large; checking the workbook numbers directly…');
@@ -390,7 +405,7 @@
     // The Edit page's selected department is a pick-list context, not a readback
     // of this number. Re-read the Numbers list before each save instead.
     onStage('Checking current department');
-    if (location.pathname !== LIST) await navigate(LIST, {}, LIST);
+    if (noPageReturned || location.pathname !== LIST) await navigate(LIST, {}, LIST);
     const matches = await lookupNumberRows(item.canonical);
     if (!matches.length) throw Error('Number was not found during the save-time check.');
     const departments = new Set(matches.map(row => normalizedLabel(numberDepartment(row))));
@@ -443,7 +458,7 @@
     // Read the fresh Numbers list to verify persisted values independently.
     setProgress('Reading back results', 0, items.length,
       'Checking CommPilot’s number list after the saves.');
-    if (location.pathname !== LIST) {
+    if (noPageReturned || location.pathname !== LIST) {
       try { await navigate(LIST, {}, LIST); }
       catch (error) {
         items.forEach(item => { item.status = 'unverified'; item.error =
@@ -453,7 +468,7 @@
     }
     let byNumber = null;
     try {
-      const found = await window.cpListSearch([], {});
+      const found = await allNumbers();
       if (!found.tooMany) {
         byNumber = new Map();
         for (const row of found.rows) {
