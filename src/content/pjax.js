@@ -218,6 +218,12 @@
   var cpLastNav = cpInitialNav || { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
   var cpPopReplaying = false;
   var cpPopScroll = null;
+  // The page on screen, updated when a swap commits rather than when its request is sent (see cpPaintedCommit):
+  // its history entry, put back when a Back/Forward replay fails after the browser has moved the address; its
+  // navigation, which F5 refreshes; and its recovery navigation, put back when a later request fails.
+  var cpPaintedEntry = { state: history.state, href: location.href };
+  var cpCommittedNav = cpLastNav;
+  var cpCommittedRecover = null;
   var cpReexecutingScripts = false;
   var cpAutoReplaceUrl = null;
   var cpConfigFilesForwarded = false;
@@ -286,8 +292,11 @@
     }
   } catch (e) {}
   // One-shot follow-up nav consumed after the NEXT successful swap — lets a caller chain "enter the entity,
-  // THEN open the page" through pjax (auto-return after login uses it; see cpEntityEntry).
+  // THEN open the page" through pjax (auto-return after login uses it; see cpEntityEntry). It belongs to the
+  // request that posts its entry (`after`); see cpNavClaim.
   var cpPendingNav = null;
+  // The lease of a save (OK/Apply/Delete/Save/Submit) still waiting for CommPilot; see cpWriteNav.
+  var cpWritePending = null;
   // The CURRENT entity id (e.g. a user id) for the breadcrumb's last pill. Captured from each pjax swap's
   // FETCHED doc (cpHook) because after the swap the live header keeps the PREVIOUS entity (it isn't swapped)
   // and the fresh content cell has none — so neither live source is reliable. null = no pjax swap yet this
@@ -570,9 +579,10 @@
       _orig = window.redirectPost;
       window.redirectPost = cpHook;
     }
-    cpLastNav = { url: nav.url, params: nav.params || {} };
+    cpLastNav = cpCommittedNav = { url: nav.url, params: nav.params || {} };
     try {
       history.replaceState({ cpNav: { url: nav.url, params: nav.params || {} } }, "", nav.url);
+      cpPaintedEntry = { state: history.state, href: location.href };
     } catch (e) {}
     return true;
   };
@@ -4052,6 +4062,7 @@
       var chain = cpRecentContext(raw), identity = JSON.stringify([nav,chain]);
       cpRecentCurrent = {nav:nav,chain:chain};
       try { history.replaceState(Object.assign({},history.state,{cpRecentChain:chain}),'',location.href); } catch(e) {}
+      if (!cpPopReplaying && cpPaintedEntry.href === location.href) cpPaintedEntry.state = history.state;
       var record = {id:Date.now().toString(36) + Math.random().toString(36).slice(2,8),identity:identity,label:label.slice(0,160),context:trail.join(' › ').slice(0,500),nav:nav,chain:chain,at:Date.now(),
         isMenu:!!document.querySelector('.cp-console, td[width="82%"] a.navMenuItem'),extension:header?.querySelector('span.headerAuthLevel')?.getAttribute('data-cp-extension') || '',
         userName:header?.querySelector('span.headerAuthLevel')?.getAttribute('data-cp-user-name') ?? undefined};
@@ -5543,7 +5554,16 @@
         var wait = Math.max(0, CP_LOGOUT_MIN_MS - (Date.now() - start));
         setTimeout(function () {
           var navd = false;
-          function nav() { if (navd) return; navd = true; try { location.replace(LOGIN); } catch (e) { location.href = LOGIN; } }
+          function nav() {
+            if (navd) return; navd = true;
+            // The session ended on purpose. Forget this tab's place to return to (the keys the recovery page's Go
+            // to login clears), so the next sign-in here, possibly as another saved account, starts at home instead
+            // of reopening this session's service provider. A failed sign-out never gets here and keeps them.
+            ["cp-last-nav", "cp-pending-return", "cp-return-at", "cp-reload-nav", "cp-replay-at"].forEach(function (key) {
+              try { sessionStorage.removeItem(key); } catch (e) {}
+            });
+            try { location.replace(LOGIN); } catch (e) { location.href = LOGIN; }
+          }
           // Just before the swap, HIDE the base console (sidebar) + darken html/body.
           // THIS is the real flash fix: at the document-swap teardown the browser
           // drops the fixed overlay from the painted frame but still paints the base
@@ -5679,6 +5699,61 @@
       cpProgressDone();
     }
 
+    // A swap put a new page on screen (see cpPaintedEntry). A save keeps the navigation and recovery navigation
+    // of the page it was opened from, as cpLastNav and cp-last-nav do.
+    function cpPaintedCommit(nav, recover) {
+      cpPaintedEntry = { state: history.state, href: location.href };
+      if (nav) cpCommittedNav = nav;
+      if (recover) cpCommittedRecover = recover;
+    }
+    // popstate runs after the browser has already moved the address and history.state to the target entry. A
+    // replay that ends without committing leaves the old page on screen, and its forms post to an empty action,
+    // which resolves against the address: put the painted entry back. pushState, never replaceState, so the
+    // target entry survives for another Back/Forward.
+    function cpPopReplayEnd() {
+      if (!cpPopReplaying) return;
+      cpPopReplaying = false; cpPopScroll = null;
+      var painted = cpPaintedEntry;
+      if (cpSessionRedirecting || !painted) return;
+      try {
+        if (painted.href === location.href &&
+            JSON.stringify(painted.state && painted.state.cpNav) === JSON.stringify(history.state && history.state.cpNav)) return;
+        history.pushState(painted.state, "", painted.href);
+      } catch (e) {}
+    }
+    // One-shot markers belong to the request that set them: the chained follow-up to the request posting its
+    // entry, and a refresh's history replace to its own URL. That request's queues, drains and retries pass the
+    // same URL and params object and keep them; any other navigation abandons them, so a failed or overtaken
+    // request can never hand them to a later, unrelated swap.
+    function cpPendingEntry(url, params) {
+      return !!cpPendingNav && !!cpPendingNav.after && cpPendingNav.after.url === url && cpPendingNav.after.params === params;
+    }
+    function cpNavClaim(url, params, contextNav) {
+      if (cpPendingNav && (contextNav || !cpPendingEntry(url, params))) cpPendingNav = null;
+      if (cpAutoReplaceUrl !== null && cpAutoReplaceUrl !== url) cpAutoReplaceUrl = null;
+    }
+    // A navigation settled without committing, so the page on screen stays. Its chained follow-up ends with it,
+    // and the recovery navigation it stored before sending is put back, so browser Reload and the next sign-in
+    // reopen the page on screen. A sign-in redirect keeps the attempted page: that is the one the user asked for.
+    function cpNavFailed(url, params, recover) {
+      if (cpPendingEntry(url, params)) cpPendingNav = null;
+      if (cpSessionRedirecting || !recover || !cpCommittedRecover || recover === cpCommittedRecover) return;
+      try {
+        sessionStorage.setItem("cp-last-nav", JSON.stringify(cpCommittedRecover));
+        window.postMessage({ __cpRecoverNav: cpCommittedRecover }, location.origin);
+      } catch (e) {}
+    }
+    // A save: the named-button half of _saveNav (OK, Apply, Delete, Save, Submit, or a buttonClicked holding one).
+    // While one waits for CommPilot (cpWritePending), a repeated save is dropped; reads, searches and other
+    // navigation still supersede it.
+    function cpWriteNav(params) {
+      return !!(params && (params.ok != null || params.apply != null || params.delete != null || params.save != null || params.submit != null ||
+        /^(ok|apply|delete|save|submit)$/i.test(String(params.buttonClicked || ""))));
+    }
+    function cpWriteRelease(lease) {
+      if (lease && cpWritePending === lease) cpWritePending = null;
+    }
+
     cpHook = function (url, params, _retry, _contextNav) {
       if (cpBulkOwner && !cpBulkPermit) return;
       if (cpBulkOwner) _retry = true; // A bulk save is never automatically replayed.
@@ -5751,8 +5826,12 @@
         }
         if (cpLocalListPage(url,params)) return;
         if (isPjaxUrl(url)) {
+          // A double-click, Enter twice, or OK then Apply: drop the repeat before it can overtake the pending save
+          // or queue behind it, where it would go out with the token that save's response rotates in.
+          if (cpWritePending && !cpBulkOwner && cpWriteNav(params)) { cpDbg("[pjax] a save is already pending; repeat ignored", url); return; }
+          cpNavClaim(url, params, _contextNav);
           function nativeNavigationBlocked() {
-            cpNavBusyEnd(); cpPopReplaying = false; cpPopScroll = null;
+            cpNavBusyEnd(); cpPopReplayEnd();
             cpContextNavEnd(_contextNav);
             cpUploadNotice('A native script is still loading after its timeout. Wait for it to finish, then try again, or use your browser\'s Reload button.');
           }
@@ -5804,7 +5883,7 @@
               if (cpSeq !== boardNavSeq) return;
               if (ready) cpHook(url, params, _retry, _contextNav);
               else {
-                cpNavBusyEnd(); cpPopReplaying = false; cpPopScroll = null;
+                cpNavBusyEnd(); cpPopReplayEnd();
                 cpContextNavEnd(_contextNav);
                 cpUploadNotice("CommPilot could not finish loading this menu. Reload this page before opening an option.");
               }
@@ -5861,7 +5940,7 @@
               if (++drainTicks > 250) {
                 console.warn('[pjax] prior CommPilot request did not finish; navigation was not sent with a stale token');
                 cpNavBusyEnd();
-                cpPopReplaying = false; cpPopScroll = null;
+                cpPopReplayEnd();
                 if (cpAutoReplaceUrl === url) cpAutoReplaceUrl = null;
                 cpContextNavEnd(_contextNav);
                 cpUploadNotice('A previous CommPilot request is still running. Please try again.');
@@ -5925,14 +6004,15 @@
           // The page shows it is waiting for CommPilot (page-baseline.css) until this fetch settles, unless a
           // newer navigation has taken over.
           cpNavBusy();
-          var cpRetryQueued = false;
+          var cpRetryQueued = false, cpPaintedBefore = cpPaintedEntry;
           var cpNavIdle = function () {
             if (mySeq === cpSeq && !cpRetryQueued) {
               cpNavBusyEnd();
               // Successful history swaps clear this flag when they commit. A failed replay must also
               // clear it, or the next normal click replaces a Back entry instead of adding its own.
-              if (cpPopReplaying) { cpPopReplaying = false; cpPopScroll = null; }
+              cpPopReplayEnd();
               if (cpAutoReplaceUrl === url) cpAutoReplaceUrl = null;
+              if (cpPaintedEntry === cpPaintedBefore) cpNavFailed(url, params, _nav);
               cpContextNavEnd(_contextNav);
               if (_contextNav) cpRecentRecord();
               cpStoppedBoardRetry();   // a failed option that stopped a filling board leaves that board usable
@@ -5960,6 +6040,8 @@
             }
             loadPage = loadContext(0,firstTok);
           } else loadPage = cpLoader(url, params, firstTok, 0);
+          // A save holds the lease until its page is swapped in or its request settles (see cpWriteNav).
+          var cpWriteLease = !cpBulkOwner && cpWriteNav(params) ? (cpWritePending = { url: url }) : null;
           var cpResponseReceived = false;
           var cpThisNav = cpNavPending = loadPage
             .then(function (res) {
@@ -6290,6 +6372,8 @@
                 cpHistoryCommitted = true;
                 cpPopReplaying = false;
               } catch (e) {}
+              cpPaintedCommit(_submitNav ? null : { url: url, params: params || {} }, _nav);
+              cpWriteRelease(cpWriteLease);   // the form it was sent from has been replaced
               // A new page must start at its top. Without this, a long form's
               // body scroll carries into the next PJAX page and hides the
               // CommPilot logo/Help row above the viewport. Leave replace
@@ -6623,6 +6707,7 @@
                   history.replaceState(cpState, "", canonical);
                 else history.pushState(cpState, "", canonical);
                 cpPopReplaying = false;
+                cpPaintedCommit();
               } catch (e) {}
               // Chained follow-up (entity re-entry → target page): fire the pending nav now that this swap
               // (the entry) has committed. See cpPendingNav/cpEntityEntry.
@@ -6633,9 +6718,9 @@
                   if (_contextNav?.recent) cpContextNavEnd(_contextNav);
                   cpRecentRecord();
                 }
-                if (cpPendingNav) { var _pn = cpPendingNav; cpPendingNav = null;
-                  if (_pn.replace) cpAutoReplaceUrl = _pn.url;
-                  setTimeout(function () { cpHook(_pn.url, _pn.params || {}); }, 0); }
+                if (cpPendingNav) { var _pn = cpPendingEntry(url, params) && cpPendingNav; cpPendingNav = null;
+                  if (_pn && _pn.replace) cpAutoReplaceUrl = _pn.url;
+                  if (_pn) setTimeout(function () { cpHook(_pn.url, _pn.params || {}); }, 0); }
               } catch (e) {}
             })
             .catch(function (e) {
@@ -6659,7 +6744,7 @@
               }
               cpWarnCo("failed|" + url + "|" + _msg, "[pjax] fetch FAILED " + _msg + " (" + url + ")");
             });
-          cpThisNav.then(function () { if (cpNavPending === cpThisNav) cpNavPending = null; });
+          cpThisNav.then(function () { if (cpNavPending === cpThisNav) cpNavPending = null; cpWriteRelease(cpWriteLease); });
           cpThisNav.then(cpNavIdle, cpNavIdle);
 
           return; // do NOT call _orig — no navigation for menu navs
@@ -7234,18 +7319,6 @@
         try { location.reload(); } catch (e3) { try { location.href = location.href; } catch (e4) {} }
         return;
       }
-      // Fall back to the persisted cp-last-nav (sessionStorage) before the reseller-home default: after a
-      // reload-button recovery the page is fresh, so the in-memory cpLastNav is null even though we ARE deep
-      // in an SP/group/user — without this, F5 right after the reload button jumps all the way to reseller.
-      var nav = cpLastNav;
-      if (!nav) { try { nav = JSON.parse(sessionStorage.getItem("cp-last-nav") || "null"); } catch (e) {} }
-      if (!nav || !nav.url) nav = { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
-      nav = cpHistoryReplayNav(nav);
-      if (!nav) {
-        cpUploadNotice('This saved reload entry cannot be reopened safely. Open the page from its menu.');
-        return;
-      }
-      cpDbg("[pjax] reload intercepted → replay", nav.url);
       // Even off the grid, a token-bearing POST may be mid-rotation (a console/aggregation fetch). DRAIN all
       // in-flight token-POSTs to 0 (max ~1.6s) before replaying, so the reload's POST can't race a fetch over the
       // single-use token. This counts an aborted-but-still-resolving prior search too — which the old
@@ -7253,6 +7326,21 @@
       var reloadSeq = cpSeq;
       var _navGo = function () {
         if (reloadSeq !== cpSeq) return; // A newer click owns navigation while refresh drains.
+        // Refresh the page on screen, not the latest request (cpLastNav), which may have failed or still be
+        // loading. A Back/Forward replay has already moved the address to its target, so that one is refreshed.
+        // Choose it now, after the drain: a pending click can commit, or a Back replay fail, while F5 waits.
+        // Fall back to the persisted cp-last-nav (sessionStorage) before the reseller-home default: after a
+        // reload-button recovery the page is fresh, so the in-memory cpLastNav is null even though we ARE deep
+        // in an SP/group/user — without this, F5 right after the reload button jumps all the way to reseller.
+        var nav = cpPopReplaying ? cpLastNav : cpCommittedNav;
+        if (!nav) { try { nav = JSON.parse(sessionStorage.getItem("cp-last-nav") || "null"); } catch (e) {} }
+        if (!nav || !nav.url) nav = { url: "/commpilot/Common/folder_contents.jsp", params: { folder: "R0", menuId: "8" } };
+        nav = cpHistoryReplayNav(nav);
+        if (!nav) {
+          cpUploadNotice('This saved reload entry cannot be reopened safely. Open the page from its menu.');
+          return;
+        }
+        cpDbg("[pjax] reload intercepted → replay", nav.url);
         try {
           cpAutoReplaceUrl = nav.url; // Refresh replaces the current entry, like native Reload.
           window.redirectPost(nav.url, nav.params || {});
@@ -7305,10 +7393,11 @@
         var scope = function (path) { return /^\/commpilot\/([^/]+)/.exec(path || "")?.[1] || ""; };
         if (nav.entry && nav.entry.url && nav.entry.url !== nav.url &&
             scope(painted) && scope(nav.url) && scope(painted) !== scope(nav.url)) {
-          cpPendingNav = { url: nav.url, params: nav.params || {}, replace: true };
-          window.redirectPost(nav.entry.url, nav.entry.params || {});
+          var entry = { url: nav.entry.url, params: nav.entry.params || {} };
+          cpPendingNav = { url: nav.url, params: nav.params || {}, replace: true, after: entry };
+          window.redirectPost(entry.url, entry.params);
         } else window.redirectPost(nav.url, nav.params || {});
-      } catch (err) { cpPopReplaying = false; console.warn("[pjax] popstate replay failed", err); }
+      } catch (err) { cpPopReplayEnd(); console.warn("[pjax] popstate replay failed", err); }
     }, false);
 
     try {
@@ -7337,8 +7426,9 @@
               // A fresh login's server context is HOME — re-enter the entity first when the saved nav is
               // entity-scoped, then chain to the page (cpPendingNav). Direct replay alone → "no target object".
               if (last.entry && last.entry.url && last.entry.url !== last.url) {
-                cpPendingNav = { url: last.url, params: last.params || {} };
-                window.redirectPost(last.entry.url, last.entry.params || {});
+                var entry = { url: last.entry.url, params: last.entry.params || {} };
+                cpPendingNav = { url: last.url, params: last.params || {}, after: entry };
+                window.redirectPost(entry.url, entry.params);
               } else {
                 window.redirectPost(last.url, last.params || {});
               }

@@ -91,3 +91,83 @@ test('mixed navigation, rapid clicks, history and explicit saves preserve tokens
     t.diagnostic(JSON.stringify({steps,posts:posts.length,saves:saves.size,browser:path.basename(process.env.CHROME_PATH||'msedge.exe')}));
   }finally{await browser.close();}
 });
+
+// CommPilot answers a save slowly. A repeated OK/Apply/Enter must not queue the same save behind it: the queued
+// copy would carry the token the first response rotated in, so CommPilot would accept it a second time.
+async function slowSaves(){
+  const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});
+  const page=await browser.newPage(),posts=[],badTokens=[],errors=[],server={token:0,fail:false};
+  page.setDefaultTimeout(6000);page.on('pageerror',error=>errors.push(error.message));
+  await page.route('**/*',async route=>{
+    const req=route.request(),url=new URL(req.url()),params=new URLSearchParams(req.postData()||'');
+    assert.equal(url.origin,origin);
+    let marker=url.pathname;
+    if(req.method()==='POST'){
+      posts.push({path:url.pathname,params:Object.fromEntries(params)});
+      if(params.get('formtokenserial')!=='token-'+server.token){
+        badTokens.push(params.get('formtokenserial'));
+        return route.fulfill({status:409,body:'Fixture token mismatch'});
+      }
+      if(params.has('ok')||params.has('apply')){
+        await new Promise(resolve=>setTimeout(resolve,700));
+        if(server.fail){server.fail=false;return route.fulfill({status:500,body:'Fixture server error'});}
+        marker='saved '+posts.length;
+      }
+      server.token++;
+    }
+    return route.fulfill({contentType:'text/html',body:`<!doctype html><html><head><title>Save fixture</title></head><body>
+      <form name="leftNavForm"><a class="leftnavfolder">Profile</a></form><table><tr><td width="82%"><form name="mainForm" method="post">
+      <input name="formtokenserial" value="token-${server.token}"><p id="marker">${marker}</p><input name="phoneNumber" value="2025550123">
+      <input name="ok" type="submit" value="OK"><input name="apply" type="submit" value="Apply"></form></td></tr></table>
+      <script>window.redirectPost=window.redirectPost||function(){};</script></body></html>`});
+  });
+  await page.goto(origin+routes[0]);
+  await page.addScriptTag({path:path.join(runtime,'src/content/pjax.js')});
+  const settle=async()=>{
+    await page.waitForFunction(()=>!document.documentElement.hasAttribute('data-cp-nav'));
+    await page.waitForTimeout(900);   // a queued repeat would be sent once the first response arrives
+  };
+  const writes=()=>posts.filter(post=>post.params.ok||post.params.apply);
+  return {browser,page,posts,badTokens,errors,server,settle,writes};
+}
+
+for(const gesture of ['double-click','Enter twice','OK then Apply'])test(`${gesture} while a save is pending sends the save once`,async()=>{
+  const f=await slowSaves();
+  try{
+    if(gesture==='double-click')await f.page.locator('input[name="ok"]').dblclick();
+    else if(gesture==='Enter twice'){
+      await f.page.locator('input[name="phoneNumber"]').press('Enter');
+      await f.page.waitForTimeout(150);
+      await f.page.locator('input[name="phoneNumber"]').press('Enter');
+    }else{
+      await f.page.locator('input[name="ok"]').click();
+      await f.page.waitForTimeout(150);
+      await f.page.locator('input[name="apply"]').click();
+    }
+    await f.settle();
+    assert.equal(f.writes().length,1,'one gesture sends one save');
+    assert.equal(await f.page.locator('#marker').textContent(),'saved 1','the first save’s response is shown');
+    assert.deepEqual(f.badTokens,[]);assert.deepEqual(f.errors,[]);
+  }finally{await f.browser.close();}
+});
+
+test('a failed save can be sent again, and other navigation still overtakes a pending save',async()=>{
+  const f=await slowSaves();
+  try{
+    f.server.fail=true;
+    await f.page.locator('input[name="ok"]').click();
+    await f.page.locator('.cp-alert').waitFor();
+    await f.settle();
+    await f.page.locator('input[name="ok"]').click();
+    await f.settle();
+    assert.equal(f.writes().length,2,'the save is free again after its failure');
+    assert.equal(await f.page.locator('#marker').textContent(),'saved 2');
+    const before=f.posts.length;
+    await f.page.locator('input[name="apply"]').click();
+    await f.page.waitForTimeout(150);
+    await f.page.evaluate(target=>redirectPost(target,{}),routes[1]);
+    await f.page.waitForFunction(target=>document.querySelector('#marker')?.textContent===target&&location.pathname===target,routes[1]);
+    assert.deepEqual(f.posts.slice(before).map(post=>post.path),[routes[0],routes[1]],'the newer page waits for the save, then opens');
+    assert.deepEqual(f.badTokens,[]);assert.deepEqual(f.errors,[]);
+  }finally{await f.browser.close();}
+});

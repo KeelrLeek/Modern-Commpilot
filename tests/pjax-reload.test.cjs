@@ -69,6 +69,144 @@ test('a failed reload does not make a later ordinary navigation replace history'
   }finally{await browser.close();}
 });
 
+test('F5 after a failed click refreshes the page on screen and keeps its Back entry',async()=>{
+  const browser=await chromium.launch({executablePath,headless:true});
+  try{
+    const page=await browser.newPage(),posts=[],failed='/commpilot/User/CLI/';
+    await page.route(origin+'/**',route=>{
+      if(route.request().method()==='POST'){
+        const pathname=new URL(route.request().url()).pathname;posts.push(pathname);
+        if(pathname===failed)return route.fulfill({status:500,contentType:'text/html',body:'Server error'});
+      }
+      return route.fulfill({contentType:'text/html',body:shell('token-'+posts.length)});
+    });
+    await page.goto(origin+initial);
+    await page.addScriptTag({path:pjaxPath});
+    await page.evaluate(url=>redirectPost(url,{}),target);
+    await page.waitForFunction(()=>document.querySelector('[name=formtokenserial]').value==='token-1');
+    const depth=await page.evaluate(()=>history.length);
+    await page.evaluate(url=>redirectPost(url,{}),failed);
+    await page.locator('.cp-alert').waitFor();
+    await page.waitForFunction(()=>!document.documentElement.hasAttribute('data-cp-nav'));
+    assert.equal(JSON.parse(await page.evaluate(()=>sessionStorage.getItem('cp-last-nav'))).url,target,
+      'browser Reload recovery reopens the page on screen');
+    const refreshed=page.waitForResponse(response=>response.request().method()==='POST');
+    await page.keyboard.press('F5');
+    await refreshed;
+    await page.waitForFunction(()=>!document.documentElement.hasAttribute('data-cp-nav'));
+    assert.deepEqual(posts.slice(2),[target],'F5 refreshes the page on screen, not the failed click');
+    assert.equal(new URL(page.url()).pathname,target);
+    assert.equal(await page.evaluate(()=>history.length),depth,'refresh replaces only its own entry');
+    await page.goBack();
+    await page.waitForFunction(()=>document.querySelector('[name=formtokenserial]').value==='token-4');
+    assert.equal(posts.at(-1),initial,'Back still returns to the page before it');
+  }finally{await browser.close();}
+});
+
+test('F5 while a click loads refreshes the page that lands first and keeps its Back entry',async()=>{
+  const browser=await chromium.launch({executablePath,headless:true});
+  let release;
+  try{
+    const page=await browser.newPage(),posts=[];
+    const gate=new Promise(resolve=>{release=resolve;});
+    await page.route(origin+'/**',async route=>{
+      if(route.request().method()==='POST'){
+        posts.push(new URL(route.request().url()).pathname);
+        if(posts.length===1)await gate;   // the click is still loading when the user presses F5
+      }
+      await route.fulfill({contentType:'text/html',body:shell('token-'+posts.length)});
+    });
+    await page.goto(origin+initial);
+    await page.addScriptTag({path:pjaxPath});
+    const depth=await page.evaluate(()=>history.length);
+    const clicked=page.waitForRequest(req=>req.method()==='POST');
+    await page.evaluate(url=>{redirectPost(url,{});},target);
+    await clicked;
+    await page.keyboard.press('F5');
+    await page.waitForTimeout(200);
+    release();   // the click's page lands while the refresh waits for it
+    await page.waitForFunction(()=>!document.documentElement.hasAttribute('data-cp-nav') &&
+      document.querySelector('[name=formtokenserial]').value==='token-2');
+    assert.deepEqual(posts,[target,target],'F5 refreshes the page the click put on screen');
+    assert.equal(new URL(page.url()).pathname,target);
+    assert.equal(await page.evaluate(()=>history.length),depth+1,'the click keeps its own entry');
+    await page.goBack();
+    await page.waitForFunction(()=>document.querySelector('[name=formtokenserial]').value==='token-3');
+    assert.equal(posts.at(-1),initial,'Back returns to the page before the click');
+  }finally{release?.();await browser.close();}
+});
+
+test('F5 while a Back replay loads refreshes the page still on screen when that replay fails',async()=>{
+  const browser=await chromium.launch({executablePath,headless:true});
+  let release;
+  try{
+    const page=await browser.newPage(),posts=[];
+    const gate=new Promise(resolve=>{release=resolve;});
+    await page.route(origin+'/**',async route=>{
+      if(route.request().method()==='POST'){
+        posts.push(new URL(route.request().url()).pathname);
+        if(posts.length===2){   // Back is still loading when the user presses F5, then fails
+          await gate;
+          return route.fulfill({status:500,contentType:'text/html',body:'Server error'});
+        }
+      }
+      await route.fulfill({contentType:'text/html',body:shell('token-'+posts.length)});
+    });
+    await page.goto(origin+initial);
+    await page.addScriptTag({path:pjaxPath});
+    await page.evaluate(url=>redirectPost(url,{}),target);
+    await page.waitForFunction(()=>!document.documentElement.hasAttribute('data-cp-nav') &&
+      document.querySelector('[name=formtokenserial]').value==='token-1');
+    const depth=await page.evaluate(()=>history.length);
+    const replaying=page.waitForRequest(req=>req.method()==='POST');
+    await page.evaluate(()=>history.back());
+    await replaying;
+    await page.keyboard.press('F5');
+    await page.waitForTimeout(200);
+    release();
+    await page.waitForFunction(()=>!document.documentElement.hasAttribute('data-cp-nav') &&
+      document.querySelector('[name=formtokenserial]').value==='token-3');
+    assert.deepEqual(posts,[target,initial,target],'F5 refreshes the page on screen, not the failed Back');
+    assert.equal(new URL(page.url()).pathname,target);
+    assert.equal(await page.evaluate(()=>history.length),depth,'refresh replaces only its own entry');
+    await page.goBack();
+    await page.waitForFunction(()=>document.querySelector('[name=formtokenserial]').value==='token-4');
+    assert.equal(posts.at(-1),initial,'Back can still try the page before it');
+  }finally{release?.();await browser.close();}
+});
+
+test('a refresh overtaken by a newer click does not replace a later visit’s Back entry',async()=>{
+  const browser=await chromium.launch({executablePath,headless:true});
+  let release;
+  try{
+    const page=await browser.newPage(),posts=[];
+    const gate=new Promise(resolve=>{release=resolve;});
+    await page.route(origin+'/**',async route=>{
+      if(route.request().method()==='POST'){
+        posts.push(new URL(route.request().url()).pathname);
+        if(posts.length===1)await gate;   // the refresh is still loading when the user clicks
+      }
+      await route.fulfill({contentType:'text/html',body:shell('token-'+posts.length)});
+    });
+    await page.goto(origin+initial);
+    await page.addScriptTag({path:pjaxPath});
+    const depth=await page.evaluate(()=>history.length);
+    const refreshing=page.waitForRequest(req=>req.method()==='POST');
+    await page.keyboard.press('F5');
+    await refreshing;
+    await page.evaluate(url=>redirectPost(url,{}),target);
+    release();
+    await page.waitForFunction(()=>document.querySelector('[name=formtokenserial]').value==='token-2');
+    assert.equal(await page.evaluate(()=>history.length),depth+1);
+    await page.evaluate(url=>redirectPost(url,{}),initial);
+    await page.waitForFunction(()=>document.querySelector('[name=formtokenserial]').value==='token-3');
+    assert.equal(await page.evaluate(()=>history.length),depth+2,'the later visit adds its own Back entry');
+    await page.goBack();
+    await page.waitForFunction(()=>document.querySelector('[name=formtokenserial]').value==='token-4');
+    assert.equal(posts.at(-1),target,'Back returns to the page in between');
+  }finally{release?.();await browser.close();}
+});
+
 test('a queued reload does not override a newer navigation while the earlier request drains',async()=>{
   const browser=await chromium.launch({executablePath,headless:true});
   let release;

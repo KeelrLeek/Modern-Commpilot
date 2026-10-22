@@ -199,6 +199,90 @@ test('a failed Back replay does not make the next ordinary navigation replace hi
   } finally { await f.close(); }
 });
 
+test('a failed Back replay leaves the address on the page still on screen, where its Apply posts', async () => {
+  let rejectBack = false;
+  const f = await fixture(async ({ route, url }) => {
+    if (rejectBack && url === first) { await route.fulfill({ status: 500, body: 'Temporary server error' }); return true; }
+  });
+  try {
+    await navigate(f.page, second);
+    await f.page.waitForFunction(url => document.querySelector('#current')?.textContent === url, second);
+    const length = await f.page.evaluate(() => history.length);
+    rejectBack = true;
+    await f.page.goBack();
+    await f.page.locator('.cp-alert').waitFor();
+    await f.page.waitForFunction(() => !document.documentElement.hasAttribute('data-cp-nav'));
+    assert.deepEqual(await f.page.evaluate(() => [location.pathname, history.state.cpNav.url, history.length]), [second, second, length],
+      'the address and its history entry describe the page still on screen');
+    rejectBack = false;
+    const saved = f.posts.length;
+    await f.page.locator('input[name="apply"]').click();
+    await f.page.waitForFunction(() => !document.documentElement.hasAttribute('data-cp-nav'));
+    assert.deepEqual(f.posts.slice(saved).map(post => [post.url, post.data.apply]), [[second, 'Apply']], 'Apply saves the page on screen');
+    const back = f.posts.length;
+    await f.page.goBack();
+    await f.page.waitForFunction(url => document.querySelector('#current')?.textContent === url, first);
+    assert.deepEqual(f.posts.slice(back).map(post => post.url), [first], 'Back can still try the failed page again');
+    assert.deepEqual(f.errors, []);
+  } finally { await f.close(); }
+});
+
+test('a cross-scope Back whose entry fails is not finished after the next click', async () => {
+  const entry = '/commpilot/Group/Members/Modify/index.jsp', form = '/commpilot/User/Schedule/Add/';
+  let rejectEntry = false;
+  const f = await fixture(async ({ route, url }) => {
+    if (rejectEntry && url === entry) { await route.fulfill({ status: 500, body: 'Temporary server error' }); return true; }
+  });
+  try {
+    // An Add form has no recorded location chain, so Back re-enters its user before replaying it.
+    for (const [url, params] of [[entry, { key: 'Fixture' }], [form, {}], ['/commpilot/Group/Profile/', {}]]) {
+      await navigate(f.page, url, params);
+      await f.page.waitForFunction(url => document.querySelector('#current')?.textContent === url && location.pathname === url, url);
+    }
+    rejectEntry = true;
+    const before = f.posts.length;
+    await f.page.goBack();
+    await f.page.locator('.cp-alert').waitFor();
+    await f.page.waitForFunction(() => !document.documentElement.hasAttribute('data-cp-nav'));
+    assert.deepEqual(f.posts.slice(before).map(post => post.url), [entry]);
+    const clicked = f.posts.length;
+    await navigate(f.page, third);
+    await f.page.waitForFunction(url => document.querySelector('#current')?.textContent === url, third);
+    await f.page.waitForTimeout(600);   // a chained follow-up is posted right after the swap
+    assert.deepEqual(f.posts.slice(clicked).map(post => post.url), [third], 'the abandoned Back target is not posted');
+    assert.equal(new URL(f.page.url()).pathname, third);
+    assert.deepEqual(f.errors, []);
+  } finally { await f.close(); }
+});
+
+test('a cross-scope Back whose entry waits for an earlier request still reopens its page', async () => {
+  const entry = '/commpilot/Group/Members/Modify/index.jsp', form = '/commpilot/User/Schedule/Add/';
+  let release, started, hold = false;
+  const held = new Promise(resolve => { release = resolve; });
+  const began = new Promise(resolve => { started = resolve; });
+  const f = await fixture(async ({ route, url }) => {
+    if (!hold || url !== third) return;
+    hold = false; started(); await held;
+    await route.fulfill({ status: 200, contentType: 'text/html', body: shell(third, 'drained-token') });
+    return true;
+  });
+  try {
+    for (const [url, params] of [[entry, { key: 'Fixture' }], [form, {}], ['/commpilot/Group/Profile/', {}]]) {
+      await navigate(f.page, url, params);
+      await f.page.waitForFunction(url => document.querySelector('#current')?.textContent === url && location.pathname === url, url);
+    }
+    hold = true;
+    await navigate(f.page, third);
+    await began;
+    const before = f.posts.length;
+    await f.page.goBack();   // the entry drains behind the held request, then the form follows it
+    release();
+    await f.page.waitForFunction(url => document.querySelector('#current')?.textContent === url && location.pathname === url, form);
+    assert.deepEqual(f.posts.slice(before).map(post => post.url), [entry, form]);
+    assert.deepEqual(f.errors, []);
+  } finally { release(); await f.close(); }
+});
+
 test('Forward during a delayed Back response uses the fresh token and preserves the history stack', async () => {
   let holdBack = false, release, started, token = 'token-1', issued = 0;
   const held = new Promise(resolve => { release = resolve; });
@@ -257,6 +341,7 @@ test('a Back request that times out draining another navigation releases its his
     await f.page.goBack();
     await f.page.clock.runFor(5400);
     assert.match(await f.page.locator('.cp-upload-notice').textContent(), /previous.*request.*still running/i);
+    assert.equal(new URL(f.page.url()).pathname, second, 'the address returns to the page still on screen');
     release();
     await f.page.waitForFunction(() => document.querySelector('[name="formtokenserial"]').value === 'drained-token');
     await f.page.evaluate(() => {

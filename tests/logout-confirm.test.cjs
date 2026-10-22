@@ -67,6 +67,10 @@ test('native Logout confirms once, allows an explicit retry after HTTP failure, 
     });
     await page.waitForFunction(() => document.body.id === 'initBody.menuTemplate');
     await page.waitForFunction(() => String(window.redirectPost).includes('cpDclSpin'));
+    // The page this tab would reopen after signing back in, inside a service provider.
+    const lastNav = JSON.stringify({ url: '/commpilot/ServiceProvider/Profile/', params: {},
+      entry: { url: '/commpilot/Reseller/ServiceProviders/Modify/', params: { key: 'Fixture_SP' } } });
+    await page.evaluate(nav => sessionStorage.setItem('cp-last-nav', nav), lastNav);
     // Sign out lives in the top bar's account menu; it presses CommPilot's own Logout link (hidden in the page).
     assert.equal(await page.locator('#native-logout').isVisible(), false);
     const trigger = { click: async () => {
@@ -86,6 +90,8 @@ test('native Logout confirms once, allows an explicit retry after HTTP failure, 
     assert.equal(logoutPosts, 1);
     assert.equal(new URL(page.url()).pathname, '/commpilot/Common/folder_contents.jsp');
     assert.match(await page.locator('.cp-native-logout-copy').innerText(), /HTTP 503/);
+    assert.equal(await page.evaluate(() => sessionStorage.getItem('cp-last-nav')), lastNav,
+      'a sign-out that did not happen keeps the page Reload recovers');
     logoutStatus = 200;
     await page.getByRole('button', { name: 'Retry sign out', exact: true }).click();
     await page.waitForURL('**/commpilot/Login/', { timeout: 15000 });
@@ -93,6 +99,10 @@ test('native Logout confirms once, allows an explicit retry after HTTP failure, 
     assert.equal(navigations.includes('/commpilot/servlet/Logout'), false);
     assert.equal(await page.title(), 'Login');
     assert.equal(await page.evaluate(() => sessionStorage.getItem('cp-signing-out')), null);
+    // A deliberate sign-out forgets the place to return to, so the next sign-in in this tab (possibly another
+    // saved account) starts at home instead of opening the previous session's service provider.
+    assert.deepEqual(await page.evaluate(() => ['cp-last-nav', 'cp-pending-return']
+      .map(key => sessionStorage.getItem(key))), [null, null]);
   } finally {
     await context?.close();
     fs.rmSync(profile, { recursive: true, force: true });

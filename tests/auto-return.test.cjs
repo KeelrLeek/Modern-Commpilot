@@ -41,15 +41,16 @@ const loginPage = message => `<html><head><title>Login</title></head><body id="l
 
 // One tab: signed out on the Login page (with a saved place and, maybe, CommPilot's message), then signed in at
 // the reseller home. Every request is answered by the level it opens; the log shows what pjax.js asked for.
-async function signBackIn(browser, { saved, returnAt, message }) {
+async function signBackIn(browser, { saved, returnAt, message, entry }) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   const requests = [];
-  await page.route(origin + '/**', route => {
+  await page.route(origin + '/**', async route => {
     const request = route.request();
     const pathname = new URL(request.url()).pathname;
     const params = new URLSearchParams(request.postData() || '');
     if (request.method() === 'POST') requests.push({ pathname, params });
     if (pathname.startsWith('/commpilot/Login/')) return route.fulfill({ status: 200, contentType: 'text/html', body: loginPage(message) });
+    if (entry && pathname === spEntry && await entry(route)) return;
     const level = pathname === spEntry || pathname.startsWith('/commpilot/ServiceProvider/') ? 'S'
       : pathname === groupEntry || pathname.startsWith('/commpilot/Group/') ? 'G'
       : params.get('folder')?.[0] || 'R';
@@ -82,6 +83,34 @@ test('signing back in reopens the last page when the home level can open it', as
     assert.ok(asked.indexOf('/commpilot/ServiceProvider/Profile/') > at, 'then the page');
     assert.ok(await page.evaluate(() => sessionStorage.getItem('cp-return-at')), 'the try is noted, in case it fails');
   } finally { await browser.close(); }
+});
+
+// The service provider's entry answers with an error, or the user opens another folder while it loads. The saved
+// page must not follow the user's own click afterwards: it would replace the page they chose and be posted without
+// the entry that sets its context.
+for (const mode of ['fails', 'is overtaken']) test(`a return whose entry ${mode} is not finished after the user’s next click`, async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  let release = () => {};
+  try {
+    const held = new Promise(resolve => { release = resolve; });
+    const saved = { url: '/commpilot/ServiceProvider/Profile/', params: {}, entry: { url: spEntry, params: { key: 'Test_SP' } } };
+    const { page, requests } = await signBackIn(browser, { saved, entry: async route => {
+      if (mode === 'is overtaken') { await held; return false; }
+      await route.fulfill({ status: 500, contentType: 'text/html', body: '<html><body>Server error</body></html>' });
+      return true;
+    } });
+    assert.ok(requests.some(r => r.pathname === spEntry), 'the return was started');
+    const before = requests.length;
+    await page.locator('form[name="leftNavForm"] a', { hasText: 'Resources' }).click();
+    release();
+    await page.waitForFunction(() => !document.documentElement.hasAttribute('data-cp-nav'));
+    await page.waitForTimeout(800);   // a chained follow-up is posted right after the swap
+    assert.deepEqual(requests.slice(before).map(r => r.pathname + ' ' + (r.params.get('folder') || '')), [folderPath + ' R1'],
+      'only the folder the user opened is posted');
+    const lastNav = JSON.parse(await page.evaluate(() => sessionStorage.getItem('cp-last-nav')));
+    assert.equal(lastNav.params.folder, 'R1', 'Reload reopens the folder on screen');
+  } finally { release(); await browser.close(); }
 });
 
 test('a group’s page is not reopened from the reseller home, where CommPilot would sign the new session out', async () => {
