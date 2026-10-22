@@ -941,8 +941,37 @@
       list.setAttribute('aria-multiselectable', 'true');
       list.setAttribute('aria-label', title);
       pane.append(head, filter, list);
-      panes[side] = { pane, select, filter, list, count: head.lastChild, anchor: -1 };
-      filter.addEventListener('input', () => render(side));
+      panes[side] = { pane, select, filter, list, count: head.lastChild, anchor: -1, rows: new WeakMap() };
+      filter.addEventListener('input', () => {
+        // A selection the filter now hides would still move with Add: drop it, so Add moves only what is shown.
+        const term = filter.value.trim().toLowerCase();
+        let dropped = false;
+        if (term) for (const o of options(select))
+          if (o.selected && !clean(o.textContent).toLowerCase().includes(term)) { o.selected = false; dropped = true; }
+        panes[side].anchor = -1;
+        if (dropped) select.dispatchEvent(new Event('change', { bubbles: true }));   // redraws, like a click
+        else render(side);
+      });
+      // Enter would submit mainForm with its first button, CommPilot's OK (a save): the filter is already live.
+      filter.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing) event.preventDefault(); });
+      // Rows outlive renders, so they answer through the list and read their option's current place from data-index.
+      const rowOf = event => event.target.closest?.('.cp-dl-row');
+      list.addEventListener('click', event => { const item = rowOf(event); if (item) choose(side, +item.dataset.index, event); });
+      list.addEventListener('dblclick', event => { const item = rowOf(event); if (item) moveOne(side, +item.dataset.index); });
+      list.addEventListener('keydown', event => {
+        const item = rowOf(event);
+        if (!item) return;
+        const index = +item.dataset.index;
+        if (event.key === ' ') { event.preventDefault(); choose(side, index, event); }
+        else if (event.key === 'Enter') { event.preventDefault(); moveOne(side, index); }
+        else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault();
+          const direction = event.key === 'ArrowDown' ? 'nextElementSibling' : 'previousElementSibling';
+          let next = item[direction];
+          while (next?.getAttribute('aria-disabled') === 'true') next = next[direction];
+          if (next) { item.tabIndex = -1; next.tabIndex = 0; next.focus(); }
+        }
+      });
     }
     const moves = make('div', 'cp-dl-moves');
     for (const label of ORDER) {
@@ -966,7 +995,9 @@
       if (unavailable(select, list[index])) return;
       if (event.shiftKey && panes[side].anchor >= 0) {
         const [from, to] = [panes[side].anchor, index].sort((a, b) => a - b);
-        list.forEach((o, i) => { if (!unavailable(select, o)) o.selected = i >= from && i <= to; });
+        // Only the rows shown: a range never reaches options the filter hides.
+        const shown = new Set([...panes[side].list.querySelectorAll('.cp-dl-row')].map(row => +row.dataset.index));
+        list.forEach((o, i) => { if (!unavailable(select, o)) o.selected = shown.has(i) && i >= from && i <= to; });
       } else {
         list[index].selected = !list[index].selected;
         panes[side].anchor = index;
@@ -982,44 +1013,55 @@
       move?.native.click();
       refresh();
     }
+    // Writes only what differs, so an unchanged row costs no style or layout work.
+    const mark = (el, name, value) => { if (el.getAttribute(name) !== value) el.setAttribute(name, value); };
     function render(side) {
-      const { select, filter, list, count } = panes[side];
+      const { select, filter, list, count, rows } = panes[side];
       const all = options(select);
-      list.setAttribute('aria-disabled', String(select.matches(':disabled')));
+      mark(list, 'aria-disabled', String(select.matches(':disabled')));
       const term = filter.value.trim().toLowerCase();
-      count.textContent = String(all.length);
-      const focused = document.activeElement?.closest?.('.cp-dl-list') === list ? document.activeElement.dataset.index : null;
-      list.textContent = '';
+      if (count.textContent !== String(all.length)) count.textContent = String(all.length);
+      const focused = document.activeElement?.closest?.('.cp-dl-list') === list ? document.activeElement : null;
+      const place = focused?.dataset.index;   // read before the rows below are renumbered
+      // Each option keeps its row: a click only updates attributes, and a move adds or takes out just those rows.
+      // The list does not anchor its scroll (forms.css), so taking rows out scrolls it as rebuilding it did.
+      const shown = [];
       all.forEach((option, index) => {
         const text = clean(option.textContent);
         if (term && !text.toLowerCase().includes(term)) return;
-        const item = make('div', 'cp-dl-row');
-        item.setAttribute('role', 'option');
-        item.setAttribute('aria-selected', String(option.selected));
-        item.setAttribute('aria-disabled', String(!!unavailable(select, option)));
-        item.tabIndex = -1;
-        item.dataset.index = String(index);
-        item.append(make('span', 'cp-dl-box'), make('span', 'cp-dl-text', text));
-        item.addEventListener('click', event => choose(side, index, event));
-        item.addEventListener('dblclick', () => moveOne(side, index));
-        item.addEventListener('keydown', event => {
-          if (event.key === ' ') { event.preventDefault(); choose(side, index, event); }
-          else if (event.key === 'Enter') { event.preventDefault(); moveOne(side, index); }
-          else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-            event.preventDefault();
-            const direction = event.key === 'ArrowDown' ? 'nextElementSibling' : 'previousElementSibling';
-            let next = item[direction];
-            while (next?.getAttribute('aria-disabled') === 'true') next = next[direction];
-            if (next) { item.tabIndex = -1; next.tabIndex = 0; next.focus(); }
-          }
-        });
-        list.appendChild(item);
+        let item = rows.get(option);
+        if (!item) {
+          item = make('div', 'cp-dl-row');
+          item.setAttribute('role', 'option');
+          item.tabIndex = -1;
+          item.append(make('span', 'cp-dl-box'), make('span', 'cp-dl-text', text));
+          rows.set(option, item);
+        } else if (item.lastChild.textContent !== text) item.lastChild.textContent = text;
+        mark(item, 'aria-selected', String(option.selected));
+        mark(item, 'aria-disabled', String(!!unavailable(select, option)));
+        mark(item, 'data-index', String(index));
+        shown.push(item);
       });
-      if (!list.children.length) list.appendChild(make('div', 'cp-dl-empty', term ? 'No matches' : 'Nothing here'));
-      const first = list.querySelector('.cp-dl-row[aria-disabled="false"]');
-      const again = focused != null && list.querySelector(`.cp-dl-row[aria-disabled="false"][data-index="${focused}"]`);
+      const keep = new Set(shown), note = shown.length ? '' : term ? 'No matches' : 'Nothing here';
+      for (const child of [...list.children])
+        if (!keep.has(child) && !(note && child.matches('.cp-dl-empty') && child.textContent === note)) child.remove();
+      let at = list.firstChild;
+      for (const item of shown) {
+        if (item === at) at = at.nextSibling;
+        else list.insertBefore(item, at);
+      }
+      if (note && !list.firstChild) list.appendChild(make('div', 'cp-dl-empty', note));
+      const first = shown.find(item => item.getAttribute('aria-disabled') === 'false');
+      // Focus returns to the row in the focused row's place (after Enter moves an item, the next one), as it did
+      // when every row was rebuilt; with no usable row there, focus leaves the list.
+      const again = place != null && shown.find(item => item.dataset.index === place && item.getAttribute('aria-disabled') === 'false');
+      for (const item of list.querySelectorAll('.cp-dl-row[tabindex="0"]')) if (item !== (again || first)) item.tabIndex = -1;
       (again || first)?.setAttribute('tabindex', '0');
-      if (again) again.focus();
+      if (!again) { if (focused?.parentNode === list) focused.blur(); }
+      else if (again !== document.activeElement) again.focus();
+      // Where focusing it would scroll: Chromium centres a hidden row, Gecko scrolls the least.
+      else if (again.scrollIntoViewIfNeeded) again.scrollIntoViewIfNeeded(true);
+      else again.scrollIntoView({ block: 'nearest' });
     }
     function refresh() {
       render('avail'); render('asgn');

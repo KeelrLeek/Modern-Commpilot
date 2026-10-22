@@ -136,7 +136,7 @@ html[data-cp-direction] .cp-dl-count {
   font:600 11px/1 "Inter", sans-serif; padding:3px 7px; border-radius:99px; background:var(--d-raised); color:var(--d-muted);
 }
 html[data-cp-direction] .cp-dl-filter { margin:0 10px 8px; width:auto !important; }
-html[data-cp-direction] .cp-dl-list { flex:1; min-height:150px; max-height:clamp(160px, 26vh, 300px); overflow:auto; padding:3px; border-top:1px solid var(--d-line); }
+html[data-cp-direction] .cp-dl-list { flex:1; min-height:150px; max-height:clamp(160px, 26vh, 300px); overflow:auto; overflow-anchor:none; padding:3px; border-top:1px solid var(--d-line); }
 html[data-cp-direction] .cp-dl-row {
   display:flex; align-items:center; gap:9px; padding:4px 8px; border-radius:6px; cursor:pointer; user-select:none; line-height:1.35;
 }

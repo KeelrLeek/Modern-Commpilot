@@ -398,6 +398,96 @@ for (const mode of ['option', 'select']) test(`picklist cannot select or move a 
   } finally { await browser.close(); }
 });
 
+// CommPilot's real pick-list pages put OK first in mainForm, so it is the button implicit submission presses.
+test('Enter in a picklist filter does not press CommPilot’s OK', async () => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const html = pickPage.replace('<table cellspacing="0"', '<table><tbody><tr><td class="buttonbar">' +
+      '<input type="hidden" name="formtokenserial" value="t1"><input type="submit" name="ok" value="OK">' +
+      '<input type="submit" name="apply" value="Apply"></td></tr></tbody></table><table cellspacing="0"');
+    const page = await open(browser, html);
+    await page.locator('.cp-dl').waitFor();
+    await page.evaluate(() => {
+      window.submits = [];
+      document.addEventListener('submit', event => { window.submits.push(event.submitter?.name); event.preventDefault(); }, true);
+    });
+    const filter = page.getByRole('searchbox', { name: 'Filter Group Available Domains' });
+    await filter.fill('c.ex');
+    await filter.press('Enter');
+    assert.deepEqual(await page.evaluate(() => window.submits), []);
+    assert.equal(await page.evaluate(() => document.forms.mainForm.toAdd.value), '');
+    assert.equal(await page.locator('.cp-dl-pane').first().getByRole('option').count(), 1, 'the filter still applies');
+  } finally { await browser.close(); }
+});
+
+// A filtered list must not move options the filter hides: what Add moves is what you can see selected.
+const mixedPickPage = pickPage.replace('<option value="b.example.com">b.example.com</option>', '<option value="b.other.net">b.other.net</option>');
+for (const how of ['click', 'Space']) test(`a Shift range (${how}) in a filtered picklist selects only the rows shown`, async () => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await open(browser, mixedPickPage);
+    await page.locator('.cp-dl').waitFor();
+    await page.getByRole('searchbox', { name: 'Filter Group Available Domains' }).fill('example');
+    assert.deepEqual(await page.locator('.cp-dl-pane').first().getByRole('option').allInnerTexts(), ['a.example.com', 'c.example.com']);
+    await page.getByRole('option', { name: 'a.example.com' }).click();
+    const c = page.getByRole('option', { name: 'c.example.com' });
+    if (how === 'click') await c.click({ modifiers: ['Shift'] });
+    else { await c.focus(); await page.keyboard.press('Shift+Space'); }
+    assert.deepEqual(await page.evaluate(() => [...document.getElementById('availableList').selectedOptions].map(o => o.value)),
+      ['a.example.com', 'c.example.com']);
+    await page.getByRole('button', { name: 'Add ›', exact: true }).click();
+    assert.equal(await page.evaluate(() => document.forms.mainForm.toAdd.value), 'a.example.com,c.example.com');
+    assert.deepEqual(await page.evaluate(() => [...document.getElementById('availableList').options].map(o => o.value)), ['b.other.net']);
+  } finally { await browser.close(); }
+});
+
+test('filtering a picklist drops selections it hides, so Add moves only what is shown', async () => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await open(browser, mixedPickPage);
+    await page.locator('.cp-dl').waitFor();
+    await page.getByRole('option', { name: 'b.other.net' }).click();
+    await page.getByRole('searchbox', { name: 'Filter Group Available Domains' }).fill('example');
+    await page.getByRole('option', { name: 'c.example.com' }).click();
+    await page.getByRole('button', { name: 'Add ›', exact: true }).click();
+    assert.equal(await page.evaluate(() => document.forms.mainForm.toAdd.value), 'c.example.com');
+    await page.getByRole('searchbox', { name: 'Filter Group Available Domains' }).fill('');
+    assert.deepEqual(await page.locator('.cp-dl-pane').first().locator('.cp-dl-row[aria-selected="true"]').count(), 0);
+  } finally { await browser.close(); }
+});
+
+// A click only changes that row and a move only adds or takes out the moved rows, so long lists stay responsive.
+test('a long picklist keeps its rows when you select or move one', async t => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const many = Array.from({ length: 1000 }, (_, i) => `<option value="u${i}.example.com">u${i}.example.com</option>`).join('');
+    const page = await open(browser, pickPage.replace('<option value="a.example.com">', many + '<option value="a.example.com">'));
+    await page.locator('.cp-dl-row').first().waitFor();
+    await page.evaluate(() => {
+      window.before = [...document.querySelectorAll('.cp-dl-pane:first-child .cp-dl-row')];
+      document.addEventListener('pointerdown', () => { window.start = performance.now(); }, true);
+      window.addEventListener('click', () => { window.took = performance.now() - window.start; });
+    });
+    const rows = () => page.evaluate(() => {
+      const now = [...document.querySelectorAll('.cp-dl-pane:first-child .cp-dl-row')];
+      return { count: now.length, kept: now.filter(el => window.before.includes(el)).length,
+        selected: now.filter(el => el.getAttribute('aria-selected') === 'true').map(el => el.textContent) };
+    });
+    await page.getByRole('option', { name: 'u5.example.com', exact: true }).click();
+    t.diagnostic(`a row click took ${Math.round(await page.evaluate(() => window.took))} ms with 1,003 rows`);
+    assert.deepEqual(await rows(), { count: 1003, kept: 1003, selected: ['u5.example.com'] });
+    // Enter moves the focused row and the row now in its place takes focus, as before.
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => document.forms.mainForm.toAdd.value), 'u5.example.com');
+    assert.equal(await page.evaluate(() => document.activeElement.textContent), 'u6.example.com');
+    assert.deepEqual(await rows(), { count: 1002, kept: 1002, selected: [] });
+    await page.getByRole('option', { name: 'u9.example.com', exact: true }).click();
+    await page.getByRole('button', { name: 'Add ›', exact: true }).click();
+    assert.equal(await page.evaluate(() => document.forms.mainForm.toAdd.value), 'u5.example.com,u9.example.com');
+    assert.deepEqual(await rows(), { count: 1001, kept: 1001, selected: [] });
+  } finally { await browser.close(); }
+});
+
 // A schedule event as CommPilot renders it (trimmed), with stand-ins for its own scripts: Repeats shows the
 // matching pattern row, All Day disables the times.
 const dayBox = (day, on) => `<td><input type="checkbox" name="recurWeekly${day}" id="recurWeekly${day}" value="checked"${on ? ' checked' : ''}></td><td>${day}</td>`;
