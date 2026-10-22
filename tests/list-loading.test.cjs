@@ -13,9 +13,9 @@ const LIST = '/commpilot/Reseller/Groups/';
 
 // A CommPilot results page (trimmed) with 20 rows per page; later pages carry longer names, which would widen
 // the first column if the table re-laid itself out as they arrived.
-function rows(pageNo) {
+function rows(pageNo, tag) {
   return Array.from({ length: 20 }, (_, i) => {
-    const n = i + 1, name = pageNo === 3 ? `A much longer group name number ${n} on page three` : `Group ${pageNo}-${n}`;
+    const n = i + 1, name = tag ? `${tag} ${pageNo}-${n}` : pageNo === 3 ? `A much longer group name number ${n} on page three` : `Group ${pageNo}-${n}`;
     const link = (id, text) => `<a id="${id}" class="${text === 'Edit' ? 'headerLink' : 'tableLink'}">${text}</a>
       <script>document.addEventListener('DOMContentLoaded', function () { document.getElementById('${id}')
         .addEventListener('click', function () { redirectPost('/commpilot/Reseller/Groups/Modify/index.jsp', { key: '${name}' }); }); });</script>`;
@@ -40,8 +40,8 @@ function page(token, results) {
             <tr><td class="listHeader"><img src="/commpilot/Graphics/onepx.gif" width="20" height="1"></td><td class="listHeader">Group ID</td>
               <td class="listHeader"><img src="/commpilot/Graphics/onepx.gif" width="0" height="1"></td><td class="listHeader">Organization Type</td>
               <td class="listHeader"><img src="/commpilot/Graphics/onepx.gif" width="0" height="1"></td><td class="listHeader">Edit</td></tr>
-            ${rows(results.page)}</tbody></table>
-          <table class="enduserbody" width="100%"><tbody><tr><td width="33%"></td><td width="33%">[ Page ${results.page} of 3 ]</td><td width="33%"></td></tr></tbody></table>` : ''}
+            ${rows(results.page, results.tag)}</tbody></table>
+          <table class="enduserbody" width="100%"><tbody><tr><td width="33%"></td><td width="33%">[ Page ${results.page} of ${results.pages || 3} ]</td><td width="33%"></td></tr></tbody></table>` : ''}
         </td></tr>
         <tr id="buttonbarbottom"><td class="buttonbar"><input type="button" name="ok" value="OK"></td></tr>
       </tbody></table>
@@ -138,5 +138,89 @@ test('a search collects all pages offscreen and reveals only the completed forma
     const after = await layout();
     assert.deepEqual(after, before, 'nor when they finished');
     assert.match(await tab.locator('.cp-pager').innerText(), new RegExp(`1–${before.shown.length} of 60`));
+  } finally { await browser.close(); }
+});
+
+// A newer search sent while the older one's pages are still coming in stops that collection. Until the newer
+// answer has landed, the older search's first page and CommPilot's pager must not show as if they were the result.
+async function supersede(browser, newer) {
+  const tab = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+  let serial = 0, searches = 0;
+  await tab.route('**/*', async route => {
+    const req = route.request();
+    const url = new URL(req.url());
+    if (url.origin !== 'https://apps-sbx.avpaas.io') return route.abort();
+    const body = new URLSearchParams(req.postData() || '');
+    if (url.pathname === '/commpilot/Common/page.jsp') {
+      await new Promise(r => setTimeout(r, 500));
+      return route.fulfill({ status: 200, contentType: 'text/html', body: page(`tok-${++serial}`, { page: Number(body.get('value')) + 1, pages: 5, tag: 'Old' }) });
+    }
+    if (req.method() === 'POST' && body.get('search')) {
+      if (++searches === 1) return route.fulfill({ status: 200, contentType: 'text/html', body: page(`tok-${++serial}`, { page: 1, pages: 5, tag: 'Old' }) });
+      await new Promise(r => setTimeout(r, 2000));   // the newer search takes CommPilot a while
+      if (newer === 'error') return route.fulfill({ status: 500, contentType: 'text/html', body: 'Synthetic failure' });
+      return route.fulfill({ status: 200, contentType: 'text/html', body: page(`tok-${++serial}`, { page: 1, pages: 1, tag: 'New' }) });
+    }
+    return route.fulfill({ status: 200, contentType: 'text/html', body: page('tok-0', null) });
+  });
+  await tab.goto('https://apps-sbx.avpaas.io' + LIST, { waitUntil: 'domcontentloaded' });
+  for (const file of ['native-theme.css', 'theme-palettes.css', 'page-baseline.css', 'forms.css'])
+    await tab.addStyleTag({ path: path.join(root, 'src/content', file) });
+  await tab.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
+  await tab.addScriptTag({ path: path.join(root, 'src/content/forms.js') });
+  await tab.addScriptTag({ path: path.join(root, 'src/content/lists.js') });
+  await tab.locator('#search0').click();
+  await tab.waitForFunction(() => document.querySelector('table[data-cp-fill="loading"]'));
+  await tab.waitForTimeout(150);
+  // Every frame from here on: which rows show, whether CommPilot's pager shows, and whether the area says it waits.
+  await tab.evaluate(() => {
+    window.fixtureFrames = [];
+    const visible = el => { const s = getComputedStyle(el); return s.display !== 'none' && s.visibility !== 'hidden'; };
+    const tick = () => {
+      const shown = [...document.querySelectorAll('tr[id^="Row"]')].filter(visible);
+      const native = [...document.querySelectorAll('table')].find(t => !t.querySelector('table') && /Page\s+1\s+of\s+5/.test(t.textContent));
+      fixtureFrames.push({ nav: document.documentElement.dataset.cpNav || '', fill: document.querySelector('table[data-cp-fill]')?.dataset.cpFill || '',
+        old: shown.filter(tr => /Old/.test(tr.textContent)).length, newer: shown.filter(tr => /New/.test(tr.textContent)).length,
+        pager: !!native && visible(native), waiting: !!document.querySelector('.cp-list-wait') });
+      if (!window.fixtureStop) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await tab.locator('#findValue0').fill('New');
+  await tab.locator('#search0').click();
+  return tab;
+}
+
+test('a newer search sent during collection keeps the older results hidden until the newer results replace them', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const tab = await supersede(browser, 'results');
+    await tab.waitForFunction(() => [...document.querySelectorAll('tr[id^="Row"]')].some(tr => /New/.test(tr.textContent) &&
+      getComputedStyle(tr).visibility !== 'hidden'), null, { timeout: 15000 });
+    await tab.waitForTimeout(100);
+    const frames = await tab.evaluate(() => { window.fixtureStop = true; return fixtureFrames; });
+    assert.ok(frames.some(f => f.nav === 'busy' && f.fill === 'stopped'), 'sampled the stopped collection while the newer search was pending');
+    assert.deepEqual(frames.filter(f => f.old || f.pager), [], 'the older search’s first page and CommPilot’s pager never show');
+    assert.ok(frames.filter(f => f.fill === 'stopped').every(f => f.waiting), 'the area keeps saying it is loading');
+    assert.equal(await tab.locator('tr[id^="Row"]', { hasText: 'Old' }).count(), 0);
+    assert.equal(await tab.locator('.cp-list-wait').count(), 0);
+    assert.equal(await tab.locator('.cp-results-heading .cp-results-total').textContent(), '20 results');
+  } finally { await browser.close(); }
+});
+
+test('a newer search that fails after stopping a collection shows CommPilot’s own first page and pager again', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const tab = await supersede(browser, 'error');
+    await tab.waitForFunction(() => !document.documentElement.dataset.cpNav && document.querySelector('table[data-cp-fill="stopped"]'), null, { timeout: 15000 });
+    await tab.waitForFunction(() => document.querySelector('table[data-cp-fill="stopped"]').dataset.cpResultsReady === 'true');
+    const frames = await tab.evaluate(() => { window.fixtureStop = true; return fixtureFrames; });
+    assert.deepEqual(frames.filter(f => f.nav === 'busy' && (f.old || f.pager)), [], 'nothing of the older search shows while the newer one is pending');
+    assert.equal(await tab.locator('tr[id^="Row"]', { hasText: 'Old' }).evaluateAll(rows => rows.filter(tr => getComputedStyle(tr).visibility !== 'hidden').length), 20);
+    assert.ok(await tab.evaluate(() => [...document.querySelectorAll('table')].some(t => !t.querySelector('table') &&
+      /\[ Page 1 of 5 \]/.test(t.textContent) && getComputedStyle(t).display !== 'none')), 'CommPilot’s pager is back');
+    assert.equal(await tab.locator('.cp-list-wait').count(), 0);
   } finally { await browser.close(); }
 });

@@ -1553,6 +1553,8 @@
       var count = table.querySelectorAll(':scope > tbody > tr[id^="Row"]').length;
       var announce = function (status) {
         if (cpListFill === state) cpListFill = null;
+        // A page that already replaced the list has lists of its own: a late stop must not send them back to loading.
+        if (!table.isConnected) return;
         if (status === 'done') {
           var complete=document.createDocumentFragment();
           added.forEach(function(tr){complete.appendChild(tr);});
@@ -1666,8 +1668,8 @@
       if (box) return box.checked || box.hasAttribute("checked") ? "Yes" : "No";
       return td.querySelector("img") ? "Yes" : "";
     }
-    function cpListExportSave(headers, rows) {
-      var raw = (document.title || "List").replace(/\s+/g, " ").trim();
+    function cpListExportSave(headers, rows, title) {
+      var raw = (title || "List").replace(/\s+/g, " ").trim();
       var pad = function (n) { return (n < 10 ? "0" : "") + n; }, d = new Date();
       var stamp = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
       var name = raw.replace(/\s*:\s*/g, " - ").replace(/[\\/*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || "List";
@@ -1676,16 +1678,23 @@
       cpUxpDownloadBlob(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), name + " " + stamp + ".xlsx");
     }
     function cpListExport(req) {
+      // A navigation on its way replaces this list: an export started now would walk it behind the next page.
+      var navigating = function () { return !!cpNavPending || document.documentElement.getAttribute("data-cp-nav") === "busy"; };
+      if (navigating()) { cpListExportStatus("failed", { message: "Wait for the page to finish opening" }); return; }
+      var title = document.title;   // the workbook is named after the list asked for, not the page open when it is saved
       var done = function (rows) {
-        try { cpListExportSave(req.headers, rows); cpListExportStatus("done", { count: rows.length }); }
+        try { cpListExportSave(req.headers, rows, title); cpListExportStatus("done", { count: rows.length }); }
         catch (e) { console.warn("[pjax] list export", e); cpListExportStatus("failed", { message: "Could not build the workbook" }); }
       };
       if (req.complete) { done(req.rows || []); return; }
       var desc = cpSearchDescriptor(document);
       if (!desc || !(req.pages > 0)) { cpListExportStatus("failed", { message: "This list cannot be read page by page" }); return; }
+      // The walk belongs to the list on screen: like the list fill, it ends once another page has been swapped in.
+      var swapAt = cpLastSwapAt, table = document.querySelector('td[width="82%"] table:has(> tbody > tr[id^="Row"])');
       var run = { abort: false, busy: null }, rows = [];
+      var left = function () { return run.abort || cpLastSwapAt !== swapAt || (!!table && !table.isConnected); };
       var hop = function (value) {
-        if (run.abort) return Promise.reject(new Error("stopped"));
+        if (left()) return Promise.reject(new Error("stopped"));
         var tokEl = document.getElementsByName("formtokenserial")[0];
         run.busy = cpFollow(location.origin + "/commpilot/Common/page.jsp",
           { returnPage: desc.returnPage, tableName: desc.tableName, value: String(value) }, tokEl ? tokEl.value : null, 0)
@@ -1694,7 +1703,7 @@
             if (!res || res.auth === false || res.err || !res.doc) throw new Error("page " + (value + 1) + " failed");
             var nt = res.doc.getElementsByName("formtokenserial")[0];
             if (nt && nt.value) cpWriteToken(nt.value);
-            if (run.abort) throw new Error("stopped");
+            if (left()) throw new Error("stopped");
             // A successful transport is not proof that CommPilot returned this
             // result page. Refuse partial/mismatched exports just as list fill does.
             var returnedPage = cpSearchPageOf(res.doc), returnedDesc = cpSearchDescriptor(res.doc);
@@ -1712,8 +1721,9 @@
         return new Promise(function (resolve, reject) {   // only once no other token-bearing request is out
           var t0 = Date.now();
           (function idle() {
-            if (run.abort) { reject(new Error("stopped")); return; }
-            if (cpInflightPosts === 0 && !cpNavPending) { resolve(); return; }
+            if (navigating()) run.abort = true;   // a navigation sent meanwhile replaces the list; others are waited out
+            if (left()) { reject(new Error("stopped")); return; }
+            if (cpInflightPosts === 0) { resolve(); return; }
             if (Date.now() - t0 > 5000) { reject(new Error("busy")); return; }
             setTimeout(idle, 50);
           })();
@@ -1736,7 +1746,7 @@
         }, function (e) {
           if (cpListExportRun === run) cpListExportRun = null;
           cpDbg("[pjax] list export stopped:", e && e.message);
-          cpListExportStatus("failed", { message: run.abort ? "Stopped: the page changed" : "CommPilot did not return every page" });
+          cpListExportStatus("failed", { message: left() ? "Stopped: the page changed" : "CommPilot did not return every page" });
         });
     }
     if (window === window.top) {
@@ -2041,6 +2051,8 @@
       if (old) {   // the list shown before (a second pass): it goes with the pager lists.js put after it
         var pager = old.nextElementSibling;
         if (pager && pager.classList.contains("cp-pager")) pager.remove();
+        var heading = old.previousElementSibling;   // and the count and Export lists.js put before it
+        if (heading && heading.classList.contains("cp-results-heading")) heading.remove();
         old.remove();
       }
       var total = s.total, got = s.rows.length, gap = total != null ? total - got : 0;

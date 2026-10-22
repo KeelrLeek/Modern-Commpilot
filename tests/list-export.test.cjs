@@ -52,12 +52,22 @@ function sheetCells(file) {
       .map(m => m[1] ?? m[2] ?? ''));
 }
 
-async function open(browser, total, pageLog, corrupt = '', onPage) {
+// The group's Profile, a page without a result list.
+function profile(token) {
+  return page(token, 1, 1).replace('Donuts: Numbers', 'Donuts: Profile').replace('screenName">Numbers', 'screenName">Profile')
+    .replace(/<table width="100%" cellpadding="2">[\s\S]*?\[ Page 1 of 1 \][\s\S]*?<\/table>/, '');
+}
+
+async function open(browser, total, pageLog, corrupt = '', onPage, profileDelay = 0) {
   const tab = await browser.newPage({ viewport: { width: 1366, height: 768 }, acceptDownloads: true });
   let serial = 0;
   await tab.route('https://apps-sbx.avpaas.io/**', async route => {
     const url = new URL(route.request().url());
     const body = new URLSearchParams(route.request().postData() || '');
+    if (profileDelay && url.pathname === '/commpilot/Group/Profile/') {
+      await new Promise(r => setTimeout(r, profileDelay));
+      return route.fulfill({ status: 200, contentType: 'text/html', body: profile(`tok-${++serial}`) });
+    }
     if (url.pathname === '/commpilot/Common/page.jsp') {
       const value = Number(body.get('value'));
       pageLog?.push(value);
@@ -143,11 +153,61 @@ test('a search too long to bring in is walked page by page for the export, and C
     await button.waitFor();
     assert.equal(await tab.locator('.cp-pager').count(), 0, 'CommPilot’s own pager stays');
     const [download] = await Promise.all([tab.waitForEvent('download', { timeout: 60000 }), button.click()]);
+    assert.match(download.suggestedFilename(), /^Stan Mikita Donuts - Numbers \d{4}-\d{2}-\d{2}\.xlsx$/);
     const cells = sheetCells(await download.path());
     assert.equal(cells.length, 1 + 51 * 20, 'every page');
     assert.equal(cells[1][0], '+1-6308100101');
     assert.equal(cells[51 * 20][0], '+1-6308105120');
     assert.deepEqual(pages, [...Array(51).keys(), 0], 'pages 1 to 51 in order, then back to page 1');
+  } finally { await browser.close(); }
+});
+
+test('Export pressed while a navigation away is pending neither walks nor downloads after the next page opens', async () => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const pages = [], downloads = [];
+    const tab = await open(browser, 51, pages, '', null, 1500);   // the Profile takes CommPilot a moment
+    tab.on('download', download => downloads.push(download));
+    await tab.evaluate(() => {
+      window.fixtureExportResults = [];
+      document.addEventListener('cp:list-export-status', event => fixtureExportResults.push(JSON.parse(event.detail)));
+    });
+    const button = tab.locator('.cp-export-row button.cp-export-btn');
+    await button.waitFor();
+    await tab.evaluate(() => redirectPost('/commpilot/Group/Profile/', {}));
+    await tab.waitForTimeout(100);
+    await button.click();
+    await tab.waitForFunction(() => /Profile/.test(document.querySelector('td.screenName')?.textContent || ''), null, { timeout: 15000 });
+    await tab.waitForTimeout(1000);
+    assert.deepEqual(pages, [], 'no page of the old list is read behind the new page');
+    assert.equal(downloads.length, 0);
+    assert.deepEqual(await tab.evaluate(() => fixtureExportResults), [{ state: 'failed', message: 'Wait for the page to finish opening' }]);
+  } finally { await browser.close(); }
+});
+
+test('a page swapped in during a paged export stops the walk without a download', async () => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const pages = [], downloads = [];
+    let tab;
+    // While page 6 is on its way, the content changes under the export without a navigation that stops it.
+    tab = await open(browser, 51, pages, '', async value => {
+      if (value === 5) await tab.evaluate(html => {
+        document.querySelector('td[width="82%"]').innerHTML = new DOMParser().parseFromString(html, 'text/html').querySelector('td[width="82%"]').innerHTML;
+        document.dispatchEvent(new CustomEvent('cp:reskin'));
+      }, profile('tok-x'));
+    });
+    tab.on('download', download => downloads.push(download));
+    await tab.evaluate(() => {
+      window.fixtureExportResults = [];
+      document.addEventListener('cp:list-export-status', event => fixtureExportResults.push(JSON.parse(event.detail)));
+    });
+    await tab.locator('.cp-export-row button.cp-export-btn').click();
+    await tab.waitForFunction(() => fixtureExportResults.some(result => ['failed', 'done'].includes(result.state)), null, { timeout: 60000 });
+    await tab.waitForTimeout(300);
+    assert.deepEqual(await tab.evaluate(() => fixtureExportResults.at(-1)), { state: 'failed', message: 'Stopped: the page changed' });
+    assert.deepEqual(pages, [0, 1, 2, 3, 4, 5], 'nothing is read after the page changed');
+    assert.equal(downloads.length, 0);
   } finally { await browser.close(); }
 });
 

@@ -40,7 +40,7 @@ function listPage(pageNo, total, token) {
     <script>window.redirectPost = window.redirectPost || function () {};</script></body></html>`;
 }
 
-async function fixture({ total = 3, empty = 0, slow = 0, search = false, corrupt = '' } = {}) {
+async function fixture({ total = 3, empty = 0, slow = 0, search = false, corrupt = '', setup = null } = {}) {
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   const posts = [];
@@ -69,6 +69,7 @@ async function fixture({ total = 3, empty = 0, slow = 0, search = false, corrupt
     return route.fulfill({ status: 200, contentType: 'text/html', body: search?initial.replace('<input name="findKey0"','<input type="button" id="search0" name="search" value="Search"><input name="findKey0"'):initial });
   });
   await page.goto('https://apps-sbx.avpaas.io/commpilot/Reseller/Groups/', { waitUntil: 'domcontentloaded' });
+  if (setup) await page.evaluate(setup);
   await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
   return { browser, page, posts };
 }
@@ -166,6 +167,27 @@ test('navigating while the list fills stops it and waits for its request, so the
     assert.deepEqual(pageHops.map(p => p.value), ['1'], 'no page request after the navigation');
     assert.equal(nav.token, 'tok-1', 'the navigation carries the token the in-flight page request returned');
     assert.equal(await fillState(page), undefined, 'the new page has no fill in progress');
+  } finally { await browser.close(); }
+});
+
+test('a collection that learns it was stopped only after the next page opened leaves that page’s lists alone', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  // Open another page while the fill waits out its short start-up pause (no request of its own out yet), and answer
+  // it at once: the page opens before the fill's next step finds it was stopped.
+  const { browser, page, posts } = await fixture({ total: 3, setup: () => {
+    window.fixtureLateFills = 0;
+    let opened = false, sent = false;
+    document.addEventListener('cp:reskin', () => { opened = true; });
+    document.addEventListener('cp:list-fill', () => {
+      if (opened) fixtureLateFills++;
+      else if (!sent) { sent = true; setTimeout(() => window.redirectPost('/commpilot/Reseller/Profile/', {}), 20); }
+    });
+  } });
+  try {
+    await page.waitForFunction(() => /Opened/.test(document.querySelector('td.screenName')?.textContent || ''), null, { timeout: 15000 });
+    await page.waitForTimeout(600);
+    assert.deepEqual(posts.map(p => p.path), ['/commpilot/Reseller/Profile/'], 'no page request for the list that left');
+    assert.equal(await page.evaluate(() => window.fixtureLateFills), 0, 'the stopped fill does not send the next page’s lists back to loading');
   } finally { await browser.close(); }
 });
 

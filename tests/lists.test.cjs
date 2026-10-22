@@ -362,6 +362,29 @@ for (const held of [false, true]) test(`blank User IDs move to the top when sort
   } finally { await browser.close(); }
 });
 
+test('a theme change or reskin keeps the chevron on the column sorted on screen', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await open(browser, listPage(names(60), { pager: 'Page 1 of 3', fill: 'done' }));
+    // theme-icons.js draws CommPilot's own chevron; give the page copy the extension URL it reads.
+    await page.evaluate(() => { window.chrome = { runtime: { getURL: file => location.origin + '/ext/' + file } }; });
+    await page.addScriptTag({ path: path.join(root, 'src/content/theme-icons.js') });
+    await page.locator('.cp-pager').waitFor();
+    const marks = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(
+      [...document.querySelectorAll('a.listSortHeader .cp-sort-ico')].filter(mark => getComputedStyle(mark).display !== 'none')
+        .map(mark => mark.closest('a').id + ':' + /sort-(asc|desc)\.svg/.exec(mark.style.getPropertyValue('--cp-sort-icon'))?.[1]))))));
+    assert.deepEqual(await marks(), ['sortId:asc'], 'CommPilot’s sort');
+    await page.locator('#sortLimit').click();
+    assert.deepEqual(await marks(), ['sortLimit:asc'], 'the sort on screen');
+    for (const event of ['cp:theme-change', 'cp:reskin']) {
+      await page.evaluate(event => document.dispatchEvent(new CustomEvent(event)), event);
+      assert.deepEqual(await marks(), ['sortLimit:asc'], `still the sort on screen after ${event}`);
+    }
+    assert.equal(await page.locator('#sortLimit').evaluate(link => link.closest('td').getAttribute('aria-sort')), 'ascending');
+  } finally { await browser.close(); }
+});
+
 test('a list CommPilot still pages itself keeps CommPilot’s own sort', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });

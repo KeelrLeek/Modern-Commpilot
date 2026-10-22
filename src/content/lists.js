@@ -348,7 +348,7 @@
     button.classList.toggle('cp-export-busy', Boolean(busy));
   }
   function startExport(table, button) {
-    if (exporting || button.disabled) return;
+    if (exporting || button.disabled || !table.isConnected) return;   // a list no longer on the page is not this search
     const columns = exportColumns(table);
     if (!columns.length) return;
     const native = nativePager(table);
@@ -614,6 +614,17 @@
     if (applyFrame) return;
     applyFrame = requestAnimationFrame(() => { applyFrame = 0; apply(); });
   }
+  // A list whose collection a navigation stopped (a newer search, another page, Back) waits for that navigation:
+  // the page it brings replaces the list, and only if it fails does CommPilot's own page come back.
+  let navWatch = null;
+  function afterNav() {
+    if (navWatch) return;
+    navWatch = new MutationObserver(() => {
+      if (document.documentElement.dataset.cpNav === 'busy') return;
+      navWatch.disconnect(); navWatch = null; scheduleApply();
+    });
+    navWatch.observe(document.documentElement, { attributes: true, attributeFilter: ['data-cp-nav'] });
+  }
   function apply() {
     if (!active()) { observeResults(null); return; }
     const cell = content();
@@ -628,6 +639,7 @@
       const job={};readyJobs.set(table,job);
       Promise.resolve(document.fonts?.ready).then(()=>requestAnimationFrame(()=>{
         if(!table.isConnected || readyJobs.get(table)!==job)return;
+        if(table.dataset.cpFill==='stopped'&&document.documentElement.dataset.cpNav==='busy'){afterNav();return;}
         if(table.dataset.cpFill==='loading'){
           // Prepare the same hidden 10/20/50-row geometry while collecting. The native 20-row page must not
           // make the card twice as tall during loading and then collapse when the completed list is shown.

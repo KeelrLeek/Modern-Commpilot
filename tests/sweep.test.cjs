@@ -235,6 +235,9 @@ test('a search CommPilot refuses as too many offers to load them all, sweeps by 
     assert.equal(all.rows, all.shown, 'the page holds only the rows on screen');
     assert.match(all.pager, new RegExp(`^1–${all.shown} of 2,600$`), 'lists.js pages it like any list');
     assert.equal(all.pagers, 1, 'the first pass’s list went with its pager');
+    assert.deepEqual(await page.locator('.cp-results-heading .cp-results-total').allTextContents(), ['2,600 results'],
+      'and with its results count');
+    assert.equal(await page.locator('button.cp-export-btn').count(), 1, 'one Export, for the list on screen');
     const every = await listed(page);
     assert.deepEqual([every.ids.length, new Set(every.ids).size], [2600, 2600], 'every user, once, page by page');
 

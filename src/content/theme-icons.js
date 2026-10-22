@@ -56,7 +56,7 @@
     // learn the sort direction) but hide it in CSS, and draw a chevron in the header's own color beside it.
     for (const link of document.querySelectorAll('a.listSortHeader')) {
       const arrow = link.querySelector('img[src*="uparrow.gif"], img[src*="downarrow.gif"]');
-      let mark = link.querySelector('.cp-sort-ico');
+      let mark = link.querySelector('.cp-sort-ico:not(.cp-sort-client)');   // lists.js's chevron for its own sort stays
       if (!arrow) { mark?.remove(); continue; }
       if (!mark) {
         mark = document.createElement('span');
