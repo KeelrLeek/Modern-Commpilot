@@ -1,6 +1,15 @@
 # BroadWorks Enhancer PJAX Preview
 
-Stable **0.3.82** adds guided RSG bulk user creation, fixes native Line/Port submission and saved-device verification, and improves recent locations, breadcrumbs, search paging, and the SCA/device workflow.
+Stable **0.3.83** expands bulk user creation across groups, adds Stable/Nightly update checks in Settings, and hardens session recovery, history, native forms, exports and settings.
+
+## 0.3.83 patch notes
+
+- Save group defaults for mixed DID and extension-only users, editable user/device prefixes and individually selected device profiles. Configure voicemail, Webex device access and final Integrated IM&P setup where selected; passwords remain per batch.
+- Preserve country codes in international numbers and verify complete, unassigned number-search results before provisioning.
+- Check for Stable or Nightly updates from Settings, read release notes and download the package. Updating an unpacked install still requires replacing files and reloading the extension.
+- Preserve rotated session tokens across overlapping requests and handle network/server errors separately from genuine expiry. Improve Back/Forward, refresh and native script/form handling without replaying uncertain saves.
+- Harden bulk verification, exports, saved sign-ins and asynchronous settings; reduce repeated batch planning, large-dropdown layout and decoration work.
+- Validation and remaining limits are documented in the [October 21–22 hardening report](docs/hardening-2026-10-22.md). The final installed regression passed 97/97. The full run passed 903/904 with one timing assertion subsequently corrected and verified separately; it is not reported as a clean full-suite pass.
 
 ## 0.3.82 patch notes
 
@@ -67,7 +76,7 @@ In the source checkout, run `python dev-preview/server.py` and open `http://127.
 
 ## Install this preview
 
-Extract `BroadWorks-Enhancer-PJAX-Preview-0.3.82.zip` from the project release folder, or use its matching reloadable `release/unpacked/` folder. The generic `release/BroadWorks-Enhancer-PJAX-Preview.zip` is refreshed when a browser is not holding it open. Chrome or Edge: open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder. Firefox or Zen: open `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on**, and select `manifest.json` from the extracted folder or the project's `release/unpacked/`. Reload the temporary add-on and refresh CommPilot after replacing its files. Disable the stable BroadWorks Enhancer while testing this preview to avoid duplicate controls. No helper or separate installer is needed. Use **Settings** beside Help and Home (twelve themes, each light or dark, the site's font, Menu previews, and About with what's new) or the extension toolbar popup to switch themes.
+Extract `BroadWorks-Enhancer-PJAX-Preview-0.3.83.zip` from the project release folder, or use its matching reloadable `release/unpacked/` folder. The generic `release/BroadWorks-Enhancer-PJAX-Preview.zip` is refreshed when a browser is not holding it open. Chrome or Edge: open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder. Firefox or Zen: open `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on**, and select `manifest.json` from the extracted folder or the project's `release/unpacked/`. Reload the temporary add-on and refresh CommPilot after replacing its files. Disable the stable BroadWorks Enhancer while testing this preview to avoid duplicate controls. No helper or separate installer is needed. Use **Settings** beside Help and Home (twelve themes, each light or dark, the site's font, Menu previews, and About with what's new) or the extension toolbar popup to switch themes.
 
 On the login page, open **Saved sign-ins**, choose **Add login**, enter your User ID and Password, and select **Sign in automatically** or **Ask for a four-digit PIN**. Later, choose an account if you have several saved. A PIN account asks for its PIN before using Cisco's original Login handler. Use **Remove** to delete a saved account. Saving is per BroadWorks host. Recent manual logout and login errors suppress an immediate automatic retry to avoid sign-in loops. Accounts saved by version 0.3.3 can be moved into this version by entering the previous vault password once.
 
@@ -83,13 +92,13 @@ The extension is scoped to the seven known BroadWorks hosts. The PJAX code only 
 
 **Settings → Updates** is available inside CommPilot, with Stable/Nightly selection, automatic daily/startup checks, a manual check button, release notes, and download/install instructions. It uses the existing Settings typography, theme controls, and selected site font. Stable is the default. Checks use public GitHub metadata from the extension background worker, send no CommPilot data or credentials, and do not submit forms, install code, or reload active pages. Automatic checks can be disabled.
 
-Stable reads this repository's latest published non-prerelease. Release **0.3.82** is the first Stable release, and the `stable` branch points to its existing tag commit. Nightly reads only the dedicated `nightly` prerelease; old beta releases do not count as nightlies. Until a nightly is published, the checker says so. A nightly must carry one uploaded ZIP named `BroadWorks-Enhancer-PJAX-Preview-A.B.C.D-nightly.zip`, with a numeric manifest version matching its filename and greater than the build it replaces. Stable ZIP names and version tags remain unchanged. Switching channels does not install or downgrade anything.
+Stable reads this repository's latest published non-prerelease. Release **0.3.83** is the current Stable release; the `stable` branch and `v0.3.83-pjax-preview` tag identify its source commit. The previous 0.3.82 release remains available. Nightly reads only the dedicated `nightly` prerelease; old beta releases do not count as nightlies. Until a nightly is published, the checker says so. A nightly must carry one uploaded ZIP named `BroadWorks-Enhancer-PJAX-Preview-A.B.C.D-nightly.zip`, with a numeric manifest version matching its filename and greater than the build it replaces. Stable ZIP names and version tags remain unchanged. Switching channels does not install or downgrade anything.
 
-The checker is currently a development change synced to the local unpacked install. The published 0.3.82 ZIP is preserved; this feature will ship in the next versioned release. Updating an unpacked installation still requires extracting the downloaded ZIP into its folder, reloading the extension, and refreshing CommPilot after finishing unsaved work.
+The checker ships in 0.3.83. Users of the original 0.3.82 package must download 0.3.83 from GitHub to receive it. The published 0.3.82 ZIP is preserved. Updating an unpacked installation still requires extracting the downloaded ZIP into its folder, reloading the extension, and refreshing CommPilot after finishing unsaved work.
 
 ## Tests
 
-The [October 21–22 hardening report](docs/hardening-2026-10-22.md) describes the navigation/session, native-form, bulk, export, storage and performance changes, with revision-specific validation and remaining live-verification limits. These development changes retain version 0.3.82 and do not replace its published ZIP.
+The [October 21–22 hardening report](docs/hardening-2026-10-22.md) describes the navigation/session, native-form, bulk, export, storage and performance changes, with revision-specific validation and remaining live-verification limits. The report records the pre-release 0.3.82 audit checkpoint; the validated changes now ship in 0.3.83, without replacing the old 0.3.82 ZIP.
 
 Run `npm ci` and `npm test`. The tests load the extension in Chromium, exercise the prior enhancer cases, navigate through representative PJAX page families including deeper route patterns and an iframe drill-in, and test a reload recovery path. The shared theme was checked visually on live sandbox pages and at 1024px on the densest forms. The saved-login test checks ciphertext storage, the non-extractable browser key, correct and incorrect PINs, account selection, automatic sign-in, and removal. Firefox lint reports no errors; it still reports warnings for `innerHTML` assignments in the inherited PJAX code.
 

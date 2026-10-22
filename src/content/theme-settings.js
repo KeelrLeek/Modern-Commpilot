@@ -286,6 +286,12 @@
 
   // What is new in each version (About, in the Settings window). Plain text; the newest version first.
   const NEWS = {
+    "0.3.83": [
+      "Bulk creation supports saved group defaults, mixed personal-number and extension-only users, editable prefixes, and international numbers with country codes retained. Choose device profiles individually and configure voicemail, Webex device access and final Integrated IM&P setup where needed.",
+      "Settings now includes Stable and Nightly update channels, automatic checks, release notes and download instructions. Unpacked installations still require replacing files and reloading the extension after finishing unsaved work.",
+      "Improved session-token recovery, Back/Forward and refresh behavior, native validation and script initialization. Interrupted requests preserve drafts, and uncertain saves are not automatically repeated.",
+      "Hardened bulk verification, number searches, exports, saved sign-ins and asynchronous settings. Large batches and dropdowns do less repeated work, while result lists retain their complete final reveal and existing styling.",
+    ],
     "0.3.82": [
       "RSG Bulk create users guides you through users and department numbers, SIP passwords by department, and review. It sets up the primary VVX profile, Teams shared call appearance, alternate ID, and authentication, then checks the saved configuration.",
       "Choose number now lists only unassigned numbers in the selected department, excludes numbers already selected in the batch, and shows a retry action when the lookup fails.",

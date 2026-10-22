@@ -5,6 +5,12 @@ const os = require('node:os');
 const path = require('node:path');
 const {chromium} = require('playwright-core');
 const root = path.resolve(__dirname, '..');
+const installedVersion = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8')).version;
+const nextParts = installedVersion.split('.').map(Number);
+nextParts[2] += 1;
+const nextVersion = nextParts.slice(0, 3).join('.');
+const nightlyVersion = `${nextVersion}.1`;
+const stableDownload = `https://github.com/KeelrLeek/Modern-Commpilot/releases/download/v${nextVersion}-pjax-preview/BroadWorks-Enhancer-PJAX-Preview-${nextVersion}.zip`;
 const executablePath = ['C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
   'C:/Program Files/Google/Chrome/Application/chrome.exe'].find(fs.existsSync);
 const origin = 'https://apps-sbx.avpaas.io';
@@ -17,7 +23,7 @@ const html = `<!doctype html><html><head><title>Profile</title></head><body id="
 <form name="mainForm"><table><tr><td class="formLabel">First Name:</td><td><input value="Test"></td></tr></table>
 <button type="button">Apply</button></form></td></tr></table></body></html>`;
 const bootstrap = `
-globalThis.updateFixture = {stable:'0.3.82',nightly:null,mode:'normal',calls:[]};
+globalThis.updateFixture = {stable:${JSON.stringify(installedVersion)},nightly:null,mode:'normal',calls:[]};
 globalThis.fetch = async (url, options) => {
   if (!String(url).startsWith('https://api.github.com/repos/KeelrLeek/Modern-Commpilot/releases/')) throw Error('Unexpected network request');
   const fixture=globalThis.updateFixture;
@@ -83,10 +89,10 @@ test('Updates works inside Settings, isolates channels and errors, and matches s
       },{values,channel});
       await page.waitForFunction(()=>document.querySelector('.cp-updates').getAttribute('aria-busy')==='false');
     }
-    await scenario({stable:'0.3.83'});
+    await scenario({stable:nextVersion});
     await updates.getByRole('button',{name:'Check for updates',exact:true}).click();
-    await updates.getByText('Stable update available: 0.3.83',{exact:true}).waitFor();
-    assert.match(await updates.locator('.cp-update-download').getAttribute('href'),/\/v0\.3\.83-pjax-preview\/BroadWorks-Enhancer-PJAX-Preview-0\.3\.83\.zip$/);
+    await updates.getByText(`Stable update available: ${nextVersion}`,{exact:true}).waitFor();
+    assert.equal(await updates.locator('.cp-update-download').getAttribute('href'),stableDownload);
     await updates.locator('.cp-update-notes summary').click();
     assert.equal(await updates.locator('.cp-update-notes img').count(),0,'release notes are never HTML');
     assert.equal(await page.evaluate(()=>window.badNotes),undefined);
@@ -121,9 +127,9 @@ test('Updates works inside Settings, isolates channels and errors, and matches s
     await updates.getByRole('button',{name:'Check for updates',exact:true}).click();
     await updates.getByText('No nightly release has been published yet.',{exact:true}).waitFor();
     assert.equal(await updates.locator('.cp-update-download').isVisible(),false);
-    await scenario({nightly:'0.3.83.1'},'Nightly');
+    await scenario({nightly:nightlyVersion},'Nightly');
     await updates.getByRole('button',{name:'Check for updates',exact:true}).click();
-    await updates.getByText('Nightly update available: 0.3.83.1',{exact:true}).waitFor();
+    await updates.getByText(`Nightly update available: ${nightlyVersion}`,{exact:true}).waitFor();
     await scenario({mode:'offline'},'Nightly');
     await updates.getByRole('button',{name:'Check for updates',exact:true}).click();
     await updates.getByText('Could not reach GitHub. Check your connection and try again.',{exact:true}).waitFor();
@@ -140,11 +146,11 @@ test('Updates works inside Settings, isolates channels and errors, and matches s
       throw Error('Nightly request did not start');
     });
     await updates.locator('[value="stable"]').check();
-    await updates.getByText('Stable update available: 0.3.83',{exact:true}).waitFor();
+    await updates.getByText(`Stable update available: ${nextVersion}`,{exact:true}).waitFor();
     await worker.evaluate(()=>{globalThis.updateFixture.mode='normal';globalThis.updateFixture.finish()});
     await page.waitForFunction(()=>document.querySelector('.cp-updates').getAttribute('aria-busy')==='false');
     assert.equal(await updates.locator('[value="stable"]').isChecked(),true);
-    assert.match(await updates.locator('.cp-update-download').getAttribute('href'),/v0\.3\.83-pjax-preview/);
+    assert.equal(await updates.locator('.cp-update-download').getAttribute('href'),stableDownload);
 
     await page.setViewportSize({width:480,height:800});
     await panel.getByRole('button',{name:'Updates',exact:true}).click();
