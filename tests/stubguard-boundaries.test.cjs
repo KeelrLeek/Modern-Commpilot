@@ -5,10 +5,22 @@ const path = require('node:path');
 const { chromium } = require('playwright-core');
 const executablePath = ['C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
   'C:/Program Files/Google/Chrome/Application/chrome.exe'].find(fs.existsSync);
+const runtime = process.env.BW_TEST_EXTENSION_PATH || path.resolve(__dirname, '..');
 const origin = 'https://apps-sbx.avpaas.io';
 const home = '/commpilot/Common/folder_contents.jsp';
 const entry = '/commpilot/Group/Members/Modify/index.jsp';
 const destination = '/commpilot/User/Addresses/';
+
+// How CommPilot answers a signed-out session: its hard-coded http:// Login redirect, a 401, a redirect stub to
+// Login, or the sign-in form itself.
+function signedOut(route, shape) {
+  if (shape === 302) return route.fulfill({ status: 302, headers: { location: 'http://apps-sbx.avpaas.io/commpilot/Login/' }, body: '' });
+  if (shape === 401) return route.fulfill({ status: 401, body: 'Not signed in' });
+  if (shape === 'stub') return route.fulfill({ status: 200, contentType: 'text/html',
+    body: `<input name="formtokenserial" value="login-context"><script>redirectPost('/commpilot/Login/', {});</script>` });
+  return route.fulfill({ status: 200, contentType: 'text/html', body: '<html><head><title>Login</title></head><body>' +
+    '<form name="loginForm"><input name="UserID"><input type="password" name="password"></form></body></html>' });
+}
 
 async function fixture(nav, options = {}) {
   const browser = await chromium.launch({ executablePath, headless: true });
@@ -26,6 +38,8 @@ async function fixture(nav, options = {}) {
       began(); await held;
     }
     if (options.entryError && url.pathname === entry) return route.fulfill({ status: 500, body: 'Entity could not be loaded' });
+    if (options.expired && (url.pathname === '/commpilot/servlet/Login' || url.pathname === entry)) return signedOut(route, options.expired);
+    if (options.entrySignedOut && url.pathname === entry) return signedOut(route, options.entrySignedOut);
     if (url.pathname === '/commpilot/servlet/Login' && options.harvestError) {
       const attempts = requests.filter(r => r.url === origin + '/commpilot/servlet/Login').length;
       if (options.harvestError === 'network' || options.harvestError === 'transient' && attempts === 1) return route.abort('connectionreset');
@@ -47,7 +61,7 @@ async function fixture(nav, options = {}) {
       if (event.data?.__cpStubNavQuery) postMessage({ __cpStubNavReply: { token: 'stored', nav: bridgeNav || null } }, location.origin);
     });
   }, {nav, bridgeNav:options.bridgeNav});
-  await page.addScriptTag({ path: path.join(process.env.BW_TEST_EXTENSION_PATH||path.resolve(__dirname,'..'),'src/content/stubguard.js') });
+  await page.addScriptTag({ path: path.join(runtime, 'src/content/stubguard.js') });
   return { page, requests, errors, started, release, close: async () => { release(); await browser.close(); } };
 }
 
@@ -158,6 +172,48 @@ test('a failed entity restore pauses recovery instead of posting the final page 
   } finally { await f.close(); }
 });
 
+// Recovery either reaches sign-in, pauses, or posts the page (the fixture records native submissions).
+const recoveryOutcome = page => Promise.race([
+  page.waitForURL('**/commpilot/Login/').then(() => 'login'),
+  page.locator('#cp-recovery-error').waitFor().then(() => 'paused'),
+  page.waitForFunction(() => window.submissions?.length).then(() => 'posted')]);
+const requested = f => f.requests.map(r => r.method + ' ' + new URL(r.url).pathname);
+const savedReturn = page => page.evaluate(() => ({ nav: JSON.parse(sessionStorage.getItem('cp-last-nav') || 'null'),
+  replayAt: sessionStorage.getItem('cp-replay-at'), reloadNav: sessionStorage.getItem('cp-reload-nav'),
+  manualLogoutAt: sessionStorage.getItem('bwManualLogoutAt') }));
+
+for (const shape of [302, 401, 'form'])
+test(`an expired session on a saved user’s page goes to sign-in without posting and keeps its return: ${shape}`, async () => {
+  const f = await fixture({ url: destination, entry: { url: entry, params: { key: 'SP>%Group>%User' } } }, { expired: shape });
+  try {
+    assert.equal(await recoveryOutcome(f.page), 'login');
+    assert.deepEqual(requested(f), ['GET /commpilot/Common/styles.css', 'GET /commpilot/servlet/Login', 'GET /commpilot/Login/'],
+      'no user/group POST is sent with a token the server already rejected');
+    const saved = await savedReturn(f.page);
+    assert.equal(saved.nav?.url, destination, 'the sign-in can still reopen the page');
+    assert.equal(saved.nav?.entry?.url, entry);
+    assert.equal(saved.replayAt, null);
+    assert.equal(saved.manualLogoutAt, null, 'an expired session does not hold the automatic saved sign-in');
+    assert.deepEqual(f.errors, []);
+  } finally { await f.close(); }
+});
+
+for (const shape of [302, 'stub', 'form'])
+test(`a user restore that CommPilot answers with sign-in goes to Login instead of pausing: ${shape}`, async () => {
+  const f = await fixture({ url: destination, entry: { url: entry, params: { key: 'SP>%Group>%User' } } }, { entrySignedOut: shape });
+  try {
+    assert.equal(await recoveryOutcome(f.page), 'login');
+    assert.deepEqual(requested(f), ['GET /commpilot/Common/styles.css', 'GET /commpilot/servlet/Login',
+      'POST ' + entry, 'GET /commpilot/Login/'], 'the destination is never posted in an unknown context');
+    const saved = await savedReturn(f.page);
+    assert.equal(saved.nav?.entry?.url, entry);
+    assert.equal(saved.replayAt, null);
+    assert.equal(saved.reloadNav, null);
+    assert.equal(saved.manualLogoutAt, null);
+    assert.deepEqual(f.errors, []);
+  } finally { await f.close(); }
+});
+
 for (const mode of ['entity', 'server', 'storage-unavailable'])
 test(`paused recovery offers a direct login escape without replaying the failed page: ${mode}`, async () => {
   const f = await fixture({ url: destination, entry: { url: entry, params: { key: 'fixture-user' } } },
@@ -205,17 +261,37 @@ for (const slow of ['harvest', 'entry']) test(`a hung ${slow} pauses recovery wi
   } finally { await f.close(); }
 });
 
+// The stylesheets the extension injects into the recovery interstitial, read from manifest.json so the style
+// checks see what users see (skin.css, for one, is no longer loaded).
+function interstitialCss() {
+  const page = origin + '/commpilot/Common/styles.css';
+  const covers = glob => new RegExp('^' + glob.split('*').map(part => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$').test(page);
+  return JSON.parse(fs.readFileSync(path.join(runtime, 'manifest.json'), 'utf8')).content_scripts
+    .filter(script => script.matches.some(covers) && !(script.exclude_matches || []).some(covers))
+    .flatMap(script => script.css || []);
+}
+
 test('recovery pause uses the shared font and palette and Retry reloads without resending a form', async () => {
   const f = await fixture({ url: destination, entry: { url: entry } }, { entryError: true });
   try {
     await f.page.locator('#cp-recovery-error').waitFor();
-    for (const file of ['skin.css', 'theme-palettes.css', 'page-baseline.css'])
-      await f.page.addStyleTag({ path: path.resolve(__dirname, '../src/content', file) });
+    const css = interstitialCss();
+    assert.ok(css.includes('src/content/theme-palettes.css') && css.includes('src/content/page-baseline.css'));
+    for (const file of css) await f.page.addStyleTag({ path: path.join(runtime, file) });
     await f.page.evaluate(() => {
       window.chrome = { runtime: { getURL: file => location.origin + '/' + file } };
       document.documentElement.dataset.cpFont = 'arial';
     });
-    await f.page.addScriptTag({ path: path.resolve(__dirname, '../src/content/fonts.js') });
+    await f.page.addScriptTag({ path: path.join(runtime, 'src/content/fonts.js') });
+    const retry = f.page.getByRole('button', { name: 'Retry recovery', exact: true });
+    const login = f.page.getByRole('button', { name: 'Go to login', exact: true });
+    assert.equal(await f.page.locator('#cp-recovery-error button').count(), 2);
+    const look = button => button.evaluate(element => {
+      const s = getComputedStyle(element);
+      return { font: s.fontFamily, size: s.fontSize, weight: s.fontWeight, fontStyle: s.fontStyle, lineHeight: s.lineHeight,
+        padding: s.padding, radius: s.borderRadius, border: [s.borderStyle, s.borderWidth, s.borderColor].join(' '),
+        color: s.color, background: s.backgroundColor };
+    });
     for (const palette of ['atlas', 'graphite']) {
       await f.page.evaluate(palette => {
         document.documentElement.dataset.cpDirection = palette;
@@ -224,39 +300,28 @@ test('recovery pause uses the shared font and palette and Retry reloads without 
       await f.page.waitForFunction(() => document.querySelector('#cp-recovery-error')
         .getAnimations({ subtree: true }).every(animation => animation.playState !== 'running'));
       const style = await f.page.evaluate(() => {
-        const panel = document.querySelector('#cp-recovery-error'), button = panel.querySelector('button');
-        const login = getComputedStyle(panel.querySelector('button:last-child'));
+        const panel = document.querySelector('#cp-recovery-error');
         const body = getComputedStyle(document.body), text = getComputedStyle(panel.querySelector('.cp-alert-body'));
-        return { bodyFont: body.fontFamily, textFont: text.fontFamily, buttonFont: getComputedStyle(button).fontFamily,
+        return { bodyFont: body.fontFamily, textFont: text.fontFamily,
+          titleFont: getComputedStyle(panel.querySelector('.cp-alert-title')).fontFamily,
           canvas: getComputedStyle(document.documentElement).backgroundColor, bodyBackground: body.backgroundColor,
-          buttonColor: getComputedStyle(button).color, buttonBackground: getComputedStyle(button).backgroundColor,
-          buttonSize: getComputedStyle(button).fontSize, buttonWeight: getComputedStyle(button).fontWeight,
-          loginFont: login.fontFamily, loginSize: login.fontSize, loginWeight: login.fontWeight,
-          loginColor: login.color, loginBackground: login.backgroundColor,
           background: getComputedStyle(panel).backgroundColor, color: text.color,
-          titleSize: getComputedStyle(panel.querySelector('.cp-alert-title')).fontSize,
-          textSize: text.fontSize, overflow: document.documentElement.scrollWidth > innerWidth };
+          overflow: document.documentElement.scrollWidth > innerWidth };
       });
+      const button = await look(retry);
       assert.match(style.bodyFont, /Arial/);
       assert.equal(style.textFont, style.bodyFont);
-      assert.equal(style.buttonFont, style.bodyFont);
-      assert.equal(style.buttonSize, '12.5px');
-      assert.equal(style.buttonWeight, '700');
-      assert.equal(style.loginFont, style.buttonFont);
-      assert.equal(style.loginSize, style.buttonSize);
-      assert.equal(style.loginWeight, style.buttonWeight);
-      assert.equal(style.loginColor, style.buttonColor);
-      assert.equal(style.loginBackground, style.buttonBackground);
+      assert.equal(style.titleFont, style.bodyFont);
+      assert.equal(button.font, style.bodyFont);
+      assert.deepEqual(await look(login), button, 'Go to login is the same control as Retry');
       assert.equal(style.canvas, style.bodyBackground, 'scrollbar gutters match the recovery page palette');
-      assert.equal(style.titleSize, '14px');
-      assert.equal(style.textSize, '13px');
       assert.notEqual(style.background, style.color);
       const luminance = rgb => rgb.match(/[\d.]+/g).slice(0, 3).map(Number).map(n => n / 255)
         .map(n => n <= .04045 ? n / 12.92 : ((n + .055) / 1.055) ** 2.4)
         .reduce((sum, n, i) => sum + n * [.2126, .7152, .0722][i], 0);
-      const ink = luminance(style.buttonColor), paper = luminance(style.buttonBackground);
+      const ink = luminance(button.color), paper = luminance(button.background);
       assert.ok((Math.max(ink, paper) + .05) / (Math.min(ink, paper) + .05) >= 4.5,
-        `Retry text stays readable: ${palette}, ${style.buttonColor} on ${style.buttonBackground}`);
+        `Retry text stays readable: ${palette}, ${button.color} on ${button.background}`);
       assert.equal(style.overflow, false);
       await f.page.screenshot({ path: path.resolve(__dirname, '../dev-preview/overnight-hardening-2026-10-21/recovery-pause-' + palette + '.png') });
     }

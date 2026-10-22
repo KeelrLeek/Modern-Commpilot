@@ -20,8 +20,10 @@ test('saved sign-ins: Continue as rows, a PIN box, Manage to add and remove, and
       executablePath: edge,
       headless: true,
       viewport: { width: 1200, height: 850 },
-      args: [`--disable-extensions-except=${root}`, `--load-extension=${root}`]
+      // The resolver keeps anything unrouted, the update check included, off the network.
+      args: [`--disable-extensions-except=${root}`, `--load-extension=${root}`, '--host-resolver-rules=MAP * ~NOTFOUND']
     });
+    await context.route('https://**/*', route => route.abort('blockedbyclient'));
     await context.route(origin + '/commpilot/Login/', route => route.fulfill({
       contentType: 'text/html',
       body: `<!doctype html><body id="loginBody"><form name="loginForm">
@@ -93,6 +95,21 @@ test('saved sign-ins: Continue as rows, a PIN box, Manage to add and remove, and
     await page.getByRole('button', { name: `Remove ${pinUser}` }).waitFor({ state: 'detached' });
     // The only one left signs in by itself when the page opens.
     await page.reload();
+    await page.waitForFunction(name => window.submitted?.user === name, autoUser);
+    // A sign-out (or Go to login from a paused recovery) holds it for a minute, so the explicit choice is not undone.
+    const reopen = async manualLogoutAgo => {
+      await page.evaluate(ago => {
+        sessionStorage.removeItem('bwAutoLoginAttempt');
+        sessionStorage.setItem('bwManualLogoutAt', String(Date.now() - ago));
+      }, manualLogoutAgo);
+      await page.reload();
+    };
+    await reopen(0);
+    // The rows and the automatic decision come from the same vault answer.
+    await page.getByRole('button', { name: `Continue as ${autoUser}` }).waitFor();
+    await page.waitForTimeout(1500);
+    assert.equal(await page.evaluate(() => window.submitted || null), null, 'a recent sign-out waits for a choice');
+    await reopen(61000);
     await page.waitForFunction(name => window.submitted?.user === name, autoUser);
   } finally {
     await context?.close();

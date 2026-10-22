@@ -211,8 +211,9 @@
     try { sessionStorage.setItem("cp-replay-at", String(Date.now())); } catch (e) {}
     // FETCH-VERIFY: harvest a fresh token first, then native-POST with it. A native POST of a possibly-stale
     // STORED token is the recovery-flakiness root (→ 200 login-redirect). If the harvest yields a fresh token we
-    // commit with that. A settled unauthenticated response keeps the native expiry fallback. A request still pending
-    // at the deadline must stop recovery instead: it may rotate the token after a fallback POST has started.
+    // commit with that. A settled unauthenticated response keeps the native expiry fallback, or goes straight to sign-in
+    // when a saved entity entry would have to be POSTed first. A request still pending at the deadline must stop
+    // recovery instead: it may rotate the token after a fallback POST has started.
     var committed = false, stopped = false;
     var harvestController = new AbortController();
     var harvestTimeout;
@@ -228,6 +229,9 @@
     // scoped nav alone answers "There is no target object to get viewable features" → 500s or a logout (live
     // repro: F5 on an SP Schedules grid, 2026-07-04). nav.entry = the nav that last CHANGED the sidebar level
     // (recorded by pjax): POST it in the background first and thread ITS fresh token into the final POST.
+    // SIGNED_OUT keeps CommPilot's sign-out bounce apart from a failed entity read (null): Retry cannot revive an
+    // expired session, so it goes to sign-in like a page without a saved entry.
+    var SIGNED_OUT = {};
     function cpEnterEntity(entry, tok) {
       var controller = new AbortController();
       var timeout = setTimeout(function () { controller.abort(); }, 12000);
@@ -243,17 +247,31 @@
         signal: controller.signal,
         body: body.join("&")
       }).then(function (r) {
-        if (r.type === "opaqueredirect" || r.status === 0 || r.status >= 300) return null;
+        // redirect:"manual" — a 3xx (opaqueredirect) or 401 is the session bounce; other HTTP failures are server errors.
+        if (r.type === "opaqueredirect" || r.status === 0 || r.status === 401 || r.status >= 300 && r.status < 400) return SIGNED_OUT;
+        if (r.status >= 400) return null;
         return r.text();
       }).then(function (html) {
+        if (html === SIGNED_OUT) return SIGNED_OUT;
         if (!html) return null;
         var doc = new DOMParser().parseFromString(cpStripInlineStyles(html), "text/html");
         var t = doc.getElementsByName("formtokenserial")[0];
         if (t && t.value && doc.querySelector('td[width="82%"]')) return t.value;
+        if (cpIsSignInDocument(doc)) return SIGNED_OUT;
         // A drill entry may answer with a redirect stub (context set + follow-on hop) — its token works too.
+        // A stub back to Login is the same sign-out bounce.
         var stub = extractStub(doc);
-        return (stub && stub.token && recoveryNav({url:new URL(stub.target, new URL(entry.url, location.href)).href,params:stub.data}, true)) ? stub.token : null;
+        var target = stub && new URL(stub.target, new URL(entry.url, location.href));
+        if (target && /^\/commpilot\/Login(?:\/|$)/i.test(target.pathname)) return SIGNED_OUT;
+        return (stub && stub.token && recoveryNav({url:target.href,params:stub.data}, true)) ? stub.token : null;
       }).catch(function () { return null; }).finally(function () { clearTimeout(timeout); });
+    }
+    // Leave cp-last-nav in place: pjax's Login hook arms cp-pending-return and cpReturnReachable decides whether
+    // the page reopens after sign-in. An expiry is not an explicit sign-out, so bwManualLogoutAt stays unset.
+    function signedOut(why) {
+      cpDbg("[stubguard] recovery replay — " + why + " → Login");
+      try { sessionStorage.removeItem("cp-replay-at"); sessionStorage.removeItem("cp-reload-nav"); } catch (e) {}
+      location.replace(LOGIN);
     }
     function commit(tok, why, home) {
       if (committed || stopped) return; committed = true;
@@ -271,7 +289,8 @@
       if (entry && entry.url && entry.url !== nav.url && !/^https?:\/\//i.test(entry.url)) {
         cpDbg("[stubguard] recovery replay — " + why + " + entity re-entry first: " + entry.url);
         cpEnterEntity(entry, tok).then(function (etok) {
-          if (etok) cpNativePost(nav, etok);
+          if (etok === SIGNED_OUT) signedOut("entity entry answered with sign-in");
+          else if (etok) cpNativePost(nav, etok);
           else recoveryFailed('CommPilot could not restore the selected user or group. The destination was not opened. Wait a moment, then retry recovery.');
         });
         return;
@@ -281,7 +300,16 @@
     }
     try {
       cpHarvestToken(harvestController.signal).then(
-        function (fresh) { commit(fresh ? fresh.token : token, fresh ? "fresh token harvested" : "harvest empty → stored token", fresh && fresh.home); },
+        function (fresh) {
+          // Signed out: re-entering the saved service provider, group or user could only bounce. Send no POST.
+          if (!fresh && nav.entry && nav.entry.url && nav.entry.url !== nav.url) {
+            if (committed || stopped) return; committed = true;
+            clearTimeout(harvestTimeout);
+            signedOut("session expired");
+            return;
+          }
+          commit(fresh ? fresh.token : token, fresh ? "fresh token harvested" : "harvest empty → stored token", fresh && fresh.home);
+        },
         function () { stopRecovery('CommPilot could not refresh this session. Recovery stopped before reopening your last page. Wait a moment, then retry recovery.'); }
       );
     } catch (e) { stopRecovery('CommPilot could not refresh this session. Wait a moment, then retry recovery.'); }
@@ -303,6 +331,13 @@
     while ((mm = re.exec(m[2]))) data[mm[1]] = mm[2];
     var tEl = doc.getElementsByName("formtokenserial")[0];
     return { target: m[1].replace(/\\u002F/g, "/"), data: data, token: tEl ? tEl.value : null };
+  }
+  // CommPilot's sign-in page in place of app content. Same test as pjax.js cpIsSignInDocument (separate MAIN-world script).
+  function cpIsSignInDocument(doc) {
+    if (!doc || doc.querySelector('td[width="82%"]')) return false;
+    return /^(?:CommPilot\s*[-:]?\s*)?(?:Login|Log in|Sign in)$/i.test((doc.title || '').trim()) ||
+      /Please login again|not authorized to access the system/i.test(doc.body && doc.body.textContent || '') ||
+      !!doc.querySelector('form[action*="Login"] input[type="password"], form[action*="login"] input[type="password"]');
   }
 
   // Native login and logout remain under CommPilot control.
