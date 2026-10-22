@@ -46,6 +46,11 @@
       if (link.style.getPropertyValue("--cp-nav-icon") !== url) {
         link.style.setProperty("--cp-nav-icon", url);
       }
+      // CommPilot's folder links have no href, so the keyboard would skip them; Enter presses them (keydown below).
+      if (!link.hasAttribute("href") && !link.hasAttribute("tabindex")) {
+        link.tabIndex = 0;
+        link.setAttribute("role", "link");
+      }
     }
     document.dispatchEvent(new Event("cp:navigation-decorated"));
   }
@@ -61,4 +66,10 @@
   }
   document.addEventListener("cp:reskin", schedule);
   document.addEventListener("cp:morphed", schedule);
+  // Enter on a focused folder runs its click, so pjax.js and CommPilot handle it as they do a pointer's.
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Enter" || !event.target.matches?.('form[name="leftNavForm"] :is(a.leftnavfolder, a.leftnavfolderopen)[role="link"]:not([href])')) return;
+    event.preventDefault();
+    event.target.click();
+  });
 })();

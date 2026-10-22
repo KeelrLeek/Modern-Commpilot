@@ -81,6 +81,9 @@ test('the breadcrumb is the alpha pill trail, built from CommPilot’s own links
         inCell: bar.closest('td') === document.getElementById('crumbs'),
         pills: [...bar.children].filter(el => !el.matches('.cp-bc-lead, .cp-bc-sep') && shown(el)).map(el => el.textContent.trim()),
         arrows: [...bar.querySelectorAll('.cp-bc-sep')].filter(shown).length,
+        // Where the arrows are, not only how many: each pill after the first has its own arrow right before it.
+        placed: [...bar.children].filter(el => el.matches('a.headerAuthLevelLink, span.headerAuthLevel, button.cp-page-pill') && shown(el))
+          .every((el, i) => !i || el.previousElementSibling?.matches('.cp-bc-sep')),
         current: bar.querySelector('.cp-bc-cur')?.textContent.trim(),
         lead: !!bar.querySelector('.cp-bc-lead svg'),
         separatorsHidden: getComputedStyle(document.getElementById('crumbs')).fontSize === '0px',
@@ -95,6 +98,7 @@ test('the breadcrumb is the alpha pill trail, built from CommPilot’s own links
     assert.deepEqual(first.pills, ['Reseller', 'Trifecta_Sandbox_SP', 'Trifecta_Sandbox_Group', 'TriSandbox1002'],
       'the Users list link only repeats the user’s id, as in the alpha');
     assert.equal(first.arrows, 3);
+    assert.equal(first.placed, true);
     assert.equal(first.current, 'TriSandbox1002');
     assert.equal(first.idCase, 'none', 'an id keeps its own case');
     assert.ok(first.inCell && first.lead && first.separatorsHidden);
@@ -102,6 +106,17 @@ test('the breadcrumb is the alpha pill trail, built from CommPilot’s own links
 
     await page.locator('#lvl-group').click();
     assert.deepEqual(await page.evaluate(() => window.clicked), ['group'], 'a level still runs CommPilot’s own click');
+    // CommPilot's level links have no href. Tab still reaches each level, and Enter runs the same click.
+    await page.locator('#crumbs .cp-bc-lead').focus();
+    const tabbed = [];
+    for (let i = 0; i < 3; i++) {
+      await page.keyboard.press('Tab');
+      tabbed.push(await page.evaluate(() => document.activeElement.textContent.trim()));
+    }
+    assert.deepEqual(tabbed, ['Reseller', 'Trifecta_Sandbox_SP', 'Trifecta_Sandbox_Group']);
+    assert.equal(await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle), 'solid', 'the trail’s own focus ring');
+    await page.keyboard.press('Enter');
+    assert.deepEqual(await page.evaluate(() => window.clicked), ['group', 'group'], 'Enter presses a level once');
 
     // pjax.js adds the page pill after the page opens: it becomes the current place.
     await page.evaluate(() => {
@@ -113,11 +128,16 @@ test('the breadcrumb is the alpha pill trail, built from CommPilot’s own links
     await page.waitForFunction(() => document.querySelector('#crumbs .cp-bc-cur')?.textContent.trim() === 'Profile');
     assert.deepEqual((await read()).pills.slice(-2), ['TriSandbox1002', 'Profile']);
     assert.equal((await read()).arrows, 4, 'a page pill inserted into an existing trail gets its own arrow');
+    assert.equal((await read()).placed, true);
 
-    // PJAX removes and reinserts page pills without replacing the level links.
+    // PJAX removes and reinserts page pills without replacing the level links. A keyboard user on the trail keeps
+    // their place: the Recent locations button is the same button after the trail is rebuilt.
+    const lead = await page.locator('#crumbs .cp-bc-lead').elementHandle();
+    await lead.focus();
     await page.evaluate(() => document.querySelector('#crumbs .cp-page-pill').remove());
     await page.waitForFunction(() => document.querySelector('#crumbs .cp-bc-cur')?.textContent.trim() === 'TriSandbox1002');
     assert.equal((await read()).arrows, 3, 'removing a page pill leaves no trailing arrow');
+    assert.equal((await read()).placed, true);
     await page.evaluate(() => {
       const pill = document.createElement('button');
       pill.type = 'button'; pill.className = 'cp-page-pill'; pill.textContent = 'Identity/Device Profiles';
@@ -125,6 +145,9 @@ test('the breadcrumb is the alpha pill trail, built from CommPilot’s own links
     });
     await page.waitForFunction(() => document.querySelector('#crumbs .cp-bc-cur')?.textContent.trim() === 'Identity/Device Profiles');
     assert.equal((await read()).arrows, 4, 'repeated page insertion repairs the separator');
+    assert.equal((await read()).placed, true);
+    assert.equal(await lead.evaluate(el => el.isConnected && document.activeElement === el), true,
+      'a trail rebuild keeps keyboard focus on the Recent locations button');
 
     // pjax.js rewrites the header for the next page: the trail follows.
     await page.evaluate(html => { document.getElementById('crumbs').innerHTML = html; }, trail('Other_Group').replace(/ &gt;&nbsp;<a class="headerAuthLevelLink">Users<\/a> :<span[^>]*> TriSandbox1002<\/span>/, ''));
@@ -250,6 +273,28 @@ test('the user-id pill copies the id, and the extension chip joined to it copies
     await page.locator('#crumbs button.cp-copy-id').click();
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), 'TriSandbox1002');
 
+    // pjax.js's page pill on each page: every old pill removed, the new one put right after the id in the same task,
+    // ahead of the chips. Done twice, the arrow count stays the same and only the arrows' places show the change.
+    for (const label of ['Profile', 'Addresses']) {
+      await page.evaluate(label => {
+        document.querySelectorAll('.cp-page-pill').forEach(pill => pill.remove());
+        const pill = document.createElement('button');
+        pill.type = 'button'; pill.className = 'cp-page-pill'; pill.innerHTML = '<span></span>';
+        pill.firstChild.textContent = label;
+        const id = document.querySelector('#crumbs span.headerAuthLevel');
+        id.parentNode.insertBefore(pill, id.nextSibling);
+      }, label);
+      await page.waitForFunction(label => document.querySelector('#crumbs .cp-bc-cur')?.textContent.trim() === label, label);
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      assert.deepEqual(await page.evaluate(() => {
+        const bar = document.querySelector('#crumbs .cp-bc'), pill = bar.querySelector('.cp-page-pill');
+        const id = bar.querySelector('span.headerAuthLevel');
+        return { arrowBefore: !!pill.previousElementSibling?.matches('.cp-bc-sep'), last: bar.lastElementChild === pill,
+          chipsOnId: id.nextElementSibling === bar.querySelector('.cp-ext-chip') &&
+            bar.querySelector('.cp-ext-chip').nextElementSibling === bar.querySelector('.cp-num-chip') };
+      }), { arrowBefore: true, last: true, chipsOnId: true }, `${label}: the page pill has its arrow, and no arrow trails it`);
+    }
+
     // pjax.js rewrites the header on the user's next page: the extension comes from the session's memory.
     await page.evaluate(html => { document.getElementById('crumbs').innerHTML = html; }, trail());
     await page.waitForFunction(() => document.querySelector('#crumbs .cp-bc .cp-ext-chip')?.textContent.includes('1002'));
@@ -297,5 +342,90 @@ test('the user-id pill copies the id, and the extension chip joined to it copies
     await mark('done', '0040', '2244830040');
     await page.waitForFunction(() => document.querySelector('#crumbs .cp-num-chip')?.textContent.trim() === '224-483-0040' &&
       document.querySelector('#crumbs .cp-ext-chip').textContent.includes('0040'));
+  } finally { await browser.close(); }
+});
+
+// A narrow window folds the trail into "…". The arrow before "…" is fit()'s own; if the rebuild check counted it, the
+// folded trail would be rebuilt on every frame and the "…" pill made again each time.
+const narrowShell = shell.replace('<table><tr><td class="headerBar" id="crumbs">', '<table width="100%"><tr><td class="headerBar" id="crumbs">');
+
+test('a folded trail stays still once it fits', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 520, height: 600 } });
+    await page.route('https://apps-sbx.avpaas.io/**', route => route.fulfill({ status: 200, contentType: 'text/html', body: narrowShell }));
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/User/Profile/', { waitUntil: 'domcontentloaded' });
+    for (const file of ['native-theme.css', 'theme-palettes.css', 'menu-board.css', 'page-baseline.css'])
+      await page.addStyleTag({ path: path.join(root, 'src/content', file) });
+    await page.evaluate(() => {
+      window.rebuilds = 0; window.records = 0;
+      const replace = Element.prototype.replaceChildren;
+      Element.prototype.replaceChildren = function (...nodes) { if (this.classList.contains('cp-bc')) window.rebuilds++; return replace.apply(this, nodes); };
+      new MutationObserver(list => { window.records += list.length; }).observe(document.getElementById('crumbs'), { childList: true, subtree: true });
+      const pill = document.createElement('button');
+      pill.type = 'button'; pill.className = 'cp-page-pill'; pill.innerHTML = '<span>Call Forwarding Always</span>';
+      const id = document.querySelector('#crumbs span.headerAuthLevel');
+      id.parentNode.insertBefore(pill, id.nextSibling);
+    });
+    for (const file of ['enhancer.js', 'crumbs.js']) await page.addScriptTag({ path: path.join(root, 'src/content', file) });
+    await page.locator('#crumbs button.cp-bc-more').waitFor();
+    const frames = n => page.evaluate(n => new Promise(resolve => { const step = () => (n-- > 0 ? requestAnimationFrame(step) : resolve()); step(); }), n);
+    await frames(10);
+    await page.evaluate(() => { window.rebuilds = 0; window.records = 0; });
+    await frames(30);
+    assert.deepEqual(await page.evaluate(() => ({ rebuilds: window.rebuilds, records: window.records,
+      more: getComputedStyle(document.querySelector('#crumbs button.cp-bc-more')).display !== 'none' })),
+    { rebuilds: 0, records: 0, more: true }, 'a folded trail is not rebuilt again while nothing changes');
+  } finally { await browser.close(); }
+});
+
+test('the trail’s lists stay open while a board fills in, and close when the trail is replaced', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 520, height: 600 } });
+    await page.route('https://apps-sbx.avpaas.io/**', route => route.fulfill({ status: 200, contentType: 'text/html', body: narrowShell }));
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/User/Profile/', { waitUntil: 'domcontentloaded' });
+    for (const file of ['native-theme.css', 'theme-palettes.css', 'menu-board.css'])
+      await page.addStyleTag({ path: path.join(root, 'src/content', file) });
+    await page.addScriptTag({ path: path.join(root, 'src/content/crumbs.js') });
+    const state = () => page.evaluate(() => ({
+      history: document.getElementById('cp-bc-history-menu')?.hidden === false,
+      more: document.getElementById('cp-bc-more-menu')?.hidden === false,
+      focusIn: ['cp-bc-history-menu', 'cp-bc-more-menu'].find(id => document.getElementById(id)?.contains(document.activeElement)) || document.activeElement.tagName,
+    }));
+    const settle = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    // Each board section that lands is announced as cp:reskin; the header and its trail stay as they are.
+    const sectionLands = () => page.evaluate(() => document.dispatchEvent(new Event('cp:reskin')));
+    // The next page: pjax.js rewrites the trail cell, then announces it.
+    const nextPage = () => page.evaluate(html => {
+      document.getElementById('crumbs').innerHTML = html;
+      document.dispatchEvent(new Event('cp:reskin'));
+    }, trail('Other_Group'));
+
+    await page.locator('#crumbs button.cp-bc-history').focus();
+    await page.keyboard.press('ArrowDown');
+    assert.deepEqual(await state(), { history: true, more: false, focusIn: 'cp-bc-history-menu' });
+    await sectionLands();
+    await settle();
+    assert.deepEqual(await state(), { history: true, more: false, focusIn: 'cp-bc-history-menu' },
+      'Recent locations stays open, with focus in it, while the board fills in');
+    await page.keyboard.press('Escape');
+
+    await page.locator('#crumbs button.cp-bc-more').click();
+    assert.deepEqual(await state(), { history: false, more: true, focusIn: 'cp-bc-more-menu' });
+    await sectionLands();
+    await settle();
+    assert.deepEqual(await state(), { history: false, more: true, focusIn: 'cp-bc-more-menu' }, 'the "…" list stays open too');
+    await nextPage();
+    await settle();
+    assert.equal((await state()).more, false, 'the "…" list closes with the trail that opened it');
+
+    await page.locator('#crumbs button.cp-bc-history').click();
+    assert.equal((await state()).history, true);
+    await nextPage();
+    await settle();
+    assert.equal((await state()).history, false, 'Recent locations closes on the next page');
   } finally { await browser.close(); }
 });

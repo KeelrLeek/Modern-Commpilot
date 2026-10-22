@@ -159,3 +159,32 @@ test('the sidebar: a quiet list under a Menu header that folds it to icons, the 
     assert.deepEqual(narrow.out, [], 'nothing cut off at the sidebar’s edge');
   } finally { await browser.close(); }
 });
+
+test('the sidebar folders take keyboard focus without an href, and Enter presses them', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const tab = await open(browser, 1400, 800);
+    await tab.locator('.cp-side-toggle').waitFor();
+    // Live CommPilot folder links have no href, so the browser leaves them out of the Tab order.
+    await tab.evaluate(() => {
+      window.pressed = [];
+      for (const link of document.querySelectorAll('form[name="leftNavForm"] a')) {
+        link.removeAttribute('href');
+        link.addEventListener('click', () => window.pressed.push(link.textContent.trim()));
+      }
+      document.dispatchEvent(new Event('cp:reskin'));
+    });
+    await tab.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await tab.locator('.cp-side-toggle').focus();
+    const reached = [];
+    for (let i = 0; i < 3; i++) {
+      await tab.keyboard.press('Tab');
+      reached.push(await tab.evaluate(() => document.activeElement.textContent.trim()));
+    }
+    assert.deepEqual(reached, ['Profile', 'Incoming Calls', 'Outgoing Calls'], 'Tab walks the folders in order');
+    assert.equal(await tab.evaluate(() => getComputedStyle(document.activeElement).outlineStyle), 'solid', 'the sidebar’s own focus ring');
+    await tab.keyboard.press('Enter');
+    assert.deepEqual(await tab.evaluate(() => window.pressed), ['Outgoing Calls'], 'Enter presses the folder once');
+  } finally { await browser.close(); }
+});

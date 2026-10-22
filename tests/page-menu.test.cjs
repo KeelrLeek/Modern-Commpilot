@@ -78,6 +78,53 @@ function shell(body, title) {
     <script>window.redirectPost=function(){};</script></body></html>`;
 }
 
+test('a level menu closes when Back replaces the pill that opened it, and stays open while a board fills in', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const req = route.request(), pathname = new URL(req.url()).pathname, params = new URLSearchParams(req.postData() || '');
+      if (pathname === folderPath) return route.fulfill({ contentType: 'text/html', body: shell(menus[params.get('folder') || 'R0'], 'Profile') });
+      const title = pathname.split('/').filter(Boolean).pop();
+      return route.fulfill({ contentType: 'text/html', body: shell(`<h1>${title}</h1>`, title) });
+    });
+    await page.goto('https://apps-sbx.avpaas.io' + folderPath, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: path.join(root, 'src/content/pjax.js') });
+    const caret = page.locator('td.headerBar span.headerAuthLevel[data-cp-crumb-menu]');
+    const levelMenu = page.locator('.cp-page-menu');
+    const board = folder => page.evaluate(folder => window.redirectPost('/commpilot/Common/folder_contents.jsp', { folder, menuId: '8' }), folder);
+    const boardShown = () => page.waitForFunction(() => location.pathname === '/commpilot/Common/folder_contents.jsp' &&
+      document.querySelectorAll('.cp-console-body[data-cp-loaded="1"]').length === 2 &&
+      document.querySelector('td.headerBar span.headerAuthLevel[data-cp-crumb-menu]'));
+    await caret.waitFor();
+    // Two boards in history: the ⌄ menu of the newer one is open when the browser goes Back to the older one.
+    await board('R1');
+    await page.waitForFunction(() => history.state?.cpNav?.params?.folder === 'R1');
+    await boardShown();
+    await board('R0');
+    await page.waitForFunction(() => history.state?.cpNav?.params?.folder === 'R0');
+    await boardShown();
+    await caret.click();
+    await levelMenu.waitFor();
+    // A board section landing announces cp:reskin without touching the trail: the menu stays.
+    await page.evaluate(() => document.dispatchEvent(new Event('cp:reskin')));
+    assert.equal(await levelMenu.count(), 1, 'a reskin that leaves the pill in place keeps the menu open');
+    await page.evaluate(() => history.back());
+    await page.waitForFunction(() => history.state?.cpNav?.params?.folder === 'R1');
+    await boardShown();
+    assert.equal(await levelMenu.count(), 0, 'Back to another board closes the previous board’s menu');
+    // A page of the level: its pill's menu is open when the browser goes Back to the board.
+    await page.evaluate(() => window.redirectPost('/commpilot/Reseller/Domains/', {}));
+    await page.waitForFunction(() => location.pathname === '/commpilot/Reseller/Domains/');
+    await page.locator('.cp-page-pill').click();
+    await levelMenu.waitFor();
+    await page.evaluate(() => history.back());
+    await boardShown();
+    assert.equal(await levelMenu.count(), 0, 'Back from a page to its board closes the page’s menu');
+  } finally { await browser.close(); }
+});
+
 test('a board’s options become a breadcrumb menu: a ⌄ on the board’s last pill, and the page pill on the level’s other pages', async () => {
   assert.ok(browserPath, 'Edge or Chrome is required');
   const browser = await chromium.launch({ executablePath: browserPath, headless: true });

@@ -5935,6 +5935,7 @@
               if (cpAutoReplaceUrl === url) cpAutoReplaceUrl = null;
               cpContextNavEnd(_contextNav);
               if (_contextNav) cpRecentRecord();
+              cpStoppedBoardRetry();   // a failed option that stopped a filling board leaves that board usable
             }
           };
           var loadPage;
@@ -9276,23 +9277,56 @@
             if (done) done();
             return;
           }
-          var retryBtn = document.createElement("button");
-          retryBtn.textContent = "Couldn’t load — Retry";
-          retryBtn.style.cssText = "background:none;border:1px solid var(--cp-border, #3c3a37);border-radius:6px;padding:6px 14px;color:var(--cp-text, #e8e8e8);cursor:pointer;font:inherit;";
-          retryBtn.addEventListener("click", function () {
-            bodyEl.innerHTML = "";
-            var ld = document.createElement("div");
-            ld.className = "cp-console-loading";
-            ld.textContent = "Loading…";
-            bodyEl.appendChild(ld);
-            delete bodyEl.dataset.cpRequested;
-            bodyEl.removeAttribute("data-cp-loaded");
-            cpLoadAndRevealSection(sec, aboveAnchor, anchorSec, null);
-          });
-          bodyEl.appendChild(retryBtn);
+          cpSectionRetry(sec, aboveAnchor, anchorSec, null);
         }
         if (done) done();
       });
+    }
+
+    // The "Couldn’t load — Retry" button of a section without content. Only its click reads the folder again; `lift`
+    // runs first, for a board whose reads were stopped (cpStoppedBoardRetry).
+    function cpSectionRetry(sec, aboveAnchor, anchorSec, lift) {
+      var bodyEl = sec.querySelector(".cp-console-body");
+      var retryBtn = document.createElement("button");
+      retryBtn.textContent = "Couldn’t load — Retry";
+      retryBtn.style.cssText = "background:none;border:1px solid var(--cp-border, #3c3a37);border-radius:6px;padding:6px 14px;color:var(--cp-text, #e8e8e8);cursor:pointer;font:inherit;";
+      retryBtn.addEventListener("click", function () {
+        if (lift) lift();
+        bodyEl.innerHTML = "";
+        var ld = document.createElement("div");
+        ld.className = "cp-console-loading";
+        ld.textContent = "Loading…";
+        bodyEl.appendChild(ld);
+        delete bodyEl.dataset.cpRequested;
+        bodyEl.removeAttribute("data-cp-loaded");
+        cpLoadAndRevealSection(sec, aboveAnchor, anchorSec, null);
+      });
+      bodyEl.appendChild(retryBtn);
+    }
+
+    // An option opened while a reseller board is still reading its folders stops those reads (cpSectionAborted). When
+    // that option fails, the board stays, and its unread folders would stay hidden or "Loading…" for good. They get
+    // the Retry button instead. Nothing is read until the user presses it, since the failed answer may not have
+    // carried a fresh token; the stop is lifted then, unless a newer navigation has started since.
+    function cpStoppedBoardRetry() {
+      var board = document.querySelector(".cp-console");
+      if (!cpSectionAborted || cpBulkOwner || !board) return;
+      var seq = cpSeq;
+      cpUserPin = null;   // as when a reveal finishes: nothing is filling in above a pinned section any more
+      board.querySelectorAll(".cp-console-section").forEach(function (sec) {
+        var bodyEl = sec.querySelector(".cp-console-body");
+        sec.style.visibility = "";
+        if (!bodyEl || bodyEl.getAttribute("data-cp-loaded") === "1") return;
+        bodyEl.dataset.cpRequested = "1";   // a step of the stopped reveal chain still due passes it by
+        if (sec.dataset.cpRevealed !== "1") cpRevealSection(sec, false);
+        sec.style.display = "";
+        bodyEl.innerHTML = "";
+        cpSectionRetry(sec, false, null, function () {
+          if (seq === cpSeq && board.isConnected && !cpBulkOwner) cpSectionAborted = false;
+        });
+      });
+      cpFitConsoleTail();
+      cpHeadFade();
     }
 
     // Reveal a section that started hidden (sequential expand). Two modes:
@@ -9784,6 +9818,7 @@
     function cpOpenPageMenu(pill, data, current) {
       var menu = document.createElement("div");
       menu.className = "cp-page-menu";
+      menu.__cpPill = pill;
       menu.setAttribute("role", "dialog");
       menu.setAttribute("aria-label", "Pages at this level");
       var tabs = document.createElement("div");
@@ -9861,6 +9896,10 @@
       var board = cell && cell.querySelector('.cp-console');
       var isFolderMenu = !!(cell && cell.querySelector('a.navMenuItem') &&
         document.querySelector('form[name="leftNavForm"] a.leftnavfolder, form[name="leftNavForm"] a.leftnavfolderopen'));
+      // A level menu belongs to the trail pill that opened it. A page swap (Back and Forward too) rewrites the header;
+      // a board section landing does not. A menu whose pill is gone would open the previous level's pages here.
+      var openMenu = document.querySelector(".cp-page-menu");
+      if (openMenu && !(openMenu.__cpPill && openMenu.__cpPill.isConnected)) cpClosePageMenu();
       if (board) {
         // A mounted board is still a board while its sections contain only loading placeholders. A second
         // reskin in that interval must not remove the flex layout that makes the console itself scrollable.

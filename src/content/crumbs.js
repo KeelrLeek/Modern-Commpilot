@@ -29,9 +29,12 @@
     if (!items.length) return;
     const attached = [...cell.querySelectorAll('.cp-bc-attach')];
     let bar = cell.querySelector(':scope > .cp-bc');
+    // Moving the trail's elements drops keyboard focus; whichever one had it gets it back once they are in place.
+    const focused = bar?.contains(document.activeElement) ? document.activeElement : null;
     const built = bar && [...bar.children].filter(el => el.matches(ITEMS));
     // PJAX can append a page pill inside an already-built trail. Matching the
     // links alone misses its absent arrow (or an orphan left after removal).
+    // The arrow before "…" is fit()'s own and is not counted.
     const separators = bar && [...bar.children].filter(el => el.matches('.cp-bc-sep') &&
       !el.nextElementSibling?.matches('.cp-bc-more'));
     const separated = separators?.length === items.length - 1 && items.every((el, i) => !i ||
@@ -40,6 +43,7 @@
       attach(items, attached);
       mark(bar, items);
       fit(bar, cell);
+      refocus(focused);
       return;
     }
     building = true;
@@ -51,15 +55,20 @@
         bar.setAttribute('aria-label', 'Breadcrumb');
         cell.insertBefore(bar, items[0]);
       }
-      const lead = document.createElement('button');
-      lead.type = 'button';
-      lead.className = 'cp-bc-lead cp-bc-history';
-      lead.setAttribute('aria-label', 'Recent locations');
-      lead.setAttribute('aria-haspopup', 'menu');
-      lead.setAttribute('aria-expanded', 'false');
-      lead.setAttribute('aria-controls', 'cp-bc-history-menu');
-      lead.title = 'Recent locations';
-      lead.innerHTML = ROUTE;
+      // The trail's own buttons are kept, so an open list keeps the button that opened it.
+      let lead = bar.querySelector(':scope > .cp-bc-lead');
+      if (!lead) {
+        lead = document.createElement('button');
+        lead.type = 'button';
+        lead.className = 'cp-bc-lead cp-bc-history';
+        lead.setAttribute('aria-label', 'Recent locations');
+        lead.setAttribute('aria-haspopup', 'menu');
+        lead.setAttribute('aria-expanded', 'false');
+        lead.setAttribute('aria-controls', 'cp-bc-history-menu');
+        lead.title = 'Recent locations';
+        lead.innerHTML = ROUTE;
+      }
+      const more = bar.querySelector(':scope > button.cp-bc-more');
       const parts = [lead];
       items.forEach((item, i) => {
         if (i) {
@@ -70,12 +79,17 @@
           parts.push(sep);
         }
         parts.push(item);   // moves CommPilot's own element, with its handlers
+        if (more && more.previousElementSibling?.previousElementSibling === item) parts.push(more.previousElementSibling, more);
       });
       bar.replaceChildren(...parts);
       attach(items, attached);
       mark(bar, items);
       fit(bar, cell);
     } finally { building = false; }
+    refocus(focused);
+  }
+  function refocus(el) {
+    if (el?.isConnected && document.activeElement !== el) el.focus({ preventScroll: true });
   }
 
   // One line. Unfolding, measuring and folding happen in one go, before the next paint. The "…" pill and its arrow
@@ -119,8 +133,9 @@
   }
 
   // The "…" list: the folded levels, each pressing CommPilot's own link.
-  let menu = null;
+  let menu = null, moreTrigger = null;
   function openMore(button) {
+    moreTrigger = button;
     const bar = button.closest('.cp-bc');
     const folded = [...bar.querySelectorAll(':scope > a.headerAuthLevelLink.cp-bc-folded')];
     if (!menu?.isConnected) {
@@ -315,6 +330,11 @@
   });
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape') { if (closeHistory(true) || closeMore(true)) event.preventDefault(); return; }
+    if (event.key === 'Enter' && event.target.matches?.('td.headerBar .cp-bc a.headerAuthLevelLink[role="link"]:not([href])')) {
+      event.preventDefault();
+      event.target.click();   // runs CommPilot's own click, as a pointer does
+      return;
+    }
     if (event.target.closest?.('button.cp-bc-history') && event.key === 'ArrowDown') { event.preventDefault(); openHistory(event.target.closest('button')); return; }
     if (!historyMenu || historyMenu.hidden || !historyMenu.contains(event.target)) return;
     const items = [...historyMenu.querySelectorAll('button, input[type="checkbox"]')];
@@ -367,6 +387,9 @@
       el.classList.toggle('cp-bc-static', !isCur && el.matches('span.headerAuthLevel'));
       el.classList.toggle('cp-bc-id', el === entity);
       if (isCur && !el.matches('button')) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
+      // CommPilot's level links have no href, so the keyboard would skip them; Enter presses them (keydown below).
+      // A board's menu pill is pjax.js's own button.
+      if (el.matches('a.headerAuthLevelLink:not([href]):not([data-cp-crumb-menu])')) { el.tabIndex = 0; el.setAttribute('role', 'link'); }
     }
     // The destination pops in when it changes (the alpha's "destination focus").
     const key = clean(cur?.textContent);
@@ -404,6 +427,12 @@
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch, { once: true });
   else watch();
-  for (const name of ['cp:reskin', 'cp:morphed', 'cp:theme-change']) document.addEventListener(name, () => {closeHistory(); queueWatch();});
+  // A board section landing is announced as cp:reskin too. A list closes only when the trail that opened it was
+  // replaced (the next page), so it stays usable while a board fills in.
+  for (const name of ['cp:reskin', 'cp:morphed', 'cp:theme-change']) document.addEventListener(name, () => {
+    if (name === 'cp:theme-change' || !historyTrigger?.isConnected) closeHistory();
+    if (!moreTrigger?.isConnected) closeMore(false);
+    queueWatch();
+  });
   document.dispatchEvent(new Event('cp:recent-record'));
 })();
