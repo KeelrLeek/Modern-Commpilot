@@ -982,6 +982,9 @@
           ifr = document.createElement("iframe");
           ifr.name = "cpFrame" + (++cpFrameSeq);
           ifr.setAttribute("sandbox", "allow-same-origin");
+          // The extension's own all-frames scripts stay out (they check frameElement): this document is only read,
+          // and their work would slow the load and be copied into the swapped page.
+          ifr.setAttribute("data-cp-transport", "");
           ifr.style.cssText = "position:absolute;width:10px;height:10px;border:0;left:-9999px;top:-9999px";
           document.body.appendChild(ifr);
         }
@@ -5598,16 +5601,20 @@
 
     // The loading bar. pjax.js swaps pages in place, so the browser shows no progress of its own; this does, from
     // the click until the page is on screen. It jumps a little at once, creeps toward the end while CommPilot
-    // works (a slow page keeps visibly moving), then fills. The progress is published on <html>: --cp-progress
-    // (0 to 1) and data-cp-progress ("on", then "done" for a moment as the page lands). The CommPilot logo's
-    // heartbeat trace draws it (brand.js, theme-palettes.css): the line runs along the trace and the end dot
+    // works (a slow page keeps visibly moving), then fills. The progress is published as <html data-cp-progress>
+    // ("on", then "done" for a moment as the page lands) and --cp-progress (0 to 1) on the logo. The CommPilot
+    // logo's heartbeat trace draws it (brand.js, theme-palettes.css): the line runs along the trace and the end dot
     // pings when the page lands. Only where the top bar has no logo does a thin accent bar run along the top of
     // the window instead. <html data-cp-nav="busy"> marks a navigation (page-baseline.css eases the page back).
+    // The variable stays off <html>: every element would inherit it and be restyled on each tick (a third of a
+    // second a tick on a page with a 17,270-option select, for the whole wait).
     var cpProgress = { el: null, value: 0, timer: 0, fade: 0 };
     function cpProgressShow(value) {
       var p = cpProgress;
       p.value = value;
-      try { document.documentElement.style.setProperty("--cp-progress", value.toFixed(3)); } catch (e) {}
+      try {
+        document.querySelectorAll(".cp-brand").forEach(function (brand) { brand.style.setProperty("--cp-progress", value.toFixed(3)); });
+      } catch (e) {}
       if (p.el) p.el.style.transform = "scaleX(" + value.toFixed(3) + ")";
     }
     function cpProgressStart() {

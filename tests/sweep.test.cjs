@@ -205,7 +205,7 @@ test('a search CommPilot refuses as too many offers to load them all, sweeps by 
     const live = await page.evaluate(() => ({
       radar: document.getAnimations().some(an => an.animationName === 'cp-sweep-radar' && an.playState === 'running'),
       line: document.documentElement.dataset.cpProgress,
-      value: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cp-progress')) }));
+      value: parseFloat(getComputedStyle(document.querySelector('.cp-brand-load')).getPropertyValue('--cp-progress')) }));
     assert.deepEqual([live.radar, live.line], [true, 'on']);
     assert.ok(live.value > 0 && live.value < 1, `the line is part-way (${live.value})`);
 

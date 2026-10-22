@@ -10,6 +10,7 @@
    bar's account button (mockup pick B): who is signed in, with Sign out in its menu. The Settings window ends with
    About: the version, the site, what is new, and a button that copies build details for a bug report. */
 (() => {
+  if (window.frameElement?.hasAttribute("data-cp-transport")) return;   // pjax.js's hidden transport frames
   const key = "cpThemePalette";
   const themes = globalThis.cpThemes || [];   // themes.js, loaded just before this script
   const themeOf = palette => globalThis.cpThemeOf?.(palette) || null;

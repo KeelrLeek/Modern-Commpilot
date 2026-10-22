@@ -1,5 +1,6 @@
 /* Add icon hints to CommPilot's existing navigation without moving its links. */
 (() => {
+  if (window.frameElement?.hasAttribute("data-cp-transport")) return;   // pjax.js's hidden transport frames
   const iconByFolder = {
     profile: "profile",
     resources: "resources",

@@ -1,5 +1,7 @@
 (() => {
   "use strict";
+  // pjax.js's hidden transport frames are only read and copied into the page, where this script runs anyway.
+  if (window.frameElement?.hasAttribute("data-cp-transport")) return;
 
   // The original BroadWorks userscript handled these links. Keep that behavior
   // while adding search without replacing the page's own form controls.

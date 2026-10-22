@@ -5,6 +5,7 @@
    used, so offering many costs nothing until one is chosen. The list is shared with theme-settings.js
    (globalThis.cpFontChoices, the content scripts' own global). */
 (function () {
+  if (window.frameElement && window.frameElement.hasAttribute("data-cp-transport")) return;   // pjax.js's hidden transport frames
   function url(p) { return chrome.runtime.getURL(p); }
   var FONTS = [
     { id: "inter", label: "Inter", family: "Inter", file: "InterVariable.woff2", weight: "100 900", note: "Default" },

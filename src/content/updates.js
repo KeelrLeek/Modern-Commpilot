@@ -1,6 +1,7 @@
 /* Updates inside CommPilot Settings. Remote notes are text, never page HTML or executable code. */
 (() => {
   "use strict";
+  if (window.frameElement?.hasAttribute("data-cp-transport")) return;   // pjax.js's hidden transport frames
   const markup = () => `<section class="cp-settings-section cp-updates" aria-label="Updates">
     <div class="cp-theme-head"><h3>Updates</h3>
       <div class="cp-theme-mode" role="radiogroup" aria-label="Update channel">

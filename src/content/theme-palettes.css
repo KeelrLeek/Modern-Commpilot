@@ -1007,7 +1007,9 @@ html[data-cp-direction][data-cp-progress] body[id="initBody.menuTemplate"] .cp-b
   transition: stroke-dashoffset .2s ease-out;
 }
 html[data-cp-direction][data-cp-progress="on"] body[id="initBody.menuTemplate"] .cp-brand-light { opacity: .5; animation: none; }
-html[data-cp-direction][data-cp-progress="done"] body[id="initBody.menuTemplate"] .cp-brand-load { transition-duration: .25s; }
+html[data-cp-direction][data-cp-progress="done"] body[id="initBody.menuTemplate"] .cp-brand-load {
+  stroke-dashoffset: 0; transition-duration: .25s;   /* whole even on a logo built as the page lands (pjax.js sets --cp-progress on the logo) */
+}
 html[data-cp-direction][data-cp-progress="done"] body[id="initBody.menuTemplate"] .cp-brand-light { animation: cp-brand-lamp .32s .15s both; }
 html[data-cp-direction][data-cp-progress="done"] body[id="initBody.menuTemplate"] .cp-brand-ping { animation: cp-brand-ping .9s .2s ease-out both; }
 /* After an update, a thin ring round the dot until Settings (About) is opened once. */

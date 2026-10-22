@@ -132,6 +132,12 @@ test('the logo: the same top bar on every CommPilot site, which site it is, the 
     const busy = await loading();
     assert.deepEqual([busy.state, busy.bar, busy.trace], ['on', false, 'hidden'], 'loading: the logo’s line, no top bar');
     assert.ok(busy.load > 0.1 && busy.load < 0.92, `the line is on its way (${busy.load})`);
+    // Only the logo carries the progress: on <html> every element of the page would inherit it and be restyled on
+    // each tick of the wait (seconds of work on a page with a 17,270-option select).
+    const carried = await sbx.evaluate(() => [document.documentElement.style.getPropertyValue('--cp-progress'),
+      parseFloat(document.querySelector('.cp-brand').style.getPropertyValue('--cp-progress'))]);
+    assert.equal(carried[0], '', 'not published on <html>');
+    assert.ok(carried[1] > 0.1 && carried[1] < 0.92, `the logo carries it (${carried[1]})`);
     await sbx.waitForFunction(() => document.documentElement.dataset.cpProgress === 'done');
     await sbx.waitForTimeout(300);
     const landed = await loading();
@@ -139,6 +145,14 @@ test('the logo: the same top bar on every CommPilot site, which site it is, the 
     await sbx.waitForFunction(() => !document.documentElement.dataset.cpProgress, null, { timeout: 3000 });
     assert.deepEqual(await loading(), { state: null, bar: false, load: null, trace: 'visible', ping: false });
     assert.equal(await sbx.evaluate(() => document.querySelector('td.screenName').textContent), 'Profile');
+    // A logo rebuilt as a page lands (its header cell replaced) shows the whole line too.
+    await sbx.evaluate(() => window.redirectPost('/commpilot/User/Profile/', {}));
+    await sbx.waitForFunction(() => document.documentElement.dataset.cpProgress === 'done');
+    await sbx.evaluate(() => { document.querySelector('.cp-brand').remove(); document.dispatchEvent(new CustomEvent('cp:morphed')); });
+    await sbx.waitForFunction(() => document.querySelector('td.headerBar > .cp-brand'));
+    const rebuilt = await loading();
+    assert.deepEqual([rebuilt.state, rebuilt.load], ['done', 1], 'the rebuilt logo’s line reaches the dot');
+    await sbx.waitForFunction(() => !document.documentElement.dataset.cpProgress, null, { timeout: 3000 });
 
     // The account menu says which site; Settings shows the tile, and About (seeing it takes the dot's ring off).
     await sbx.locator('#cp-account').click();

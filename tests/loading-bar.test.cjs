@@ -63,6 +63,7 @@ test('a click on a page link shows a loading bar until the page is on screen', a
         on: el.classList.contains('cp-progress-on'), done: el.classList.contains('cp-progress-done'),
         width: new DOMMatrix(getComputedStyle(el).transform).a, top: el.getBoundingClientRect().top,
         color: getComputedStyle(el).backgroundColor, busy: document.documentElement.dataset.cpNav || null,
+        rootProgress: document.documentElement.style.getPropertyValue('--cp-progress'),
       };
     });
 
@@ -76,6 +77,8 @@ test('a click on a page link shows a loading bar until the page is on screen', a
     await page.waitForTimeout(700);
     const later = await bar();
     assert.ok(later.width > early.width && later.width < 0.95, `still creeping forward (${early.width} → ${later.width})`);
+    // Each tick moves the bar alone: an inherited variable on <html> would restyle the whole page 5 times a second.
+    assert.deepEqual([early.rootProgress, later.rootProgress], ['', ''], 'the progress is not published on <html>');
     await page.waitForFunction(() => document.querySelector('.screenName')?.textContent === 'Groups');
     await page.waitForFunction(() => !document.getElementById('cp-progress').classList.contains('cp-progress-on'), null, { timeout: 2000 });
     assert.equal((await bar()).busy, null, 'the wait is over');

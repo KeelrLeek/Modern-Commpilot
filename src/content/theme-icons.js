@@ -1,5 +1,6 @@
 /* Rounded navigation and account icons shared by all four palettes. */
 (() => {
+  if (window.frameElement?.hasAttribute("data-cp-transport")) return;   // pjax.js's hidden transport frames
   const shapes = {
     profile: '<circle cx="12" cy="8" r="3.25"/><path d="M5.25 20v-1.5A5.25 5.25 0 0 1 10.5 13.25h3A5.25 5.25 0 0 1 18.75 18.5V20"/>',
     resources: '<rect x="3.25" y="3.5" width="7.5" height="7.5" rx="2"/><rect x="13.25" y="3.5" width="7.5" height="7.5" rx="2"/><rect x="3.25" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.25" y="13.5" width="7.5" height="7.5" rx="2"/>',
