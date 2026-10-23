@@ -180,6 +180,9 @@
   document.addEventListener("focusin", event => {
     if (!active || !entries || !event.target.closest) return;
     const el = event.target.closest(SELECTOR);
+    // Only the keyboard's focus (:focus-visible): a sidebar folder clicked keeps its focus, which the browser gives
+    // back each time the window is focused again. The pointer's own tip stands.
+    if (el && !event.target.matches(":focus-visible")) return;
     const entry = el && entryFor(el);
     hideTip();
     if (!entry) return;

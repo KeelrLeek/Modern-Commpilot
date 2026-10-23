@@ -411,6 +411,36 @@ test('a user opened from a Users list has the extension shown in that list', asy
   await page.close();
 });
 
+test('a Users list’s extension replaces one kept earlier in the session for that user', async () => {
+  const page = await openPage();   // the user's Addresses: 101, kept for the session
+  const extensionButton = page.locator('td.headerBar [data-bw-copy="extension"]');
+  await extensionButton.click();
+  assert.equal(await readClipboard(page), '101');
+  const withoutExtension = fixture.replace(
+    '<label for="extension">Extension</label><input id="extension" name="extension" value="101">', '');
+  const list = `<table><tbody><tr><td class="listHeader">User ID</td><td class="listHeader">Last Name</td>
+    <td class="listHeader">Phone Number</td><td class="listHeader">Extension</td></tr>
+    <tr id="Row0"><td><a class="tableLink" href="#">QuickStop101</a></td><td>Stop</td><td>2055550142</td><td>4417</td></tr>
+    </tbody></table>`;
+  // The group's Users list now shows 4417, changed in another tab or by another admin.
+  await page.route('https://apps.avpaas.io/users-list', route => route.fulfill({
+    status: 200, contentType: 'text/html', body: withoutExtension
+      .replace(/<a class="headerAuthLevelLink">Quick Stop<\/a>[\s\S]*?<\/span>/, '<span dir="ltr" class="headerAuthLevel">Quick Stop</span>')
+      .replace('</body>', list + '</body>')
+  }));
+  await page.route('https://apps.avpaas.io/user-page', route => route.fulfill({
+    status: 200, contentType: 'text/html', body: withoutExtension
+  }));
+  await page.goto('https://apps.avpaas.io/users-list', { waitUntil: 'domcontentloaded' });
+  await page.locator('#line[data-bw-searchable]').waitFor();
+  await page.locator('#Row0 td').nth(1).click();
+  await page.goto('https://apps.avpaas.io/user-page', { waitUntil: 'domcontentloaded' });
+  await page.locator('#line[data-bw-searchable]').waitFor();
+  await extensionButton.click();
+  assert.equal(await readClipboard(page), '4417');
+  await page.close();
+});
+
 test('copy controls appear only for a Users breadcrumb', async () => {
   const page = await context.newPage();
   await page.route('https://apps.avpaas.io/group-test', route => route.fulfill({

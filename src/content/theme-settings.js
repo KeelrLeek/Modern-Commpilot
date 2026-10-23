@@ -205,7 +205,13 @@
   document.addEventListener("pointerout", event => {
     if (sideLink(event.target) && sideLink(event.target) !== sideLink(event.relatedTarget)) hideTip();
   });
-  document.addEventListener("focusin", event => { const link = sideLink(event.target); if (link) showTip(link); else hideTip(); });
+  // A folder clicked keeps its focus, which the browser gives back each time the window is focused again: only the
+  // keyboard's focus (:focus-visible) shows the name.
+  document.addEventListener("focusin", event => {
+    const link = sideLink(event.target);
+    if (!link) hideTip();
+    else if (link.matches(":focus-visible")) showTip(link);
+  });
   document.addEventListener("scroll", hideTip, { capture: true, passive: true });
 
   // A side's mark: beside the site link (theme-palettes.css) and on its tile in the theme list. A file, not a data:

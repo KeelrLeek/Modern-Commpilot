@@ -199,3 +199,41 @@ test('Help tips: the top bar’s button in place of CommPilot’s Help, tips for
     await tab.waitForFunction(() => !document.getElementById('cp-debug') && !document.querySelector('[data-cp-tip]'));
   } finally { await browser.close(); }
 });
+
+test('Help tips: a sidebar folder clicked does not bring its tip back when the window is focused again; Tab still shows it', async () => {
+  assert.ok(edge, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: edge, headless: true });
+  try {
+    const tab = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+    await tab.route(`${origin}/**`, route => route.fulfill({ status: 200,
+      contentType: route.request().url().endsWith('help-content.json') ? 'application/json' : 'text/html',
+      body: route.request().url().endsWith('help-content.json') ? JSON.stringify(help) : page }));
+    await tab.goto(`${origin}/commpilot/User/CallForwardingAlways/`);
+    // Live CommPilot folder links have no href; native-theme.js gives them keyboard focus.
+    await tab.evaluate(() => {
+      globalThis.chrome = { runtime: { getURL: p => '/ext/' + p, getManifest: () => ({ version: '9.9.9' }) } };
+      for (const link of document.querySelectorAll('form[name="leftNavForm"] a.leftnavfolder')) link.removeAttribute('href');
+    });
+    await tab.addStyleTag({ path: path.join(root, 'src/content/native-help.css') });
+    await tab.addScriptTag({ path: path.join(root, 'src/content/native-theme.js') });
+    await tab.addScriptTag({ path: path.join(root, 'src/content/native-help.js') });
+    await tab.locator('#cp-help-tips').click();
+    const tip = () => tab.evaluate(() => { const t = document.getElementById('cp-native-help-tip'); return t && !t.hidden ? t.innerText : null; });
+    const folder = tab.locator('form[name="leftNavForm"] a.leftnavfolder', { hasText: 'Incoming Calls' });
+    await folder.click();
+    await tab.mouse.move(900, 700);
+    assert.equal(await tip(), null);
+    // Another tab in front and back again: the browser focuses the clicked folder once more.
+    const cdp = await tab.context().newCDPSession(tab);
+    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: false });
+    await tab.evaluate(() => { window.refocused = false; document.addEventListener('focusin', () => { window.refocused = true; }); });
+    const [other] = await Promise.all([tab.waitForEvent('popup'), tab.evaluate(() => { window.open('about:blank'); })]);
+    await other.bringToFront();
+    await tab.bringToFront();
+    await tab.waitForFunction(() => window.refocused && document.activeElement.textContent === 'Incoming Calls');
+    assert.equal(await tip(), null, 'no tip left over the page');
+    await tab.keyboard.press('Shift+Tab');
+    await tab.keyboard.press('Tab');
+    assert.match(await tip(), /calls coming in/, 'keyboard focus shows the tip');
+  } finally { await browser.close(); }
+});

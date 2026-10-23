@@ -164,8 +164,10 @@
       if (!listed || listed.origin !== location.origin || listed.nameScope !== context.nameScope ||
           normalize(listed.userId) !== normalize(context.userId) ||
           Date.now() - listed.at >= 10 * 60 * 1000) return;
-      if (cachedExtension(context) === null) rememberExtension(context, listed.extension);
-      if (cachedNumber(context) === null && typeof listed.number === "string") rememberNumber(context, listed.number);
+      // The row was CommPilot's a moment ago: its values replace any kept earlier in the session, which another tab
+      // or admin may have changed since.
+      rememberExtension(context, listed.extension);
+      if (typeof listed.number === "string") rememberNumber(context, listed.number);
       if (typeof listed.userName === 'string' && listed.nameScope === context.nameScope) sessionStorage.setItem(context.cacheKey+'#name',listed.userName);
       sessionStorage.removeItem(LISTED_KEY);
     } catch (_) {}

@@ -188,3 +188,32 @@ test('the sidebar folders take keyboard focus without an href, and Enter presses
     assert.deepEqual(await tab.evaluate(() => window.pressed), ['Outgoing Calls'], 'Enter presses the folder once');
   } finally { await browser.close(); }
 });
+
+test('a folder clicked in the rail does not bring its name back when the window is focused again; Tab still shows it', async () => {
+  assert.ok(browserPath, 'Edge or Chrome is required');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const tab = await open(browser, 1024, 768);   // a 4:3 window: always the rail
+    await tab.waitForFunction(() => document.documentElement.hasAttribute('data-cp-rail'));
+    await tab.evaluate(() => {
+      for (const link of document.querySelectorAll('form[name="leftNavForm"] a')) link.removeAttribute('href');
+      document.dispatchEvent(new Event('cp:reskin'));
+    });
+    await tab.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const tip = () => tab.evaluate(() => { const t = document.getElementById('cp-side-tip'); return t && !t.hidden ? t.textContent : null; });
+    await tab.locator('form[name="leftNavForm"] a', { hasText: 'Outgoing Calls' }).click();
+    await tab.mouse.move(700, 400);
+    assert.equal(await tip(), null, 'a click puts the name away');
+    // Another tab in front and back again: the browser focuses the clicked folder once more.
+    const cdp = await tab.context().newCDPSession(tab);
+    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: false });
+    await tab.evaluate(() => { window.refocused = false; document.addEventListener('focusin', () => { window.refocused = true; }); });
+    const [other] = await Promise.all([tab.waitForEvent('popup'), tab.evaluate(() => { window.open('about:blank'); })]);
+    await other.bringToFront();
+    await tab.bringToFront();
+    await tab.waitForFunction(() => window.refocused && document.activeElement.textContent === 'Outgoing Calls');
+    assert.equal(await tip(), null, 'no name left over the page');
+    await tab.keyboard.press('Tab');
+    assert.equal(await tip(), 'Call Control', 'keyboard focus shows the name');
+  } finally { await browser.close(); }
+});

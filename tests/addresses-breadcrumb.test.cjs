@@ -9,6 +9,7 @@ const root = path.resolve(process.env.BW_TEST_EXTENSION_PATH || path.resolve(__d
 const origin = 'https://apps-sbx.avpaas.io';
 const addresses = '/commpilot/User/Addresses/';
 const profilePath = '/commpilot/User/Profile/';
+const usersList = '/commpilot/Group/Members/';
 const edge = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const esc = value => String(value).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 
@@ -32,6 +33,13 @@ async function fixture(initial = {extension:'',number:''}, renderDelay = 0) {
       const params = new URLSearchParams(req.postData() || '');
       const submitted = pathname === addresses && (params.has('apply') || params.has('ok'));
       if (req.method() === 'POST') requests.push({pathname,submitted});
+      // The group's Users list, showing what is now saved for the user.
+      if (pathname === usersList) return route.fulfill({status:200,contentType:'text/html',body:`<!doctype html><html><head><title>Users</title></head><body id="initBody.menuTemplate">
+        <table><tr><td class="headerBar"><a class="headerAuthLevelLink">Reseller</a> &gt; <a class="headerAuthLevelLink">Provider</a> &gt; <span class="headerAuthLevel">Group</span></td></tr></table>
+        <table height="100%"><tr><td class="headandfoot" width="18%"><form name="leftNavForm"><a class="leftnavfolderopen">Profile</a></form></td><td width="82%" valign="top"><form name="mainForm" method="post">
+        <table><tr><td class="listHeader">User ID</td><td class="listHeader">Extension</td><td class="listHeader">Phone Number</td></tr>
+        <tr id="Row0"><td><a class="tableLink" onclick="redirectPost('${profilePath}',{})">NewUser</a></td><td>${esc(saved.extension)}</td><td>${esc(saved.number)}</td></tr></table></form></td></tr></table>
+        <script>window.redirectPost=function(){};</script></body></html>`});
       const failed = submitted && params.get('extension') === 'reject';
       if (submitted && !failed) saved = {extension:params.get('extension').trim(),number:params.get('phoneNumber')};
       const showForm = pathname === addresses && (!submitted || failed || params.has('apply'));
@@ -71,7 +79,7 @@ async function fixture(initial = {extension:'',number:''}, renderDelay = 0) {
       // Navigation commits before the isolated content script paints the header.
       await page.locator('.cp-ext-chip b').waitFor({state:'attached'});
     };
-    return {page,nav,requests,close:async () => { await context.close(); fs.rmSync(temp,{recursive:true,force:true}); }};
+    return {page,nav,requests,changeSaved:value => { saved = {...value}; },close:async () => { await context.close(); fs.rmSync(temp,{recursive:true,force:true}); }};
   } catch(error) { await context.close(); fs.rmSync(temp,{recursive:true,force:true}); throw error; }
 }
 
@@ -127,5 +135,22 @@ test('a rejected Addresses save keeps the saved breadcrumb, and clearing values 
     await f.nav(profilePath);
     assert.deepEqual(await values(f.page),{extension:'–',number:''});
     assert.equal(await f.page.evaluate(()=>window.rejectedIdentityPainted),false,'rejected fields never appear as the saved identity');
+  } finally { await f.close(); }
+});
+
+test('a user opened from a Users list shows the extension and number in that list, over those kept earlier', async () => {
+  const f = await fixture({extension:'101',number:'2055550142'});
+  try {
+    assert.deepEqual(await values(f.page),{extension:'101',number:'205-555-0142'});
+    f.changeSaved({extension:'4417',number:'2055550143'});   // in another tab, or by another admin
+    await f.page.evaluate(url => window.redirectPost(url,{}),usersList);
+    await f.page.waitForFunction(url => document.documentElement.getAttribute('data-cp-path') === url,usersList);
+    await f.page.locator('.cp-ext-chip').waitFor({state:'detached'});
+    await f.page.locator('#Row0 a').click();
+    await f.page.waitForFunction(url => document.documentElement.getAttribute('data-cp-path') === url,profilePath);
+    await f.page.locator('.cp-ext-chip b').waitFor({state:'attached'});
+    assert.deepEqual(await values(f.page),{extension:'4417',number:'205-555-0143'});
+    await f.page.locator('.cp-ext-chip').click();
+    assert.equal(await f.page.evaluate(() => navigator.clipboard.readText()),'4417');
   } finally { await f.close(); }
 });
