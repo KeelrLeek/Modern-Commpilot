@@ -151,7 +151,25 @@
     for (var k in p) if (Object.prototype.hasOwnProperty.call(p, k)) add(k, p[k]);
     add("formtokenserial", token);
     (document.body || document.documentElement).appendChild(f);
+    pauseIfStopped();
     realSubmit.call(f);
+  }
+
+  // Stop (or Esc) aborts the replay without leaving this interstitial, which cp-stub-hold keeps blank: pause
+  // recovery so the tab offers Retry and Go to login. No deadline: a slow CommPilot raises nothing until its page
+  // arrives. A Back that replaces the replay aborts it too, but starts its own navigation in the same task, first.
+  function pauseIfStopped() {
+    var api = window.navigation, pending = 0, paused = false;
+    if (!api) return;
+    api.addEventListener("navigate", function () { clearTimeout(pending); });
+    api.addEventListener("navigateerror", function () {
+      clearTimeout(pending);
+      pending = setTimeout(function () {
+        if (paused) return;
+        paused = true;
+        recoveryFailed("Recovery stopped before reopening your last page. Wait a moment, then retry recovery.");
+      }, 0);
+    });
   }
 
   // Harvest a FRESH, VALID app token from servlet/Login for the recovery replay. Why not just replay the STORED
@@ -392,6 +410,14 @@
   // ---- Recovery interstitial (DNR redirected a main-frame GET here) ----
   if (path === "/commpilot/Common/styles.css") {
     try { document.documentElement.classList.add("cp-stub-hold"); } catch (e) {}
+    // The hold shows the theme's canvas (page-baseline.css). Palette tokens apply on [data-cp-palette], and
+    // theme-settings.js sets the direction once extension storage answers, so follow it as the paused panel does.
+    var holdPalette = function () {
+      var root = document.documentElement;
+      if (root && root.dataset.cpDirection) root.dataset.cpPalette = root.dataset.cpDirection;
+    };
+    holdPalette();
+    document.addEventListener("cp:theme-change", holdPalette);
     // EXPIRE a stale loop-guard counter before the short-circuit. cp-stub-tries survives reloads and is reset only
     // when a contentful app page renders (recovery-bridge.js saveToken), so heavy churn (many extension reloads / earlier
     // cold-URL bounces) can leave it >=2 and send a FRESH, unrelated idle reload straight to Login with NO replay.

@@ -144,3 +144,150 @@ test('the manifest-loaded recovery sends an expired session to sign-in and reope
     fs.rmSync(temporary, {recursive: true, force: true});
   }
 });
+
+// A Reload, address-bar Enter or restored tab lands on CommPilot's stylesheet (DNR rule 1), which the browser shows
+// as a page of text while recovery checks the session and replays the saved page.
+const stylesheet = Array.from({length: 200}, (_, i) => `TD.listRow${i} { font-family: Verdana, Arial, sans-serif; color: #003366; }`).join('\n');
+const savedPage = '/commpilot/Group/Profile/';
+
+async function replayFixture(temporary, hold) {
+  const context = await chromium.launchPersistentContext(temporary, {headless: true,
+    executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', args});
+  const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
+  await worker.evaluate(async origin => {
+    await chrome.storage.local.set({cpUpdatePreferences: {automatic: false, channel: 'stable'}, cpThemePalette: 'graphite',
+      ['cpRecoverToken:' + origin]: 'stored'});
+    await chrome.alarms.clearAll();
+  }, origin);
+  let release, began;
+  const held = new Promise(resolve => { release = resolve; }), started = new Promise(resolve => { began = resolve; });
+  const requests = [], errors = [];
+  await context.route('https://**/*', async route => {
+    const request = route.request(), url = new URL(request.url());
+    if (url.origin !== origin) return route.abort('blockedbyclient');
+    requests.push({path: url.pathname, method: request.method(),
+      token: new URLSearchParams(request.postData() || '').get('formtokenserial')});
+    if (url.pathname === hold) { began(); await held; }
+    // A request the browser already dropped (Stop, Back) cannot be answered.
+    const fulfill = options => route.fulfill(options).catch(() => {});
+    if (url.pathname === '/commpilot/Common/styles.css') return fulfill({contentType: 'text/css', body: stylesheet});
+    if (url.pathname === '/commpilot/servlet/Login') return fulfill({contentType: 'text/html', body:
+      '<input name="formtokenserial" value="fresh"><script>redirectPost("/commpilot/Common/folder_contents.jsp",{folder:"R0",menuId:"8"});</script>'});
+    if (url.pathname === savedPage && request.method() === 'POST')
+      return fulfill({contentType: 'text/html', body: levelShell('R', 'Group Profile')});
+    if (url.pathname === '/fixture-start') return fulfill({contentType: 'text/html', body: '<h1>Fixture start</h1>'});
+    return fulfill({status: 404, body: 'Unrecognized fixture request'});
+  });
+  const page = await context.newPage();
+  page.on('pageerror', error => errors.push(error.message));
+  await page.addInitScript(savedPage => {
+    if (!sessionStorage.getItem('fixture-seeded')) {
+      sessionStorage.setItem('fixture-seeded', '1');
+      sessionStorage.setItem('cp-last-nav', JSON.stringify({url: savedPage, params: {}}));
+    }
+    if (location.pathname !== '/commpilot/Common/styles.css') return;
+    // What the interstitial's first frame with a body would paint.
+    const probe = () => {
+      if (!document.body) { requestAnimationFrame(probe); return; }
+      window.firstFrame = {body: getComputedStyle(document.body).visibility,
+        text: document.querySelector('body > pre')?.checkVisibility({visibilityProperty: true}) ?? null};
+    };
+    requestAnimationFrame(probe);
+    // Whether the interstitial showed the paused panel before it was replaced.
+    addEventListener('pagehide', () => sessionStorage.setItem('fixture-paused', String(!!document.getElementById('cp-recovery-error'))));
+  }, savedPage);
+  return {context, page, requests, errors, started, release};
+}
+
+test('a redirected Reload keeps the stylesheet text off screen on the theme canvas until the saved page lands', async () => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'bw-recovery-login-'));
+  let f;
+  try {
+    // The session check is held so the interstitial can be read while recovery runs.
+    f = await replayFixture(temporary, '/commpilot/servlet/Login');
+    await f.page.goto(origin + savedPage);
+    await f.started;
+    // The theme arrives from extension storage after the interstitial starts.
+    await f.page.waitForFunction(() => document.documentElement.dataset.cpDirection === 'graphite');
+    const hold = await f.page.evaluate(() => {
+      const root = document.documentElement, token = document.createElement('i');
+      token.style.color = 'var(--d-canvas)';
+      root.append(token);
+      const state = {type: document.contentType, hold: root.classList.contains('cp-stub-hold'),
+        body: getComputedStyle(document.body).visibility, text: document.querySelector('body > pre').checkVisibility({visibilityProperty: true}),
+        firstFrame: window.firstFrame, palette: getComputedStyle(root).getPropertyValue('--d-canvas').trim(),
+        canvas: getComputedStyle(root).backgroundColor, themeCanvas: getComputedStyle(token).color};
+      token.remove();
+      return state;
+    });
+    assert.equal(hold.type, 'text/css');
+    assert.equal(hold.hold, true);
+    assert.deepEqual(hold.firstFrame, {body: 'hidden', text: false}, 'the stylesheet text is hidden from the first frame');
+    assert.equal(hold.body, 'hidden');
+    assert.equal(hold.text, false);
+    assert.notEqual(hold.palette, '', 'the interstitial carries the theme palette');
+    assert.equal(hold.canvas, hold.themeCanvas, 'the hold shows the theme canvas');
+    f.release();
+    await f.page.getByRole('heading', {name: 'Group Profile'}).waitFor();
+    assert.deepEqual(f.requests.filter(request => request.method === 'POST'),
+      [{path: savedPage, method: 'POST', token: 'fresh'}]);
+    assert.equal(await f.page.evaluate(() => getComputedStyle(document.body).visibility), 'visible');
+    assert.equal(await f.page.evaluate(() => sessionStorage.getItem('fixture-paused')), 'false');
+    assert.deepEqual(f.errors, []);
+  } finally {
+    f?.release();
+    await f?.context.close();
+    assert.equal(path.dirname(path.resolve(temporary)), path.resolve(os.tmpdir()));
+    assert.ok(path.basename(temporary).startsWith('bw-recovery-login-'));
+    fs.rmSync(temporary, {recursive: true, force: true});
+  }
+});
+
+const replayEnds = {stop: 'is stopped pauses recovery instead of leaving a blank tab',
+  back: 'is replaced by Back leaves without flashing the paused panel',
+  slow: 'CommPilot answers slowly lands without the paused panel'};
+for (const action of Object.keys(replayEnds))
+test(`a replay of the saved page that ${replayEnds[action]}`, async () => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'bw-recovery-login-'));
+  let f;
+  try {
+    // The replayed page is held: CommPilot is still working on it when the user acts.
+    f = await replayFixture(temporary, savedPage);
+    await f.page.goto(origin + '/fixture-start');
+    f.page.goto(origin + savedPage).catch(() => {});
+    await f.started;
+    const cdp = await f.context.newCDPSession(f.page);
+    if (action === 'stop') {
+      await cdp.send('Page.stopLoading');   // the browser's Stop button
+      const retry = f.page.getByRole('button', {name: 'Retry recovery', exact: true});
+      const login = f.page.getByRole('button', {name: 'Go to login', exact: true});
+      await login.waitFor({timeout: 5000});
+      assert.match(await f.page.locator('#cp-recovery-error').textContent(), /Recovery stopped before reopening your last page/);
+      assert.equal(await retry.isVisible(), true);
+      assert.equal(await login.isEnabled(), true);
+      assert.equal(await f.page.evaluate(() => document.documentElement.classList.contains('cp-stub-hold')), false);
+      f.release();
+      await f.page.waitForTimeout(300);
+      assert.equal(new URL(f.page.url()).pathname, '/commpilot/Common/styles.css', 'the stopped page does not arrive later');
+      assert.equal(await login.isVisible(), true);
+    } else if (action === 'back') {
+      const history = await cdp.send('Page.getNavigationHistory');
+      await cdp.send('Page.navigateToHistoryEntry', {entryId: history.entries[history.currentIndex - 1].id});
+      await f.page.getByRole('heading', {name: 'Fixture start'}).waitFor();
+      assert.equal(await f.page.evaluate(() => sessionStorage.getItem('fixture-paused')), 'false');
+    } else {
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      f.release();
+      await f.page.getByRole('heading', {name: 'Group Profile'}).waitFor();
+      assert.equal(await f.page.evaluate(() => sessionStorage.getItem('fixture-paused')), 'false');
+    }
+    assert.equal(f.requests.filter(request => request.method === 'POST').length, 1, 'the page is posted once');
+    assert.deepEqual(f.errors, []);
+  } finally {
+    f?.release();
+    await f?.context.close();
+    assert.equal(path.dirname(path.resolve(temporary)), path.resolve(os.tmpdir()));
+    assert.ok(path.basename(temporary).startsWith('bw-recovery-login-'));
+    fs.rmSync(temporary, {recursive: true, force: true});
+  }
+});

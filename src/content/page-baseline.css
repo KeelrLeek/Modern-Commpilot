@@ -326,6 +326,10 @@ html[data-cp-direction][data-cp-nav="busy"] body[id="initBody.menuTemplate"] td.
 
 @keyframes cp-export-bob { from { transform: translateY(-1px); } to { transform: translateY(2px); } }
 @media (prefers-reduced-motion: reduce) { body[id="initBody.menuTemplate"] button.cp-export-btn svg { animation: none !important; } }
+/* While reload recovery runs, the interstitial (CommPilot's stylesheet, shown by the browser as text) stays a bare
+   theme canvas; stubguard.js gives it the palette and lifts the hold if recovery pauses. */
+html.cp-stub-hold { background: var(--d-canvas, Canvas) !important; }
+html.cp-stub-hold > body { visibility: hidden !important; }
 /* A failed reload recovery stays on the interstitial instead of replaying a stale token. */
 html.cp-recovery-page { background: var(--d-canvas, Canvas) !important; }
 body.cp-recovery-page {
