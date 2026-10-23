@@ -94,28 +94,33 @@ test('mixed navigation, rapid clicks, history and explicit saves preserve tokens
 
 // CommPilot answers a save slowly. A repeated OK/Apply/Enter must not queue the same save behind it: the queued
 // copy would carry the token the first response rotated in, so CommPilot would accept it a second time.
-async function slowSaves(){
+async function slowSaves({signOut=false}={}){
   const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});
-  const page=await browser.newPage(),posts=[],badTokens=[],errors=[],server={token:0,fail:false};
+  const page=await browser.newPage(),posts=[],badTokens=[],errors=[],server={token:0,fail:false,hold:false,delay:700,answered:0};
   page.setDefaultTimeout(6000);page.on('pageerror',error=>errors.push(error.message));
   await page.route('**/*',async route=>{
     const req=route.request(),url=new URL(req.url()),params=new URLSearchParams(req.postData()||'');
     assert.equal(url.origin,origin);
     let marker=url.pathname;
     if(req.method()==='POST'){
-      posts.push({path:url.pathname,params:Object.fromEntries(params)});
+      posts.push({path:url.pathname,params:Object.fromEntries(params),at:Date.now()});
       if(params.get('formtokenserial')!=='token-'+server.token){
         badTokens.push(params.get('formtokenserial'));
         return route.fulfill({status:409,body:'Fixture token mismatch'});
       }
       if(params.has('ok')||params.has('apply')){
-        await new Promise(resolve=>setTimeout(resolve,700));
+        if(server.hold)await new Promise(()=>{});   // CommPilot never answers this save
+        await new Promise(resolve=>setTimeout(resolve,server.delay));
         if(server.fail){server.fail=false;return route.fulfill({status:500,body:'Fixture server error'});}
         marker='saved '+posts.length;
+        server.answered=Date.now();
       }
       server.token++;
     }
-    return route.fulfill({contentType:'text/html',body:`<!doctype html><html><head><title>Save fixture</title></head><body>
+    // The native header [Logout] link, confirmed in logout-confirm.js's dialog.
+    const header=signOut?`<table><tr><td class="headerBar"><span class="headerBarWelcome">Welcome Fixture</span>
+      <a class="headerLink" id="native-logout" onclick="redirectPost('/commpilot/servlet/Logout', {});return false;">[Logout]</a></td></tr></table>`:'';
+    return route.fulfill({contentType:'text/html',body:`<!doctype html><html><head><title>Save fixture</title></head><body${signOut?' id="initBody.menuTemplate"':''}>${header}
       <form name="leftNavForm"><a class="leftnavfolder">Profile</a></form><table><tr><td width="82%"><form name="mainForm" method="post">
       <input name="formtokenserial" value="token-${server.token}"><p id="marker">${marker}</p><input name="phoneNumber" value="2025550123">
       <input name="ok" type="submit" value="OK"><input name="apply" type="submit" value="Apply"></form></td></tr></table>
@@ -123,6 +128,7 @@ async function slowSaves(){
   });
   await page.goto(origin+routes[0]);
   await page.addScriptTag({path:path.join(runtime,'src/content/pjax.js')});
+  if(signOut)await page.addScriptTag({path:path.join(runtime,'src/content/logout-confirm.js')});
   const settle=async()=>{
     await page.waitForFunction(()=>!document.documentElement.hasAttribute('data-cp-nav'));
     await page.waitForTimeout(900);   // a queued repeat would be sent once the first response arrives
@@ -168,6 +174,44 @@ test('a failed save can be sent again, and other navigation still overtakes a pe
     await f.page.evaluate(target=>redirectPost(target,{}),routes[1]);
     await f.page.waitForFunction(target=>document.querySelector('#marker')?.textContent===target&&location.pathname===target,routes[1]);
     assert.deepEqual(f.posts.slice(before).map(post=>post.path),[routes[0],routes[1]],'the newer page waits for the save, then opens');
+    assert.deepEqual(f.badTokens,[]);assert.deepEqual(f.errors,[]);
+  }finally{await f.browser.close();}
+});
+
+// Sign out confirmed while a save waits for CommPilot. Like a newer click, the sign-out waits for the save's answer
+// and posts the token it brought, once; the save is never sent again. One that never answers leaves the sign-out
+// unconfirmed and retryable instead of posting the token that save already spent.
+const signOutDuringSave=async f=>{
+  await f.page.locator('input[name="ok"]').click();
+  await f.page.waitForTimeout(150);
+  await f.page.locator('#native-logout').click();
+  await f.page.getByRole('button',{name:'Sign out',exact:true}).click();
+};
+const logouts=f=>f.posts.filter(post=>post.path==='/commpilot/servlet/Logout');
+
+test('Sign out while a save is pending signs out after the save answers, with its new token',async()=>{
+  const f=await slowSaves({signOut:true});
+  try{
+    f.server.delay=2000;
+    await signOutDuringSave(f);
+    await f.page.waitForURL(origin+'/commpilot/Login/');
+    assert.equal(f.writes().length,1,'the save is sent once');
+    assert.equal(logouts(f).length,1,'one sign-out request');
+    assert.ok(f.server.answered&&logouts(f)[0].at>=f.server.answered,'the sign-out waits for the save’s answer');
+    assert.equal(logouts(f)[0].params.formtokenserial,'token-1','the sign-out carries the token the save’s answer brought');
+    assert.deepEqual(f.badTokens,[]);assert.deepEqual(f.errors,[]);
+  }finally{await f.browser.close();}
+});
+
+test('Sign out while a save never answers sends no sign-out and offers Retry',async()=>{
+  const f=await slowSaves({signOut:true});
+  try{
+    f.server.hold=true;
+    await signOutDuringSave(f);
+    await f.page.getByRole('button',{name:'Retry sign out',exact:true}).waitFor({timeout:12000});
+    assert.match(await f.page.locator('.cp-native-logout-copy').innerText(),/still running.*not confirmed/);
+    assert.deepEqual(f.posts.map(post=>post.path),[routes[0]],'only the save was sent');
+    assert.equal(new URL(f.page.url()).pathname,routes[0]);
     assert.deepEqual(f.badTokens,[]);assert.deepEqual(f.errors,[]);
   }finally{await f.browser.close();}
 });

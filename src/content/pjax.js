@@ -318,6 +318,9 @@
   // A rejected follow can replay page scripts that immediately try the same navigation again.
   // Once token recovery has failed, make a single sign-in transition instead of posting in a loop.
   var cpSessionRedirecting = false;
+  // CommPilot confirmed a deliberate sign-out, and this tab is leaving for Login with its return page and Recent
+  // locations forgotten (cpSignOutFetch). A request settling or sent meanwhile must not store them again.
+  var cpSignedOut = false;
   // Client-only idle watchdog (ZERO network — keep-alive pings are proven session-killers on this
   // host, see [[gotcha-idle-connection-drop-dead-click]]; never reintroduce them). The sandbox
   // expires idle sessions around ~20 min (controlled measurement 2026-07-07: 24 idle minutes,
@@ -4044,7 +4047,7 @@
       return chain.filter(function (step) { return step.url !== nav.url; });
     }
     function cpRecentRecord() {
-      if (cpBulkOwner) return;
+      if (cpBulkOwner || cpSignedOut) return;
       if (/\/(?:Login|Logout)\//.test(location.pathname) || cpPendingNav || cpContextNavActive || cpRecentNeedsContext || !document.querySelector('td[width="82%"]') ||
           document.querySelector('td[width="82%"] .error, td[width="82%"] .errorMsg, td[width="82%"] .Failure')) return;
       var raw = history.state && history.state.cpNav, nav = cpRecentNav(raw);
@@ -5553,6 +5556,7 @@
       var start = Date.now();
       var LOGIN = "/commpilot/Login/";
       function go() {
+        cpSignedOut = true;
         var wait = Math.max(0, CP_LOGOUT_MIN_MS - (Date.now() - start));
         setTimeout(function () {
           var navd = false;
@@ -5564,6 +5568,9 @@
             ["cp-last-nav", "cp-pending-return", "cp-return-at", "cp-reload-nav", "cp-replay-at"].forEach(function (key) {
               try { sessionStorage.removeItem(key); } catch (e) {}
             });
+            // So do Recent locations, and the Login page holds back saved sign-in for a moment (login.js).
+            try { sessionStorage.removeItem(cpRecentKey); } catch (e) {}
+            try { sessionStorage.setItem("bwManualLogoutAt", String(Date.now())); } catch (e) {}
             try { location.replace(LOGIN); } catch (e) { location.href = LOGIN; }
           }
           // Just before the swap, HIDE the base console (sidebar) + darken html/body.
@@ -5737,9 +5744,10 @@
     // A navigation settled without committing, so the page on screen stays. Its chained follow-up ends with it,
     // and the recovery navigation it stored before sending is put back, so browser Reload and the next sign-in
     // reopen the page on screen. A sign-in redirect keeps the attempted page: that is the one the user asked for.
+    // After a deliberate sign-out there is no page to reopen.
     function cpNavFailed(url, params, recover) {
       if (cpPendingEntry(url, params)) cpPendingNav = null;
-      if (cpSessionRedirecting || !recover || !cpCommittedRecover || recover === cpCommittedRecover) return;
+      if (cpSessionRedirecting || cpSignedOut || !recover || !cpCommittedRecover || recover === cpCommittedRecover) return;
       try {
         sessionStorage.setItem("cp-last-nav", JSON.stringify(cpCommittedRecover));
         window.postMessage({ __cpRecoverNav: cpCommittedRecover }, location.origin);
@@ -5771,8 +5779,12 @@
           }
         }
         // A deliberate sign-out should leave the native login page visible
-        // briefly after a user-initiated sign-out.
-        if (typeof url === "string" && /\/Logout(?:\/|$)/i.test(url)) {
+        // briefly after a user-initiated sign-out. One confirmed in the
+        // extension's modal (cp-signing-out, intercepted below) does this only
+        // once CommPilot ends the session; a failed one changes nothing.
+        var _so = 0; try { _so = parseInt(sessionStorage.getItem("cp-signing-out") || "0", 10); } catch (e) {}
+        var _signingOut = !!_so && Date.now() - _so < 15000;
+        if (typeof url === "string" && /\/Logout(?:\/|$)/i.test(url) && !_signingOut) {
           try { sessionStorage.setItem("bwManualLogoutAt", String(Date.now())); } catch (e) {}
           try { sessionStorage.removeItem(cpRecentKey); } catch (e) {}
         }
@@ -5819,11 +5831,22 @@
         }
         // Sign-out interception (must precede isPjaxUrl): the confirmation
         // arms cp-signing-out for this one Logout redirectPost only.
-        var _so = 0; try { _so = parseInt(sessionStorage.getItem("cp-signing-out") || "0", 10); } catch (e) {}
-        if (_so && typeof url === "string" && /\/Logout(?:\/|$)/i.test(url) &&
-            Date.now() - _so < 15000) {
+        if (_signingOut && typeof url === "string" && /\/Logout(?:\/|$)/i.test(url)) {
           try { sessionStorage.removeItem("cp-signing-out"); } catch (e) {}
-          cpSignOutFetch(url, params || {});
+          // Like a newer click, the logout waits for the page's own request still on its way (a save above all):
+          // it goes out after that answer, with the token it brings. The request is never sent again. One still
+          // running after the limit leaves the sign-out unconfirmed; the extension's background reads (a board
+          // filling in, a list collecting) do not hold it up.
+          var signOutTicks = 0, signOutParams = params || {};
+          (function drainBeforeSignOut() {
+            if (cpInflightPosts === 0 || !cpNavPending && !cpUploadPending) { cpSignOutFetch(url, signOutParams); return; }
+            if (++signOutTicks > 250) {
+              console.warn('[pjax] prior CommPilot request did not finish; sign-out was not sent with a stale token');
+              document.dispatchEvent(new CustomEvent("cp:logout-failed", { detail: JSON.stringify({ message: "A previous CommPilot request is still running." }) }));
+              return;
+            }
+            setTimeout(drainBeforeSignOut, 20);
+          })();
           return;
         }
         if (cpLocalListPage(url,params)) return;
@@ -5997,7 +6020,8 @@
           try { if (!_submitNav && /\/ServiceProviders\/Modify\//.test(url)) cpSpEntry = { url: url, params: params || {} }; } catch (e) {}
           // Persisted browser-reload recover-nav (stubguard cold-POST-replays this). Exclude form submits + Add opens
           // (and page.jsp/sort.jsp) so recovery falls back to the last LIST/console nav, which replays cleanly.
-          try { if (!cpBulkOwner && url.indexOf("/Common/page.jsp") === -1 && url.indexOf("/Common/sort.jsp") === -1 && !_submitNav && !_addForm) { var _nav = { url: url, params: params || {}, entry: (_contextNav && _contextNav.entry) || ((cpEntityEntry && cpEntityEntry.url !== url) ? cpEntityEntry : (cpIsLevelUpNav(url, params) && cpDeepEntry) || null) }; sessionStorage.setItem("cp-last-nav", JSON.stringify(_nav)); window.postMessage({ __cpRecoverNav: _nav }, location.origin); } } catch (e) {}
+          // Nothing is stored once a deliberate sign-out is confirmed (cpSignedOut).
+          try { if (!cpBulkOwner && !cpSignedOut && url.indexOf("/Common/page.jsp") === -1 && url.indexOf("/Common/sort.jsp") === -1 && !_submitNav && !_addForm) { var _nav = { url: url, params: params || {}, entry: (_contextNav && _contextNav.entry) || ((cpEntityEntry && cpEntityEntry.url !== url) ? cpEntityEntry : (cpIsLevelUpNav(url, params) && cpDeepEntry) || null) }; sessionStorage.setItem("cp-last-nav", JSON.stringify(_nav)); window.postMessage({ __cpRecoverNav: _nav }, location.origin); } } catch (e) {}
           var liveTokEl = document.getElementsByName("formtokenserial")[0];
           var firstTok = liveTokEl ? liveTokEl.value : null;
           var cpLoader = cpNeedsFrame(url, params) ? cpFollowFrame : cpFollow;

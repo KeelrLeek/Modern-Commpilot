@@ -71,6 +71,12 @@ test('native Logout confirms once, allows an explicit retry after HTTP failure, 
     const lastNav = JSON.stringify({ url: '/commpilot/ServiceProvider/Profile/', params: {},
       entry: { url: '/commpilot/Reseller/ServiceProviders/Modify/', params: { key: 'Fixture_SP' } } });
     await page.evaluate(nav => sessionStorage.setItem('cp-last-nav', nav), lastNav);
+    // A Recent locations row from earlier in this session.
+    await page.evaluate(() => sessionStorage.setItem('cp-recent-locations', JSON.stringify([{ id: 'recent-cfa',
+      identity: 'cfa', label: 'Call Forwarding Always', context: 'Fixture_SP',
+      nav: { url: '/commpilot/User/CallForwardingAlways/', params: {} }, chain: [], at: Date.now() }])));
+    const recentIds = () => page.evaluate(() =>
+      JSON.parse(sessionStorage.getItem('cp-recent-locations') || '[]').map(row => row.id));
     // Sign out lives in the top bar's account menu; it presses CommPilot's own Logout link (hidden in the page).
     assert.equal(await page.locator('#native-logout').isVisible(), false);
     const trigger = { click: async () => {
@@ -92,6 +98,9 @@ test('native Logout confirms once, allows an explicit retry after HTTP failure, 
     assert.match(await page.locator('.cp-native-logout-copy').innerText(), /HTTP 503/);
     assert.equal(await page.evaluate(() => sessionStorage.getItem('cp-last-nav')), lastNav,
       'a sign-out that did not happen keeps the page Reload recovers');
+    assert.ok((await recentIds()).includes('recent-cfa'), 'a sign-out that did not happen keeps Recent locations');
+    assert.equal(await page.evaluate(() => sessionStorage.getItem('bwManualLogoutAt')), null,
+      'a sign-out that did not happen does not hold back saved sign-in');
     logoutStatus = 200;
     await page.getByRole('button', { name: 'Retry sign out', exact: true }).click();
     await page.waitForURL('**/commpilot/Login/', { timeout: 15000 });
@@ -103,6 +112,9 @@ test('native Logout confirms once, allows an explicit retry after HTTP failure, 
     // saved account) starts at home instead of opening the previous session's service provider.
     assert.deepEqual(await page.evaluate(() => ['cp-last-nav', 'cp-pending-return']
       .map(key => sessionStorage.getItem(key))), [null, null]);
+    // The confirmed sign-out empties Recent locations and marks a deliberate sign-out for the Login page.
+    assert.deepEqual(await recentIds(), []);
+    assert.ok(Date.now() - Number(await page.evaluate(() => sessionStorage.getItem('bwManualLogoutAt'))) < 30000);
   } finally {
     await context?.close();
     fs.rmSync(profile, { recursive: true, force: true });
