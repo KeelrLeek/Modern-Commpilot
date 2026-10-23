@@ -12,6 +12,7 @@ const browserPath = [
 const origin = 'https://apps-sbx.avpaas.io';
 const general = '/commpilot/User/VM/General/';
 const advanced = '/commpilot/User/VM/Advanced/';
+const nested = '/commpilot/User/VM/General/Nested/index.jsp';
 
 // Model the native save-and-forward contract, including formSubmitLinkForward
 // from the captured CommPilot validator: validate, set linkForward, form.submit().
@@ -23,7 +24,7 @@ function html(content, head = '', title = 'Voice Management') {
     <script>window.redirectPost = window.redirectPost || function(){};</script></body></html>`;
 }
 async function fixture(page, initialPath = '/commpilot/User/') {
-  const state = { serial: 0, enabled: false, posts: [], scripts: [], failScript: false, helperDelay: 80 };
+  const state = { serial: 0, enabled: false, posts: [], scripts: [], failScript: false, helperDelay: 80, saveDelay: 0, forward: false };
   const validator = general + 'validate.js';
   const helpers = '/commpilot/Scripts/voice-test-utils.js';
   const scripts = {
@@ -75,14 +76,22 @@ async function fixture(page, initialPath = '/commpilot/User/') {
       state.posts.push({ path: url.pathname, params: Object.fromEntries(params) });
       state.serial++;
     }
+    const advancedPage = () => html(
+      `<input type="hidden" name="formtokenserial" value="vm-${state.serial}">
+       <h2 id="voice-advanced-page">Advanced Settings</h2><div id="saved-state">${state.enabled ? 'On' : 'Off'}</div>
+       <script>window.validate=function(){throw Error('stale validator from another page');};</script>`
+    );
     if (params.get('linkForward')) {
       state.enabled = params.get('active') === 'true';
-      return route.fulfill({ contentType: 'text/html', body: html(
-        `<input type="hidden" name="formtokenserial" value="vm-${state.serial}">
-         <h2 id="voice-advanced-page">Advanced Settings</h2><div id="saved-state">${state.enabled ? 'On' : 'Off'}</div>
-         <script>window.validate=function(){throw Error('stale validator from another page');};</script>`
-      ) });
+      if (state.saveDelay) await new Promise(resolve => setTimeout(resolve, state.saveDelay));
+      // CommPilot forwards a saved Voice Management page through a redirect stub.
+      if (state.forward) return route.fulfill({ contentType: 'text/html', body:
+        `<html><body><input type="hidden" name="formtokenserial" value="vm-${state.serial}">
+         <script>redirectPost('${nested}',{});</script></body></html>` });
+      return route.fulfill({ contentType: 'text/html', body: advancedPage() });
     }
+    if (url.pathname === nested)
+      return route.fulfill({ contentType: 'text/html', body: advancedPage() });
     if (url.pathname === general)
       return route.fulfill({ contentType: 'text/html', body: generalPage() });
     return route.fulfill({ contentType: 'text/html', body: html(
@@ -196,6 +205,43 @@ test('leaving Voice Management while its dependencies load does not initialize h
     assert.equal(await page.evaluate(() => window.voiceValidatorInstalls || 0), 0);
     assert.equal(await page.evaluate(() => location.pathname), '/commpilot/User/CallPolicies/');
     assert.equal(state.posts.length, 2, 'only the two explicit page reads');
+  } finally { await browser.close(); }
+});
+
+test('a double-click on Advanced Settings saves Voice Management once', async () => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await browser.newPage(), state = await fixture(page);
+    state.saveDelay = 600;
+    await page.evaluate(url => window.redirectPost(url, {}), general);
+    await page.locator('.fx-saves#voice-advanced').waitFor({ timeout: 4000 });
+    const before = state.posts.length;
+    await page.locator('#voice-advanced').dblclick();
+    await page.locator('#voice-advanced-page').waitFor({ timeout: 4000 });
+    await page.waitForTimeout(900);   // a queued repeat would be sent once the first response arrives
+    assert.deepEqual(state.posts.slice(before).map(post => post.params.linkForward), [advanced], 'one gesture sends one save');
+  } finally { await browser.close(); }
+});
+
+test('F5 on the page Advanced Settings forwarded to refreshes that page, not General', async () => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true });
+  try {
+    const page = await browser.newPage(), state = await fixture(page);
+    state.forward = true;
+    await page.evaluate(url => window.redirectPost(url, {}), general);
+    await page.locator('.fx-saves#voice-advanced').waitFor({ timeout: 4000 });
+    await page.locator('#voice-advanced').click();
+    await page.locator('#voice-advanced-page').waitFor({ timeout: 2500 });
+    await page.waitForFunction(() => !document.documentElement.hasAttribute('data-cp-nav'));
+    assert.equal(await page.evaluate(() => location.pathname), nested);
+    const before = state.posts.length;
+    const refreshed = page.waitForRequest(request => request.method() === 'POST');
+    await page.keyboard.press('F5');
+    await refreshed;
+    await page.waitForFunction(() => !document.documentElement.hasAttribute('data-cp-nav'), null, { timeout: 4000 });
+    assert.deepEqual(state.posts.slice(before).map(post => post.path), [nested], 'F5 refreshes the page on screen');
+    assert.equal(await page.locator('#voice-advanced-page').count(), 1);
+    assert.equal(await page.evaluate(() => location.pathname), nested);
   } finally { await browser.close(); }
 });
 

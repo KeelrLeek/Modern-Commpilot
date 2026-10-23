@@ -297,6 +297,8 @@
   var cpPendingNav = null;
   // The lease of a save (OK/Apply/Delete/Save/Submit) still waiting for CommPilot; see cpWriteNav.
   var cpWritePending = null;
+  // The sequence of the last navigation or upload actually sent to CommPilot; see cpWriteHandBack.
+  var cpSentSeq = 0;
   // The CURRENT entity id (e.g. a user id) for the breadcrumb's last pill. Captured from each pjax swap's
   // FETCHED doc (cpHook) because after the swap the live header keeps the PREVIOUS entity (it isn't swapped)
   // and the fresh content cell has none — so neither live source is reliable. null = no pjax swap yet this
@@ -904,7 +906,10 @@
                   unverifiedSave: 'CommPilot returned an error after Delete, and the Personal Assistant rule could not be verified as removed. Check the list before trying again.' };
               });
             }
-            if (doc.querySelector('td[width="82%"]')) return { doc: doc, html: html, responseUrl: new URL(u, location.href).href };
+            // A page reached through a redirect stub also reports that hop's parameters: the server's own
+            // navigation to it, which cpHook can keep for a save that landed there (never the submitted form).
+            if (doc.querySelector('td[width="82%"]'))
+              return { doc: doc, html: html, responseUrl: new URL(u, location.href).href, responseParams: depth > 0 ? p || {} : null };
             var stub = cpExtractStub(doc);
             if (stub && stub.target) {
               if (depth >= 4)
@@ -5753,15 +5758,27 @@
         window.postMessage({ __cpRecoverNav: cpCommittedRecover }, location.origin);
       } catch (e) {}
     }
-    // A save: the named-button half of _saveNav (OK, Apply, Delete, Save, Submit, or a buttonClicked holding one).
+    // A save: the named-button half of _saveNav (OK, Apply, Delete, Save, Submit, or a buttonClicked holding one),
+    // or a native "Also saves current screen data" link, which submits the form with its linkForward set.
     // While one waits for CommPilot (cpWritePending), a repeated save is dropped; reads, searches and other
     // navigation still supersede it.
     function cpWriteNav(params) {
       return !!(params && (params.ok != null || params.apply != null || params.delete != null || params.save != null || params.submit != null ||
-        /^(ok|apply|delete|save|submit)$/i.test(String(params.buttonClicked || ""))));
+        /^(ok|apply|delete|save|submit)$/i.test(String(params.buttonClicked || "")) ||
+        Array.isArray(params.__cpFormEntries) && typeof params.linkForward === "string" && params.linkForward !== ""));
     }
     function cpWriteRelease(lease) {
       if (lease && cpWritePending === lease) cpWritePending = null;
+    }
+    // A navigation that took the sequence, then gave up without sending anything (a drain that timed out, a
+    // native script still loading, a board that did not finish), hands it back to a save or upload still waiting
+    // for CommPilot when that write is the last request sent. Its own response is then still shown, page or
+    // error, and the loading line stays until it arrives.
+    function cpWriteHandBack() {
+      var waiting = cpWritePending && cpWritePending.seq === cpSentSeq || cpUploadSentSeq === cpSentSeq;
+      if (!cpSentSeq || !waiting) return false;
+      cpSeq = cpSentSeq;
+      return true;
     }
 
     cpHook = function (url, params, _retry, _contextNav) {
@@ -5855,8 +5872,9 @@
           // or queue behind it, where it would go out with the token that save's response rotates in.
           if (cpWritePending && !cpBulkOwner && cpWriteNav(params)) { cpDbg("[pjax] a save is already pending; repeat ignored", url); return; }
           cpNavClaim(url, params, _contextNav);
-          function nativeNavigationBlocked() {
-            cpNavBusyEnd(); cpPopReplayEnd();
+          function nativeNavigationBlocked(handedBack) {
+            if (!handedBack) cpNavBusyEnd();
+            cpPopReplayEnd();
             cpContextNavEnd(_contextNav);
             cpUploadNotice('A native script is still loading after its timeout. Wait for it to finish, then try again, or use your browser\'s Reload button.');
           }
@@ -5868,7 +5886,7 @@
             cpNavBusy();
             cpBulkScriptsReady.then(function () {
               if (nativeWaitSeq !== cpSeq) return;
-              if (cpNativeScriptRequests.size) nativeNavigationBlocked();
+              if (cpNativeScriptRequests.size) nativeNavigationBlocked(cpWriteHandBack());
               else cpHook(url, params, _retry, _contextNav);
             });
             return;
@@ -5908,7 +5926,8 @@
               if (cpSeq !== boardNavSeq) return;
               if (ready) cpHook(url, params, _retry, _contextNav);
               else {
-                cpNavBusyEnd(); cpPopReplayEnd();
+                if (!cpWriteHandBack()) cpNavBusyEnd();
+                cpPopReplayEnd();
                 cpContextNavEnd(_contextNav);
                 cpUploadNotice("CommPilot could not finish loading this menu. Reload this page before opening an option.");
               }
@@ -5964,7 +5983,7 @@
               if (cpInflightPosts === 0) { cpHook(url, params, _retry, _contextNav); return; }
               if (++drainTicks > 250) {
                 console.warn('[pjax] prior CommPilot request did not finish; navigation was not sent with a stale token');
-                cpNavBusyEnd();
+                if (!cpWriteHandBack()) cpNavBusyEnd();
                 cpPopReplayEnd();
                 if (cpAutoReplaceUrl === url) cpAutoReplaceUrl = null;
                 cpContextNavEnd(_contextNav);
@@ -6067,7 +6086,8 @@
             loadPage = loadContext(0,firstTok);
           } else loadPage = cpLoader(url, params, firstTok, 0);
           // A save holds the lease until its page is swapped in or its request settles (see cpWriteNav).
-          var cpWriteLease = !cpBulkOwner && cpWriteNav(params) ? (cpWritePending = { url: url }) : null;
+          var cpWriteLease = !cpBulkOwner && cpWriteNav(params) ? (cpWritePending = { url: url, seq: mySeq }) : null;
+          cpSentSeq = mySeq;
           var cpResponseReceived = false;
           var cpThisNav = cpNavPending = loadPage
             .then(function (res) {
@@ -6216,6 +6236,23 @@
                   params = {};
                   cpVoiceForwarded = true;
                   cpLastNav = {url:url,params:{}};
+                }
+              }
+              // Schedule Event Add/Modify OK saves the event, then CommPilot's stub returns to the hosting
+              // Schedule Modify page (see cpFollow). That page owns the address, Back entry and F5; otherwise its
+              // relative Add and its self-posting OK/Apply resolve against the Event controller. It keeps only the
+              // stub's own read-only navigation, never the submitted event.
+              var cpScheduleReturned = null;
+              if (_submitNav && res.responseUrl && res.responseParams &&
+                  /^\/commpilot\/(?:ServiceProvider|Group|User)\/Schedules\/Events\/(?:Add|Modify)\/(?:index\.jsp)?$/.test(url)) {
+                var scheduleDestination = new URL(res.responseUrl, location.href);
+                if (scheduleDestination.origin === location.origin &&
+                    /^\/commpilot\/(?:ServiceProvider|Group|User)\/Schedules\/Modify\/(?:index\.jsp)?$/.test(scheduleDestination.pathname))
+                  cpScheduleReturned = cpHistoryReplayNav({ url: scheduleDestination.pathname + scheduleDestination.search, params: res.responseParams });
+                if (cpScheduleReturned) {
+                  url = cpScheduleReturned.url;
+                  params = cpScheduleReturned.params;
+                  cpLastNav = cpScheduleReturned;
                 }
               }
               // A context redirect must never masquerade as the requested appearance. Keep the device editor
@@ -6379,7 +6416,8 @@
               // those actions resolve as they would after a native navigation.
               cpConfigFilesForwarded = false;
               var cpPrevNav = !cpVoiceForwarded && history.state && history.state.cpNav;
-              var cpState = _saveNav ? { cpNav: cpPrevNav && cpPrevNav.url ? cpPrevNav : { url: url, params: {} } } :
+              var cpState = cpScheduleReturned ? { cpNav: cpScheduleReturned } :
+                _saveNav ? { cpNav: cpPrevNav && cpPrevNav.url ? cpPrevNav : { url: url, params: {} } } :
                 { cpNav: { url: url, params: params || {},
                   entry: (cpEntityEntry && cpEntityEntry.url !== url) ?
                     { url: cpEntityEntry.url, params: cpEntityEntry.params || {} } : null } };
@@ -6398,7 +6436,9 @@
                 cpHistoryCommitted = true;
                 cpPopReplaying = false;
               } catch (e) {}
-              cpPaintedCommit(_submitNav ? null : { url: url, params: params || {} }, _nav);
+              // A save keeps the page it was sent from, except one whose response is another page's own navigation
+              // (the Voice Management forward, the schedule return), which F5 then refreshes.
+              cpPaintedCommit(cpScheduleReturned || (_submitNav && !cpVoiceForwarded ? null : { url: url, params: params || {} }), _nav);
               cpWriteRelease(cpWriteLease);   // the form it was sent from has been replaced
               // A new page must start at its top. Without this, a long form's
               // body scroll carries into the next PJAX page and hides the
@@ -6614,7 +6654,7 @@
               // path-strip of the form URL, because the form can live under a different tree than its list
               // (DeviceType list = /Reseller/DeviceType/ but its Add = /Operator/System/DeviceType/Add/).
               try {
-                if (_submitNav && cpFormOrigin && canonical === url &&
+                if (_submitNav && !cpScheduleReturned && cpFormOrigin && canonical === url &&
                     (/\/(?:Add|AddRange|AddModify|Import|Modify)\//.test(url) || _numberEditForm ||
                       /\/Operator\/System\/DeviceType\/Profile\//.test(url)) &&
                     !/\b(?:Add|Modify|Import)\b/i.test(doc.title || '') &&
@@ -6899,7 +6939,8 @@
     // Known multipart servlets accept POSTs and answer with a token-bearing
     // redirectPost stub. Keep the file POST in the current document, then let
     // cpHook follow that stub and repaint the resulting CommPilot page.
-    var cpUploadActive = false, cpUploadPending = null;
+    // cpUploadSentSeq: the sequence of a sent upload still waiting for its response (see cpWriteHandBack).
+    var cpUploadActive = false, cpUploadPending = null, cpUploadSentSeq = 0;
     window.cpHasPendingNativeRequest = function () {
       return !!(cpInflightPosts || cpNavPending || cpUploadPending);
     };
@@ -6955,6 +6996,7 @@
       try { if (cpGridState && cpGridState._sweepAbort) cpGridState._sweepAbort.abort(); } catch (e) {}
       try { cpSweepStop(); } catch (e) {}
       var uploadSeq = ++cpSeq; // discard a late navigation response instead of overwriting the upload result
+      cpNavBusy();   // until the upload settles here, or its result page's own navigation takes over
       var body = new FormData(form);
       if (submitter && submitter.name) body.append(submitter.name, submitter.value || '');
       var deviceAction = action.pathname === '/commpilot/servlet/DeviceInventoryProvisionServlet' ?
@@ -6978,6 +7020,8 @@
         finished = true; cpUploadActive = false;
         if (uploadTimer) clearTimeout(uploadTimer);
         if (cpUploadPending === pendingUpload) cpUploadPending = null;
+        if (cpUploadSentSeq === uploadSeq) cpUploadSentSeq = 0;
+        if (cpSeq === uploadSeq) cpNavBusyEnd();
         buttons.forEach(function (button) { button.element.disabled = button.disabled; });
         form.removeAttribute('aria-busy');
         if (message) cpUploadNotice(message);
@@ -6989,12 +7033,14 @@
         if (cpSeq !== uploadSeq || !form.isConnected) { release(uploadOwner ? 'The native save was interrupted. Check before retrying.' : null); return; }
         if (cpInflightPosts > 0) {
           if (waited++ < 250) { setTimeout(sendWhenReady, 20); return; }
+          cpWriteHandBack();
           release('Another page request is still running. Please try the upload again.');
           return;
         }
         var liveToken = document.getElementsByName('formtokenserial')[0];
         if (liveToken) body.set('formtokenserial', liveToken.value);
         cpInflightPosts++;
+        cpSentSeq = cpUploadSentSeq = uploadSeq;
         var requestHeld = true;
         function finishRequest() {
           if (!requestHeld) return;

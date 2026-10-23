@@ -109,8 +109,8 @@ async function slowSaves({signOut=false}={}){
         return route.fulfill({status:409,body:'Fixture token mismatch'});
       }
       if(params.has('ok')||params.has('apply')){
-        if(server.hold)await new Promise(()=>{});   // CommPilot never answers this save
-        await new Promise(resolve=>setTimeout(resolve,server.delay));
+        if(server.hold===true)await new Promise(()=>{});   // CommPilot never answers this save
+        await (server.hold||new Promise(resolve=>setTimeout(resolve,server.delay)));
         if(server.fail){server.fail=false;return route.fulfill({status:500,body:'Fixture server error'});}
         marker='saved '+posts.length;
         server.answered=Date.now();
@@ -214,4 +214,30 @@ test('Sign out while a save never answers sends no sign-out and offers Retry',as
     assert.equal(new URL(f.page.url()).pathname,routes[0]);
     assert.deepEqual(f.badTokens,[]);assert.deepEqual(f.errors,[]);
   }finally{await f.browser.close();}
+});
+
+// A click that waits behind a slower save gives up after about 5 s without sending anything. The save keeps the
+// page: its loading line stays, a repeated OK is still ignored, and its own response or error is shown.
+for(const fail of [false,true])test(`a click that gives up behind a slow save leaves the page to that save${fail?' (server error)':''}`,async()=>{
+  const f=await slowSaves();
+  let release;
+  f.server.hold=new Promise(resolve=>{release=resolve;});f.server.fail=fail;
+  try{
+    await f.page.clock.install();
+    const sent=f.page.waitForRequest(req=>new URLSearchParams(req.postData()||'').has('ok'));
+    await f.page.locator('input[name="ok"]').click();
+    await sent;
+    await f.page.evaluate(target=>redirectPost(target,{}),routes[1]);
+    await f.page.clock.runFor(5400);
+    assert.match(await f.page.locator('.cp-upload-notice').textContent(),/previous.*request.*still running/i);
+    assert.equal(await f.page.evaluate(()=>document.documentElement.getAttribute('data-cp-nav')),'busy','the save keeps the loading line');
+    await f.page.locator('input[name="ok"]').click();
+    release();
+    if(fail)await f.page.locator('.cp-alert[data-cp-nav-error]').waitFor();
+    else await f.page.waitForFunction(()=>document.querySelector('#marker')?.textContent==='saved 1');
+    await f.settle();
+    assert.equal(f.writes().length,1,'the save is sent once');
+    assert.deepEqual(f.posts.map(post=>post.path),[routes[0]],'the click that gave up sent nothing');
+    assert.deepEqual(f.badTokens,[]);assert.deepEqual(f.errors,[]);
+  }finally{release();await f.browser.close();}
 });

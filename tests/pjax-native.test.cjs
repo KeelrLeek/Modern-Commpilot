@@ -451,6 +451,86 @@ test('service Add and Modify Delete return to their Group list URLs', async () =
   } finally { await browser.close(); }
 });
 
+test('Schedule Event OK returns to Schedule Modify, whose Add, Apply and F5 keep their own controller', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    for (const [scope, form, title] of [['Group', 'Add', 'Schedule Modify'], ['ServiceProvider', 'Modify', 'Schedules'],
+      ['User', 'Add', 'Schedules']]) {
+      const page = await browser.newPage(), posts = [], events = ['New Year'];
+      const listPath = `/commpilot/${scope}/Schedules/`, modifyPath = `${listPath}Modify/index.jsp`;
+      const eventPath = name => `${listPath}Events/${name}/index.jsp`;
+      const identity = { name: 'Time', P_name: 'Time', key: 'Holidays', P_key: 'Holidays' };
+      const shell = (heading, content, pageTitle = heading) => `<!doctype html><html><head><title>${pageTitle}</title></head><body>
+        <form name="leftNavForm"><a class="leftnavfolderopen">Calling Plans</a></form>
+        <table><tr><td width="82%"><form name="mainForm" method="post">
+        <input type="hidden" name="formtokenserial" value="token-${posts.length}">
+        <input type="hidden" name="name" value="Time"><input type="hidden" name="key" value="Holidays">
+        <h1>${heading}</h1>${content}</form></td></tr></table>
+        <script>window.redirectPost=function(){};</script></body></html>`;
+      const modify = () => shell('Schedule Modify',
+        '<input type="submit" name="apply" value="Apply"><input type="button" name="add" value="Add">' +
+        events.map(event => `<div class="event">${event}</div>`).join(''), title);
+      const eventForm = (name, invalid) => shell(`Event ${name}`, (invalid ? '<p id="validation-error">Event name is required</p>' : '') +
+        '<input name="eventName" value=""><input type="submit" name="ok" value="OK">');
+      await page.route('https://apps-sbx.avpaas.io/**', route => {
+        const request = route.request(), pathname = new URL(request.url()).pathname;
+        const data = new URLSearchParams(request.postData() || '');
+        const event = ['Add', 'Modify'].find(name => pathname === eventPath(name));
+        if (request.method() === 'POST') posts.push({ pathname, data: Object.fromEntries(data) });
+        let body = shell('Not found', '');
+        if (pathname === listPath) body = shell('Schedules', '<table id="searchTable"></table>');
+        else if (pathname === modifyPath) body = modify();
+        else if (event && data.has('ok') && data.get('eventName')) {
+          // CommPilot saves the event, then returns to the schedule through a relative redirect stub.
+          events.push(data.get('eventName'));
+          body = `<html><body><input type="hidden" name="formtokenserial" value="token-${posts.length}">
+            <script>redirectPost('../../Modify/index.jsp',{name:'Time',P_name:'Time',key:'Holidays',P_key:'Holidays'});</script></body></html>`;
+        } else if (event) body = eventForm(event, data.has('ok'));
+        else return route.fulfill({ status: 404, contentType: 'text/html', body });
+        return route.fulfill({ status: 200, contentType: 'text/html', body });
+      });
+      await page.goto(`https://apps-sbx.avpaas.io${listPath}`, { waitUntil: 'domcontentloaded' });
+      await page.addScriptTag({ path: pjaxPath });
+      await page.evaluate(({ url, params }) => window.redirectPost(url, params), { url: modifyPath, params: identity });
+      await page.getByRole('heading', { name: 'Schedule Modify' }).waitFor();
+      await page.evaluate(({ url, params }) => window.redirectPost(url, params),
+        { url: `../Events/${form}/index.jsp`, params: form === 'Add' ? identity : { ...identity, eventName: 'New Year' } });
+      await page.getByRole('heading', { name: `Event ${form}` }).waitFor();
+      // A validation error is the Event page itself and keeps its address.
+      await page.locator('input[name="ok"]').click();
+      await page.locator('#validation-error').waitFor();
+      assert.equal(await page.evaluate(() => location.pathname), eventPath(form), `${scope} validation`);
+      await page.locator('input[name="eventName"]').fill('Christmas');
+      await page.locator('input[name="ok"]').click();
+      await page.locator('.event', { hasText: 'Christmas' }).waitFor();
+      await page.waitForFunction(() => !document.documentElement.hasAttribute('data-cp-nav'));
+      assert.equal(await page.evaluate(() => location.pathname), modifyPath, `${scope} Event ${form} OK`);
+      assert.deepEqual(await page.evaluate(() => history.state.cpNav), { url: modifyPath, params: identity });
+      const mark = posts.length;
+      const refreshed = page.waitForRequest(request => request.method() === 'POST');
+      await page.keyboard.press('F5');
+      await refreshed;
+      await page.waitForFunction(() => !document.documentElement.hasAttribute('data-cp-nav'));
+      // The schedule's own Add (relative to its page) adds the next event, which returns there again.
+      await page.evaluate(params => window.redirectPost('../Events/Add/index.jsp', params), identity);
+      await page.getByRole('heading', { name: 'Event Add' }).waitFor();
+      await page.locator('input[name="eventName"]').fill('Easter');
+      await page.locator('input[name="ok"]').click();
+      await page.locator('.event', { hasText: 'Easter' }).waitFor();
+      await page.waitForFunction(() => !document.documentElement.hasAttribute('data-cp-nav'));
+      assert.equal(await page.evaluate(() => location.pathname), modifyPath, `${scope} second event`);
+      await page.locator('input[name="apply"]').click();
+      await page.waitForFunction(count => document.querySelector('[name="formtokenserial"]').value === 'token-' + count, mark + 5);
+      assert.deepEqual(posts.slice(mark).map(post => post.pathname),
+        [modifyPath, eventPath('Add'), eventPath('Add'), modifyPath, modifyPath], scope);
+      assert.deepEqual(posts[mark].data, { ...identity, formtokenserial: `token-${mark}` }, 'F5 reopens the schedule without its save');
+      assert.equal(posts.at(-1).data.apply, 'Apply');
+      await page.close();
+    }
+  } finally { await browser.close(); }
+});
+
 test('a list value opens its row detail even when its legacy click listener is missing', async () => {
   assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });
