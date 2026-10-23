@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
+const art = require('../scripts/make-icons.cjs');
 
 const root = path.resolve(__dirname, '..');
 const executablePath = ['C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
@@ -18,8 +19,9 @@ async function fixture() {
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '').replace(/<link\b[^>]*>/g, ''));
   await page.evaluate(() => {
     window.writes = [];
+    window.sent = [];
     window.stored = 'atlas';
-    window.chrome = { runtime: {}, storage: {
+    window.chrome = { runtime: { sendMessage: (message, done) => { sent.push(message); done(); } }, storage: {
       local: { get: (key, done) => { window.load = value => done({ [key]: value }); },
         set: (data, done) => window.writes.push({ data, done }) },
       onChanged: { addListener: listener => { window.changed = listener; } }
@@ -85,6 +87,26 @@ test('a failed older write still saves the latest choice, and a failed latest wr
     await f.page.evaluate(() => finishWrite(2, 'Quota exceeded'));
     assert.equal(await f.page.getAttribute('html', 'data-cp-palette'), 'terra-dark');
     assert.match(await f.page.textContent('#save-status'), /Could not save/);
+    assert.deepEqual(f.errors, []);
+  } finally { await f.close(); }
+});
+
+test('a saved choice reports its colours for the toolbar button; superseded and failed saves do not', async () => {
+  const f = await fixture();
+  try {
+    await f.page.addStyleTag({ path: path.join(root, 'src/content/theme-palettes.css') });
+    await f.page.evaluate(() => load('atlas'));
+    await f.page.check('#palette-graphite');
+    await f.page.check('input[name="mode"][value="dark"]');
+    await f.page.evaluate(() => finishWrite(0));
+    assert.deepEqual(await f.page.evaluate(() => sent), [], 'the superseded light side is not reported');
+    await f.page.evaluate(() => finishWrite(1));
+    const palettes = art.readPalettes(fs.readFileSync(art.cssFile, 'utf8'));
+    assert.deepEqual(await f.page.evaluate(() => sent),
+      [{ kind: 'cpPalette', palette: 'graphite', colors: palettes.graphite }], 'the colours a CommPilot page reports');
+    await f.page.check('#palette-terra');
+    await f.page.evaluate(() => finishWrite(2, 'Quota exceeded'));
+    assert.equal(await f.page.evaluate(() => sent.length), 1, 'a failed save keeps the button as it was');
     assert.deepEqual(f.errors, []);
   } finally { await f.close(); }
 });

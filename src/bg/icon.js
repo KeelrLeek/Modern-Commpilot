@@ -102,19 +102,27 @@
     } catch (_) {}
   }
 
+  // This extension's toolbar popup, which has no tab, reports a theme picked in it.
+  function fromPopup(sender) {
+    try {
+      return typeof chrome.runtime.id === "string" && sender.id === chrome.runtime.id &&
+        typeof sender.url === "string" && sender.url.indexOf(chrome.runtime.getURL("src/popup/")) === 0;
+    } catch (_) { return false; }
+  }
+
   restore();
   if (chrome.runtime.onStartup) chrome.runtime.onStartup.addListener(restore);
   if (chrome.runtime.onInstalled) chrome.runtime.onInstalled.addListener(restore);
-  // Only content scripts report (they come with sender.tab). Nothing is replied and the channel is
-  // not held, so other listeners, such as the vault's, answer their own kinds.
+  // Only content scripts (they come with sender.tab) and the popup report. Nothing is replied and the
+  // channel is not held, so other listeners, such as the vault's, answer their own kinds.
   chrome.runtime.onMessage.addListener(function (message, sender) {
-    if (!message || !sender || !sender.tab) return false;
-    if (message.kind === "cpPalette") {
+    if (!message || !sender) return false;
+    if (message.kind === "cpPalette" && (sender.tab || fromPopup(sender))) {
       var colors = usable(message.colors);
       if (!colors) return false;
       told = true;
       if (JSON.stringify(colors) !== shown) { remember(colors); show(colors); }
-    } else if (message.kind === "cpEnv" && typeof sender.tab.id === "number" && sender.tab.id >= 0) {
+    } else if (message.kind === "cpEnv" && sender.tab && typeof sender.tab.id === "number" && sender.tab.id >= 0) {
       if (message.env === "sandbox") act("setBadgeText", { tabId: sender.tab.id, text: "SBX" });
       else if (message.env === "live") act("setBadgeText", { tabId: sender.tab.id, text: "" });
     }

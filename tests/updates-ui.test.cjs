@@ -90,8 +90,13 @@ test('Updates works inside Settings, isolates channels and errors, and matches s
       await page.waitForFunction(()=>document.querySelector('.cp-updates').getAttribute('aria-busy')==='false');
     }
     await scenario({stable:nextVersion});
-    await updates.getByRole('button',{name:'Check for updates',exact:true}).click();
+    // From the keyboard, focus stays on the button inside Settings while it checks and after.
+    const checkFocused=()=>page.evaluate(()=>document.activeElement?.matches('#cp-appearance-panel .cp-update-check')??false);
+    await updates.getByRole('button',{name:'Check for updates',exact:true}).focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await checkFocused(),true,'checking keeps focus inside Settings');
     await updates.getByText(`Stable update available: ${nextVersion}`,{exact:true}).waitFor();
+    assert.equal(await checkFocused(),true,'the result keeps focus on Check for updates');
     assert.equal(await updates.locator('.cp-update-download').getAttribute('href'),stableDownload);
     await updates.locator('.cp-update-notes summary').click();
     assert.equal(await updates.locator('.cp-update-notes img').count(),0,'release notes are never HTML');

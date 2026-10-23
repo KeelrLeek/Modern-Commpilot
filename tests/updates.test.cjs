@@ -106,10 +106,10 @@ test('an offline or rate-limited check never claims up to date and retains the p
   h.advance(31000);fail=true;
   const offline=await h.request();
   assert.match(offline.cache.error,/Could not reach GitHub/);
-  assert.equal(offline.available,false);
+  assert.equal(offline.available,true,'the update found earlier keeps its download beside the error');
   assert.equal(offline.cache.checkedAt,saved.cache.checkedAt);
   await h.request();
-  assert.equal(h.calls.length,2,'failure backoff applies to manual checks');
+  assert.equal(h.calls.length,2,'repeated manual checks are still throttled after a failure');
   const limited=harness(async()=>({status:403,headers:{'retry-after':'3600'}}));
   assert.match((await limited.request()).cache.error,/limiting update checks/);
   limited.advance(31*60*1000);
@@ -117,6 +117,27 @@ test('an offline or rate-limited check never claims up to date and retains the p
   assert.equal(limited.calls.length,1);
   const invalid=await harness(async()=>({status:200,text:'<html>not JSON</html>'})).request();
   assert.match(invalid.cache.error,/invalid release information/);
+});
+test('after a failed automatic check a known update stays downloadable and a manual check retries at once', async()=>{
+  let fail=false;
+  const h=harness(async()=>{
+    if(fail) throw Error('Network offline');
+    return {status:200,data:release('0.3.83')};
+  },{cpUpdatePreferences:{channel:'stable',automatic:true}});
+  assert.equal((await h.request()).available,true);
+  h.advance(25*60*60*1000);fail=true;
+  h.events.alarm({name:'cp-update-check'});
+  await new Promise(resolve=>setTimeout(resolve,20));
+  assert.equal(h.calls.length,2);
+  h.advance(2*60*1000);fail=false;
+  const offline=await h.request({op:'state'});
+  assert.equal(h.calls.length,2,'automatic checks still back off after a failure');
+  assert.match(offline.cache.error,/Could not reach GitHub/);
+  assert.equal(offline.available,true,'the update found earlier keeps its download');
+  const retried=await h.request();
+  assert.equal(h.calls.length,3,'a manual check is not held off by a network failure');
+  assert.equal(retried.cache.error,'');
+  assert.equal(retried.available,true);
 });
 test('concurrent tabs share one request; automatic checks are daily and can be disabled', async()=>{
   let finish;

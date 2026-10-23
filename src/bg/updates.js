@@ -59,7 +59,7 @@
     const attemptedAt = Date.now();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
-    let retryAt = attemptedAt + 15 * 60 * 1000;
+    let retryAt = attemptedAt + 15 * 60 * 1000, limited = false;
     try {
       const response = await fetch(api + (channel === "stable" ? "latest" : "tags/nightly"), {
         method: "GET", credentials: "omit", referrerPolicy: "no-referrer", redirect: "error", cache: "no-store",
@@ -71,6 +71,7 @@
         const reset = Number(response.headers.get("x-ratelimit-reset")) * 1000;
         const retry = Number(response.headers.get("retry-after")) * 1000 + attemptedAt;
         retryAt = Math.max(retryAt, Math.min(Math.max(reset || 0, retry || 0), attemptedAt + day));
+        limited = true;
         throw Error("GitHub is limiting update checks. Try again later.");
       }
       if (!response.ok) throw Error("GitHub could not check for updates. Try again later.");
@@ -81,7 +82,7 @@
       return {checkedAt: Date.now(), attemptedAt, release: parseRelease(data, channel), error: ""};
     } catch (error) {
       const known = /^(GitHub|This release|The release ZIP)/.test(error.message || "");
-      return {checkedAt: previous?.checkedAt || 0, attemptedAt, release: previous?.release || null, retryAt,
+      return {checkedAt: previous?.checkedAt || 0, attemptedAt, release: previous?.release || null, retryAt, limited,
         error: known ? error.message : "Could not reach GitHub. Check your connection and try again."};
     } finally { clearTimeout(timeout); }
   }
@@ -90,7 +91,8 @@
     const work = (async () => {
       const previous = await get(cacheKey(channel));
       const now = Date.now();
-      if (previous && (previous.retryAt > now ||
+      // A failure holds off automatic checks; a manual check waits only while GitHub is limiting checks.
+      if (previous && ((previous.retryAt > now && (!force || previous.limited)) ||
           now - previous.attemptedAt < (force ? 30000 : previous.error ? 0 : day))) return previous;
       const result = await fetchRelease(channel, previous);
       await set(cacheKey(channel), result);
@@ -103,9 +105,10 @@
     const prefs = await preferences();
     const cache = force || prefs.automatic ? await check(prefs.channel, force) : await get(cacheKey(prefs.channel));
     const installed = chrome.runtime.getManifest().version;
+    // A failed check keeps the last successful release, so an update found earlier stays downloadable beside the error.
     const relation = cache?.release ? compare(cache.release.version, installed) : null;
     return {ok: true, preferences: prefs, installed, cache: cache || null,
-      available: relation === 1 && !cache?.error, newerInstalled: relation === -1, releasesUrl: releases};
+      available: relation === 1, newerInstalled: relation === -1, releasesUrl: releases};
   }
   async function configureAlarm() {
     if (!chrome.alarms) return;

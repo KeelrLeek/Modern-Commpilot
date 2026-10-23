@@ -70,7 +70,8 @@
     async function load(op = "state", patch) {
       const ticket = ++sequence;
       const button = find(".cp-update-check");
-      button.disabled = true;
+      // aria-disabled, not disabled: disabling the focused button would drop keyboard focus out of Settings.
+      button.setAttribute("aria-disabled", "true");
       button.textContent = "Checking…";
       section.setAttribute("aria-busy", "true");
       // Never leave a previous channel's download available while a new check is pending.
@@ -93,7 +94,7 @@
         if (ticket === sequence) find(".cp-update-status").textContent = error.message || "Could not check for updates.";
       } finally {
         if (ticket === sequence) {
-          button.disabled = false;
+          button.removeAttribute("aria-disabled");
           button.textContent = "Check for updates";
           section.setAttribute("aria-busy", "false");
         }
@@ -103,7 +104,9 @@
       if (event.target.name === "cp-update-channel") load("preferences", {channel: event.target.value});
       if (event.target.name === "cp-update-automatic") load("preferences", {automatic: event.target.checked});
     });
-    find(".cp-update-check").addEventListener("click", () => load("check"));
+    find(".cp-update-check").addEventListener("click", event => {
+      if (event.currentTarget.getAttribute("aria-disabled") !== "true") load("check");
+    });
     find(".cp-update-download").addEventListener("click", () => { find(".cp-update-help").open = true; });
     current = {section, load};
   }

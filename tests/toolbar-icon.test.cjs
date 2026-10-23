@@ -159,6 +159,28 @@ test('a page palette report is stored and repaints the button; repeats cost noth
   assert.deepEqual(page.replies, []);
 });
 
+test('a theme picked in the toolbar popup, which has no tab, repaints the button', () => {
+  const page = background({ stored: warm });
+  page.chrome.runtime.id = 'own-id';
+  page.chrome.runtime.getURL = file => `chrome-extension://own-id/${file}`;
+  page.run(iconCode);
+  page.settle();
+  const popup = { id: 'own-id', url: 'chrome-extension://own-id/src/popup/popup.html' };
+  for (const sender of [{ id: 'other-id', url: 'chrome-extension://other-id/src/popup/popup.html' },
+    { id: 'own-id', url: 'chrome-extension://own-id/src/other/page.html' }, { id: 'own-id' }, { url: popup.url }])
+    page.send({ kind: 'cpPalette', colors: cool }, sender);
+  page.settle();
+  assert.equal(page.icons().length, 1, 'other extensions and pages change nothing');
+  assert.deepEqual(page.send({ kind: 'cpPalette', palette: 'ocean', colors: cool }, popup), [false]);
+  page.settle();
+  assert.deepEqual(page.calls.filter(([method]) => method === 'store'), [['store', { cpIconColors: cool }]]);
+  painted(page.icons()[1][32], cool, 32);
+  const before = page.calls.length;
+  page.send({ kind: 'cpEnv', env: 'sandbox' }, popup);
+  assert.equal(page.calls.length, before, 'the popup has no tab to badge');
+  assert.deepEqual(page.replies, []);
+});
+
 test('sandbox pages get an SBX badge on their own tab and live pages clear it', () => {
   const page = background();
   page.run(iconCode);
@@ -377,6 +399,24 @@ test('the extension worker paints the toolbar and badges its own tab', { skip: !
     assert.equal((await eventually(state, now => !now.badge)).badge, '');
     assert.deepEqual(await page.evaluate(() => chrome.runtime.sendMessage({ kind: 'bwCredential', op: 'list' })),
       { ok: false, error: 'Unauthorized credential request' }, 'the vault listener still runs beside icon.js');
+    // A theme picked in the popup repaints the button with the colours the popup wears, with no CommPilot page.
+    await page.click('label[for="palette-graphite"]');
+    await page.click('.mode label:has(input[value="dark"])');
+    await page.waitForFunction(() => /Duke, dark is active/.test(document.getElementById('save-status').textContent));
+    const picked = await page.evaluate(() => {
+      const style = getComputedStyle(document.documentElement), token = name => style.getPropertyValue(name).trim();
+      const colors = { tile: token('--d-action'), ink: token('--d-action-text'), accent: token('--d-accent') };
+      const context = new OffscreenCanvas(1, 1).getContext('2d');
+      context.fillStyle = colors.tile;
+      context.fillRect(0, 0, 1, 1);
+      return { colors, tile: Array.from(context.getImageData(0, 0, 1, 1).data) };
+    });
+    assert.deepEqual(picked.colors, art.readPalettes(fs.readFileSync(art.cssFile, 'utf8')).graphite,
+      'the popup reports what a CommPilot page in the same palette reports');
+    const repainted = await eventually(state, now => JSON.stringify(now.stored) === JSON.stringify(picked.colors) &&
+      JSON.stringify(now.icons.at(-1).tile) === JSON.stringify(picked.tile));
+    assert.deepEqual(repainted.stored, picked.colors);
+    assert.deepEqual(repainted.icons.at(-1), { sizes: ['16', '32'], corner: [0, 0, 0, 0], tile: picked.tile, error: null });
   } finally {
     await context?.close();
     fs.rmSync(profile, { recursive: true, force: true });

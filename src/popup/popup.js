@@ -50,6 +50,16 @@
     footer.classList.toggle("error", error);
   }
 
+  // The toolbar button wears the palette too (src/bg/icon.js). CommPilot pages report it as they load; report the
+  // colours the popup now wears as well, so a theme picked here with no page open repaints the button.
+  function sendColors(palette) {
+    const style = getComputedStyle(document.documentElement);
+    const colors = { tile: style.getPropertyValue("--d-action").trim(), ink: style.getPropertyValue("--d-action-text").trim(),
+      accent: style.getPropertyValue("--d-accent").trim() };
+    if (!colors.tile || !colors.ink || !colors.accent) return;
+    try { chrome.runtime.sendMessage({ kind: "cpPalette", palette, colors }, () => void chrome.runtime.lastError); } catch (_) {}
+  }
+
   function save(palette) {
     selectionChanged = true;
     selectedPalette = normalize(palette);
@@ -80,6 +90,7 @@
         return;
       }
       setStatus(`${label(palette)} is active in CommPilot.`);
+      sendColors(palette);
     };
     try {
       chrome.storage.local.set({ [storageKey]: palette }, () => complete(chrome.runtime.lastError));

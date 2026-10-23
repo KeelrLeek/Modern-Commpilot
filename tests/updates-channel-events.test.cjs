@@ -45,6 +45,22 @@ test('current-channel cache notifications still refresh update availability', ()
   assert.equal(await page.locator('.cp-update-download').getAttribute('href'), 'https://example.test/stable.zip');
 }));
 
+test('Check for updates keeps keyboard focus and ignores presses while it is checking', () => fixture(async page => {
+  const button = () => page.evaluate(() => {
+    const check = document.querySelector('.cp-update-check');
+    return { focused: document.activeElement === check, busy: check.getAttribute('aria-disabled'), requests: requests.length };
+  });
+  await page.locator('.cp-update-check').focus();
+  await page.keyboard.press('Enter');
+  assert.deepEqual(await button(), { focused: true, busy: 'true', requests: 2 });
+  assert.equal(await page.evaluate(() => requests[1].op), 'check');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(() => requests.length), 2, 'a press while checking does not start another check');
+  await page.evaluate(state => replies.shift()(state), state('stable'));
+  await page.waitForFunction(() => document.querySelector('.cp-updates').getAttribute('aria-busy') === 'false');
+  assert.deepEqual(await button(), { focused: true, busy: null, requests: 2 });
+}));
+
 test('shared preference notifications can switch the selected channel', () => fixture(async page => {
   await page.evaluate(() => storageChanged({ cpUpdatePreferences: { newValue: { channel: 'nightly' } } }, 'local'));
   assert.equal(await page.evaluate(() => requests.length), 2);
