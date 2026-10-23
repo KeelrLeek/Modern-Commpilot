@@ -293,6 +293,10 @@
 
   // What is new in each version (About, in the Settings window). Plain text; the newest version first.
   const NEWS = {
+    "0.3.85": [
+      "Sorting a search by a column keeps the number of rows that fit the window. Before, each sort could show fewer, taller rows on the page.",
+      "The search results pager has First page and Last page buttons beside Previous and Next.",
+    ],
     "0.3.84": [
       "After a session expires on a user, group or service-provider page, reloading goes to sign-in and reopens that page afterwards instead of stopping on Page recovery paused. A paused recovery also offers Go to login.",
       "Saves are not sent twice: a repeated OK or Apply while a save is pending is ignored, a slow save keeps its result, Enter in a pick-list filter no longer saves, and a failed Back keeps Apply on the page on screen.",
