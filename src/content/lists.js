@@ -409,8 +409,12 @@
     if (!shown.length) return DEFAULT_PAGE;
     const box = cell.getBoundingClientRect();
     const at = y => y - box.top + cell.scrollTop;
-    const first = shown[0].getBoundingClientRect(), last = shown[shown.length - 1].getBoundingClientRect();
-    const rowHeight = (last.bottom - first.top) / shown.length || 30;
+    // A sort reorders the rows on screen before the next page replaces them, so the first of them is not always
+    // the top one: measure the block they fill, whatever their order.
+    const rects = shown.map(tr => tr.getBoundingClientRect()).filter(r => r.height);
+    if (!rects.length) return DEFAULT_PAGE;
+    const first = { top: Math.min(...rects.map(r => r.top)) }, last = { bottom: Math.max(...rects.map(r => r.bottom)) };
+    const rowHeight = (last.bottom - first.top) / rects.length || 30;
     // What follows the rows: the content's real bottom (not the empty window below it) plus the cell's padding.
     const end = Math.max(...[...cell.children].map(el => at(el.getBoundingClientRect().bottom)));
     const below = Math.max(0, end + (parseFloat(getComputedStyle(cell).paddingBottom) || 0) - at(last.bottom));

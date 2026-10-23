@@ -83,7 +83,6 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] td[width="82%"] > :not(
   & .cp-pager-nav { gap:8px; }
   & button.cp-pager-btn { width:24px; height:24px; border-color:transparent !important; background:transparent !important; }
   & button.cp-pager-btn svg { width:13px; height:13px; stroke-width:1.7; }
-  & button.cp-pager-btn:is([data-go="first"],[data-go="last"]) { display:none; }
   & .cp-page-size { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; }
   & .cp-page-size select { min-height:26px; height:26px; min-width:58px; padding-block:2px; font:500 12.5px/1.3 "Inter",sans-serif; }
   /* The navigation busy tint must not compete with the result transition. */

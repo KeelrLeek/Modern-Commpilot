@@ -232,6 +232,30 @@ test('search design A fills the window by default, refits on resize and preserve
   }finally{await browser.close();}
 });
 
+test('search design A keeps its fitted page size, and First and Last, through repeated sorts',async()=>{
+  const browser=await chromium.launch({executablePath:browserPath,headless:true});
+  try{
+    const search='<table><tr id="tr0"><td><select name="findKey0"><option>User ID</option></select></td><td><select name="findOp0"><option>Contains</option></select></td><td><input name="findValue0"></td><td><input type="submit" id="search0" name="search" value="Search"></td></tr></table>';
+    const page=await open(browser,listPage(names(120),{pager:'Page 1 of 6',fill:'done'}).replace('<td class="enduserbody">','<td class="enduserbody">'+search),{width:1440,height:1000});
+    await page.waitForTimeout(200);
+    const state=()=>page.evaluate(()=>({count:document.querySelectorAll('tr[id^="Row"]:not(.cp-row-off)').length,
+      label:document.querySelector('.cp-pager-page').textContent,
+      overflow:document.querySelector('td[width="82%"]').scrollHeight-document.querySelector('td[width="82%"]').clientHeight}));
+    const fitted=await state();
+    assert.ok(fitted.count>8,`Auto fits a full window of rows (${JSON.stringify(fitted)})`);
+    for(const [i,column] of ['#sortId','#sortId','#sortId','#sortLimit','#sortLimit','#sortId'].entries()){
+      await page.locator(column).click();await settled(page);
+      assert.deepEqual(await state(),fitted,`sort ${i+1} (${column}) keeps every fitted row on the page`);
+    }
+    for(const name of ['First page','Last page'])
+      assert.equal(await page.getByRole('button',{name,exact:true}).isVisible(),true,`${name} is offered beside Previous and Next`);
+    await page.getByRole('button',{name:'Last page',exact:true}).click();await settled(page);
+    assert.match(await page.locator('.cp-pager-page').textContent(),/^Page (\d+) of \1$/);
+    await page.getByRole('button',{name:'First page',exact:true}).click();await settled(page);
+    assert.equal(await page.locator('.cp-pager-page').textContent(),fitted.label);
+  }finally{await browser.close();}
+});
+
 test('search design A commits rapid page clicks immediately with stable controls and a Rows selector',async()=>{
   const browser=await chromium.launch({executablePath:browserPath,headless:true});
   try{
