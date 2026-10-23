@@ -536,11 +536,22 @@
     anchor.dataset.bwColoredLabel = anchor.textContent || "";
   }
 
-  function selectLabel(select) {
+  function selectLabel(select, labels) {
     const label = select.getAttribute("aria-label") ||
-      (select.labels && select.labels[0] && select.labels[0].textContent) ||
+      (labels ? labels.get(select) : select.labels?.[0])?.textContent ||
       select.getAttribute("name") || "dropdown";
     return label.trim().replace(/\s+/g, " ").slice(0, 100) || "dropdown";
+  }
+
+  // Each labelled control's first label, as control.labels[0] gives it: select.labels walks the whole page for every
+  // select, so a batch of selects looks theirs up here.
+  function firstLabels() {
+    const labels = new Map();
+    for (const label of document.querySelectorAll("label")) {
+      const control = label.control;
+      if (control && !labels.has(control)) labels.set(control, label);
+    }
+    return labels;
   }
 
   function isDarkBackground(element) {
@@ -555,51 +566,95 @@
     return false;
   }
 
-  function syncSelect(select, info) {
-    if (!select.isConnected) return;
-    if (!info.shell.contains(select)) {
-      select.before(info.shell);
-      info.shell.prepend(select);
-    }
-    if (!info.shell.contains(info.trigger)) info.shell.append(info.trigger);
-    const style = getComputedStyle(select);
-    info.shell.hidden = select.hidden || style.display === "none" ||
-      style.visibility === "hidden";
-    if (!info.shell.hidden) {
-      const bounds = select.getBoundingClientRect();
-      if (bounds.width > 0 && bounds.height > 0) {
-        const shellBounds = info.shell.getBoundingClientRect();
-        if (info.needsMeasurement || Math.abs(shellBounds.width - bounds.width) > 1) {
-          info.shell.style.width = bounds.width + "px";
-        }
-        if (info.needsMeasurement || Math.abs(shellBounds.height - bounds.height) > 1) {
-          info.shell.style.height = bounds.height + "px";
-        }
-        info.needsMeasurement = false;
+  function setChangedAttribute(element, name, value) {
+    if (element.getAttribute(name) !== value) element.setAttribute(name, value);
+  }
+
+  // Syncs [select, info] pairs a step at a time, each step for every pair before the next, so no read follows a write
+  // within a step: a page of dropdowns costs a style and layout pass or two, not two of each per dropdown (700 of them
+  // froze the page for over 20 s).
+  function syncSelects(entries) {
+    entries = entries.filter(([select]) => select.isConnected);
+    if (!entries.length) return;
+    for (const [select, info] of entries) {
+      if (!info.shell.contains(select)) {
+        select.before(info.shell);
+        info.shell.prepend(select);
       }
+      if (!info.shell.contains(info.trigger)) info.shell.append(info.trigger);
     }
-    const off = select.matches(":disabled");
-    info.trigger.disabled = off;
-    info.trigger.setAttribute("aria-disabled", String(off));
-    info.trigger.tabIndex = off ? -1 : 0;
-    info.trigger.setAttribute("aria-label", selectLabel(select) + ": " +
-      (select.selectedOptions[0]?.textContent.trim() || "No selection") +
-      ". Search options");
-    info.trigger.setAttribute("aria-invalid", String(!select.validity.valid));
+    const hidden = entries.map(([select]) => {
+      const style = getComputedStyle(select);
+      return select.hidden || style.display === "none" || style.visibility === "hidden";
+    });
+    entries.forEach(([, info], index) => {
+      if (info.shell.hidden !== hidden[index]) info.shell.hidden = hidden[index];
+    });
+    const labels = entries.length > 1 ? firstLabels() : null;
+    const states = entries.map(([select, info]) => measureSelect(select, info, labels));
+    entries.forEach(([select, info], index) => applySelect(select, info, states[index]));
+  }
+
+  function syncSelect(select, info) {
+    syncSelects([[select, info]]);
+  }
+
+  function measureSelect(select, info, labels) {
+    const bounds = info.shell.hidden ? null : select.getBoundingClientRect();
+    const sized = bounds && bounds.width > 0 && bounds.height > 0;
+    return {
+      bounds,
+      shellBounds: sized ? info.shell.getBoundingClientRect() : null,
+      off: select.matches(":disabled"),
+      label: selectLabel(select, labels) + ": " +
+        (select.selectedOptions[0]?.textContent.trim() || "No selection") +
+        ". Search options",
+      invalid: String(!select.validity.valid)
+    };
+  }
+
+  // Writes only what changed, so a sync that finds nothing new (a resize, a rescan) leaves the page as it was.
+  function applySelect(select, info, state) {
+    const { bounds, shellBounds } = state;
+    if (shellBounds) {
+      if (info.needsMeasurement || Math.abs(shellBounds.width - bounds.width) > 1) {
+        info.shell.style.width = bounds.width + "px";
+      }
+      if (info.needsMeasurement || Math.abs(shellBounds.height - bounds.height) > 1) {
+        info.shell.style.height = bounds.height + "px";
+      }
+      info.needsMeasurement = false;
+    }
+    info.trigger.disabled = state.off;
+    setChangedAttribute(info.trigger, "aria-disabled", String(state.off));
+    setChangedAttribute(info.trigger, "tabindex", state.off ? "-1" : "0");
+    setChangedAttribute(info.trigger, "aria-label", state.label);
+    setChangedAttribute(info.trigger, "aria-invalid", state.invalid);
     if (openSelect === select && (info.shell.hidden || info.trigger.disabled)) closePopover(false);
   }
 
-  function enhanceSelect(select) {
-    if (select.closest(".bw-search-popover, .bw-menu-search, .cp-page-size, #cp-user-bulk") ||
-        select.multiple || select.size > 1) return;
-    let info = selectInfo.get(select);
-    if (info) {
-      syncSelect(select, info);
-      return;
-    }
+  // One observer for every select: whatever resizes many at once (the window, a column) syncs them as one batch.
+  const selectResizes = new ResizeObserver(entries => syncSelects(entries
+    .filter(entry => selectInfo.has(entry.target))
+    .map(entry => [entry.target, selectInfo.get(entry.target)])));
 
-    const style = getComputedStyle(select);
-    const bounds = select.getBoundingClientRect();
+  // A scan's selects are enhanced together: every new one is measured before any is wrapped, then all are synced as
+  // one batch.
+  function enhanceSelects(selects) {
+    selects = Array.from(selects).filter(select =>
+      !(select.closest(".bw-search-popover, .bw-menu-search, .cp-page-size, #cp-user-bulk") ||
+        select.multiple || select.size > 1));
+    const fresh = selects.filter(select => !selectInfo.has(select));
+    const measured = fresh.map(select => {
+      const style = getComputedStyle(select);
+      return [{ display: style.display, verticalAlign: style.verticalAlign }, select.getBoundingClientRect()];
+    });
+    fresh.forEach((select, index) => enhanceSelect(select, ...measured[index]));
+    syncSelects(selects.map(select => [select, selectInfo.get(select)]));
+  }
+
+  // Wraps a new select. enhanceSelects measured it beforehand (style: its display and vertical-align) and syncs it.
+  function enhanceSelect(select, style, bounds) {
     const shell = document.createElement("span");
     shell.className = "bw-select-shell";
     shell.style.display = style.display === "block" ? "block" : "inline-block";
@@ -638,14 +693,12 @@
         scheduleScan();
       }
     });
-    info = {
+    const info = {
       shell, trigger, attributeObserver, original, options: [],
       needsMeasurement: bounds.width === 0 || bounds.height === 0
     };
     selectInfo.set(select, info);
-    const resizeObserver = new ResizeObserver(() => syncSelect(select, info));
-    info.resizeObserver = resizeObserver;
-    resizeObserver.observe(select);
+    selectResizes.observe(select);
     attributeObserver.observe(select, {
       attributes: true,
       subtree: true,
@@ -653,10 +706,10 @@
     });
     // A fieldset disables its descendant select without changing the select's
     // own attributes. Observe those ancestors too; :disabled handles legends.
-    for (let parent = select.parentElement; parent; parent = parent.parentElement) {
-      if (parent.tagName === "FIELDSET") attributeObserver.observe(parent, {
-        attributes: true, attributeFilter: ["disabled"]
-      });
+    // Found with closest(), not by reading each ancestor: a form looks every property up among its controls' names
+    // first, and right after a select moved into its shell that lists the whole form again (0.8 ms a select of 700).
+    for (let fieldset = select.closest("fieldset"); fieldset; fieldset = fieldset.parentElement?.closest("fieldset")) {
+      attributeObserver.observe(fieldset, { attributes: true, attributeFilter: ["disabled"] });
     }
     trigger.addEventListener("click", event => {
       event.preventDefault();
@@ -692,7 +745,6 @@
     info.onSelectChange = onSelectChange;
     select.addEventListener("click", onSelectClick);
     select.addEventListener("change", onSelectChange);
-    syncSelect(select, info);
   }
 
   function ensurePopover() {
@@ -1104,14 +1156,14 @@
     });
   }
 
-  function scanRoot(root) {
+  function scanRoot(root, selects) {
     if (!(root instanceof Element) || root.closest(".bw-search-popover")) return;
     if (root.matches("a.navMenuitem, a.navMenuItem")) colorize(root);
     root.querySelectorAll("a.navMenuitem, a.navMenuItem").forEach(colorize);
-    // Every dropdown gets the searchable list. The Users search keeps its menus as they are (their filter field
-    // would join its form).
-    if (root.matches("select")) enhanceSelect(root);
-    root.querySelectorAll("select").forEach(enhanceSelect);
+    // Every dropdown gets the searchable list; the caller enhances what all its roots hold as one batch. The Users
+    // search keeps its menus as they are (their filter field would join its form).
+    if (root.matches("select")) selects.add(root);
+    root.querySelectorAll("select").forEach(select => selects.add(select));
     if (!isUsersSearchPage()) {
       if (root.matches(MENU_SELECTOR)) enhanceMenu(root);
       root.querySelectorAll(MENU_SELECTOR).forEach(enhanceMenu);
@@ -1124,15 +1176,17 @@
 
   function flushScans() {
     scanScheduled = false;
-    for (const root of pendingRoots) if (root.isConnected) scanRoot(root);
+    const selects = new Set();
+    for (const root of pendingRoots) if (root.isConnected) scanRoot(root, selects);
     pendingRoots.clear();
+    enhanceSelects(selects);
     for (const menu of pendingMenus) if (menu.isConnected) refreshMenu(menu);
     pendingMenus.clear();
     for (const [select, info] of selectInfo) {
       if (select.isConnected) continue;
       if (openSelect === select) closePopover(false);
       info.attributeObserver.disconnect();
-      info.resizeObserver.disconnect();
+      selectResizes.unobserve(select);
       select.removeEventListener("click", info.onSelectClick);
       select.removeEventListener("change", info.onSelectChange);
       if (select.getAttribute("tabindex") === "-1") {
@@ -1225,7 +1279,9 @@
       characterData: true,
       subtree: true
     });
-    scanRoot(document.documentElement);
+    const selects = new Set();
+    scanRoot(document.documentElement, selects);
+    enhanceSelects(selects);
     // pjax.js marks the user's extension read on the id element; the palette can be switched on or off.
     for (const name of ["cp:user-extension", "cp:user-name", "cp:theme-change"]) {
       document.addEventListener(name, scheduleCopyControls);

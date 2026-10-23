@@ -630,6 +630,61 @@ test('removing an enhanced select closes its search and leaves no orphan control
   await page.close();
 });
 
+test('a form of many dropdowns is enhanced in one style and layout pass, however many it holds', async () => {
+  const page = await openPage();
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Performance.enable');
+  const frames = () => page.evaluate(() => new Promise(resolve =>
+    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve)))));
+  // One select per department and call type, as on Outgoing Calling Plan; some labelled, required or disabled.
+  async function addMatrix(id, rows) {
+    await frames();
+    const before = (await cdp.send('Performance.getMetrics')).metrics;
+    await page.evaluate(({ id, rows }) => {
+      let html = '';
+      for (let row = 0; row < rows; row++) {
+        html += `<tr><td><label for="${id}-${row}-0">Department ${row}</label></td>`;
+        for (let type = 0; type < 10; type++) {
+          html += `<td><select id="${id}-${row}-${type}" name="${id}-${row}-${type}"` +
+            (type === 8 ? ' required><option value="">Choose</option>' : type === 9 ? ' disabled>' : '>') +
+            '<option>Allow</option><option>Disallow</option></select></td>';
+        }
+        html += '</tr>';
+      }
+      document.body.insertAdjacentHTML('beforeend', `<form id="${id}"><table>${html}</table></form>`);
+    }, { id, rows });
+    await page.waitForFunction(({ id, count }) =>
+      document.querySelectorAll(`#${id} .bw-select-trigger`).length === count, { id, count: rows * 10 });
+    await frames();
+    const after = (await cdp.send('Performance.getMetrics')).metrics;
+    const delta = name => after.find(metric => metric.name === name).value -
+      before.find(metric => metric.name === name).value;
+    return { layouts: delta('LayoutCount'), recalcs: delta('RecalcStyleCount') };
+  }
+  const few = await addMatrix('few', 3);
+  const many = await addMatrix('many', 30);
+  // Each select used to force a layout and two style recalculations of the whole page: 300 took 301 and 601.
+  assert.ok(many.layouts < 10 && many.recalcs < 10, JSON.stringify({ few, many }));
+  assert.ok(many.layouts <= few.layouts + 2 && many.recalcs <= few.recalcs + 2, JSON.stringify({ few, many }));
+
+  assert.deepEqual(await page.evaluate(() => ['many-4-0', 'many-4-8', 'many-4-9', 'many-5-1'].map(id => {
+    const trigger = document.getElementById(id).parentElement.querySelector('.bw-select-trigger');
+    return ['aria-label', 'aria-disabled', 'aria-invalid', 'tabindex'].map(name => trigger.getAttribute(name));
+  })), [
+    ['Department 4: Allow. Search options', 'false', 'false', '0'],
+    ['many-4-8: Choose. Search options', 'false', 'true', '0'],
+    ['many-4-9: Allow. Search options', 'true', 'false', '-1'],
+    ['many-5-1: Allow. Search options', 'false', 'false', '0']
+  ]);
+  assert.equal(await page.evaluate(() => Array.from(document.querySelectorAll('#many select')).filter(select => {
+    const box = select.getBoundingClientRect();
+    const shell = select.parentElement.getBoundingClientRect();
+    return Math.abs(box.width - shell.width) > 1 || Math.abs(box.height - shell.height) > 1;
+  }).length), 0, 'every shell covers its select');
+  await cdp.detach();
+  await page.close();
+});
+
 test('custom listboxes filter options and dynamic menus are enhanced', async () => {
   const page = await openPage();
   const menu = page.locator('#custom');
