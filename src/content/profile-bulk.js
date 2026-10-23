@@ -8,6 +8,9 @@
   const USERS = '/commpilot/Group/DeviceInventory/Modify/Users/';
   let dialog = null;
   let stopRequested = false;
+  // A request that returned no page may have spent the token the list would search with.
+  // Native navigation drains and recovers it, so reopen the list before searching again.
+  let noPageReturned = false;
   const path = () => document.documentElement.getAttribute('data-cp-path') || location.pathname;
   const content = () => document.querySelector('td[width="82%"]');
 
@@ -153,9 +156,10 @@
         document.removeEventListener('cp:reskin', onReskin);
         if (error) reject(error); else setTimeout(resolve, 0);
       };
-      const onReskin = () => finish();
+      const onReskin = () => { noPageReturned = false; finish(); };
       const deadline = () => {
         if (window.cpHasPendingNativeRequest?.()) { timer = setTimeout(deadline, 250); return; }
+        noPageReturned = true;
         finish(Error('CommPilot did not return a page. Check this profile before retrying.'));
       };
       let timer = setTimeout(deadline, timeout);
@@ -170,9 +174,15 @@
       throw Error(`CommPilot opened ${location.pathname} instead of ${expected}.`);
   }
 
+  // A failed search can leave its spent token behind as well.
+  async function listSearch(criteria) {
+    try { return await window.cpListSearch(criteria, {}); }
+    catch (error) { noPageReturned = true; throw error; }
+  }
+
   async function searchProfiles(op, value) {
-    if (location.pathname !== LIST) await navigate(LIST, {}, LIST);
-    const found = await window.cpListSearch([{ key: 'DeviceName', op, value }], {});
+    if (noPageReturned || location.pathname !== LIST) await navigate(LIST, {}, LIST);
+    const found = await listSearch([{ key: 'DeviceName', op, value }]);
     if (found.tooMany) throw Error(`CommPilot returned too many profile names for ${value}.`);
     const matches = found.rows.filter(row =>
       op === 'CONTAINS' ? row.cells[0]?.includes(value) : row.cells[0] === value);
@@ -199,7 +209,7 @@
     if (details.name !== name) throw Error('CommPilot opened a different profile.');
     if (details.assigned > 0) return { assigned: details.assigned, users: null };
     await navigate(USERS, drill.params, USERS);
-    const found = await window.cpListSearch([], {});
+    const found = await listSearch([]);
     if (found.tooMany) throw Error('CommPilot could not count this profile’s Users rows.');
     return { assigned: 0, users: found.rows.length };
   }
@@ -210,6 +220,7 @@
     const byName = new Map();
     const seen = new Set();
     for (let i = 0; i < rows.length; i++) {
+      if (stopRequested) throw Error(`Preview stopped after ${i} of ${rows.length} extensions. No profile was deleted.`);
       const input = rows[i];
       setStatus(`Searching extension ${i + 1} of ${rows.length}: ${input.extension}…`);
       setProgress('Finding profiles', i, rows.length, `Workbook row ${input.line}`);
@@ -247,9 +258,16 @@
               item.status = 'in-use';
               item.after = 'Present';
             }
-          } catch (error) { item.status = 'error'; item.error = error.message; }
+          } catch (error) {
+            // Stop instead of sending the next search with a token that may already be spent.
+            if (noPageReturned) throw error;
+            item.status = 'error'; item.error = error.message;
+          }
         }
-      } catch (error) { result.push({ ...base, status: 'error', error: error.message }); }
+      } catch (error) {
+        if (noPageReturned) throw error;
+        result.push({ ...base, status: 'error', error: error.message });
+      }
       if (location.pathname !== LIST) await navigate(LIST, {}, LIST);
       setProgress('Finding profiles', i + 1, rows.length,
         `Checked extension ${input.extension}`);
@@ -393,8 +411,8 @@
     overlay.querySelector('input[type="file"]').addEventListener('change', async event => {
       const file = event.target.files?.[0];
       if (!file || working) return;
-      working = true;
-      close.disabled = true; apply.disabled = true;
+      working = true; stopRequested = false;
+      close.textContent = 'Stop after current extension'; apply.disabled = true;
       preview = []; previewPage = 0; render();
       try {
         setStatus('Reading the workbook…');
@@ -409,7 +427,7 @@
           ready ? 'Review every matching profile below before deleting.' :
             'No unused matching profiles were found.');
       } catch (error) { setStatus(error.message); setProgress('Preview stopped', 0, 0, error.message); }
-      finally { event.target.value = ''; working = false; close.disabled = false; render(); }
+      finally { event.target.value = ''; working = false; close.textContent = 'Close'; render(); }
     });
     apply.addEventListener('click', async () => {
       if (working || preview.some(item => item.status === 'error')) return;
@@ -420,6 +438,7 @@
       working = true; stopRequested = false; render();
       close.textContent = 'Stop after current profile';
       let processed = 0;
+      let unanswered = false;
       try {
         for (const item of targets) {
           if (stopRequested) break;
@@ -431,7 +450,9 @@
           } catch (error) {
             item.status = 'unverified';
             item.error = error.message;
-            try {
+            // After a request that returned no page, stop and leave the remaining profiles ready.
+            unanswered = noPageReturned;
+            if (!unanswered) try {
               const found = await searchProfiles('EQUAL_TO', item.name);
               item.after = found.length ? 'Present' : 'Absent';
               item.status = found.length ? 'error' : 'deleted';
@@ -442,25 +463,32 @@
           setProgress('Deleting profiles', processed, targets.length,
             `${item.name}: ${item.status}`);
           render();
+          if (unanswered) break;
         }
         const deleted = preview.filter(item => item.status === 'deleted').length;
         const refused = preview.filter(item => item.status === 'refused').length;
         const errors = preview.filter(item => ['error', 'unverified'].includes(item.status)).length;
         setStatus(`${deleted} deleted and verified · ${refused} refused by CommPilot · ` +
           `${errors} errors or unverified · ${preview.filter(item => item.status === 'in-use').length} in use and kept.` +
-          (stopRequested ? ' Stopped after the current profile.' : ' Review the results below.'));
+          (unanswered ? ' Stopped because CommPilot did not return a page.' :
+            stopRequested ? ' Stopped after the current profile.' : ' Review the results below.'));
         setProgress(stopRequested || refused || errors ? 'Stopped with results' : 'Complete',
           processed, targets.length, 'Before and After results are shown below.');
       } finally {
         const resultStatus = status.textContent;
-        try { if (location.pathname !== LIST) await navigate(LIST, {}, LIST); }
+        try { if (noPageReturned || location.pathname !== LIST) await navigate(LIST, {}, LIST); }
         catch (error) { /* Keep the result visible. */ }
         working = false; close.textContent = 'Close'; setStatus(resultStatus);
         render();
       }
     });
     close.addEventListener('click', () => {
-      if (working) { stopRequested = true; setStatus('Stopping after the current profile…'); return; }
+      if (working) {
+        stopRequested = true;
+        setStatus(close.textContent === 'Stop after current extension' ?
+          'Stopping after the current extension…' : 'Stopping after the current profile…');
+        return;
+      }
       overlay.remove(); releaseFocus(); dialog = null; mountButton();
     });
   }

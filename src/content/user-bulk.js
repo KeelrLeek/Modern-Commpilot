@@ -454,7 +454,8 @@
         else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}
       }
       if(chosen&&e.target.type==='search'&&['Enter','ArrowDown'].includes(e.key)) {
-        // Enter commits only a matching number; No personal number and Refresh stay explicit choices.
+        // Enter commits only a number matching typed digits; No personal number and Refresh stay explicit choices.
+        if(e.key==='Enter'&&!e.target.value.replace(/\D/g,'')){e.preventDefault();return;}
         const first=$(e.key==='Enter'?'.number-options button[data-action="number"]:not(:disabled)':'.number-options button:not(:disabled)');
         if(first){e.preventDefault();if(e.key==='Enter')first.click();else first.focus();}
       }

@@ -230,7 +230,13 @@ for(const numberMode of ['mixed','all']){
       page.setDefaultTimeout(6000);
       await openBatch(page,numberMode);
       const pick=page.locator('[data-pick]'),search=page.locator('.picker input'),lookups=()=>state.requests.filter(r=>r.route===R.numbers).length;
-      await pick.click();await page.locator('[data-number="3125550198"]').click();
+      const unchosen=await pick.innerText();
+      await pick.click();await page.locator('[data-number="3125550198"]').waitFor();
+      assert.equal(await page.evaluate(()=>document.activeElement.matches('.picker input[type=search]')),true);
+      await page.keyboard.press('Enter');
+      assert.equal(await pick.innerText(),unchosen,'Enter with an empty search assigns no number');
+      assert.equal(await page.locator('.picker').isVisible(),true,'Enter with an empty search keeps the picker open');
+      await page.locator('[data-number="3125550198"]').click();
       await pick.click();await search.fill('0199');await search.press('Enter');
       assert.equal(await pick.innerText(),'3125550199','Enter chooses the only matching number');
       const before=lookups();
