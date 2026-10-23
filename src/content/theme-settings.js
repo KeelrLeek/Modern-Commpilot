@@ -293,6 +293,9 @@
 
   // What is new in each version (About, in the Settings window). Plain text; the newest version first.
   const NEWS = {
+    "0.3.86": [
+      "The search bar's Search button keeps its magnifier icon on the button, and the icon lifts with the text when you point at it.",
+    ],
     "0.3.85": [
       "Sorting a search by a column keeps the number of rows that fit the window. Before, each sort could show fewer, taller rows on the page.",
       "The search results pager has First page and Last page buttons beside Previous and Next.",

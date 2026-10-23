@@ -1,6 +1,12 @@
 # BroadWorks Enhancer PJAX Preview
 
-Stable **0.3.85** keeps search results at a full page when you sort them and adds First and Last page buttons to the search pager.
+Stable **0.3.86** keeps the Search button's magnifier icon on the button and lifts it with the text on hover.
+
+## 0.3.86 patch notes
+
+- **Search button icon.** The magnifier was drawn on CommPilot's centred table cell, 12px from the cell's edge, so a cell wider than the button could leave the icon beside the button, where it disappeared against the page background. It now shares the button's own box, so it always sits inside the button.
+- **Hover lift.** Pointing at the Search button lifts the icon together with the text, instead of only the text.
+- **Validation.** A new test uses CommPilot's real centred cell, including a deliberately wide one, and checks the icon's placement and hover lift; it failed before the fix. Search, forms, sweep and theme tests passed 123/123, and renders in four theme and font combinations showed the icon inside the button, centred, rising 1px with it, in headless Edge. The missing icon itself was not reproduced in Edge; Firefox/Zen at runtime was not exercised.
 
 ## 0.3.85 patch notes
 
@@ -94,7 +100,7 @@ In the source checkout, run `python dev-preview/server.py` and open `http://127.
 
 ## Install this preview
 
-Extract `BroadWorks-Enhancer-PJAX-Preview-0.3.85.zip` from the project release folder, or use its matching reloadable `release/unpacked/` folder. The generic `release/BroadWorks-Enhancer-PJAX-Preview.zip` is refreshed when a browser is not holding it open. Chrome or Edge: open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder. Firefox or Zen: open `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on**, and select `manifest.json` from the extracted folder or the project's `release/unpacked/`. Reload the temporary add-on and refresh CommPilot after replacing its files. Disable the stable BroadWorks Enhancer while testing this preview to avoid duplicate controls. No helper or separate installer is needed. Use **Settings** beside Help and Home (twelve themes, each light or dark, the site's font, Menu previews, and About with what's new) or the extension toolbar popup to switch themes.
+Extract `BroadWorks-Enhancer-PJAX-Preview-0.3.86.zip` from the project release folder, or use its matching reloadable `release/unpacked/` folder. The generic `release/BroadWorks-Enhancer-PJAX-Preview.zip` is refreshed when a browser is not holding it open. Chrome or Edge: open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder. Firefox or Zen: open `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on**, and select `manifest.json` from the extracted folder or the project's `release/unpacked/`. Reload the temporary add-on and refresh CommPilot after replacing its files. Disable the stable BroadWorks Enhancer while testing this preview to avoid duplicate controls. No helper or separate installer is needed. Use **Settings** beside Help and Home (twelve themes, each light or dark, the site's font, Menu previews, and About with what's new) or the extension toolbar popup to switch themes.
 
 On the login page, open **Saved sign-ins**, choose **Add login**, enter your User ID and Password, and select **Sign in automatically** or **Ask for a four-digit PIN**. Later, choose an account if you have several saved. A PIN account asks for its PIN before using Cisco's original Login handler. Use **Remove** to delete a saved account. Saving is per BroadWorks host. Recent manual logout and login errors suppress an immediate automatic retry to avoid sign-in loops. Accounts saved by version 0.3.3 can be moved into this version by entering the previous vault password once.
 
@@ -110,7 +116,7 @@ The extension is scoped to the seven known BroadWorks hosts. The PJAX code only 
 
 **Settings → Updates** is available inside CommPilot, with Stable/Nightly selection, automatic daily/startup checks, a manual check button, release notes, and download/install instructions. It uses the existing Settings typography, theme controls, and selected site font. Stable is the default. Checks use public GitHub metadata from the extension background worker, send no CommPilot data or credentials, and do not submit forms, install code, or reload active pages. Automatic checks can be disabled.
 
-Stable reads this repository's latest published non-prerelease. Release **0.3.85** is the current Stable release; the `stable` branch and `v0.3.85-pjax-preview` tag identify its source commit. Previous releases remain available. Nightly reads only the dedicated `nightly` prerelease; old beta releases do not count as nightlies. Until a nightly is published, the checker says so. A nightly must carry one uploaded ZIP named `BroadWorks-Enhancer-PJAX-Preview-A.B.C.D-nightly.zip`, with a numeric manifest version matching its filename and greater than the build it replaces. Stable ZIP names and version tags remain unchanged. Switching channels does not install or downgrade anything.
+Stable reads this repository's latest published non-prerelease. Release **0.3.86** is the current Stable release; the `stable` branch and `v0.3.86-pjax-preview` tag identify its source commit. Previous releases remain available. Nightly reads only the dedicated `nightly` prerelease; old beta releases do not count as nightlies. Until a nightly is published, the checker says so. A nightly must carry one uploaded ZIP named `BroadWorks-Enhancer-PJAX-Preview-A.B.C.D-nightly.zip`, with a numeric manifest version matching its filename and greater than the build it replaces. Stable ZIP names and version tags remain unchanged. Switching channels does not install or downgrade anything.
 
 The checker ships since 0.3.83; installs of 0.3.83 or later offer the newest Stable release under Settings → Updates. Users of the original 0.3.82 package must download a newer release from GitHub to receive it. Published ZIPs of earlier releases are preserved. Updating an unpacked installation still requires extracting the downloaded ZIP into its folder, reloading the extension, and refreshing CommPilot after finishing unsaved work.
 
