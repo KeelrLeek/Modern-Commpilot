@@ -3303,6 +3303,7 @@
         setH("Reading the department list…"); setBar(0.03);
         // Enumerate departments (composite-keyed) from the live search form, then report per department.
         var deptFieldVal = deptField ? deptField.value : null;
+        cpFieldMetaCache = {};   // the department list is per group: read the page on screen, not an earlier group's
         var meta = deptFieldVal ? cpResolveFieldMeta(deptFieldVal) : null;
         deptList = (meta && meta.options ? meta.options : []).filter(function (o) { return String(o.value) !== ""; });
         if (deptList.length) { setH("Fetching the directory, department by department…"); stepDept(); }
@@ -5300,7 +5301,8 @@
     // [[gotcha-csp-inline-style-attr-blocked]]). Style 1 (user-picked): hover rows tint lavender, selected = lavender + check.
     var cpGridDD = null, cpGridDDInit = false;
     // Per-field criteria metadata, sourced by driving the hidden legacy search form (see cpResolveFieldMeta).
-    // Keyed by findKey value; RESET per grid build (cpBuildSearchGrid) because the department list is per-group.
+    // Keyed by findKey value; RESET per grid build (cpBuildSearchGrid) and per directory export Start because the
+    // department list is per-group.
     var cpFieldMetaCache = {};
     function cpGridWireOneDD(dd) {
       if (dd._cpWired) return; dd._cpWired = true;   // guard so re-wiring a row (dynamic value dd) doesn't double-bind Field/Match
@@ -7245,14 +7247,16 @@
       } catch (err) {}
     }, true);
 
-    // Assign-picker pages (Assign Domains & family): the 4 move buttons are DCL-wired
+    // Assign Domains: the 4 move buttons (PICKLIST_*Domain) are DCL-wired
     // (getElementById(button_<uuid>).addEventListener → addDomain/removeDomain/… → form.submit()),
     // which BOTH dies after an in-shell swap AND native-POSTs on a full load. Re-wire them here:
     // replicate the Scripts/domains.js protocol (toAdd/toRemove = comma-joined selected option
     // VALUES; action = add/remove; assigned values ending "*" are the default domain and can't be
     // removed) and requestSubmit() so the submit interceptor above replays it in-shell. Capturing +
     // stopImmediatePropagation pre-empts the legacy listener when it IS alive (full load) so the
-    // move can't double-submit.
+    // move can't double-submit. Other pick lists (memberList, subscribedList, service packs, number
+    // prefixes) post other lists and fields: their clicks stay with CommPilot's own handler, whose
+    // form.submit() the bridge above replays in-shell.
     document.addEventListener("click", function (e) {
       try {
         var form = document.forms.mainForm;
@@ -7264,9 +7268,10 @@
         var all = /All/i.test(label);
         var isAdd = /^Add/i.test(label), isRem = /^Remove/i.test(label);
         if (!isAdd && !isRem) return;
-        e.preventDefault(); e.stopImmediatePropagation();
+        if (!/^PICKLIST_(?:add|remove|selectAll|removeAll)Domain$/.test(b.id || "")) return;
         var list = isAdd ? form.elements.availableList : form.elements.assignedList;
         if (!list) return;
+        e.preventDefault(); e.stopImmediatePropagation();
         var vals = [];
         for (var i = 0; i < list.options.length; i++) {
           var o = list.options[i];

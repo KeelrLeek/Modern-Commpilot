@@ -9,6 +9,7 @@ const chromePath = process.env.CHROME_PATH || [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 ].find(fs.existsSync);
 const pjaxPath = path.resolve(__dirname, '../src/content/pjax.js');
+const formsPath = path.resolve(__dirname, '../src/content/forms.js');
 const start = `<!doctype html><html><head><title>Users</title></head><body>
 <table><tr><td class="headerBar"><img alt="spacer"></td></tr>
 <tr><td class="headerBar"><a class="headerAuthLevelLink">Reseller</a> &gt;
@@ -110,6 +111,111 @@ test('an external BroadWorks script wires its DOMContentLoaded pick-list handler
     assert.equal(await page.evaluate(() => window.added), 1);
     assert.equal(await page.evaluate(() => document === window.originalDocument), true);
     assert.equal(await page.evaluate(() => location.pathname), formPath);
+  } finally { await browser.close(); }
+});
+
+// Pick lists as CommPilot renders them (trimmed; list and field names from the captured Privacy, Assign
+// Services and Assign Domains pages), wired by a page script following its validate.js protocol.
+const pickMoves = {
+  PICKLIST_addUser: ['availableList', 'toAdd', false, 'add'], PICKLIST_removeUser: ['memberList', 'toRemove', false, 'remove'],
+  PICKLIST_addAllUsers: ['availableList', 'toAdd', true, 'add'], PICKLIST_removeAllUsers: ['memberList', 'toRemove', true, 'remove'],
+  PICKLIST_addServicePack: ['availablePackList', 'packToAdd', false, 'add'], PICKLIST_removeServicePack: ['subscribedPackList', 'packToRemove', false, 'remove'],
+  PICKLIST_selectAllServicePack: ['availablePackList', 'packToAdd', true, 'add'], PICKLIST_removeAllServicePack: ['subscribedPackList', 'packToRemove', true, 'remove'],
+  PICKLIST_addService: ['availableList', 'toAdd', false, 'add'], PICKLIST_removeService: ['subscribedList', 'toRemove', false, 'remove'],
+  PICKLIST_selectAllService: ['availableList', 'toAdd', true, 'add'], PICKLIST_removeAllService: ['subscribedList', 'toRemove', true, 'remove'],
+  PICKLIST_addDomain: ['availableList', 'toAdd', false, 'add'], PICKLIST_removeDomain: ['assignedList', 'toRemove', false, 'remove'],
+  PICKLIST_selectAllDomain: ['availableList', 'toAdd', true, 'add'], PICKLIST_removeAllDomain: ['assignedList', 'toRemove', true, 'remove']
+};
+function pickRow(left, right, buttons) {
+  const options = values => values.map(v => `<option value="${v}">${v}</option>`).join('');
+  const labels = ['Add&nbsp;&gt;', 'Remove&nbsp;&lt;', 'Add All&nbsp;&gt;&gt;', 'Remove All&nbsp;&lt;&lt;'];
+  return `<table class="enduserbody"><tbody>
+    <tr><td class="listHeader">${left[0]}</td><td class="listHeader">&nbsp;</td><td class="listHeader">${right[0]}</td></tr>
+    <tr><td><select name="${left[1]}" id="${left[1]}" size="11" multiple>${options(left[2])}</select></td>
+    <td><table><tbody>${buttons.map((id, i) => `<tr><td><input class="bwbutton" type="button" value="${labels[i]}" id="${id}"></td></tr>`).join('')}</tbody></table></td>
+    <td><select name="${right[1]}" id="${right[1]}" size="11" multiple>${options(right[2])}</select></td></tr></tbody></table>`;
+}
+const pickPages = {
+  '/commpilot/User/Privacy/': ['Privacy', pickRow(['Available Users', 'availableList', ['alice']], ['Assigned Monitors', 'memberList', ['bob']],
+    ['PICKLIST_addUser', 'PICKLIST_removeUser', 'PICKLIST_addAllUsers', 'PICKLIST_removeAllUsers'])],
+  '/commpilot/User/AssignServices/': ['Assign Services', '<input name="packToAdd" type="hidden" value=""><input name="packToRemove" type="hidden" value="">' +
+    pickRow(['Available Service Packs', 'availablePackList', ['Gold Pack', 'Silver Pack']], ['User Service Packs', 'subscribedPackList', []],
+      ['PICKLIST_addServicePack', 'PICKLIST_removeServicePack', 'PICKLIST_selectAllServicePack', 'PICKLIST_removeAllServicePack']) +
+    pickRow(['Available Services', 'availableList', ['Call Recording', 'Executive']], ['User Services', 'subscribedList', ['Voice Messaging User']],
+      ['PICKLIST_addService', 'PICKLIST_removeService', 'PICKLIST_selectAllService', 'PICKLIST_removeAllService'])],
+  '/commpilot/Group/AssignDomains/': ['Assign Domains', pickRow(['Available Domains', 'availableList', ['a.example.com']],
+    ['Assigned Domains', 'assignedList', ['sandbox.example.com*', 'b.example.com']],
+    ['PICKLIST_addDomain', 'PICKLIST_removeDomain', 'PICKLIST_selectAllDomain', 'PICKLIST_removeAllDomain'])]
+};
+
+test('pick lists other than Assign Domains move with CommPilot’s own handler after PJAX', async () => {
+  assert.ok(chromePath, 'Set CHROME_PATH to Chrome or Edge');
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const posts = [];
+    let token = 1;
+    await page.route('https://apps-sbx.avpaas.io/**', route => {
+      const request = route.request(), target = new URL(request.url()).pathname;
+      if (target.endsWith('/validate.js')) return route.fulfill({ status: 200, contentType: 'application/javascript',
+        body: `document.addEventListener('DOMContentLoaded', function () {
+          var form = document.forms.mainForm, moves = ${JSON.stringify(pickMoves)};
+          Object.keys(moves).forEach(function (id) {
+            var button = document.getElementById(id), move = moves[id];
+            if (button) button.addEventListener('click', function () {
+              window.nativeMoves = (window.nativeMoves || []).concat(id);
+              var names = [].filter.call(form[move[0]].options, function (o) { return move[2] || o.selected; })
+                .map(function (o) { return o.value; }).join(',');
+              if (!names) return;
+              form[move[1]].value = names; form.action.value = move[3]; form.submit();
+            });
+          });
+        });` });
+      if (request.method() === 'POST' && pickPages[target]) {
+        const body = new URLSearchParams(request.postData() || '');
+        if (body.get('action')) posts.push(['action', 'toAdd', 'toRemove', 'packToAdd', 'packToRemove'].reduce((post, name) =>
+          body.has(name) ? Object.assign(post, { [name]: body.get(name) }) : post, { path: target }));
+      }
+      const pick = pickPages[target];
+      return route.fulfill({ status: 200, contentType: 'text/html', body: !pick ? start.replace('<html>', '<html data-cp-direction="atlas">')
+        .replace('<body>', '<body id="initBody.menuTemplate">') : `<!doctype html><html><head><title>${pick[0]}</title></head><body>
+        <form name="leftNavForm"><a class="leftnavfolder">Profile</a></form>
+        <table><tr><td width="82%"><form name="mainForm" method="post"><input type="hidden" name="formtokenserial" value="token-${++token}">
+        <input name="action" value="" type="HIDDEN"><input name="toAdd" value="" type="HIDDEN"><input name="toRemove" value="" type="HIDDEN">
+        ${pick[1]}</form><script src="validate.js"></script></td></tr></table></body></html>` });
+    });
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Reseller/Groups/', { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: pjaxPath });
+    await page.addScriptTag({ path: formsPath });
+    const open = async (target, title) => {
+      await page.evaluate(target => window.redirectPost(target, {}), target);
+      await page.waitForFunction(([target, title]) => location.pathname === target &&
+        document.querySelector('.cp-dl-title')?.textContent === title && !document.querySelector('td[width="82%"]').inert, [target, title]);
+    };
+    // One move, then the page it returns: exactly one POST and nothing posted after it.
+    const move = async (card, label) => {
+      const sent = posts.length, before = await page.evaluate(() => document.getElementsByName('formtokenserial')[0].value);
+      await page.locator('.cp-dl').nth(card).getByRole('button', { name: label }).click();
+      await page.waitForFunction(before => document.getElementsByName('formtokenserial')[0]?.value !== before, before, { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(200);
+      return posts.slice(sent);
+    };
+
+    await open('/commpilot/User/Privacy/', 'Available Users');
+    await page.getByRole('listbox', { name: 'Assigned Monitors' }).getByRole('option', { name: 'bob' }).click();
+    assert.deepEqual(await move(0, '‹ Remove'), [{ path: '/commpilot/User/Privacy/', action: 'remove', toAdd: '', toRemove: 'bob' }]);
+    assert.deepEqual(await move(0, '« Remove all'), [{ path: '/commpilot/User/Privacy/', action: 'remove', toAdd: '', toRemove: 'bob' }]);
+
+    await open('/commpilot/User/AssignServices/', 'Available Service Packs');
+    assert.deepEqual(await move(0, 'Add all »'), [{ path: '/commpilot/User/AssignServices/', action: 'add',
+      toAdd: '', toRemove: '', packToAdd: 'Gold Pack,Silver Pack', packToRemove: '' }]);
+    assert.deepEqual(await page.evaluate(() => window.nativeMoves),
+      ['PICKLIST_removeUser', 'PICKLIST_removeAllUsers', 'PICKLIST_selectAllServicePack']);
+
+    // Assign Domains keeps its in-shell move, which never removes the default domain.
+    await open('/commpilot/Group/AssignDomains/', 'Available Domains');
+    assert.deepEqual(await move(0, '« Remove all'), [{ path: '/commpilot/Group/AssignDomains/', action: 'remove', toAdd: '', toRemove: 'b.example.com' }]);
+    assert.equal((await page.evaluate(() => window.nativeMoves)).length, 3, 'the Assign Domains move does not also run the page script');
   } finally { await browser.close(); }
 });
 

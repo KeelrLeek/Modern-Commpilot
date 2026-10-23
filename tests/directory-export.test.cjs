@@ -268,3 +268,69 @@ test('directory export refuses to overlap an active list search and permits a la
     await waitForDownload(page,downloads);
     assert.equal(downloads.length,1);
   }));
+
+// CommPilot's Department criterion swaps findValue0 for a select of the CURRENT group's departments, keyed
+// 'G+<SP>+<group>+<department>'. PJAX keeps one document across groups, so each export reads the page on screen.
+for (const first of ['departments', 'no departments']) test(`a second group's directory export reads its own departments after a group with ${first}`, async () => {
+  const groups = { A: { name: 'First Donuts', depts: first === 'departments' ? ['Basement', 'Front Counter'] : [] },
+    B: { name: 'Second Bagels', depts: ['Support', 'Kitchen'] } };
+  const key = (group, dept) => `G+Test_SP+${groups[group].name}+${dept}`;
+  const directory = group => `<html><head><title>${groups[group].name}: Group Directory</title><style>.cp-uxp-hide{display:none}</style></head>
+    <body><form name="leftNavForm"></form><table><tr><td width="82%"><form name="mainForm" method="post">
+    <input name="formtokenserial" value="t-${group}"><table id="searchTable"><tr>
+    <td><select id="findKey0" name="findKey0"><option value="UserLastName">Last Name</option><option value="ExactUserDepartment">Department</option></select></td>
+    <td><input type="text" id="findValue0" name="findValue0"></td></tr></table></form>
+    <script>document.getElementById('findKey0').addEventListener('change', function (e) {
+      var old = document.getElementById('findValue0'), next;
+      if (e.target.value === 'ExactUserDepartment') {
+        next = document.createElement('select');
+        ${JSON.stringify(groups[group].depts.map(d => [d, key(group, d)]))}.forEach(function (d) { next.add(new Option(d[0], d[1])); });
+      } else { next = document.createElement('input'); next.type = 'text'; }
+      next.id = next.name = 'findValue0';
+      old.replaceWith(next);
+    });</script></td></tr></table><script>window.redirectPost=window.redirectPost||function(){};</script></body></html>`;
+  const rows = (group, deptKey) => (groups[group].depts.length ? groups[group].depts : ['']).filter(d => deptKey == null || key(group, d) === deptKey)
+    .map((d, i) => `<row><col>${group}${d}, User</col><col>${group.toLowerCase()}${d || i}</col><col>${d}</col><col>44201234${i}</col><col>${i}</col></row>`).join('');
+  const browser = await chromium.launch({ headless: true, executablePath:
+    process.env.CHROME_PATH || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe' });
+  try {
+    const page = await browser.newPage();
+    const errors = [], reports = [];
+    let group = 'A';
+    page.on('pageerror', e => errors.push(e.message));
+    await page.route('**/*', route => {
+      const request = route.request(), body = new URLSearchParams(request.postData() || '');
+      if (new URL(request.url()).origin !== 'https://apps-sbx.avpaas.io') return route.abort();
+      if (request.url().includes('/servlet/ClientBGListServlet')) {
+        const deptKey = body.get('findKey0') === 'ExactUserDepartment' ? body.get('findValue0') : null;
+        reports.push({ group, findKey0: body.get('findKey0'), findValue0: body.get('findValue0') });
+        return route.fulfill({ contentType: 'text/xml', body: '<report><colHeading>Name</colHeading><colHeading>User ID</colHeading>' +
+          '<colHeading>Department</colHeading><colHeading>Number</colHeading><colHeading>Extension</colHeading>' + rows(group, deptKey) + '</report>' });
+      }
+      if (body.get('group')) group = body.get('group');
+      return route.fulfill({ contentType: 'text/html', body: directory(group) });
+    });
+    const exportDirectory = async () => {
+      await page.locator('#cp-native-directory-export').click();
+      await page.locator('.cp-uxp-start').click();
+      await page.waitForFunction(() => /Export complete|Export stopped/.test(document.querySelector('.cp-uxp-h')?.textContent || ''));
+      const result = { heading: await page.locator('.cp-uxp-h').innerText(), warns: await page.locator('.cp-uxp-warns').innerText() };
+      await page.locator('.cp-uxp-cancel').click();
+      return result;
+    };
+    await page.goto('https://apps-sbx.avpaas.io/commpilot/Group/CompanyDir/index.jsp');
+    await page.addScriptTag({ path: pjax });
+    assert.equal((await exportDirectory()).heading, 'Export complete');
+    assert.deepEqual(reports.splice(0).map(r => r.findValue0), groups.A.depts.length ? groups.A.depts.map(d => key('A', d)) : ['']);
+
+    await page.evaluate(() => { window.firstDocument = document; window.redirectPost('/commpilot/Group/CompanyDir/index.jsp', { group: 'B' }); });
+    await page.waitForFunction(() => document.getElementsByName('formtokenserial')[0]?.value === 't-B' &&
+      document.getElementById('cp-native-directory-export'));
+    assert.equal(await page.evaluate(() => document === window.firstDocument), true, 'the second group opened in-shell');
+    const second = await exportDirectory();
+    assert.equal(second.heading, 'Export complete', second.warns);
+    assert.deepEqual(reports.map(r => [r.group, r.findKey0, r.findValue0]),
+      groups.B.depts.map(d => ['B', 'ExactUserDepartment', key('B', d)]), 'only the second group\'s own departments are requested');
+    assert.deepEqual(errors, []);
+  } finally { await browser.close(); }
+});
