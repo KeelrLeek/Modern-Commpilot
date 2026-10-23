@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "BroadWorks Enhancer PJAX Preview",
-  "version": "0.3.83",
+  "version": "0.3.84",
   "description": "CommPilot 2.0 interface, PJAX navigation, admin helpers, and encrypted saved sign-ins.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7iMWxpf4bcL+C5nyMpg/k/tD5G2Dh79tRwrxwFYirETH1UWzw07JeNyB0XPwyExF/41G5abCSe7hpx7l6PP5uAZvyPfi1LdmMXJiJ8qI+13R0vb41i4ZFWtCEqkHH0Ki1Y+FXoI8EaDm5AgUJ8QTiQ1U7M07yFBnsyX/AdOXjqYjcF+TI4blBzM8J2BLnpvpyV+sMkIi6Q+jMVSsCFdxxzQkCYVGz3teS4dQpUnTfy5a+Hwy82wpGBg1MaFeFLI08nH887D1O0XBMkhfyo70QiGmi9re+IuIYSW9X9hOAzo9XZHZSr+1dIfV0mzS52aOyRnt8/0EytcE1K6JWNYJCQIDAQAB",
   "icons": {

@@ -293,6 +293,12 @@
 
   // What is new in each version (About, in the Settings window). Plain text; the newest version first.
   const NEWS = {
+    "0.3.84": [
+      "After a session expires on a user, group or service-provider page, reloading goes to sign-in and reopens that page afterwards instead of stopping on Page recovery paused. A paused recovery also offers Go to login.",
+      "Saves are not sent twice: a repeated OK or Apply while a save is pending is ignored, a slow save keeps its result, Enter in a pick-list filter no longer saves, and a failed Back keeps Apply on the page on screen.",
+      "Pick lists, bulk tools and lists are more reliable: Remove works again on Privacy and similar pages, international numbers keep their country code for caller ID, and superseded searches no longer flash old results.",
+      "Pages with many dropdowns and long waits no longer freeze, and the breadcrumb, menus, sign-in and update checks behave more predictably.",
+    ],
     "0.3.83": [
       "Bulk creation supports saved group defaults, mixed personal-number and extension-only users, editable prefixes, and international numbers with country codes retained. Choose device profiles individually and configure voicemail, Webex device access and final Integrated IM&P setup where needed.",
       "Settings now includes Stable and Nightly update channels, automatic checks, release notes and download instructions. Unpacked installations still require replacing files and reloading the extension after finishing unsaved work.",
