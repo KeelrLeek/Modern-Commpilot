@@ -51,11 +51,16 @@ html[data-cp-direction] body[id="initBody.menuTemplate"] td[width="82%"] > :not(
   & .cp-searchbar select[name^="findOp"] { width:118px !important; }
   & .cp-searchbar :is(input,select)[name^="findValue"] { width:260px !important; }
   & .cp-searchbar :is(input,select) { height:32px; min-height:32px; }
-  & .cp-searchbar td:has(> input[name="search"]) { position:relative; }
+  /* The icon shares the button's grid cell, so it sits on the button however CommPilot's centred cell is sized, and
+     rises with the button's hover lift (theme-palettes.css) instead of staying behind. */
+  & .cp-searchbar td:has(> input[name="search"]) { display:inline-grid; align-items:center; justify-items:start; }
+  & .cp-searchbar td:has(> input[name="search"]) > input[name="search"] { grid-area:1/1; margin:0; }
   & .cp-searchbar td:has(> input[name="search"])::before {
-    content:''; position:absolute; z-index:1; left:12px; top:50%; width:14px; height:14px; transform:translateY(-50%); pointer-events:none;
+    content:''; grid-area:1/1; z-index:1; margin-left:12px; width:14px; height:14px; pointer-events:none; transition:transform .14s ease;
     background:var(--d-action-text); mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m16 16 4.5 4.5'/%3E%3C/svg%3E") center/contain no-repeat;
   }
+  & .cp-searchbar td:has(> input[name="search"]:hover:not(:disabled))::before { transform:translateY(-1px); }
+  & .cp-searchbar td:has(> input[name="search"]:active:not(:disabled))::before { transform:translateY(0); }
   & .cp-searchbar input[name="search"] { padding-inline:32px 12px; min-width:87px; }
   & .cp-searchbar-actions { align-self:center; padding:0; }
   & .cp-searchbar-actions button { height:32px; min-height:32px; padding-inline:9px; }

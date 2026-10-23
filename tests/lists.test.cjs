@@ -232,6 +232,27 @@ test('search design A fills the window by default, refits on resize and preserve
   }finally{await browser.close();}
 });
 
+test('search design A keeps the Search icon on the button, in a wide centred cell and through the hover lift',async()=>{
+  const browser=await chromium.launch({executablePath:browserPath,headless:true});
+  try{
+    // CommPilot's own cell: centred, with whitespace around the button.
+    const search='<table><tr id="tr0"><td><select name="findKey0"><option>User ID</option></select></td><td><select name="findOp0"><option>Contains</option></select></td><td><input name="findValue0"></td><td id="td05" name="td05" align="center"> <input type="submit" class="bwbutton" id="search0" name="search" value="Search"> </td></tr></table>';
+    const page=await open(browser,listPage(names(30),{pager:'Page 1 of 2',fill:'done'}).replace('<td class="enduserbody">','<td class="enduserbody">'+search));
+    const place=()=>page.evaluate(()=>{
+      const td=document.getElementById('td05'),input=document.getElementById('search0'),icon=getComputedStyle(td,'::before');
+      return {cell:getComputedStyle(td).display,iconArea:[icon.gridRowStart,icon.gridColumnStart],inputArea:[getComputedStyle(input).gridRowStart,getComputedStyle(input).gridColumnStart],
+        iconInset:icon.marginLeft,iconZ:icon.zIndex,inputLeftInCell:input.getBoundingClientRect().left-td.getBoundingClientRect().left,lift:icon.transform};
+    });
+    const rest={cell:'grid',iconArea:['1','1'],inputArea:['1','1'],iconInset:'12px',iconZ:'1',inputLeftInCell:0,lift:'none'};
+    assert.deepEqual(await place(),rest,'the icon shares the button’s grid cell, 12px in, above it');
+    await page.locator('#td05').evaluate(td=>{td.style.width='240px';});
+    assert.deepEqual(await place(),rest,'a wider cell keeps the button at its start, where the icon is');
+    await page.locator('#search0').hover();await page.waitForTimeout(300);
+    assert.equal((await place()).lift,'matrix(1, 0, 0, 1, 0, -1)','the icon rises with the button');
+    assert.equal(await page.locator('#search0').evaluate(el=>getComputedStyle(el).transform),'matrix(1, 0, 0, 1, 0, -1)');
+  }finally{await browser.close();}
+});
+
 test('search design A keeps its fitted page size, and First and Last, through repeated sorts',async()=>{
   const browser=await chromium.launch({executablePath:browserPath,headless:true});
   try{
